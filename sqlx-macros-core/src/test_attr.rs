@@ -1,18 +1,5 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::LitStr;
-
-struct Args {
-    fixtures: Vec<LitStr>,
-    migrations: MigrationsOpt,
-}
-
-enum MigrationsOpt {
-    InferredPath,
-    ExplicitPath(LitStr),
-    ExplicitMigrator(syn::Path),
-    Disabled,
-}
 
 pub fn expand(args: syn::AttributeArgs, input: syn::ItemFn) -> crate::Result<TokenStream> {
     let ret = &input.sig.output;
