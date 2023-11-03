@@ -12,7 +12,7 @@ use crate::{
     executor::{Execute, Executor},
     sqlite::Sqlite,
     types::Type,
-    Arguments, Row, Statement,
+    Arguments, QueryResult, Row, Statement,
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
@@ -144,7 +144,7 @@ where
 
     /// Execute the query and return the total number of rows affected.
     #[inline]
-    pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::QueryResult, Error>
+    pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<QueryResult, Error>
     where
         'q: 'e,
         A: 'e,
@@ -158,7 +158,7 @@ where
     pub async fn execute_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<DB::QueryResult, Error>>
+    ) -> BoxStream<'e, Result<QueryResult, Error>>
     where
         'q: 'e,
         A: 'e,
@@ -184,7 +184,7 @@ where
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<DB::QueryResult, Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'q: 'e,
         A: 'e,
@@ -319,7 +319,7 @@ where
     pub fn fetch_many<'e, 'c: 'e, E>(
         mut self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<DB::QueryResult, O>, Error>>
+    ) -> BoxStream<'e, Result<Either<QueryResult, O>, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c, Database = DB>,

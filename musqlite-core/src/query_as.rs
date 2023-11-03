@@ -14,7 +14,7 @@ use crate::{
     query::{query, query_statement, query_statement_with, query_with, Query},
     sqlite::Sqlite,
     types::Type,
-    Arguments, Statement,
+    Arguments, QueryResult, Statement,
 };
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
@@ -106,7 +106,7 @@ where
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<DB::QueryResult, O>, Error>>
+    ) -> BoxStream<'e, Result<Either<QueryResult, O>, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c, Database = DB>,

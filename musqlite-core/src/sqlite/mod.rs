@@ -8,7 +8,7 @@ pub use error::SqliteError;
 pub use options::{
     ConnectOptions, SqliteAutoVacuum, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
 };
-pub use query_result::SqliteQueryResult;
+pub use query_result::QueryResult;
 pub use row::Row;
 pub use statement::Statement;
 pub use transaction::TransactionManager;

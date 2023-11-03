@@ -9,7 +9,7 @@ use crate::{
     error::Error,
     executor::{Execute, Executor},
     pool::Pool,
-    sqlite, Connection, Row, Statement,
+    sqlite, Connection, QueryResult, Row, Statement,
 };
 
 impl<'p, DB: Database> Executor<'p> for &'_ Pool
@@ -21,7 +21,7 @@ where
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<DB::QueryResult, Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         E: Execute<'q, Self::Database>,
     {

@@ -1,6 +1,6 @@
 use std::str::FromStr;
 
-use musqlite_core::sqlite::SqliteQueryResult;
+use musqlite_core::sqlite::QueryResult;
 use musqlite_core::{query, Connection};
 use musqlite_core::{sqlite::*, ConnectOptions};
 use tempdir::TempDir;
@@ -12,7 +12,7 @@ async fn new_db_url() -> anyhow::Result<(String, TempDir)> {
     Ok((format!("sqlite://{}", filepath.display()), dir))
 }
 
-async fn fill_db(conn: &mut Connection) -> anyhow::Result<SqliteQueryResult> {
+async fn fill_db(conn: &mut Connection) -> anyhow::Result<QueryResult> {
     conn.transaction(|tx| {
         Box::pin(async move {
             query(

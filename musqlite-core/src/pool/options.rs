@@ -1,5 +1,4 @@
 use crate::{
-    database::Database,
     error::Error,
     pool::{inner::PoolInner, Pool},
     ConnectOptions, Connection,

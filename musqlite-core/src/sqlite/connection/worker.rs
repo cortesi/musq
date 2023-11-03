@@ -18,7 +18,7 @@ use crate::sqlite::connection::describe::describe;
 use crate::sqlite::connection::establish::EstablishParams;
 use crate::sqlite::connection::ConnectionState;
 use crate::sqlite::connection::{execute, ConnectionHandleRaw};
-use crate::sqlite::{Arguments, Row, SqliteQueryResult, Statement};
+use crate::sqlite::{Arguments, QueryResult, Row, Statement};
 
 // Each SQLite connection has a dedicated thread.
 
@@ -52,7 +52,7 @@ enum Command {
         query: Box<str>,
         arguments: Option<Arguments<'static>>,
         persistent: bool,
-        tx: flume::Sender<Result<Either<SqliteQueryResult, Row>, Error>>,
+        tx: flume::Sender<Result<Either<QueryResult, Row>, Error>>,
     },
     Begin {
         tx: rendezvous_oneshot::Sender<Result<(), Error>>,
@@ -285,7 +285,7 @@ impl ConnectionWorker {
         args: Option<Arguments<'_>>,
         chan_size: usize,
         persistent: bool,
-    ) -> Result<flume::Receiver<Result<Either<SqliteQueryResult, Row>, Error>>, Error> {
+    ) -> Result<flume::Receiver<Result<Either<QueryResult, Row>, Error>>, Error> {
         let (tx, rx) = flume::bounded(chan_size);
 
         self.command_tx

@@ -1,5 +1,6 @@
 use crate::{
-    database::Database, describe::Describe, error::Error, sqlite, Arguments, Row, Statement,
+    database::Database, describe::Describe, error::Error, sqlite, Arguments, QueryResult, Row,
+    Statement,
 };
 
 use either::Either;
@@ -27,10 +28,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     type Database: Database;
 
     /// Execute the query and return the total number of rows affected.
-    fn execute<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::QueryResult, Error>>
+    fn execute<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<QueryResult, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -39,10 +37,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    fn execute_many<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxStream<'e, Result<<Self::Database as Database>::QueryResult, Error>>
+    fn execute_many<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxStream<'e, Result<QueryResult, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -78,7 +73,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<<Self::Database as Database>::QueryResult, Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>;
