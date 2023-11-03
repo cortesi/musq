@@ -67,7 +67,6 @@ pub mod database;
 pub mod describe;
 pub mod executor;
 pub mod from_row;
-pub mod io;
 pub mod logger;
 pub mod query_as;
 pub mod query_builder;
