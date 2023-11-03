@@ -1,0 +1,15 @@
+# Built artifacts
+target/
+
+# Project and editor files
+.vscode/
+.idea/
+*.vim
+*.vi
+
+# Environment
+.env
+
+# Shared-memory and WAL files created by SQLite.
+*-shm
+*-wal
