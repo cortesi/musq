@@ -11,7 +11,7 @@ pub use options::{
 pub use query_result::SqliteQueryResult;
 pub use row::Row;
 pub use statement::Statement;
-pub use transaction::SqliteTransactionManager;
+pub use transaction::TransactionManager;
 pub use type_info::TypeInfo;
 pub use value::{Value, ValueRef};
 

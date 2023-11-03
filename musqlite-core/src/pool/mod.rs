@@ -385,7 +385,7 @@ fn assert_pool_traits() {
     fn assert_clone<T: Clone>() {}
 
     fn assert_pool<DB: Database>() {
-        assert_send_sync::<Pool<DB>>();
-        assert_clone::<Pool<DB>>();
+        assert_send_sync::<Pool>();
+        assert_clone::<Pool>();
     }
 }

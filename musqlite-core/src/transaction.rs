@@ -4,30 +4,7 @@ use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
 
-use crate::{
-    database::Database, error::Error, pool::MaybePoolConnection, sqlite::SqliteTransactionManager,
-    Connection,
-};
-
-/// Generic management of database transactions.
-///
-/// This trait should not be used, except when implementing [`Connection`].
-#[doc(hidden)]
-pub trait TransactionManager {
-    type Database: Database;
-
-    /// Begin a new transaction or establish a savepoint within the active transaction.
-    fn begin(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>>;
-
-    /// Commit the active transaction or release the most recent savepoint.
-    fn commit(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>>;
-
-    /// Abort the active transaction or restore from the most recent savepoint.
-    fn rollback(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>>;
-
-    /// Starts to abort the active transaction or restore from the most recent snapshot.
-    fn start_rollback(conn: &mut Connection);
-}
+use crate::{error::Error, pool::MaybePoolConnection, Connection, TransactionManager};
 
 /// An in-progress database transaction or savepoint.
 ///
@@ -56,7 +33,7 @@ impl<'c> Transaction<'c> {
         let mut conn = conn.into();
 
         Box::pin(async move {
-            SqliteTransactionManager::begin(&mut conn).await?;
+            TransactionManager::begin(&mut conn).await?;
 
             Ok(Self {
                 connection: conn,
@@ -67,7 +44,7 @@ impl<'c> Transaction<'c> {
 
     /// Commits this transaction or savepoint.
     pub async fn commit(mut self) -> Result<(), Error> {
-        SqliteTransactionManager::commit(&mut self.connection).await?;
+        TransactionManager::commit(&mut self.connection).await?;
         self.open = false;
 
         Ok(())
@@ -75,7 +52,7 @@ impl<'c> Transaction<'c> {
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(mut self) -> Result<(), Error> {
-        SqliteTransactionManager::rollback(&mut self.connection).await?;
+        TransactionManager::rollback(&mut self.connection).await?;
         self.open = false;
 
         Ok(())
@@ -208,7 +185,7 @@ impl<'c> Drop for Transaction<'c> {
             // operation that will happen on the next asynchronous invocation of the underlying
             // connection (including if the connection is returned to a pool)
 
-            SqliteTransactionManager::start_rollback(&mut self.connection);
+            TransactionManager::start_rollback(&mut self.connection);
         }
     }
 }

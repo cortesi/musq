@@ -82,8 +82,8 @@ fn expand_derive_from_row_struct(
 
             let expr: Expr = match (attributes.flatten, attributes.try_from) {
                 (true, None) => {
-                    predicates.push(parse_quote!(#ty: musqlite_core::FromRow<#lifetime, R>));
-                    parse_quote!(<#ty as musqlite_core::FromRow<#lifetime, R>>::from_row(row))
+                    predicates.push(parse_quote!(#ty: musqlite_core::FromRow<#lifetime>));
+                    parse_quote!(<#ty as musqlite_core::FromRow<#lifetime>>::from_row(row))
                 }
                 (false, None) => {
                     predicates
@@ -101,8 +101,8 @@ fn expand_derive_from_row_struct(
                     parse_quote!(row.try_get(#id_s))
                 }
                 (true,Some(try_from)) => {
-                    predicates.push(parse_quote!(#try_from: musqlite_core::FromRow<#lifetime, R>));
-                    parse_quote!(<#try_from as musqlite_core::FromRow<#lifetime, R>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musqlite_core::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                    predicates.push(parse_quote!(#try_from: musqlite_core::FromRow<#lifetime>));
+                    parse_quote!(<#try_from as musqlite_core::FromRow<#lifetime>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musqlite_core::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                 }
                 (false,Some(try_from)) => {
                     predicates
@@ -142,7 +142,7 @@ fn expand_derive_from_row_struct(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite_core::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
+        impl #impl_generics musqlite_core::FromRow<#lifetime> for #ident #ty_generics #where_clause {
             fn from_row(row: &#lifetime R) -> musqlite_core::Result<Self> {
                 #(#reads)*
 
@@ -201,7 +201,7 @@ fn expand_derive_from_row_struct_unnamed(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite_core::FromRow<#lifetime, R> for #ident #ty_generics #where_clause {
+        impl #impl_generics musqlite_core::FromRow<#lifetime> for #ident #ty_generics #where_clause {
             fn from_row(row: &#lifetime R) -> ::Result<Self> {
                 ::std::result::Result::Ok(#ident (
                     #(#gets),*

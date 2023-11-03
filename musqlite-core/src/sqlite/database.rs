@@ -1,13 +1,12 @@
 pub(crate) use crate::database::{Database, HasStatementCache};
 
-use crate::sqlite::{SqliteQueryResult, SqliteTransactionManager};
+use crate::sqlite::SqliteQueryResult;
 
 /// Sqlite database driver.
 #[derive(Debug)]
 pub struct Sqlite;
 
 impl Database for Sqlite {
-    type TransactionManager = SqliteTransactionManager;
     type QueryResult = SqliteQueryResult;
 }
 

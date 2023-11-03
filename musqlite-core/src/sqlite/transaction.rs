@@ -1,28 +1,25 @@
 use futures_core::future::BoxFuture;
 
 use crate::error::Error;
-use crate::sqlite::{Connection, Sqlite};
-use crate::transaction::TransactionManager;
+use crate::sqlite::Connection;
 
 /// Implementation of [`TransactionManager`] for SQLite.
-pub struct SqliteTransactionManager;
+pub struct TransactionManager;
 
-impl TransactionManager for SqliteTransactionManager {
-    type Database = Sqlite;
-
-    fn begin(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+impl TransactionManager {
+    pub fn begin(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(conn.worker.begin())
     }
 
-    fn commit(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn commit(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(conn.worker.commit())
     }
 
-    fn rollback(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn rollback(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(conn.worker.rollback())
     }
 
-    fn start_rollback(conn: &mut Connection) {
+    pub fn start_rollback(conn: &mut Connection) {
         conn.worker.start_rollback().ok();
     }
 }
