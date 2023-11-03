@@ -25,33 +25,22 @@ pub use sqlx_core::Either;
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};
 
-#[cfg_attr(docsrs, doc(cfg(feature = "sqlite")))]
 pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
-
-#[cfg(feature = "macros")]
 #[doc(hidden)]
 pub extern crate sqlx_macros;
 
 // derives
-#[cfg(feature = "macros")]
 #[doc(hidden)]
 pub use sqlx_macros::{FromRow, Type};
 
-#[cfg(feature = "macros")]
 pub use sqlx_macros::test;
-
-#[doc(hidden)]
-#[cfg(feature = "migrate")]
-pub use sqlx_core::testing;
 
 #[doc(hidden)]
 pub use sqlx_core::rt::test_block_on;
 
-#[cfg(feature = "macros")]
 mod macros;
 
 // macro support
-#[cfg(feature = "macros")]
 #[doc(hidden)]
 pub mod ty_match;
 
@@ -73,7 +62,6 @@ pub use sqlx_core::rt as __rt;
 pub mod types {
     pub use sqlx_core::types::*;
 
-    #[cfg(feature = "macros")]
     #[doc(hidden)]
     pub use sqlx_macros::Type;
 }
@@ -82,7 +70,6 @@ pub mod types {
 pub mod encode {
     pub use sqlx_core::encode::{Encode, IsNull};
 
-    #[cfg(feature = "macros")]
     #[doc(hidden)]
     pub use sqlx_macros::Encode;
 }
@@ -93,7 +80,6 @@ pub use self::encode::Encode;
 pub mod decode {
     pub use sqlx_core::decode::Decode;
 
-    #[cfg(feature = "macros")]
     #[doc(hidden)]
     pub use sqlx_macros::Decode;
 }

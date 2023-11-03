@@ -29,38 +29,7 @@ authors.workspace = true
 repository.workspace = true
 
 [package.metadata.docs.rs]
-features = ["all-databases", "_unstable-all-types"]
 rustdoc-args = ["--cfg", "docsrs"]
-
-[features]
-default = ["macros", "json", "sqlite"]
-macros = ["sqlx-macros"]
-
-# intended mainly for CI and docs
-all-databases = ["sqlite", "any"]
-_unstable-all-types = [
-    "json",
-    "time",
-    "chrono",
-    "ipnetwork",
-    "mac_address",
-    "uuid",
-    "bit-vec",
-]
-
-# database
-any = ["sqlx-core/any", "sqlx-sqlite?/any"]
-sqlite = ["sqlx-sqlite", "sqlx-macros?/sqlite"]
-
-# types
-json = ["sqlx-macros?/json", "sqlx-sqlite?/json"]
-bit-vec = ["sqlx-core/bit-vec", "sqlx-macros?/bit-vec"]
-chrono = ["sqlx-core/chrono", "sqlx-macros?/chrono", "sqlx-sqlite?/chrono"]
-ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros?/ipnetwork"]
-mac_address = ["sqlx-core/mac_address", "sqlx-macros?/mac_address"]
-time = ["sqlx-core/time", "sqlx-macros?/time", "sqlx-sqlite?/time"]
-uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-sqlite?/uuid"]
-regexp = ["sqlx-sqlite?/regexp"]
 
 [workspace.dependencies]
 # Core Crates
@@ -72,7 +41,7 @@ sqlx-macros = { version = "=0.7.1", path = "sqlx-macros" }
 sqlx-sqlite = { version = "=0.7.1", path = "sqlx-sqlite" }
 
 # Facade crate (for reference from sqlx-cli)
-sqlx = { version = "=0.7.1", path = ".", default-features = false }
+sqlx = { version = "=0.7.1", path = "." }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
@@ -93,8 +62,8 @@ default-features = false
 
 [dependencies]
 sqlx-core = { workspace = true }
-sqlx-macros = { workspace = true, optional = true }
-sqlx-sqlite = { workspace = true, optional = true }
+sqlx-macros = { workspace = true }
+sqlx-sqlite = { workspace = true }
 
 [dev-dependencies]
 anyhow = "1.0.52"
@@ -121,34 +90,27 @@ libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
 [[test]]
 name = "sqlite"
 path = "tests/sqlite/sqlite.rs"
-required-features = ["sqlite"]
 
 [[test]]
 name = "sqlite-types"
 path = "tests/sqlite/types.rs"
-required-features = ["sqlite"]
 
 [[test]]
 name = "sqlite-describe"
 path = "tests/sqlite/describe.rs"
-required-features = ["sqlite"]
 
 [[test]]
 name = "sqlite-macros"
 path = "tests/sqlite/macros.rs"
-required-features = ["sqlite", "macros"]
 
 [[test]]
 name = "sqlite-derives"
 path = "tests/sqlite/derives.rs"
-required-features = ["sqlite", "macros"]
 
 [[test]]
 name = "sqlite-error"
 path = "tests/sqlite/error.rs"
-required-features = ["sqlite"]
 
 [[test]]
 name = "sqlite-sqlcipher"
 path = "tests/sqlite/sqlcipher.rs"
-required-features = ["sqlite"]

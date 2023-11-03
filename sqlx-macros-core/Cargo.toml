@@ -7,28 +7,12 @@ edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 
-[features]
-default = []
-
-# database
-sqlite = ["sqlx-sqlite"]
-
-# type integrations
-json = ["sqlx-core/json", "sqlx-sqlite?/json"]
-
-bit-vec = ["sqlx-core/bit-vec"]
-chrono = ["sqlx-core/chrono", "sqlx-sqlite?/chrono"]
-ipnetwork = ["sqlx-core/ipnetwork"]
-mac_address = ["sqlx-core/mac_address"]
-time = ["sqlx-core/time", "sqlx-sqlite?/time"]
-uuid = ["sqlx-core/uuid", "sqlx-sqlite?/uuid"]
 
 [dependencies]
 sqlx-core = { workspace = true }
-sqlx-sqlite = { workspace = true, optional = true }
+sqlx-sqlite = { workspace = true }
 
 tokio = { workspace = true }
-
 dotenvy = { workspace = true }
 
 hex = { version = "0.4.3" }

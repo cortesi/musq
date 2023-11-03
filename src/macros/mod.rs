@@ -287,7 +287,6 @@
 /// * [query_file!] if you want to define the SQL query out-of-line,
 /// * [query_file_as!] if you want both of the above.
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query (
     // in Rust 1.45 we can now invoke proc macros in expression position
     ($query:expr) => ({
@@ -309,7 +308,6 @@ macro_rules! query (
 /// A variant of [query!] which does not check the input or output types. This still does parse
 /// the query to ensure it's syntactically and semantically valid for the current database.
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_unchecked (
     ($query:expr) => ({
         $crate::sqlx_macros::expand_query!(source = $query, checked = false)
@@ -362,7 +360,6 @@ macro_rules! query_unchecked (
 /// # fn main() {}
 /// ```
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file (
     ($path:literal) => ({
         $crate::sqlx_macros::expand_query!(source_file = $path)
@@ -375,7 +372,6 @@ macro_rules! query_file (
 /// A variant of [query_file!] which does not check the input or output types. This still does parse
 /// the query to ensure it's syntactically and semantically valid for the current database.
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_unchecked (
     ($path:literal) => ({
         $crate::sqlx_macros::expand_query!(source_file = $path, checked = false)
@@ -535,7 +531,6 @@ macro_rules! query_file_unchecked (
 /// It unfortunately doesn't appear to be possible right now to make the error specifically mention
 /// the field; this probably requires the `const-panic` feature (still unstable as of Rust 1.45).
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_as (
     ($out_struct:path, $query:expr) => ( {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query)
@@ -579,7 +574,6 @@ macro_rules! query_as (
 /// # fn main() {}
 /// ```
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as (
     ($out_struct:path, $path:literal) => ( {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path)
@@ -592,7 +586,6 @@ macro_rules! query_file_as (
 /// A variant of [query_as!] which does not check the input or output types. This still does parse
 /// the query to ensure it's syntactically and semantically valid for the current database.
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_as_unchecked (
     ($out_struct:path, $query:expr) => ( {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source = $query, checked = false)
@@ -607,7 +600,6 @@ macro_rules! query_as_unchecked (
 /// still does parse the query to ensure it's syntactically and semantically valid
 /// for the current database.
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_as_unchecked (
     ($out_struct:path, $path:literal) => ( {
         $crate::sqlx_macros::expand_query!(record = $out_struct, source_file = $path, checked = false)
@@ -633,7 +625,6 @@ macro_rules! query_file_as_unchecked (
 ///
 /// See [query!] for more information.
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_scalar (
     ($query:expr) => (
         $crate::sqlx_macros::expand_query!(scalar = _, source = $query)
@@ -645,7 +636,6 @@ macro_rules! query_scalar (
 
 /// A variant of [query_scalar!] which takes a file path like [query_file!].
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_scalar (
     ($path:literal) => (
         $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path)
@@ -662,7 +652,6 @@ macro_rules! query_file_scalar (
 ///
 /// For this macro variant the name of the column is irrelevant.
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_scalar_unchecked (
     ($query:expr) => (
         $crate::sqlx_macros::expand_query!(scalar = _, source = $query, checked = false)
@@ -679,7 +668,6 @@ macro_rules! query_scalar_unchecked (
 ///
 /// For this macro variant the name of the column is irrelevant.
 #[macro_export]
-#[cfg_attr(docsrs, doc(cfg(feature = "macros")))]
 macro_rules! query_file_scalar_unchecked (
     ($path:literal) => (
         $crate::sqlx_macros::expand_query!(scalar = _, source_file = $path, checked = false)

@@ -84,15 +84,11 @@ pub(crate) use sqlx_core::types::*;
 
 mod bool;
 mod bytes;
-#[cfg(feature = "chrono")]
 mod chrono;
 mod float;
 mod int;
-#[cfg(feature = "json")]
 mod json;
 mod str;
-#[cfg(feature = "time")]
 mod time;
 mod uint;
-#[cfg(feature = "uuid")]
 mod uuid;

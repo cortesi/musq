@@ -67,11 +67,7 @@ mod type_info;
 pub mod types;
 mod value;
 
-#[cfg(feature = "regexp")]
 mod regexp;
-
-#[cfg(feature = "migrate")]
-mod testing;
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for SQLite.
 pub type SqlitePool = sqlx_core::pool::Pool<Sqlite>;

@@ -7,28 +7,21 @@ edition.workspace = true
 authors.workspace = true
 repository.workspace = true
 
-[features]
-default = []
-any = []
-json = ["serde", "serde_json"]
-
 [dependencies]
 tokio = { workspace = true }
 
 # Runtimes
 # Type Integrations
-bit-vec = { workspace = true, optional = true }
-time = { workspace = true, optional = true }
-ipnetwork = { workspace = true, optional = true }
-mac_address = { workspace = true, optional = true }
-uuid = { workspace = true, optional = true }
+bit-vec = { workspace = true }
+time = { workspace = true }
+ipnetwork = { workspace = true }
+mac_address = { workspace = true }
+uuid = { workspace = true }
 
 ahash = "0.8"
 
 bytes = "1.1.0"
-chrono = { version = "0.4.19", default-features = false, features = [
-    "clock",
-], optional = true }
+chrono = { version = "0.4.19", default-features = false, features = ["clock"] }
 crossbeam-queue = "0.3.2"
 either = { version = "1.6.1", features = ["serde"] }
 futures-channel = { version = "0.3.19", default-features = false, features = [
@@ -47,21 +40,19 @@ futures-util = { version = "0.3.19", default-features = false, features = [
 log = { version = "0.4.14", default-features = false }
 memchr = { version = "2.4.1", default-features = false }
 percent-encoding = "2.1.0"
-serde = { version = "1.0.132", features = ["derive", "rc"], optional = true }
-serde_json = { version = "1.0.73", features = ["raw_value"], optional = true }
+serde = { version = "1.0.132", features = ["derive", "rc"] }
+serde_json = { version = "1.0.73", features = ["raw_value"] }
 sqlformat = "0.2.0"
 thiserror = "1.0.30"
 tracing = { version = "0.1.37", features = ["log"] }
 smallvec = "1.7.0"
 url = { version = "2.2.2", default-features = false }
-bstr = { version = "1.0", default-features = false, features = [
-    "std",
-], optional = true }
+bstr = { version = "1.0", default-features = false, features = ["std"] }
 hashlink = "0.8.0"
 indexmap = "2.0"
 event-listener = "2.5.2"
 
 
 [dev-dependencies]
-sqlx = { workspace = true, features = ["sqlite", "macros"] }
+sqlx = { workspace = true }
 tokio = { version = "1", features = ["rt"] }

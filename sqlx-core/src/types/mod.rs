@@ -17,21 +17,12 @@
 
 use crate::database::Database;
 
-#[cfg(feature = "bstr")]
-#[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
 pub mod bstr;
 
-#[cfg(feature = "json")]
-#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 mod json;
 
-#[cfg(feature = "uuid")]
-#[cfg_attr(docsrs, doc(cfg(feature = "uuid")))]
-#[doc(no_inline)]
 pub use uuid::{self, Uuid};
 
-#[cfg(feature = "chrono")]
-#[cfg_attr(docsrs, doc(cfg(feature = "chrono")))]
 pub mod chrono {
     #[doc(no_inline)]
     pub use chrono::{
@@ -39,33 +30,24 @@ pub mod chrono {
     };
 }
 
-#[cfg(feature = "bit-vec")]
-#[cfg_attr(docsrs, doc(cfg(feature = "bit-vec")))]
 #[doc(no_inline)]
 pub use bit_vec::BitVec;
 
-#[cfg(feature = "time")]
-#[cfg_attr(docsrs, doc(cfg(feature = "time")))]
 pub mod time {
     #[doc(no_inline)]
     pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 }
 
-#[cfg(feature = "ipnetwork")]
-#[cfg_attr(docsrs, doc(cfg(feature = "ipnetwork")))]
 pub mod ipnetwork {
     #[doc(no_inline)]
     pub use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
 }
 
-#[cfg(feature = "mac_address")]
-#[cfg_attr(docsrs, doc(cfg(feature = "mac_address")))]
 pub mod mac_address {
     #[doc(no_inline)]
     pub use mac_address::MacAddress;
 }
 
-#[cfg(feature = "json")]
 pub use json::{Json, JsonRawValue, JsonValue};
 
 /// Indicates that a SQL type is supported for a database.

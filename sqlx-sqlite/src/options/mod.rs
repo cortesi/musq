@@ -82,7 +82,6 @@ pub struct SqliteConnectOptions {
 
     pub(crate) optimize_on_close: OptimizeOnClose,
 
-    #[cfg(feature = "regexp")]
     pub(crate) register_regexp_function: bool,
 }
 
@@ -200,7 +199,6 @@ impl SqliteConnectOptions {
             command_channel_size: 50,
             row_channel_size: 50,
             optimize_on_close: OptimizeOnClose::Disabled,
-            #[cfg(feature = "regexp")]
             register_regexp_function: false,
         }
     }
@@ -543,7 +541,6 @@ impl SqliteConnectOptions {
     /// ```
     ///
     /// This uses the [`regex`] crate, and is only enabled when you enable the `regex` feature is enabled on sqlx
-    #[cfg(feature = "regexp")]
     pub fn with_regexp(mut self) -> Self {
         self.register_regexp_function = true;
         self

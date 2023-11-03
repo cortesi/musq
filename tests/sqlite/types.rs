@@ -36,7 +36,6 @@ test_type!(bytes<Vec<u8>>(Sqlite,
         == vec![0_u8, 0, 0, 0, 0x52]
 ));
 
-#[cfg(feature = "json")]
 mod json_tests {
     use super::*;
     use serde_json::{json, Value as JsonValue};
@@ -91,7 +90,6 @@ mod json_tests {
     }
 }
 
-#[cfg(feature = "chrono")]
 mod chrono {
     use super::*;
     use sqlx::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
@@ -109,7 +107,6 @@ mod chrono {
     ));
 }
 
-#[cfg(feature = "time")]
 mod time_tests {
     use super::*;
     use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
@@ -157,7 +154,6 @@ mod time_tests {
     ));
 }
 
-#[cfg(feature = "bstr")]
 mod bstr {
     use super::*;
     use sqlx::types::bstr::BString;
@@ -168,20 +164,6 @@ mod bstr {
     ));
 }
 
-#[cfg(feature = "git2")]
-mod git2 {
-    use super::*;
-    use sqlx::types::git2::Oid;
-
-    test_type!(oid<Oid>(
-        Sqlite,
-        "x'0000000000000000000000000000000000000000'" == Oid::zero(),
-        "x'000102030405060708090a0b0c0d0e0f10111213'"
-            == Oid::from_str("000102030405060708090a0b0c0d0e0f10111213").unwrap()
-    ));
-}
-
-#[cfg(feature = "uuid")]
 test_type!(uuid<sqlx::types::Uuid>(Sqlite,
     "x'b731678f636f4135bc6f19440c13bd19'"
         == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
@@ -189,7 +171,6 @@ test_type!(uuid<sqlx::types::Uuid>(Sqlite,
         == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
-#[cfg(feature = "uuid")]
 test_type!(uuid_hyphenated<sqlx::types::uuid::fmt::Hyphenated>(Sqlite,
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
         == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
@@ -197,7 +178,6 @@ test_type!(uuid_hyphenated<sqlx::types::uuid::fmt::Hyphenated>(Sqlite,
         == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
 
-#[cfg(feature = "uuid")]
 test_type!(uuid_simple<sqlx::types::uuid::fmt::Simple>(Sqlite,
     "'b731678f636f4135bc6f19440c13bd19'"
         == sqlx::types::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),

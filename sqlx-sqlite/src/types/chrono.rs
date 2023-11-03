@@ -2,16 +2,16 @@ use std::fmt::Display;
 
 use crate::value::ValueRef;
 use crate::{
-    decode::Decode,
-    encode::{Encode, IsNull},
-    error::BoxDynError,
-    type_info::DataType,
-    types::Type,
-    Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
+    error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue,
+    SqliteTypeInfo, SqliteValueRef,
 };
 use chrono::FixedOffset;
 use chrono::{
     DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc,
+};
+use sqlx_core::{
+    decode::Decode,
+    encode::{Encode, IsNull},
 };
 
 impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {

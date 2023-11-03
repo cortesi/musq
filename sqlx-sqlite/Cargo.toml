@@ -10,13 +10,6 @@ repository.workspace = true
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
-[features]
-any = ["sqlx-core/any"]
-json = ["sqlx-core/json", "serde"]
-
-chrono = ["dep:chrono"]
-regexp = ["dep:regex"]
-
 [dependencies]
 futures-core = { version = "0.3.19", default-features = false }
 futures-channel = { version = "0.3.19", default-features = false, features = [
@@ -32,9 +25,9 @@ futures-util = { version = "0.3.19", default-features = false, features = [
     "sink",
 ] }
 
-chrono = { workspace = true, optional = true }
-time = { workspace = true, optional = true }
-uuid = { workspace = true, optional = true }
+chrono = { workspace = true }
+time = { workspace = true }
+uuid = { workspace = true }
 
 url = { version = "2.2.2", default-features = false }
 percent-encoding = "2.1.0"
@@ -46,8 +39,8 @@ atoi = "2.0"
 log = "0.4.17"
 tracing = { version = "0.1.37", features = ["log"] }
 
-serde = { version = "1.0.145", features = ["derive"], optional = true }
-regex = { version = "1.5.5", optional = true }
+serde = { version = "1.0.145", features = ["derive"] }
+regex = { version = "1.5.5" }
 
 [dependencies.libsqlite3-sys]
 version = "0.26.0"
@@ -58,4 +51,4 @@ features = ["pkg-config", "vcpkg", "bundled", "unlock_notify"]
 workspace = true
 
 [dev-dependencies]
-sqlx = { workspace = true, default-features = false, features = ["macros"] }
+sqlx = { workspace = true }
