@@ -6,20 +6,19 @@ use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::{
     arguments::IntoArguments,
-    database::{Database, HasStatement, HasStatementCache},
+    database::{Database, HasStatementCache},
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
     sqlite::Sqlite,
-    statement::Statement,
     types::Type,
-    Arguments,
+    Arguments, Statement,
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
 pub struct Query<'q, DB: Database, A> {
-    pub(crate) statement: Either<&'q str, &'q <DB as HasStatement<'q>>::Statement>,
+    pub(crate) statement: Either<&'q str, &'q Statement<'q>>,
     pub(crate) arguments: Option<A>,
     pub(crate) database: PhantomData<DB>,
     pub(crate) persistent: bool,
@@ -53,7 +52,7 @@ where
         }
     }
 
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&Statement<'q>> {
         match self.statement {
             Either::Right(ref statement) => Some(&statement),
             Either::Left(_) => None,
@@ -242,7 +241,7 @@ where
     }
 
     #[inline]
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&Statement<'q>> {
         self.inner.statement()
     }
 
@@ -399,9 +398,7 @@ where
 }
 
 // Make a SQL query from a statement.
-pub fn query_statement<'q, DB>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
-) -> Query<'q, DB, Arguments<'_>>
+pub fn query_statement<'q, DB>(statement: &'q Statement<'q>) -> Query<'q, DB, Arguments<'_>>
 where
     DB: Database,
 {
@@ -415,7 +412,7 @@ where
 
 // Make a SQL query from a statement, with the given arguments.
 pub fn query_statement_with<'q, DB, A>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
+    statement: &'q Statement<'q>,
     arguments: A,
 ) -> Query<'q, DB, A>
 where

@@ -18,7 +18,7 @@ use crate::sqlite::connection::describe::describe;
 use crate::sqlite::connection::establish::EstablishParams;
 use crate::sqlite::connection::ConnectionState;
 use crate::sqlite::connection::{execute, ConnectionHandleRaw};
-use crate::sqlite::{Arguments, Sqlite, SqliteQueryResult, SqliteRow, SqliteStatement};
+use crate::sqlite::{Arguments, Sqlite, SqliteQueryResult, SqliteRow, Statement};
 
 // Each SQLite connection has a dedicated thread.
 
@@ -42,7 +42,7 @@ pub(crate) struct WorkerSharedState {
 enum Command {
     Prepare {
         query: Box<str>,
-        tx: oneshot::Sender<Result<SqliteStatement<'static>, Error>>,
+        tx: oneshot::Sender<Result<Statement<'static>, Error>>,
     },
     Describe {
         query: Box<str>,
@@ -263,7 +263,7 @@ impl ConnectionWorker {
         establish_rx.await.map_err(|_| Error::WorkerCrashed)?
     }
 
-    pub(crate) async fn prepare(&mut self, query: &str) -> Result<SqliteStatement<'static>, Error> {
+    pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement<'static>, Error> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
             tx,
@@ -391,7 +391,7 @@ impl ConnectionWorker {
     }
 }
 
-fn prepare(conn: &mut ConnectionState, query: &str) -> Result<SqliteStatement<'static>, Error> {
+fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement<'static>, Error> {
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query, true)?;
 
@@ -409,7 +409,7 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<SqliteStatement<'s
         }
     }
 
-    Ok(SqliteStatement {
+    Ok(Statement {
         sql: Cow::Owned(query.to_string()),
         columns: columns.unwrap_or_default(),
         column_names: column_names.unwrap_or_default(),

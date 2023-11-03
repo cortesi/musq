@@ -12,16 +12,13 @@ use crate::column::Column;
 use crate::connection::Connection;
 use crate::row::Row;
 
-use crate::statement::Statement;
 use crate::transaction::TransactionManager;
 
 /// A database driver.
 ///
 /// This trait encapsulates a complete set of traits that implement a driver for a
 /// specific database.
-pub trait Database:
-    'static + Sized + Send + Debug + for<'q> HasStatement<'q, Database = Self>
-{
+pub trait Database: 'static + Sized + Send + Debug {
     /// The concrete `Connection` implementation for this database.
     type Connection: Connection<Database = Self>;
 
@@ -36,21 +33,6 @@ pub trait Database:
 
     /// The concrete `Column` implementation for this database.
     type Column: Column<Database = Self>;
-}
-
-/// Associate [`Database`] with a [`Statement`](crate::statement::Statement) of a generic lifetime.
-///
-/// ---
-///
-/// The upcoming Rust feature, [Generic Associated Types], should obviate
-/// the need for this trait.
-///
-/// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
-pub trait HasStatement<'q> {
-    type Database: Database;
-
-    /// The concrete `Statement` implementation for this database.
-    type Statement: Statement<'q, Database = Self::Database>;
 }
 
 /// A [`Database`] that maintains a client-side cache of prepared statements.

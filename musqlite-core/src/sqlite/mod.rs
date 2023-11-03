@@ -10,7 +10,7 @@ pub use options::{
 };
 pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
-pub use statement::SqliteStatement;
+pub use statement::Statement;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::TypeInfo;
 pub use value::{Value, ValueRef};
@@ -51,7 +51,7 @@ impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
 // NOTE: required due to the lack of lazy normalization
 crate::impl_into_arguments_for_arguments!(Arguments<'q>);
 crate::impl_column_index_for_row!(SqliteRow);
-crate::impl_column_index_for_statement!(SqliteStatement);
+crate::impl_column_index_for_statement!(Statement);
 crate::impl_acquire!(Sqlite, SqliteConnection);
 
 // required because some databases have a different handling of NULL

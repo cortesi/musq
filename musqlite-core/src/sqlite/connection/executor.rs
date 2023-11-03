@@ -1,9 +1,7 @@
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-use crate::sqlite::{
-    Sqlite, SqliteConnection, SqliteQueryResult, SqliteRow, SqliteStatement, TypeInfo,
-};
+use crate::sqlite::{Sqlite, SqliteConnection, SqliteQueryResult, SqliteRow, Statement, TypeInfo};
 use crate::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -67,14 +65,14 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
         self,
         sql: &'q str,
         _parameters: &[TypeInfo],
-    ) -> BoxFuture<'e, Result<SqliteStatement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<Statement<'q>, Error>>
     where
         'c: 'e,
     {
         Box::pin(async move {
             let statement = self.worker.prepare(sql).await?;
 
-            Ok(SqliteStatement {
+            Ok(Statement {
                 sql: sql.into(),
                 ..statement
             })

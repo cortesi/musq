@@ -4,12 +4,12 @@ use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 
 use crate::{
-    database::{Database, HasStatement},
+    database::Database,
     describe::Describe,
     error::Error,
     executor::{Execute, Executor},
     pool::Pool,
-    sqlite,
+    sqlite, Statement,
 };
 
 impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
@@ -55,7 +55,7 @@ where
         self,
         sql: &'q str,
         parameters: &'e [sqlite::TypeInfo],
-    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>> {
+    ) -> BoxFuture<'e, Result<Statement<'q>, Error>> {
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })

@@ -4,7 +4,7 @@ use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::{
     arguments::IntoArguments,
-    database::{Database, HasStatement, HasStatementCache},
+    database::{Database, HasStatementCache},
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
@@ -12,7 +12,7 @@ use crate::{
     query_as::{query_as, query_as_with, query_statement_as, query_statement_as_with, QueryAs},
     sqlite::Sqlite,
     types::Type,
-    Arguments,
+    Arguments, Statement,
 };
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`] on `(O,)`.
@@ -31,7 +31,7 @@ where
         self.inner.sql()
     }
 
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&Statement<'q>> {
         self.inner.statement()
     }
 
@@ -189,7 +189,7 @@ where
 
 // Make a SQL query from a statement, that is mapped to a concrete value.
 pub fn query_statement_scalar<'q, DB, O>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
+    statement: &'q Statement<'q>,
 ) -> QueryScalar<'q, DB, O, Arguments<'_>>
 where
     DB: Database,
@@ -202,7 +202,7 @@ where
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete value.
 pub fn query_statement_scalar_with<'q, DB, O, A>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
+    statement: &'q Statement<'q>,
     arguments: A,
 ) -> QueryScalar<'q, DB, O, A>
 where

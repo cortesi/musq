@@ -1,9 +1,4 @@
-use crate::{
-    database::{Database, HasStatement},
-    describe::Describe,
-    error::Error,
-    sqlite, Arguments,
-};
+use crate::{database::Database, describe::Describe, error::Error, sqlite, Arguments, Statement};
 
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -142,10 +137,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     /// This explicit API is provided to allow access to the statement metadata available after
     /// it prepared but before the first row is returned.
     #[inline]
-    fn prepare<'e, 'q: 'e>(
-        self,
-        query: &'q str,
-    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    fn prepare<'e, 'q: 'e>(self, query: &'q str) -> BoxFuture<'e, Result<Statement<'q>, Error>>
     where
         'c: 'e,
     {
@@ -161,7 +153,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
         self,
         sql: &'q str,
         parameters: &'e [sqlite::TypeInfo],
-    ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
+    ) -> BoxFuture<'e, Result<Statement<'q>, Error>>
     where
         'c: 'e;
 
@@ -191,7 +183,7 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     fn sql(&self) -> &'q str;
 
     /// Gets the previously cached statement, if available.
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement>;
+    fn statement(&self) -> Option<&Statement<'q>>;
 
     /// Returns the arguments to be bound against the query string.
     ///
@@ -213,7 +205,7 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 
     #[inline]
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&Statement<'q>> {
         None
     }
 
@@ -235,7 +227,7 @@ impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<Arguments<'q>>) {
     }
 
     #[inline]
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&Statement<'q>> {
         None
     }
 

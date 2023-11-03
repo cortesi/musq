@@ -72,7 +72,7 @@ macro_rules! impl_column_index_for_statement {
     ($S:ident) => {
         impl $crate::column::ColumnIndex<$S<'_>> for usize {
             fn index(&self, statement: &$S<'_>) -> Result<usize, $crate::error::Error> {
-                let len = $crate::statement::Statement::columns(statement).len();
+                let len = $crate::Statement::columns(statement).len();
 
                 if *self >= len {
                     return Err($crate::error::Error::ColumnIndexOutOfBounds { len, index: *self });

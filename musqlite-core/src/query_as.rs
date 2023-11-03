@@ -6,7 +6,7 @@ use futures_util::{StreamExt, TryStreamExt};
 
 use crate::{
     arguments::IntoArguments,
-    database::{Database, HasStatement, HasStatementCache},
+    database::{Database, HasStatementCache},
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
@@ -14,7 +14,7 @@ use crate::{
     query::{query, query_statement, query_statement_with, query_with, Query},
     sqlite::Sqlite,
     types::Type,
-    Arguments,
+    Arguments, Statement,
 };
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
@@ -36,7 +36,7 @@ where
     }
 
     #[inline]
-    fn statement(&self) -> Option<&<DB as HasStatement<'q>>::Statement> {
+    fn statement(&self) -> Option<&Statement<'q>> {
         self.inner.statement()
     }
 
@@ -200,7 +200,7 @@ where
 
 // Make a SQL query from a statement, that is mapped to a concrete type.
 pub fn query_statement_as<'q, DB, O>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
+    statement: &'q Statement<'q>,
 ) -> QueryAs<'q, DB, O, Arguments<'_>>
 where
     DB: Database,
@@ -214,7 +214,7 @@ where
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete type.
 pub fn query_statement_as_with<'q, DB, O, A>(
-    statement: &'q <DB as HasStatement<'q>>::Statement,
+    statement: &'q Statement<'q>,
     arguments: A,
 ) -> QueryAs<'q, DB, O, A>
 where
