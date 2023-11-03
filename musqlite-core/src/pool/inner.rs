@@ -17,28 +17,25 @@ use futures_util::{
 
 use super::connection::{Floating, Idle, Live};
 use crate::{
-    connection::{ConnectOptions, Connection},
-    database::Database,
     error::Error,
     pool::{deadline_as_timeout, options::PoolConnectionMetadata, CloseEvent, Pool, PoolOptions},
+    sqlite::Sqlite,
+    ConnectOptions,
 };
 
-pub(crate) struct PoolInner<DB: Database> {
-    pub(super) connect_options: RwLock<Arc<<DB::Connection as Connection>::Options>>,
-    pub(super) idle_conns: ArrayQueue<Idle<DB>>,
+pub(crate) struct PoolInner {
+    pub(super) connect_options: RwLock<Arc<ConnectOptions>>,
+    pub(super) idle_conns: ArrayQueue<Idle>,
     pub(super) semaphore: tokio::sync::Semaphore,
     pub(super) size: AtomicU32,
     pub(super) num_idle: AtomicUsize,
     is_closed: AtomicBool,
     pub(super) on_closed: event_listener::Event,
-    pub(super) options: PoolOptions<DB>,
+    pub(super) options: PoolOptions,
 }
 
-impl<DB: Database> PoolInner<DB> {
-    pub(super) fn new_arc(
-        options: PoolOptions<DB>,
-        connect_options: <DB::Connection as Connection>::Options,
-    ) -> Arc<Self> {
+impl PoolInner {
+    pub(super) fn new_arc(options: PoolOptions, connect_options: ConnectOptions) -> Arc<Self> {
         let capacity = options.max_connections as usize;
 
         let semaphore_capacity = if let Some(parent) = &options.parent_pool {
@@ -187,12 +184,12 @@ impl<DB: Database> PoolInner<DB> {
         }
     }
 
-    fn parent(&self) -> Option<&Pool<DB>> {
+    fn parent(&self) -> Option<&Pool> {
         self.options.parent_pool.as_ref()
     }
 
     #[inline]
-    pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating<DB, Idle<DB>>> {
+    pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating<Idle>> {
         if self.is_closed() {
             return None;
         }
@@ -205,7 +202,7 @@ impl<DB: Database> PoolInner<DB> {
     fn pop_idle<'a>(
         self: &'a Arc<Self>,
         permit: tokio::sync::SemaphorePermit<'a>,
-    ) -> Result<Floating<DB, Idle<DB>>, tokio::sync::SemaphorePermit<'a>> {
+    ) -> Result<Floating<Idle>, tokio::sync::SemaphorePermit<'a>> {
         if let Some(idle) = self.idle_conns.pop() {
             self.num_idle.fetch_sub(1, Ordering::AcqRel);
             Ok(Floating::from_idle(idle, (*self).clone(), permit))
@@ -214,7 +211,7 @@ impl<DB: Database> PoolInner<DB> {
         }
     }
 
-    pub(super) fn release(&self, floating: Floating<DB, Live<DB>>) {
+    pub(super) fn release(&self, floating: Floating<Live>) {
         // `options.after_release` is invoked by `PoolConnection::release_to_pool()`.
 
         let Floating { inner: idle, guard } = floating.into_idle();
@@ -236,7 +233,7 @@ impl<DB: Database> PoolInner<DB> {
     pub(super) fn try_increment_size<'a>(
         self: &'a Arc<Self>,
         permit: tokio::sync::SemaphorePermit<'a>,
-    ) -> Result<DecrementSizeGuard<DB>, tokio::sync::SemaphorePermit<'a>> {
+    ) -> Result<DecrementSizeGuard, tokio::sync::SemaphorePermit<'a>> {
         match self
             .size
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |size| {
@@ -254,7 +251,7 @@ impl<DB: Database> PoolInner<DB> {
         }
     }
 
-    pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<DB, Live<DB>>, Error> {
+    pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<Live>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
@@ -310,17 +307,17 @@ impl<DB: Database> PoolInner<DB> {
     pub(super) async fn connect(
         self: &Arc<Self>,
         deadline: Instant,
-        guard: DecrementSizeGuard<DB>,
-    ) -> Result<Floating<DB, Live<DB>>, Error> {
+        guard: DecrementSizeGuard,
+    ) -> Result<Floating<Live>, Error> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
 
         let mut backoff = Duration::from_millis(10);
-        let max_backoff = deadline_as_timeout::<DB>(deadline)? / 5;
+        let max_backoff = deadline_as_timeout::<Sqlite>(deadline)? / 5;
 
         loop {
-            let timeout = deadline_as_timeout::<DB>(deadline)?;
+            let timeout = deadline_as_timeout::<Sqlite>(deadline)?;
 
             // clone the connect options arc so it can be used without holding the RwLockReadGuard
             // across an async await point
@@ -423,7 +420,7 @@ impl<DB: Database> PoolInner<DB> {
     }
 }
 
-impl<DB: Database> Drop for PoolInner<DB> {
+impl Drop for PoolInner {
     fn drop(&mut self) {
         self.mark_closed();
 
@@ -438,23 +435,23 @@ impl<DB: Database> Drop for PoolInner<DB> {
 }
 
 /// Returns `true` if the connection has exceeded `options.max_lifetime` if set, `false` otherwise.
-fn is_beyond_max_lifetime<DB: Database>(live: &Live<DB>, options: &PoolOptions<DB>) -> bool {
+fn is_beyond_max_lifetime(live: &Live, options: &PoolOptions) -> bool {
     options
         .max_lifetime
         .map_or(false, |max| live.created_at.elapsed() > max)
 }
 
 /// Returns `true` if the connection has exceeded `options.idle_timeout` if set, `false` otherwise.
-fn is_beyond_idle_timeout<DB: Database>(idle: &Idle<DB>, options: &PoolOptions<DB>) -> bool {
+fn is_beyond_idle_timeout(idle: &Idle, options: &PoolOptions) -> bool {
     options
         .idle_timeout
         .map_or(false, |timeout| idle.idle_since.elapsed() > timeout)
 }
 
-async fn check_idle_conn<DB: Database>(
-    mut conn: Floating<DB, Idle<DB>>,
-    options: &PoolOptions<DB>,
-) -> Result<Floating<DB, Live<DB>>, DecrementSizeGuard<DB>> {
+async fn check_idle_conn(
+    mut conn: Floating<Idle>,
+    options: &PoolOptions,
+) -> Result<Floating<Live>, DecrementSizeGuard> {
     // If the connection we pulled has expired, close the connection and
     // immediately create a new connection
     if is_beyond_max_lifetime(&conn, options) {
@@ -495,7 +492,7 @@ async fn check_idle_conn<DB: Database>(
     Ok(conn.into_live())
 }
 
-fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
+fn spawn_maintenance_tasks(pool: &Arc<PoolInner>) {
     // NOTE: use `pool_weak` for the maintenance tasks so
     // they don't keep `PoolInner` from being dropped.
     let pool_weak = Arc::downgrade(&pool);
@@ -559,7 +556,7 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
     });
 }
 
-async fn do_reap<DB: Database>(pool: &Arc<PoolInner<DB>>) {
+async fn do_reap(pool: &Arc<PoolInner>) {
     // reap at most the current size minus the minimum idle
     let max_reaped = pool.size().saturating_sub(pool.options.min_connections);
 
@@ -586,21 +583,21 @@ async fn do_reap<DB: Database>(pool: &Arc<PoolInner<DB>>) {
 ///
 /// Will decrement the pool size if dropped, to avoid semantically "leaking" connections
 /// (where the pool thinks it has more connections than it does).
-pub(in crate::pool) struct DecrementSizeGuard<DB: Database> {
-    pub(crate) pool: Arc<PoolInner<DB>>,
+pub(in crate::pool) struct DecrementSizeGuard {
+    pub(crate) pool: Arc<PoolInner>,
     cancelled: bool,
 }
 
-impl<DB: Database> DecrementSizeGuard<DB> {
+impl DecrementSizeGuard {
     /// Create a new guard that will release a semaphore permit on-drop.
-    pub fn new_permit(pool: Arc<PoolInner<DB>>) -> Self {
+    pub fn new_permit(pool: Arc<PoolInner>) -> Self {
         Self {
             pool,
             cancelled: false,
         }
     }
 
-    pub fn from_permit(pool: Arc<PoolInner<DB>>, permit: tokio::sync::SemaphorePermit<'_>) -> Self {
+    pub fn from_permit(pool: Arc<PoolInner>, permit: tokio::sync::SemaphorePermit<'_>) -> Self {
         // here we effectively take ownership of the permit
         permit.forget();
         Self::new_permit(pool)
@@ -619,7 +616,7 @@ impl<DB: Database> DecrementSizeGuard<DB> {
     }
 }
 
-impl<DB: Database> Drop for DecrementSizeGuard<DB> {
+impl Drop for DecrementSizeGuard {
     fn drop(&mut self) {
         if !self.cancelled {
             self.pool.size.fetch_sub(1, Ordering::AcqRel);

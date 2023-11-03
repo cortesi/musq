@@ -1,8 +1,10 @@
 use futures::TryStreamExt;
-use musqlite_core::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use musqlite_core::{
-    query, query_as, query_scalar, sqlite::Row, sqlite::Sqlite, sqlite::SqliteConnection,
-    sqlite::SqlitePool, ConnectOptions, Connection, Error, Executor,
+    query, query_as, query_scalar,
+    sqlite::Row,
+    sqlite::Sqlite,
+    sqlite::{SqlitePool, SqlitePoolOptions},
+    ConnectOptions, Connection, Error, Executor,
 };
 use musqlite_test::{new, tdb};
 use rand::{Rng, SeedableRng};
@@ -224,7 +226,7 @@ async fn it_opens_with_extension() -> anyhow::Result<()> {
 async fn it_opens_in_memory() -> anyhow::Result<()> {
     // If the filename is ":memory:", then a private, temporary in-memory database
     // is created for the connection.
-    let conn = SqliteConnection::connect(":memory:").await?;
+    let conn = Connection::connect(":memory:").await?;
     conn.close().await?;
 
     Ok(())
@@ -234,7 +236,7 @@ async fn it_opens_in_memory() -> anyhow::Result<()> {
 async fn it_opens_temp_on_disk() -> anyhow::Result<()> {
     // If the filename is an empty string, then a private, temporary on-disk database will
     // be created.
-    let conn = SqliteConnection::connect("").await?;
+    let conn = Connection::connect("").await?;
     conn.close().await?;
 
     Ok(())
@@ -562,9 +564,8 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 #[tokio::test]
 async fn concurrent_resets_dont_segfault() {
     use std::{str::FromStr, time::Duration};
-    use {ConnectOptions, SqliteConnectOptions};
 
-    let mut conn = SqliteConnectOptions::from_str(":memory:")
+    let mut conn = ConnectOptions::from_str(":memory:")
         .unwrap()
         .connect()
         .await
@@ -594,7 +595,7 @@ async fn concurrent_resets_dont_segfault() {
 // to see the panic from the worker thread, which doesn't happen after the fix
 #[tokio::test]
 async fn row_dropped_after_connection_doesnt_panic() {
-    let mut conn = SqliteConnection::connect(":memory:").await.unwrap();
+    let mut conn = Connection::connect(":memory:").await.unwrap();
 
     let books = query("SELECT 'hello' AS title")
         .fetch_all(&mut conn)
@@ -619,10 +620,7 @@ async fn row_dropped_after_connection_doesnt_panic() {
 #[tokio::test]
 #[ignore]
 async fn issue_1467() -> anyhow::Result<()> {
-    let mut conn = SqliteConnectOptions::new()
-        .filename(":memory:")
-        .connect()
-        .await?;
+    let mut conn = ConnectOptions::new().filename(":memory:").connect().await?;
 
     query(
         r#"

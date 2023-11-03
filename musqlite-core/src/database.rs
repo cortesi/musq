@@ -2,8 +2,6 @@
 
 use std::fmt::Debug;
 
-use crate::connection::Connection;
-
 use crate::transaction::TransactionManager;
 
 /// A database driver.
@@ -11,9 +9,6 @@ use crate::transaction::TransactionManager;
 /// This trait encapsulates a complete set of traits that implement a driver for a
 /// specific database.
 pub trait Database: 'static + Sized + Send + Debug {
-    /// The concrete `Connection` implementation for this database.
-    type Connection: Connection<Database = Self>;
-
     /// The concrete `TransactionManager` implementation for this database.
     type TransactionManager: TransactionManager<Database = Self>;
 

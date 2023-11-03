@@ -2,7 +2,7 @@ use crate::sqlite::connection::handle::ConnectionHandle;
 use crate::sqlite::connection::LogSettings;
 use crate::sqlite::connection::{ConnectionState, Statements};
 use crate::sqlite::error::Error;
-use crate::sqlite::{SqliteConnectOptions, SqliteError};
+use crate::sqlite::{ConnectOptions, SqliteError};
 use crate::IndexMap;
 use libsqlite3_sys::{
     sqlite3, sqlite3_busy_timeout, sqlite3_db_config, sqlite3_extended_result_codes, sqlite3_free,
@@ -48,7 +48,7 @@ pub struct EstablishParams {
 }
 
 impl EstablishParams {
-    pub fn from_options(options: &SqliteConnectOptions) -> Result<Self, Error> {
+    pub fn from_options(options: &ConnectOptions) -> Result<Self, Error> {
         let mut filename = options
             .filename
             .to_str()

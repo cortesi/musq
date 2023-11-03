@@ -1,7 +1,6 @@
-use crate::connection::ConnectOptions;
 use crate::error::Error;
 use crate::executor::Executor;
-use crate::sqlite::{SqliteConnectOptions, SqliteConnection};
+use crate::sqlite::{ConnectOptions, Connection};
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
 use std::fmt::Write;
@@ -9,10 +8,8 @@ use std::str::FromStr;
 use std::time::Duration;
 use url::Url;
 
-impl ConnectOptions for SqliteConnectOptions {
-    type Connection = SqliteConnection;
-
-    fn from_url(url: &Url) -> Result<Self, Error> {
+impl ConnectOptions {
+    pub fn from_url(url: &Url) -> Result<Self, Error> {
         // SQLite URL parsing is handled specially;
         // we want to treat the following URLs as equivalent:
         //
@@ -24,12 +21,9 @@ impl ConnectOptions for SqliteConnectOptions {
         Self::from_str(url.as_str())
     }
 
-    fn connect(&self) -> BoxFuture<'_, Result<Self::Connection, Error>>
-    where
-        Self::Connection: Sized,
-    {
+    pub fn connect(&self) -> BoxFuture<'_, Result<Connection, Error>> {
         Box::pin(async move {
-            let mut conn = SqliteConnection::establish(self).await?;
+            let mut conn = Connection::establish(self).await?;
 
             // Execute PRAGMAs
             conn.execute(&*self.pragma_string()).await?;
@@ -46,18 +40,16 @@ impl ConnectOptions for SqliteConnectOptions {
         })
     }
 
-    fn log_statements(mut self, level: LevelFilter) -> Self {
+    pub fn log_statements(mut self, level: LevelFilter) -> Self {
         self.log_settings.log_statements(level);
         self
     }
 
-    fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
+    pub fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
         self.log_settings.log_slow_statements(level, duration);
         self
     }
-}
 
-impl SqliteConnectOptions {
     /// Collect all `PRAMGA` commands into a single string
     pub(crate) fn pragma_string(&self) -> String {
         let mut string = String::new();

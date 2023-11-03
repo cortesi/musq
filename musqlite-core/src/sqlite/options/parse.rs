@@ -1,5 +1,5 @@
 use crate::sqlite::error::Error;
-use crate::sqlite::SqliteConnectOptions;
+use crate::sqlite::ConnectOptions;
 use percent_encoding::percent_decode_str;
 use std::borrow::Cow;
 use std::path::{Path, PathBuf};
@@ -10,7 +10,7 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 
 static IN_MEMORY_DB_SEQ: AtomicUsize = AtomicUsize::new(0);
 
-impl SqliteConnectOptions {
+impl ConnectOptions {
     pub(crate) fn from_db_and_params(database: &str, params: Option<&str>) -> Result<Self, Error> {
         let mut options = Self::default();
 
@@ -116,7 +116,7 @@ impl SqliteConnectOptions {
     }
 }
 
-impl FromStr for SqliteConnectOptions {
+impl FromStr for ConnectOptions {
     type Err = Error;
 
     fn from_str(mut url: &str) -> Result<Self, Self::Err> {
@@ -136,19 +136,19 @@ impl FromStr for SqliteConnectOptions {
 
 #[test]
 fn test_parse_in_memory() -> Result<(), Error> {
-    let options: SqliteConnectOptions = "sqlite::memory:".parse()?;
+    let options: ConnectOptions = "sqlite::memory:".parse()?;
     assert!(options.in_memory);
     assert!(options.shared_cache);
 
-    let options: SqliteConnectOptions = "sqlite://?mode=memory".parse()?;
+    let options: ConnectOptions = "sqlite://?mode=memory".parse()?;
     assert!(options.in_memory);
     assert!(options.shared_cache);
 
-    let options: SqliteConnectOptions = "sqlite://:memory:".parse()?;
+    let options: ConnectOptions = "sqlite://:memory:".parse()?;
     assert!(options.in_memory);
     assert!(options.shared_cache);
 
-    let options: SqliteConnectOptions = "sqlite://?mode=memory&cache=private".parse()?;
+    let options: ConnectOptions = "sqlite://?mode=memory&cache=private".parse()?;
     assert!(options.in_memory);
     assert!(!options.shared_cache);
 
@@ -157,7 +157,7 @@ fn test_parse_in_memory() -> Result<(), Error> {
 
 #[test]
 fn test_parse_read_only() -> Result<(), Error> {
-    let options: SqliteConnectOptions = "sqlite://a.db?mode=ro".parse()?;
+    let options: ConnectOptions = "sqlite://a.db?mode=ro".parse()?;
     assert!(options.read_only);
     assert_eq!(&*options.filename.to_string_lossy(), "a.db");
 
@@ -166,7 +166,7 @@ fn test_parse_read_only() -> Result<(), Error> {
 
 #[test]
 fn test_parse_shared_in_memory() -> Result<(), Error> {
-    let options: SqliteConnectOptions = "sqlite://a.db?cache=shared".parse()?;
+    let options: ConnectOptions = "sqlite://a.db?cache=shared".parse()?;
     assert!(options.shared_cache);
     assert_eq!(&*options.filename.to_string_lossy(), "a.db");
 

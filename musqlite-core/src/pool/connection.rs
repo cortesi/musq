@@ -3,9 +3,7 @@ use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use crate::connection::Connection;
-use crate::database::Database;
-use crate::error::Error;
+use crate::{error::Error, Connection};
 
 use super::inner::{DecrementSizeGuard, PoolInner};
 use crate::pool::options::PoolConnectionMetadata;
@@ -14,63 +12,63 @@ use std::future::Future;
 /// A connection managed by a [`Pool`][crate::pool::Pool].
 ///
 /// Will be returned to the pool on-drop.
-pub struct PoolConnection<DB: Database> {
-    live: Option<Live<DB>>,
-    pub(crate) pool: Arc<PoolInner<DB>>,
+pub struct PoolConnection {
+    live: Option<Live>,
+    pub(crate) pool: Arc<PoolInner>,
 }
 
-pub(super) struct Live<DB: Database> {
-    pub(super) raw: DB::Connection,
+pub(super) struct Live {
+    pub(super) raw: Connection,
     pub(super) created_at: Instant,
 }
 
-pub(super) struct Idle<DB: Database> {
-    pub(super) live: Live<DB>,
+pub(super) struct Idle {
+    pub(super) live: Live,
     pub(super) idle_since: Instant,
 }
 
 /// RAII wrapper for connections being handled by functions that may drop them
-pub(super) struct Floating<DB: Database, C> {
+pub(super) struct Floating<C> {
     pub(super) inner: C,
-    pub(super) guard: DecrementSizeGuard<DB>,
+    pub(super) guard: DecrementSizeGuard,
 }
 
 const EXPECT_MSG: &str = "BUG: inner connection already taken!";
 
-impl<DB: Database> Debug for PoolConnection<DB> {
+impl Debug for PoolConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // TODO: Show the type name of the connection ?
         f.debug_struct("PoolConnection").finish()
     }
 }
 
-impl<DB: Database> Deref for PoolConnection<DB> {
-    type Target = DB::Connection;
+impl Deref for PoolConnection {
+    type Target = Connection;
 
     fn deref(&self) -> &Self::Target {
         &self.live.as_ref().expect(EXPECT_MSG).raw
     }
 }
 
-impl<DB: Database> DerefMut for PoolConnection<DB> {
+impl DerefMut for PoolConnection {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live.as_mut().expect(EXPECT_MSG).raw
     }
 }
 
-impl<DB: Database> AsRef<DB::Connection> for PoolConnection<DB> {
-    fn as_ref(&self) -> &DB::Connection {
+impl AsRef<Connection> for PoolConnection {
+    fn as_ref(&self) -> &Connection {
         self
     }
 }
 
-impl<DB: Database> AsMut<DB::Connection> for PoolConnection<DB> {
-    fn as_mut(&mut self) -> &mut DB::Connection {
+impl AsMut<Connection> for PoolConnection {
+    fn as_mut(&mut self) -> &mut Connection {
         self
     }
 }
 
-impl<DB: Database> PoolConnection<DB> {
+impl PoolConnection {
     /// Close this connection, allowing the pool to open a replacement.
     ///
     /// Equivalent to calling [`.detach()`] then [`.close()`], but the connection permit is retained
@@ -95,7 +93,7 @@ impl<DB: Database> PoolConnection<DB> {
     ///
     /// [`max_connections`]: crate::pool::PoolOptions::max_connections
     /// [`min_connections`]: crate::pool::PoolOptions::min_connections
-    pub fn detach(mut self) -> DB::Connection {
+    pub fn detach(mut self) -> Connection {
         self.take_live().float(self.pool.clone()).detach()
     }
 
@@ -104,11 +102,11 @@ impl<DB: Database> PoolConnection<DB> {
     /// This effectively will reduce the maximum capacity of the pool by 1 every time it is used.
     ///
     /// If you don't want to impact the pool's capacity, use [`.detach()`][Self::detach] instead.
-    pub fn leak(mut self) -> DB::Connection {
+    pub fn leak(mut self) -> Connection {
         self.take_live().raw
     }
 
-    fn take_live(&mut self) -> Live<DB> {
+    fn take_live(&mut self) -> Live {
         self.live.take().expect(EXPECT_MSG)
     }
 
@@ -121,7 +119,7 @@ impl<DB: Database> PoolConnection<DB> {
         // in case the returned `Future` isn't executed, like if it's spawned into a dying runtime
         // https://github.com/launchbadge/sqlx/issues/1396
         // Type hints seem to be broken by `Option` combinators in IntelliJ Rust right now (6/22).
-        let floating: Option<Floating<DB, Live<DB>>> =
+        let floating: Option<Floating<Live>> =
             self.live.take().map(|live| live.float(self.pool.clone()));
 
         let pool = self.pool.clone();
@@ -140,10 +138,8 @@ impl<DB: Database> PoolConnection<DB> {
     }
 }
 
-impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB> {
-    type Database = DB;
-
-    type Connection = &'c mut <DB as Database>::Connection;
+impl<'c> crate::acquire::Acquire<'c> for &'c mut PoolConnection {
+    type Connection = &'c mut Connection;
 
     #[inline]
     fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, Error>> {
@@ -153,14 +149,14 @@ impl<'c, DB: Database> crate::acquire::Acquire<'c> for &'c mut PoolConnection<DB
     #[inline]
     fn begin(
         self,
-    ) -> futures_core::future::BoxFuture<'c, Result<crate::transaction::Transaction<'c, DB>, Error>>
+    ) -> futures_core::future::BoxFuture<'c, Result<crate::transaction::Transaction<'c>, Error>>
     {
         crate::transaction::Transaction::begin(&mut **self)
     }
 }
 
 /// Returns the connection to the [`Pool`][crate::pool::Pool] it was checked-out from.
-impl<DB: Database> Drop for PoolConnection<DB> {
+impl Drop for PoolConnection {
     fn drop(&mut self) {
         // We still need to spawn a task to maintain `min_connections`.
         if self.live.is_some() || self.pool.options.min_connections > 0 {
@@ -169,8 +165,8 @@ impl<DB: Database> Drop for PoolConnection<DB> {
     }
 }
 
-impl<DB: Database> Live<DB> {
-    pub fn float(self, pool: Arc<PoolInner<DB>>) -> Floating<DB, Self> {
+impl Live {
+    pub fn float(self, pool: Arc<PoolInner>) -> Floating<Self> {
         Floating {
             inner: self,
             // create a new guard from a previously leaked permit
@@ -178,7 +174,7 @@ impl<DB: Database> Live<DB> {
         }
     }
 
-    pub fn into_idle(self) -> Idle<DB> {
+    pub fn into_idle(self) -> Idle {
         Idle {
             live: self,
             idle_since: Instant::now(),
@@ -186,22 +182,22 @@ impl<DB: Database> Live<DB> {
     }
 }
 
-impl<DB: Database> Deref for Idle<DB> {
-    type Target = Live<DB>;
+impl Deref for Idle {
+    type Target = Live;
 
     fn deref(&self) -> &Self::Target {
         &self.live
     }
 }
 
-impl<DB: Database> DerefMut for Idle<DB> {
+impl DerefMut for Idle {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live
     }
 }
 
-impl<DB: Database> Floating<DB, Live<DB>> {
-    pub fn new_live(conn: DB::Connection, guard: DecrementSizeGuard<DB>) -> Self {
+impl Floating<Live> {
+    pub fn new_live(conn: Connection, guard: DecrementSizeGuard) -> Self {
         Self {
             inner: Live {
                 raw: conn,
@@ -211,7 +207,7 @@ impl<DB: Database> Floating<DB, Live<DB>> {
         }
     }
 
-    pub fn reattach(self) -> PoolConnection<DB> {
+    pub fn reattach(self) -> PoolConnection {
         let Floating { inner, guard } = self;
 
         let pool = Arc::clone(&guard.pool);
@@ -289,11 +285,11 @@ impl<DB: Database> Floating<DB, Live<DB>> {
         let _ = self.inner.raw.close_hard().await;
     }
 
-    pub fn detach(self) -> DB::Connection {
+    pub fn detach(self) -> Connection {
         self.inner.raw
     }
 
-    pub fn into_idle(self) -> Floating<DB, Idle<DB>> {
+    pub fn into_idle(self) -> Floating<Idle> {
         Floating {
             inner: self.inner.into_idle(),
             guard: self.guard,
@@ -308,10 +304,10 @@ impl<DB: Database> Floating<DB, Live<DB>> {
     }
 }
 
-impl<DB: Database> Floating<DB, Idle<DB>> {
+impl Floating<Idle> {
     pub fn from_idle(
-        idle: Idle<DB>,
-        pool: Arc<PoolInner<DB>>,
+        idle: Idle,
+        pool: Arc<PoolInner>,
         permit: tokio::sync::SemaphorePermit<'_>,
     ) -> Self {
         Self {
@@ -324,21 +320,21 @@ impl<DB: Database> Floating<DB, Idle<DB>> {
         self.live.raw.ping().await
     }
 
-    pub fn into_live(self) -> Floating<DB, Live<DB>> {
+    pub fn into_live(self) -> Floating<Live> {
         Floating {
             inner: self.inner.live,
             guard: self.guard,
         }
     }
 
-    pub async fn close(self) -> DecrementSizeGuard<DB> {
+    pub async fn close(self) -> DecrementSizeGuard {
         if let Err(error) = self.inner.live.raw.close().await {
             tracing::debug!(%error, "error occurred while closing the pool connection");
         }
         self.guard
     }
 
-    pub async fn close_hard(self) -> DecrementSizeGuard<DB> {
+    pub async fn close_hard(self) -> DecrementSizeGuard {
         let _ = self.inner.live.raw.close_hard().await;
 
         self.guard
@@ -357,7 +353,7 @@ impl<DB: Database> Floating<DB, Idle<DB>> {
     }
 }
 
-impl<DB: Database, C> Deref for Floating<DB, C> {
+impl<C> Deref for Floating<C> {
     type Target = C;
 
     fn deref(&self) -> &Self::Target {
@@ -365,7 +361,7 @@ impl<DB: Database, C> Deref for Floating<DB, C> {
     }
 }
 
-impl<DB: Database, C> DerefMut for Floating<DB, C> {
+impl<C> DerefMut for Floating<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
     }

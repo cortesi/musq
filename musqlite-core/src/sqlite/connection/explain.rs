@@ -1368,9 +1368,9 @@ pub(super) fn explain(
 
 #[test]
 fn test_root_block_columns_has_types() {
-    use crate::sqlite::SqliteConnectOptions;
+    use crate::sqlite::ConnectOptions;
     use std::str::FromStr;
-    let conn_options = SqliteConnectOptions::from_str("sqlite::memory:").unwrap();
+    let conn_options = ConnectOptions::from_str("sqlite::memory:").unwrap();
     let mut conn = super::EstablishParams::from_options(&conn_options)
         .unwrap()
         .establish()

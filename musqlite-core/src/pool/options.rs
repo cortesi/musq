@@ -1,8 +1,10 @@
-use crate::connection::Connection;
-use crate::database::Database;
-use crate::error::Error;
-use crate::pool::inner::PoolInner;
-use crate::pool::Pool;
+use crate::{
+    database::Database,
+    error::Error,
+    pool::{inner::PoolInner, Pool},
+    ConnectOptions, Connection,
+};
+
 use futures_core::future::BoxFuture;
 use std::fmt::{self, Debug, Formatter};
 use std::sync::Arc;
@@ -41,11 +43,11 @@ use std::time::{Duration, Instant};
 /// parameter everywhere, and `Box` is in the prelude so it doesn't need to be manually imported,
 /// so having the closure return `Pin<Box<dyn Future>` directly is the path of least resistance from
 /// the perspectives of both API designer and consumer.
-pub struct PoolOptions<DB: Database> {
+pub struct PoolOptions {
     pub(crate) test_before_acquire: bool,
     pub(crate) after_connect: Option<
         Arc<
-            dyn Fn(&mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<(), Error>>
+            dyn Fn(&mut Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<(), Error>>
                 + 'static
                 + Send
                 + Sync,
@@ -53,10 +55,7 @@ pub struct PoolOptions<DB: Database> {
     >,
     pub(crate) before_acquire: Option<
         Arc<
-            dyn Fn(
-                    &mut DB::Connection,
-                    PoolConnectionMetadata,
-                ) -> BoxFuture<'_, Result<bool, Error>>
+            dyn Fn(&mut Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<bool, Error>>
                 + 'static
                 + Send
                 + Sync,
@@ -64,10 +63,7 @@ pub struct PoolOptions<DB: Database> {
     >,
     pub(crate) after_release: Option<
         Arc<
-            dyn Fn(
-                    &mut DB::Connection,
-                    PoolConnectionMetadata,
-                ) -> BoxFuture<'_, Result<bool, Error>>
+            dyn Fn(&mut Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<bool, Error>>
                 + 'static
                 + Send
                 + Sync,
@@ -79,13 +75,13 @@ pub struct PoolOptions<DB: Database> {
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
 
-    pub(crate) parent_pool: Option<Pool<DB>>,
+    pub(crate) parent_pool: Option<Pool>,
 }
 
 // Manually implement `Clone` to avoid a trait bound issue.
 //
 // See: https://github.com/launchbadge/sqlx/issues/2548
-impl<DB: Database> Clone for PoolOptions<DB> {
+impl Clone for PoolOptions {
     fn clone(&self) -> Self {
         PoolOptions {
             test_before_acquire: self.test_before_acquire,
@@ -118,13 +114,13 @@ pub struct PoolConnectionMetadata {
     pub idle_for: Duration,
 }
 
-impl<DB: Database> Default for PoolOptions<DB> {
+impl Default for PoolOptions {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl<DB: Database> PoolOptions<DB> {
+impl PoolOptions {
     /// Returns a default "sane" configuration, suitable for testing or light-duty applications.
     ///
     /// Production applications will likely want to at least modify
@@ -292,7 +288,7 @@ impl<DB: Database> PoolOptions<DB> {
     where
         // We're passing the `PoolConnectionMetadata` here mostly for future-proofing.
         // `age` and `idle_for` are obviously not useful for fresh connections.
-        for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<(), Error>>
+        for<'c> F: Fn(&'c mut Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<(), Error>>
             + 'static
             + Send
             + Sync,
@@ -320,7 +316,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
     pub fn before_acquire<F>(mut self, callback: F) -> Self
     where
-        for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
+        for<'c> F: Fn(&'c mut Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
             + 'static
             + Send
             + Sync,
@@ -340,7 +336,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// open a new one in its place.
     pub fn after_release<F>(mut self, callback: F) -> Self
     where
-        for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
+        for<'c> F: Fn(&'c mut Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
             + 'static
             + Send
             + Sync,
@@ -357,7 +353,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// If `self.max_connections` is greater than the setting the given pool was created with,
     /// or `self.fair` differs from the setting the given pool was created with.
     #[doc(hidden)]
-    pub fn parent(mut self, pool: Pool<DB>) -> Self {
+    pub fn parent(mut self, pool: Pool) -> Self {
         self.parent_pool = Some(pool);
         self
     }
@@ -371,7 +367,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
     ///
     /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
-    pub async fn connect(self, url: &str) -> Result<Pool<DB>, Error> {
+    pub async fn connect(self, url: &str) -> Result<Pool, Error> {
         self.connect_with(url.parse()?).await
     }
 
@@ -380,10 +376,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// This ensures the configuration is correct.
     ///
     /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
-    pub async fn connect_with(
-        self,
-        options: <DB::Connection as Connection>::Options,
-    ) -> Result<Pool<DB>, Error> {
+    pub async fn connect_with(self, options: ConnectOptions) -> Result<Pool, Error> {
         // Don't take longer than `acquire_timeout` starting from when this is called.
         let deadline = Instant::now() + self.acquire_timeout;
 
@@ -411,7 +404,7 @@ impl<DB: Database> PoolOptions<DB> {
     /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
     ///
     /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
-    pub fn connect_lazy(self, url: &str) -> Result<Pool<DB>, Error> {
+    pub fn connect_lazy(self, url: &str) -> Result<Pool, Error> {
         Ok(self.connect_lazy_with(url.parse()?))
     }
 
@@ -419,13 +412,13 @@ impl<DB: Database> PoolOptions<DB> {
     ///
     /// If [`min_connections`][Self::min_connections] is set, a background task will be spawned to
     /// optimistically establish that many connections for the pool.
-    pub fn connect_lazy_with(self, options: <DB::Connection as Connection>::Options) -> Pool<DB> {
+    pub fn connect_lazy_with(self, options: ConnectOptions) -> Pool {
         // `min_connections` is guaranteed by the idle reaper now.
         Pool(PoolInner::new_arc(self, options))
     }
 }
 
-impl<DB: Database> Debug for PoolOptions<DB> {
+impl Debug for PoolOptions {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("PoolOptions")
             .field("max_connections", &self.max_connections)

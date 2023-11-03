@@ -1,6 +1,8 @@
-use crate::database::Database;
-use crate::error::Error;
-use crate::pool::{MaybePoolConnection, Pool, PoolConnection};
+use crate::{
+    error::Error,
+    pool::{MaybePoolConnection, Pool, PoolConnection},
+    Connection,
+};
 
 use crate::transaction::Transaction;
 use futures_core::future::BoxFuture;
@@ -13,25 +15,21 @@ use std::ops::{Deref, DerefMut};
 ///
 /// [workaround]: https://github.com/launchbadge/sqlx/issues/1015#issuecomment-767787777
 pub trait Acquire<'c> {
-    type Database: Database;
-
-    type Connection: Deref<Target = <Self::Database as Database>::Connection> + DerefMut + Send;
+    type Connection: Deref<Target = Connection> + DerefMut + Send;
 
     fn acquire(self) -> BoxFuture<'c, Result<Self::Connection, Error>>;
 
-    fn begin(self) -> BoxFuture<'c, Result<Transaction<'c, Self::Database>, Error>>;
+    fn begin(self) -> BoxFuture<'c, Result<Transaction<'c>, Error>>;
 }
 
-impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
-    type Database = DB;
-
-    type Connection = PoolConnection<DB>;
+impl<'a> Acquire<'a> for &'_ Pool {
+    type Connection = PoolConnection;
 
     fn acquire(self) -> BoxFuture<'static, Result<Self::Connection, Error>> {
         Box::pin(self.acquire())
     }
 
-    fn begin(self) -> BoxFuture<'static, Result<Transaction<'a, DB>, Error>> {
+    fn begin(self) -> BoxFuture<'static, Result<Transaction<'a>, Error>> {
         let conn = self.acquire();
 
         Box::pin(async move {
@@ -44,9 +42,7 @@ impl<'a, DB: Database> Acquire<'a> for &'_ Pool<DB> {
 macro_rules! impl_acquire {
     ($DB:ident, $C:ident) => {
         impl<'c> $crate::acquire::Acquire<'c> for &'c mut $C {
-            type Database = $DB;
-
-            type Connection = &'c mut <$DB as $crate::database::Database>::Connection;
+            type Connection = &'c mut $crate::Connection;
 
             #[inline]
             fn acquire(
@@ -61,7 +57,7 @@ macro_rules! impl_acquire {
                 self,
             ) -> futures_core::future::BoxFuture<
                 'c,
-                Result<$crate::transaction::Transaction<'c, $DB>, $crate::error::Error>,
+                Result<$crate::transaction::Transaction<'c>, $crate::error::Error>,
             > {
                 $crate::transaction::Transaction::begin(self)
             }

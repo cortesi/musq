@@ -2,11 +2,11 @@ use std::sync::atomic::AtomicBool;
 
 pub use arguments::{ArgumentBuffer, ArgumentValue, Arguments};
 pub use column::Column;
-pub use connection::{LockedSqliteHandle, SqliteConnection};
+pub use connection::{Connection, LockedSqliteHandle};
 pub use database::Sqlite;
 pub use error::SqliteError;
 pub use options::{
-    SqliteAutoVacuum, SqliteConnectOptions, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
+    ConnectOptions, SqliteAutoVacuum, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
 };
 pub use query_result::SqliteQueryResult;
 pub use row::Row;
@@ -39,10 +39,10 @@ mod value;
 mod regexp;
 
 /// An alias for [`Pool`][crate::sqlite::pool::Pool], specialized for SQLite.
-pub type SqlitePool = crate::pool::Pool<Sqlite>;
+pub type SqlitePool = crate::pool::Pool;
 
 /// An alias for [`PoolOptions`][crate::sqlite::pool::PoolOptions], specialized for SQLite.
-pub type SqlitePoolOptions = crate::pool::PoolOptions<Sqlite>;
+pub type SqlitePoolOptions = crate::pool::PoolOptions;
 
 /// An alias for [`Executor<'_, Database = Sqlite>`][Executor].
 pub trait SqliteExecutor<'c>: Executor<'c, Database = Sqlite> {}
@@ -52,7 +52,7 @@ impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
 crate::impl_into_arguments_for_arguments!(Arguments<'q>);
 crate::impl_column_index_for_row!(Row);
 crate::impl_column_index_for_statement!(Statement);
-crate::impl_acquire!(Sqlite, SqliteConnection);
+crate::impl_acquire!(Sqlite, Connection);
 
 // required because some databases have a different handling of NULL
 crate::impl_encode_for_option!(Sqlite);
@@ -64,7 +64,7 @@ pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
 /// UNSTABLE: for use by `sqlite-macros-core` only.
 #[doc(hidden)]
 pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe, Error> {
-    let opts: SqliteConnectOptions = database_url.parse()?;
+    let opts: ConnectOptions = database_url.parse()?;
     let params = EstablishParams::from_options(&opts)?;
     let mut conn = params.establish()?;
 

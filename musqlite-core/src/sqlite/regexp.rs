@@ -177,8 +177,8 @@ mod tests {
     use crate::{query, ConnectOptions, Error, Row};
     use std::str::FromStr;
 
-    async fn test_db() -> crate::sqlite::SqliteConnection {
-        let mut conn = crate::sqlite::SqliteConnectOptions::from_str("sqlite://:memory:")
+    async fn test_db() -> crate::sqlite::Connection {
+        let mut conn = crate::sqlite::ConnectOptions::from_str("sqlite://:memory:")
             .unwrap()
             .with_regexp()
             .connect()

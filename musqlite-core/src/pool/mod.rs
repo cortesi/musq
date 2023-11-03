@@ -9,10 +9,8 @@
 //! on the database server.
 //!
 use self::inner::PoolInner;
-use crate::connection::Connection;
-use crate::database::Database;
-use crate::error::Error;
-use crate::transaction::Transaction;
+use crate::{database::Database, error::Error, transaction::Transaction, ConnectOptions};
+
 use event_listener::EventListener;
 use futures_core::FusedFuture;
 use futures_util::FutureExt;
@@ -91,7 +89,7 @@ pub use self::maybe::MaybePoolConnection;
 /// the pool for you.
 ///
 /// [`.close().await`]: Pool::close
-pub struct Pool<DB: Database>(pub(crate) Arc<PoolInner<DB>>);
+pub struct Pool(pub(crate) Arc<PoolInner>);
 
 /// A future that resolves when the pool is closed.
 ///
@@ -100,7 +98,7 @@ pub struct CloseEvent {
     listener: Option<EventListener>,
 }
 
-impl<DB: Database> Pool<DB> {
+impl Pool {
     /// Create a new connection pool with a default pool configuration and
     /// the given connection URL, and immediately establish one connection.
     ///
@@ -113,7 +111,7 @@ impl<DB: Database> Pool<DB> {
     ///
     /// See [`PoolOptions::new()`] for details.
     pub async fn connect(url: &str) -> Result<Self, Error> {
-        PoolOptions::<DB>::new().connect(url).await
+        PoolOptions::new().connect(url).await
     }
 
     /// Create a new connection pool with a default pool configuration and
@@ -123,10 +121,8 @@ impl<DB: Database> Pool<DB> {
     /// For production applications, you'll likely want to make at least few tweaks.
     ///
     /// See [`PoolOptions::new()`] for details.
-    pub async fn connect_with(
-        options: <DB::Connection as Connection>::Options,
-    ) -> Result<Self, Error> {
-        PoolOptions::<DB>::new().connect_with(options).await
+    pub async fn connect_with(options: ConnectOptions) -> Result<Self, Error> {
+        PoolOptions::new().connect_with(options).await
     }
 
     /// Create a new connection pool with a default pool configuration and
@@ -143,7 +139,7 @@ impl<DB: Database> Pool<DB> {
     ///
     /// See [`PoolOptions::new()`] for details.
     pub fn connect_lazy(url: &str) -> Result<Self, Error> {
-        PoolOptions::<DB>::new().connect_lazy(url)
+        PoolOptions::new().connect_lazy(url)
     }
 
     /// Create a new connection pool with a default pool configuration and
@@ -155,8 +151,8 @@ impl<DB: Database> Pool<DB> {
     /// For production applications, you'll likely want to make at least few tweaks.
     ///
     /// See [`PoolOptions::new()`] for details.
-    pub fn connect_lazy_with(options: <DB::Connection as Connection>::Options) -> Self {
-        PoolOptions::<DB>::new().connect_lazy_with(options)
+    pub fn connect_lazy_with(options: ConnectOptions) -> Self {
+        PoolOptions::new().connect_lazy_with(options)
     }
 
     /// Retrieves a connection from the pool.
@@ -182,7 +178,7 @@ impl<DB: Database> Pool<DB> {
     ///
     /// This should eliminate any potential `.await` points between acquiring a connection and
     /// returning it.
-    pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection<DB>, Error>> + 'static {
+    pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection, Error>> + 'static {
         let shared = self.0.clone();
         async move { shared.acquire().await.map(|conn| conn.reattach()) }
     }
@@ -191,17 +187,17 @@ impl<DB: Database> Pool<DB> {
     ///
     /// Returns `None` immediately if there are no idle connections available in the pool
     /// or there are tasks waiting for a connection which have yet to wake.
-    pub fn try_acquire(&self) -> Option<PoolConnection<DB>> {
+    pub fn try_acquire(&self) -> Option<PoolConnection> {
         self.0.try_acquire().map(|conn| conn.into_live().reattach())
     }
 
     /// Retrieves a connection and immediately begins a new transaction.
-    pub async fn begin(&self) -> Result<Transaction<'static, DB>, Error> {
+    pub async fn begin(&self) -> Result<Transaction<'static>, Error> {
         Ok(Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await?)
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.
-    pub async fn try_begin(&self) -> Result<Option<Transaction<'static, DB>>, Error> {
+    pub async fn try_begin(&self) -> Result<Option<Transaction<'static>>, Error> {
         match self.try_acquire() {
             Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn))
                 .await
@@ -269,7 +265,7 @@ impl<DB: Database> Pool<DB> {
     }
 
     /// Gets a clone of the connection options for this pool
-    pub fn connect_options(&self) -> Arc<<DB::Connection as Connection>::Options> {
+    pub fn connect_options(&self) -> Arc<ConnectOptions> {
         self.0
             .connect_options
             .read()
@@ -279,7 +275,7 @@ impl<DB: Database> Pool<DB> {
 
     /// Updates the connection options this pool will use when opening any future connections.  Any
     /// existing open connection in the pool will be left as-is.
-    pub fn set_connect_options(&self, connect_options: <DB::Connection as Connection>::Options) {
+    pub fn set_connect_options(&self, connect_options: ConnectOptions) {
         // technically write() could also panic if the current thread already holds the lock,
         // but because this method can't be re-entered by the same thread that shouldn't be a problem
         let mut guard = self
@@ -291,19 +287,19 @@ impl<DB: Database> Pool<DB> {
     }
 
     /// Get the options for this pool
-    pub fn options(&self) -> &PoolOptions<DB> {
+    pub fn options(&self) -> &PoolOptions {
         &self.0.options
     }
 }
 
 /// Returns a new [Pool] tied to the same shared connection pool.
-impl<DB: Database> Clone for Pool<DB> {
+impl Clone for Pool {
     fn clone(&self) -> Self {
         Self(Arc::clone(&self.0))
     }
 }
 
-impl<DB: Database> fmt::Debug for Pool<DB> {
+impl fmt::Debug for Pool {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Pool")
             .field("size", &self.0.size())

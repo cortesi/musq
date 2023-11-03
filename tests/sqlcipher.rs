@@ -12,7 +12,7 @@ async fn new_db_url() -> anyhow::Result<(String, TempDir)> {
     Ok((format!("sqlite://{}", filepath.display()), dir))
 }
 
-async fn fill_db(conn: &mut SqliteConnection) -> anyhow::Result<SqliteQueryResult> {
+async fn fill_db(conn: &mut Connection) -> anyhow::Result<SqliteQueryResult> {
     conn.transaction(|tx| {
         Box::pin(async move {
             query(
@@ -47,7 +47,7 @@ async fn fill_db(conn: &mut SqliteConnection) -> anyhow::Result<SqliteQueryResul
 async fn it_encrypts() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
         .create_if_missing(true)
         .connect()
@@ -56,7 +56,7 @@ async fn it_encrypts() -> anyhow::Result<()> {
     fill_db(&mut conn).await?;
 
     // Create another connection without key, query should fail
-    let mut conn = SqliteConnectOptions::from_str(&url)?.connect().await?;
+    let mut conn = ConnectOptions::from_str(&url)?.connect().await?;
 
     assert!(conn
         .transaction(|tx| {
@@ -72,7 +72,7 @@ async fn it_encrypts() -> anyhow::Result<()> {
 async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
         .create_if_missing(true)
         .connect()
@@ -81,7 +81,7 @@ async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
     fill_db(&mut conn).await?;
 
     // Create another connection with valid key
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
         .connect()
         .await?;
@@ -101,7 +101,7 @@ async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
 async fn it_fails_if_password_is_incorrect() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
         .create_if_missing(true)
         .connect()
@@ -110,7 +110,7 @@ async fn it_fails_if_password_is_incorrect() -> anyhow::Result<()> {
     fill_db(&mut conn).await?;
 
     // Connection with invalid key should not allow to execute queries
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("key", "BADBADBAD")
         .connect()
         .await?;
@@ -132,7 +132,7 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
     // Make call of cipher configuration mixed with other pragmas,
     // it should have no effect, encryption related pragmas should be
     // executed first and allow to establish valid connection
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("cipher_kdf_algorithm", "PBKDF2_HMAC_SHA1")
         .journal_mode(SqliteJournalMode::Wal)
         .pragma("cipher_page_size", "1024")
@@ -147,7 +147,7 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
 
     fill_db(&mut conn).await?;
 
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("dummy", "pragma")
         // The cipher configuration set on first connection is
         // version 3 of SQLCipher, so for second it's enough to set
@@ -172,7 +172,7 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
 async fn it_allows_to_rekey_the_db() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("key", "the_password")
         .create_if_missing(true)
         .connect()
@@ -185,7 +185,7 @@ async fn it_allows_to_rekey_the_db() -> anyhow::Result<()> {
         .execute(&mut conn)
         .await?;
 
-    let mut conn = SqliteConnectOptions::from_str(&url)?
+    let mut conn = ConnectOptions::from_str(&url)?
         .pragma("dummy", "pragma")
         .pragma("key", "new_password")
         .connect()

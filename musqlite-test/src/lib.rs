@@ -1,8 +1,8 @@
-use musqlite_core::connection::Connection;
 use musqlite_core::database::Database;
+use musqlite_core::Connection;
 
 use musqlite_core::pool::{Pool, PoolOptions};
-use musqlite_core::sqlite::{Sqlite, SqliteConnection};
+use musqlite_core::sqlite::Sqlite;
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
@@ -12,22 +12,22 @@ pub fn setup_if_needed() {
 
 // Make a new connection
 // Ensure [dotenvy] and [env_logger] have been setup
-pub async fn new<DB>() -> anyhow::Result<DB::Connection>
+pub async fn new<DB>() -> anyhow::Result<Connection>
 where
     DB: Database,
 {
     setup_if_needed();
-    Ok(DB::Connection::connect("sqlite::memory:").await?)
+    Ok(Connection::connect("sqlite::memory:").await?)
 }
 
 // Make a new pool
 // Ensure [dotenvy] and [env_logger] have been setup
-pub async fn pool<DB>() -> anyhow::Result<Pool<DB>>
+pub async fn pool<DB>() -> anyhow::Result<Pool>
 where
     DB: Database,
 {
     setup_if_needed();
-    let pool = PoolOptions::<DB>::new()
+    let pool = PoolOptions::new()
         .min_connections(0)
         .max_connections(5)
         .test_before_acquire(true)
@@ -37,7 +37,7 @@ where
 }
 
 /// Return a connection to a database pre-configured with our test schema.
-pub async fn tdb() -> anyhow::Result<SqliteConnection> {
+pub async fn tdb() -> anyhow::Result<Connection> {
     let mut conn = new::<Sqlite>().await?;
     musqlite_core::query::query(TEST_SCHEMA)
         .execute(&mut conn)

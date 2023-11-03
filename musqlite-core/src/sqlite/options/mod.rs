@@ -36,7 +36,7 @@ use crate::IndexMap;
 /// `sqlite:///data.db` | Open the file `data.db` from the root (`/`) directory. |
 /// `sqlite://data.db?mode=ro` | Open the file `data.db` for read-only access. |
 #[derive(Clone, Debug)]
-pub struct SqliteConnectOptions {
+pub struct ConnectOptions {
     pub(crate) filename: Cow<'static, Path>,
     pub(crate) in_memory: bool,
     pub(crate) read_only: bool,
@@ -74,13 +74,13 @@ pub enum OptimizeOnClose {
     Disabled,
 }
 
-impl Default for SqliteConnectOptions {
+impl Default for ConnectOptions {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl SqliteConnectOptions {
+impl ConnectOptions {
     /// Construct `Self` with default options.
     ///
     /// See the source of this method for the current defaults.

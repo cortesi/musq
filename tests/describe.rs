@@ -1,7 +1,7 @@
 use musqlite_core::error::DatabaseError;
 use musqlite_core::executor::Executor;
 use musqlite_core::sqlite::Sqlite;
-use musqlite_core::sqlite::{SqliteConnection, SqliteError};
+use musqlite_core::sqlite::{Connection, SqliteError};
 use musqlite_test::{new, tdb};
 
 #[tokio::test]
@@ -414,10 +414,7 @@ async fn it_describes_ungrouped_aggregate() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_literal_subquery() -> anyhow::Result<()> {
-    async fn assert_literal_described(
-        conn: &mut SqliteConnection,
-        query: &str,
-    ) -> anyhow::Result<()> {
+    async fn assert_literal_described(conn: &mut Connection, query: &str) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
 
         assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
@@ -450,7 +447,7 @@ async fn it_describes_literal_subquery() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn assert_tweet_described(conn: &mut SqliteConnection, query: &str) -> anyhow::Result<()> {
+async fn assert_tweet_described(conn: &mut Connection, query: &str) -> anyhow::Result<()> {
     let info = conn.describe(query).await?;
     let columns = info.columns();
 
@@ -510,7 +507,7 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
     .await?;
 
     async fn assert_literal_order_by_described(
-        conn: &mut SqliteConnection,
+        conn: &mut Connection,
         query: &str,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
@@ -547,10 +544,7 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_union() -> anyhow::Result<()> {
-    async fn assert_union_described(
-        conn: &mut SqliteConnection,
-        query: &str,
-    ) -> anyhow::Result<()> {
+    async fn assert_union_described(conn: &mut Connection, query: &str) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
 
         assert_eq!(info.column(0).type_info().name(), "TEXT", "{}", query);
@@ -594,7 +588,7 @@ async fn it_describes_union() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_describes_strange_queries() -> anyhow::Result<()> {
     async fn assert_single_column_described(
-        conn: &mut SqliteConnection,
+        conn: &mut Connection,
         query: &str,
         typename: &str,
         nullable: bool,

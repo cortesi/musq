@@ -9,12 +9,12 @@ use crate::{
     error::Error,
     executor::{Execute, Executor},
     pool::Pool,
-    sqlite, Row, Statement,
+    sqlite, Connection, Row, Statement,
 };
 
-impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
+impl<'p, DB: Database> Executor<'p> for &'_ Pool
 where
-    for<'c> &'c mut DB::Connection: Executor<'c, Database = DB>,
+    for<'c> &'c mut Connection: Executor<'c, Database = DB>,
 {
     type Database = DB;
 

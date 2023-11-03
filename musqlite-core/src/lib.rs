@@ -67,7 +67,6 @@ pub use crate::{
     acquire::Acquire,
     arguments::IntoArguments,
     column::ColumnIndex,
-    connection::{ConnectOptions, Connection},
     database::Database,
     describe::Describe,
     executor::{Execute, Executor},
@@ -77,7 +76,9 @@ pub use crate::{
     query_as::{query_as, query_as_with},
     query_builder::QueryBuilder,
     query_scalar::{query_scalar, query_scalar_with},
-    sqlite::{Arguments, Column, Row, Statement, TypeInfo, Value, ValueRef},
+    sqlite::{
+        Arguments, Column, ConnectOptions, Connection, Row, Statement, TypeInfo, Value, ValueRef,
+    },
     transaction::{Transaction, TransactionManager},
     types::Type,
 };

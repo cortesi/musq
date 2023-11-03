@@ -16,7 +16,7 @@ use crate::sqlite::connection::establish::EstablishParams;
 use crate::sqlite::connection::worker::ConnectionWorker;
 use crate::sqlite::options::OptimizeOnClose;
 use crate::sqlite::statement::VirtualStatement;
-use crate::sqlite::{Sqlite, SqliteConnectOptions};
+use crate::sqlite::ConnectOptions;
 use std::fmt::Write;
 
 pub(crate) use crate::connection::*;
@@ -44,7 +44,7 @@ mod worker;
 ///
 /// You can explicitly call [`.close()`][Self::close] to ensure the database is closed successfully
 /// or get an error otherwise.
-pub struct SqliteConnection {
+pub struct Connection {
     optimize_on_close: OptimizeOnClose,
     pub(crate) worker: ConnectionWorker,
     pub(crate) row_channel_size: usize,
@@ -92,8 +92,8 @@ pub(crate) struct Statements {
     temp: Option<VirtualStatement>,
 }
 
-impl SqliteConnection {
-    pub(crate) async fn establish(options: &SqliteConnectOptions) -> Result<Self, Error> {
+impl Connection {
+    pub(crate) async fn establish(options: &ConnectOptions) -> Result<Self, Error> {
         let params = EstablishParams::from_options(options)?;
         let worker = ConnectionWorker::establish(params).await?;
         Ok(Self {
@@ -114,7 +114,7 @@ impl SqliteConnection {
     }
 }
 
-impl Debug for SqliteConnection {
+impl Debug for Connection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_struct("SqliteConnection")
             .field("row_channel_size", &self.row_channel_size)
@@ -123,12 +123,24 @@ impl Debug for SqliteConnection {
     }
 }
 
-impl Connection for SqliteConnection {
-    type Database = Sqlite;
-
-    type Options = SqliteConnectOptions;
-
-    fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
+impl Connection {
+    /// Explicitly close this database connection.
+    ///
+    /// This notifies the database server that the connection is closing so that it can
+    /// free up any server-side resources in use.
+    ///
+    /// While connections can simply be dropped to clean up local resources,
+    /// the `Drop` handler itself cannot notify the server that the connection is being closed
+    /// because that may require I/O to send a termination message. That can result in a delay
+    /// before the server learns that the connection is gone, usually from a TCP keepalive timeout.
+    ///
+    /// Creating and dropping many connections in short order without calling `.close()` may
+    /// lead to errors from the database server because those senescent connections will still
+    /// count against any connection limit or quota that is configured.
+    ///
+    /// Therefore it is recommended to call `.close()` on a connection when you are done using it
+    /// and to `.await` the result to ensure the termination message is sent.
+    pub fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
             if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
                 let mut pragma_string = String::new();
@@ -147,7 +159,8 @@ impl Connection for SqliteConnection {
         })
     }
 
-    fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+    /// Immediately close the connection without sending a graceful shutdown.
+    pub fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
         Box::pin(async move {
             drop(self);
             Ok(())
@@ -155,25 +168,28 @@ impl Connection for SqliteConnection {
     }
 
     /// Ensure the background worker thread is alive and accepting commands.
-    fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(self.worker.ping())
     }
 
-    fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_, Self::Database>, Error>>
+    /// Begin a new transaction or establish a savepoint within the active transaction.
+    ///
+    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
+    pub fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_>, Error>>
     where
         Self: Sized,
     {
         Transaction::begin(self)
     }
 
-    fn cached_statements_size(&self) -> usize {
+    pub fn cached_statements_size(&self) -> usize {
         self.worker
             .shared
             .cached_statements_size
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
-    fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         Box::pin(async move {
             self.worker.clear_cache().await?;
             Ok(())
@@ -181,12 +197,12 @@ impl Connection for SqliteConnection {
     }
 
     #[inline]
-    fn shrink_buffers(&mut self) {
+    pub fn shrink_buffers(&mut self) {
         // No-op.
     }
 
     #[doc(hidden)]
-    fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
         // For SQLite, FLUSH does effectively nothing...
         // Well, we could use this to ensure that the command channel has been cleared,
         // but it would only develop a backlog if a lot of queries are executed and then cancelled
@@ -195,8 +211,61 @@ impl Connection for SqliteConnection {
     }
 
     #[doc(hidden)]
-    fn should_flush(&self) -> bool {
+    pub fn should_flush(&self) -> bool {
         false
+    }
+
+    /// Execute the function inside a transaction.
+    ///
+    /// If the function returns an error, the transaction will be rolled back. If it does not
+    /// return an error, the transaction will be committed.
+    pub fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> BoxFuture<'a, Result<R, E>>
+    where
+        for<'c> F:
+            FnOnce(&'c mut Transaction<'_>) -> BoxFuture<'c, Result<R, E>> + 'a + Send + Sync,
+        Self: Sized,
+        R: Send,
+        E: From<Error> + Send,
+    {
+        Box::pin(async move {
+            let mut transaction = self.begin().await?;
+            let ret = callback(&mut transaction).await;
+
+            match ret {
+                Ok(ret) => {
+                    transaction.commit().await?;
+
+                    Ok(ret)
+                }
+                Err(err) => {
+                    transaction.rollback().await?;
+
+                    Err(err)
+                }
+            }
+        })
+    }
+
+    /// Establish a new database connection.
+    ///
+    /// A value of [`Options`][Self::Options] is parsed from the provided connection string. This parsing
+    /// is database-specific.
+    #[inline]
+    pub fn connect(url: &str) -> BoxFuture<'static, Result<Self, Error>>
+    where
+        Self: Sized,
+    {
+        let options = url.parse();
+
+        Box::pin(async move { Ok(Self::connect_with(&options?).await?) })
+    }
+
+    /// Establish a new database connection with the provided options.
+    pub fn connect_with(options: &ConnectOptions) -> BoxFuture<'_, Result<Self, Error>>
+    where
+        Self: Sized,
+    {
+        options.connect()
     }
 }
 

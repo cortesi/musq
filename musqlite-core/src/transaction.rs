@@ -4,9 +4,10 @@ use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
 
-use crate::database::Database;
-use crate::error::Error;
-use crate::pool::MaybePoolConnection;
+use crate::{
+    database::Database, error::Error, pool::MaybePoolConnection, sqlite::SqliteTransactionManager,
+    Connection,
+};
 
 /// Generic management of database transactions.
 ///
@@ -16,22 +17,16 @@ pub trait TransactionManager {
     type Database: Database;
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
-    fn begin(
-        conn: &mut <Self::Database as Database>::Connection,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    fn begin(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Commit the active transaction or release the most recent savepoint.
-    fn commit(
-        conn: &mut <Self::Database as Database>::Connection,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    fn commit(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Abort the active transaction or restore from the most recent savepoint.
-    fn rollback(
-        conn: &mut <Self::Database as Database>::Connection,
-    ) -> BoxFuture<'_, Result<(), Error>>;
+    fn rollback(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>>;
 
     /// Starts to abort the active transaction or restore from the most recent snapshot.
-    fn start_rollback(conn: &mut <Self::Database as Database>::Connection);
+    fn start_rollback(conn: &mut Connection);
 }
 
 /// An in-progress database transaction or savepoint.
@@ -50,26 +45,18 @@ pub trait TransactionManager {
 /// [`Pool::begin`]: crate::pool::Pool::begin()
 /// [`commit`]: Self::commit()
 /// [`rollback`]: Self::rollback()
-pub struct Transaction<'c, DB>
-where
-    DB: Database,
-{
-    connection: MaybePoolConnection<'c, DB>,
+pub struct Transaction<'c> {
+    connection: MaybePoolConnection<'c>,
     open: bool,
 }
 
-impl<'c, DB> Transaction<'c, DB>
-where
-    DB: Database,
-{
+impl<'c> Transaction<'c> {
     #[doc(hidden)]
-    pub fn begin(
-        conn: impl Into<MaybePoolConnection<'c, DB>>,
-    ) -> BoxFuture<'c, Result<Self, Error>> {
+    pub fn begin(conn: impl Into<MaybePoolConnection<'c>>) -> BoxFuture<'c, Result<Self, Error>> {
         let mut conn = conn.into();
 
         Box::pin(async move {
-            DB::TransactionManager::begin(&mut conn).await?;
+            SqliteTransactionManager::begin(&mut conn).await?;
 
             Ok(Self {
                 connection: conn,
@@ -80,7 +67,7 @@ where
 
     /// Commits this transaction or savepoint.
     pub async fn commit(mut self) -> Result<(), Error> {
-        DB::TransactionManager::commit(&mut self.connection).await?;
+        SqliteTransactionManager::commit(&mut self.connection).await?;
         self.open = false;
 
         Ok(())
@@ -88,7 +75,7 @@ where
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(mut self) -> Result<(), Error> {
-        DB::TransactionManager::rollback(&mut self.connection).await?;
+        SqliteTransactionManager::rollback(&mut self.connection).await?;
         self.open = false;
 
         Ok(())
@@ -165,21 +152,15 @@ where
 //     }
 // }
 
-impl<'c, DB> Debug for Transaction<'c, DB>
-where
-    DB: Database,
-{
+impl<'c> Debug for Transaction<'c> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // TODO: Show the full type <..<..<..
         f.debug_struct("Transaction").finish()
     }
 }
 
-impl<'c, DB> Deref for Transaction<'c, DB>
-where
-    DB: Database,
-{
-    type Target = DB::Connection;
+impl<'c> Deref for Transaction<'c> {
+    type Target = Connection;
 
     #[inline]
     fn deref(&self) -> &Self::Target {
@@ -187,10 +168,7 @@ where
     }
 }
 
-impl<'c, DB> DerefMut for Transaction<'c, DB>
-where
-    DB: Database,
-{
+impl<'c> DerefMut for Transaction<'c> {
     #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.connection
@@ -201,16 +179,14 @@ where
 // `PgAdvisoryLockGuard`.
 //
 // See: https://github.com/launchbadge/sqlx/issues/2520
-impl<'c, DB: Database> AsMut<DB::Connection> for Transaction<'c, DB> {
-    fn as_mut(&mut self) -> &mut DB::Connection {
+impl<'c> AsMut<Connection> for Transaction<'c> {
+    fn as_mut(&mut self) -> &mut Connection {
         &mut self.connection
     }
 }
 
-impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'c, DB> {
-    type Database = DB;
-
-    type Connection = &'t mut <DB as Database>::Connection;
+impl<'c, 't> crate::acquire::Acquire<'t> for &'t mut Transaction<'c> {
+    type Connection = &'t mut Connection;
 
     #[inline]
     fn acquire(self) -> BoxFuture<'t, Result<Self::Connection, Error>> {
@@ -218,15 +194,12 @@ impl<'c, 't, DB: Database> crate::acquire::Acquire<'t> for &'t mut Transaction<'
     }
 
     #[inline]
-    fn begin(self) -> BoxFuture<'t, Result<Transaction<'t, DB>, Error>> {
+    fn begin(self) -> BoxFuture<'t, Result<Transaction<'t>, Error>> {
         Transaction::begin(&mut **self)
     }
 }
 
-impl<'c, DB> Drop for Transaction<'c, DB>
-where
-    DB: Database,
-{
+impl<'c> Drop for Transaction<'c> {
     fn drop(&mut self) {
         if self.open {
             // starts a rollback operation
@@ -235,7 +208,7 @@ where
             // operation that will happen on the next asynchronous invocation of the underlying
             // connection (including if the connection is returned to a pool)
 
-            DB::TransactionManager::start_rollback(&mut self.connection);
+            SqliteTransactionManager::start_rollback(&mut self.connection);
         }
     }
 }
