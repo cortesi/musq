@@ -7,7 +7,6 @@ use sqlx_core::sqlite::{Sqlite, SqliteConnection};
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
 pub fn setup_if_needed() {
-    let _ = dotenvy::dotenv();
     let _ = env_logger::builder().is_test(true).try_init();
 }
 

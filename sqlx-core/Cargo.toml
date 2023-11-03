@@ -8,20 +8,19 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-tokio = { workspace = true }
+tokio = { version = "1.15.0", features = ["full"] }
 
-# Runtimes
-# Type Integrations
-bit-vec = { workspace = true }
-time = { workspace = true }
-ipnetwork = { workspace = true }
-mac_address = { workspace = true }
-uuid = { workspace = true }
+
+bit-vec = "0.6.3"
+chrono = { version = "0.4.22" }
+ipnetwork = "0.20.0"
+mac_address = "1.1.5"
+time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
+uuid = "1.1.2"
+
 
 ahash = "0.8"
-
 bytes = "1.1.0"
-chrono = { version = "0.4.19", default-features = false, features = ["clock"] }
 crossbeam-queue = "0.3.2"
 either = { version = "1.6.1", features = ["serde"] }
 futures-channel = { version = "0.3.19", default-features = false, features = [
@@ -36,7 +35,6 @@ futures-util = { version = "0.3.19", default-features = false, features = [
     "io",
 ] }
 log = { version = "0.4.14", default-features = false }
-memchr = { version = "2.4.1", default-features = false }
 percent-encoding = "2.1.0"
 serde = { version = "1.0.132", features = ["derive", "rc"] }
 serde_json = { version = "1.0.73", features = ["raw_value"] }
@@ -55,8 +53,3 @@ libsqlite3-sys = "0.26.0"
 futures-intrusive = "0.5.0"
 regex = "1.10.2"
 atoi = "2.0.0"
-
-
-[dev-dependencies]
-sqlx = { workspace = true }
-tokio = { version = "1", features = ["rt"] }
