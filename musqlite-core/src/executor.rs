@@ -1,7 +1,4 @@
-use crate::{
-    database::Database, describe::Describe, error::Error, sqlite, Arguments, QueryResult, Row,
-    Statement,
-};
+use crate::{describe::Describe, error::Error, sqlite, Arguments, QueryResult, Row, Statement};
 
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -25,13 +22,11 @@ use std::fmt::Debug;
 ///  * [`&mut Connection`](super::connection::Connection)
 ///
 pub trait Executor<'c>: Send + Debug + Sized {
-    type Database: Database;
-
     /// Execute the query and return the total number of rows affected.
     fn execute<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<QueryResult, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         self.execute_many(query).try_collect().boxed()
     }
@@ -40,7 +35,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn execute_many<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxStream<'e, Result<QueryResult, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         self.fetch_many(query)
             .try_filter_map(|step| async move {
@@ -56,7 +51,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxStream<'e, Result<Row, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         self.fetch_many(query)
             .try_filter_map(|step| async move {
@@ -76,13 +71,13 @@ pub trait Executor<'c>: Send + Debug + Sized {
     ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>;
+        E: Execute<'q>;
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
     fn fetch_all<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Vec<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         self.fetch(query).try_collect().boxed()
     }
@@ -91,7 +86,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch_one<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Row, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         self.fetch_optional(query)
             .and_then(|row| match row {
@@ -108,7 +103,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     ) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>;
+        E: Execute<'q>;
 
     /// Prepare the SQL query to inspect the type information of its parameters
     /// and results.
@@ -157,7 +152,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
 ///  * [`&str`](std::str)
 ///  * [`Query`](super::query::Query)
 ///
-pub trait Execute<'q, DB: Database>: Send + Sized {
+pub trait Execute<'q>: Send + Sized {
     /// Gets the SQL that will be executed.
     fn sql(&self) -> &'q str;
 
@@ -177,7 +172,7 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
 
 // NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
 //       involved to write `conn.execute(format!("SELECT {}", val))`
-impl<'q, DB: Database> Execute<'q, DB> for &'q str {
+impl<'q> Execute<'q> for &'q str {
     #[inline]
     fn sql(&self) -> &'q str {
         self
@@ -199,7 +194,7 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 }
 
-impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<Arguments<'q>>) {
+impl<'q> Execute<'q> for (&'q str, Option<Arguments<'q>>) {
     #[inline]
     fn sql(&self) -> &'q str {
         self.0

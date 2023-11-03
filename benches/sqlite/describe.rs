@@ -48,7 +48,7 @@ async fn do_describe_insert_fks(db: &std::cell::RefCell<SqliteConnection>) {
 }
 
 async fn init_connection() -> SqliteConnection {
-    let mut conn = new::<Sqlite>().await.unwrap();
+    let mut conn = new().await.unwrap();
 
     conn.execute(
         r#"

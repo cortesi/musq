@@ -1,10 +1,8 @@
-use crate::{database::Database, error::Error, sqlite};
+use crate::{error::Error, sqlite};
 
 use std::fmt::Debug;
 
 pub trait Column: 'static + Send + Sync + Debug {
-    type Database: Database;
-
     /// Gets the column ordinal.
     ///
     /// This can be used to unambiguously refer to this column within a row in case more than

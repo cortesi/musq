@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 use crate::{
     arguments::IntoArguments, encode::Encode, from_row::FromRow, query::Query, query_as::QueryAs,
-    query_scalar::QueryScalar, sqlite::Sqlite, types::Type, Arguments, Either,
+    query_scalar::QueryScalar, types::Type, Arguments, Either,
 };
 
 /// A builder type for constructing queries at runtime.
@@ -422,13 +422,12 @@ impl<'args> QueryBuilder<'args> {
     /// to the state it was in immediately after [`new()`][Self::new].
     ///
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
-    pub fn build(&mut self) -> Query<'_, Sqlite, Arguments<'args>> {
+    pub fn build(&mut self) -> Query<'_, Arguments<'args>> {
         self.sanity_check();
 
         Query {
             statement: Either::Left(&self.query),
             arguments: self.arguments.take(),
-            database: PhantomData,
             persistent: true,
         }
     }
@@ -445,9 +444,7 @@ impl<'args> QueryBuilder<'args> {
     /// to the state it was in immediately after [`new()`][Self::new].
     ///
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
-    pub fn build_query_as<'q, T: FromRow<'q>>(
-        &'q mut self,
-    ) -> QueryAs<'q, Sqlite, T, Arguments<'args>> {
+    pub fn build_query_as<'q, T: FromRow<'q>>(&'q mut self) -> QueryAs<'q, T, Arguments<'args>> {
         QueryAs {
             inner: self.build(),
             output: PhantomData,
@@ -466,7 +463,7 @@ impl<'args> QueryBuilder<'args> {
     /// to the state it was in immediately after [`new()`][Self::new].
     ///
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
-    pub fn build_query_scalar<'q, T>(&'q mut self) -> QueryScalar<'q, Sqlite, T, Arguments<'args>>
+    pub fn build_query_scalar<'q, T>(&'q mut self) -> QueryScalar<'q, T, Arguments<'args>>
     where
         (T,): for<'r> FromRow<'r>,
     {

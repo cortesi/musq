@@ -1,22 +1,20 @@
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-use crate::sqlite::{Connection, QueryResult, Row, Sqlite, Statement, TypeInfo};
+use crate::sqlite::{Connection, QueryResult, Row, Statement, TypeInfo};
 use crate::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{TryFutureExt, TryStreamExt};
 
 impl<'c> Executor<'c> for &'c mut Connection {
-    type Database = Sqlite;
-
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
     ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         let sql = query.sql();
         let arguments = query.take_arguments();
@@ -36,7 +34,7 @@ impl<'c> Executor<'c> for &'c mut Connection {
     ) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         let sql = query.sql();
         let arguments = query.take_arguments();

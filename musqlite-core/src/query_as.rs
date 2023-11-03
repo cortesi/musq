@@ -6,13 +6,11 @@ use futures_util::{StreamExt, TryStreamExt};
 
 use crate::{
     arguments::IntoArguments,
-    database::{Database, HasStatementCache},
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
     from_row::FromRow,
     query::{query, query_statement, query_statement_with, query_with, Query},
-    sqlite::Sqlite,
     types::Type,
     Arguments, QueryResult, Statement,
 };
@@ -20,14 +18,13 @@ use crate::{
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
 /// Returned from [`query_as`][crate::query_as::query_as].
 #[must_use = "query must be executed to affect database"]
-pub struct QueryAs<'q, DB: Database, O, A> {
-    pub(crate) inner: Query<'q, DB, A>,
+pub struct QueryAs<'q, O, A> {
+    pub(crate) inner: Query<'q, A>,
     pub(crate) output: PhantomData<O>,
 }
 
-impl<'q, DB, O: Send, A: Send> Execute<'q, DB> for QueryAs<'q, DB, O, A>
+impl<'q, O: Send, A: Send> Execute<'q> for QueryAs<'q, O, A>
 where
-    DB: Database,
     A: 'q + IntoArguments<'q>,
 {
     #[inline]
@@ -51,7 +48,7 @@ where
     }
 }
 
-impl<'q, O> QueryAs<'q, Sqlite, O, Arguments<'q>> {
+impl<'q, O> QueryAs<'q, O, Arguments<'q>> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](Query::bind).
@@ -61,10 +58,7 @@ impl<'q, O> QueryAs<'q, Sqlite, O, Arguments<'q>> {
     }
 }
 
-impl<'q, DB, O, A> QueryAs<'q, DB, O, A>
-where
-    DB: Database + HasStatementCache,
-{
+impl<'q, O, A> QueryAs<'q, O, A> {
     /// If `true`, the statement will get prepared once and cached to the
     /// connection's statement cache.
     ///
@@ -73,17 +67,16 @@ where
     /// cache is cleared.
     ///
     /// Default: `true`.
-    pub fn persistent(mut self, value: bool) -> Self {
-        self.inner = self.inner.persistent(value);
+    pub fn persist(mut self, value: bool) -> Self {
+        self.inner = self.inner.persist(value);
         self
     }
 }
 
 // FIXME: This is very close, nearly 1:1 with `Map`
 // noinspection DuplicatedCode
-impl<'q, DB, O, A> QueryAs<'q, DB, O, A>
+impl<'q, O, A> QueryAs<'q, O, A>
 where
-    DB: Database,
     A: 'q + IntoArguments<'q>,
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
@@ -91,8 +84,7 @@ where
     pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
     where
         'q: 'e,
-        E: 'e + Executor<'c, Database = DB>,
-        DB: 'e,
+        E: 'e + Executor<'c>,
         O: 'e,
         A: 'e,
     {
@@ -109,8 +101,7 @@ where
     ) -> BoxStream<'e, Result<Either<QueryResult, O>, Error>>
     where
         'q: 'e,
-        E: 'e + Executor<'c, Database = DB>,
-        DB: 'e,
+        E: 'e + Executor<'c>,
         O: 'e,
         A: 'e,
     {
@@ -129,8 +120,7 @@ where
     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
         'q: 'e,
-        E: 'e + Executor<'c, Database = DB>,
-        DB: 'e,
+        E: 'e + Executor<'c>,
         O: 'e,
         A: 'e,
     {
@@ -141,8 +131,7 @@ where
     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
         'q: 'e,
-        E: 'e + Executor<'c, Database = DB>,
-        DB: 'e,
+        E: 'e + Executor<'c>,
         O: 'e,
         A: 'e,
     {
@@ -155,8 +144,7 @@ where
     pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
     where
         'q: 'e,
-        E: 'e + Executor<'c, Database = DB>,
-        DB: 'e,
+        E: 'e + Executor<'c>,
         O: 'e,
         A: 'e,
     {
@@ -172,9 +160,8 @@ where
 /// Make a SQL query that is mapped to a concrete type
 /// using [`FromRow`].
 #[inline]
-pub fn query_as<'q, DB, O>(sql: &'q str) -> QueryAs<'q, DB, O, Arguments<'q>>
+pub fn query_as<'q, O>(sql: &'q str) -> QueryAs<'q, O, Arguments<'q>>
 where
-    DB: Database,
     O: for<'r> FromRow<'r>,
 {
     QueryAs {
@@ -186,9 +173,8 @@ where
 /// Make a SQL query, with the given arguments, that is mapped to a concrete type
 /// using [`FromRow`].
 #[inline]
-pub fn query_as_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryAs<'q, DB, O, A>
+pub fn query_as_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryAs<'q, O, A>
 where
-    DB: Database,
     A: IntoArguments<'q>,
     O: for<'r> FromRow<'r>,
 {
@@ -199,11 +185,8 @@ where
 }
 
 // Make a SQL query from a statement, that is mapped to a concrete type.
-pub fn query_statement_as<'q, DB, O>(
-    statement: &'q Statement<'q>,
-) -> QueryAs<'q, DB, O, Arguments<'_>>
+pub fn query_statement_as<'q, O>(statement: &'q Statement<'q>) -> QueryAs<'q, O, Arguments<'_>>
 where
-    DB: Database,
     O: for<'r> FromRow<'r>,
 {
     QueryAs {
@@ -213,12 +196,11 @@ where
 }
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete type.
-pub fn query_statement_as_with<'q, DB, O, A>(
+pub fn query_statement_as_with<'q, O, A>(
     statement: &'q Statement<'q>,
     arguments: A,
-) -> QueryAs<'q, DB, O, A>
+) -> QueryAs<'q, O, A>
 where
-    DB: Database,
     A: IntoArguments<'q>,
     O: for<'r> FromRow<'r>,
 {

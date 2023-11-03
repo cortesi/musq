@@ -1,8 +1,6 @@
-use musqlite_core::database::Database;
 use musqlite_core::Connection;
 
 use musqlite_core::pool::{Pool, PoolOptions};
-use musqlite_core::sqlite::Sqlite;
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
@@ -12,20 +10,14 @@ pub fn setup_if_needed() {
 
 // Make a new connection
 // Ensure [dotenvy] and [env_logger] have been setup
-pub async fn new<DB>() -> anyhow::Result<Connection>
-where
-    DB: Database,
-{
+pub async fn new() -> anyhow::Result<Connection> {
     setup_if_needed();
     Ok(Connection::connect("sqlite::memory:").await?)
 }
 
 // Make a new pool
 // Ensure [dotenvy] and [env_logger] have been setup
-pub async fn pool<DB>() -> anyhow::Result<Pool>
-where
-    DB: Database,
-{
+pub async fn pool() -> anyhow::Result<Pool> {
     setup_if_needed();
     let pool = PoolOptions::new()
         .min_connections(0)
@@ -38,7 +30,7 @@ where
 
 /// Return a connection to a database pre-configured with our test schema.
 pub async fn tdb() -> anyhow::Result<Connection> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
     musqlite_core::query::query(TEST_SCHEMA)
         .execute(&mut conn)
         .await?;
@@ -106,7 +98,7 @@ macro_rules! test_unprepared_type {
                 use musqlite_core::*;
                 use futures::TryStreamExt;
 
-                let mut conn = musqlite_test::new::<$db>().await?;
+                let mut conn = musqlite_test::new().await?;
 
                 $(
                     let query = format!("SELECT {}", $text);
@@ -163,7 +155,7 @@ macro_rules! __test_prepared_type {
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
                 use musqlite_core::Row;
 
-                let mut conn = musqlite_test::new::<$db>().await?;
+                let mut conn = musqlite_test::new().await?;
 
                 $(
                     let query = format!($sql, $text);
@@ -205,30 +197,8 @@ macro_rules! __test_prepared_type {
 }
 
 #[macro_export]
-macro_rules! MySql_query_for_test_prepared_type {
-    () => {
-        // MySQL 8.0.27 changed `<=>` to return an unsigned integer
-        "SELECT CAST({0} <=> ? AS SIGNED INTEGER), {0}, ?"
-    };
-}
-
-#[macro_export]
-macro_rules! Mssql_query_for_test_prepared_type {
-    () => {
-        "SELECT CASE WHEN {0} IS NULL AND @p1 IS NULL THEN 1 WHEN {0} = @p1 THEN 1 ELSE 0 END, {0}, @p2"
-    };
-}
-
-#[macro_export]
 macro_rules! Sqlite_query_for_test_prepared_type {
     () => {
         "SELECT {0} is ?, {0}, ?"
-    };
-}
-
-#[macro_export]
-macro_rules! Postgres_query_for_test_prepared_type {
-    () => {
-        "SELECT ({0} is not distinct from $1)::int4, {0}, $2"
     };
 }

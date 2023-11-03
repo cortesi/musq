@@ -1,6 +1,5 @@
 extern crate time_ as time;
 
-use musqlite_core::sqlite::Sqlite;
 use musqlite_core::Row;
 use musqlite_test::new;
 use musqlite_test::test_type;
@@ -76,7 +75,7 @@ mod json_tests {
 
     #[tokio::test]
     async fn it_json_extracts() -> anyhow::Result<()> {
-        let mut conn = new::<Sqlite>().await?;
+        let mut conn = new().await?;
 
         let value = musqlite_core::query(
             "select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1",

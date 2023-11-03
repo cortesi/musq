@@ -55,7 +55,7 @@ async fn it_describes_variables() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_expression() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     let d = conn
         .describe("SELECT 1 + 10, 5.12 * 2, 'Hello', x'deadbeef', null")
@@ -88,7 +88,7 @@ async fn it_describes_expression() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_temporary_table() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     conn.execute(
         "CREATE TEMPORARY TABLE IF NOT EXISTS empty_all_types_and_nulls(
@@ -138,7 +138,7 @@ async fn it_describes_temporary_table() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_expression_from_empty_table() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     conn.execute("CREATE TEMP TABLE _temp_empty ( name TEXT NOT NULL, a INT )")
         .await?;
@@ -167,7 +167,7 @@ async fn it_describes_expression_from_empty_table() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_expression_from_empty_table_with_star() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     conn.execute("CREATE TEMP TABLE _temp_empty ( name TEXT, a INT )")
         .await?;
@@ -297,7 +297,7 @@ async fn it_describes_delete_with_returning() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_bad_statement() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     let err = conn.describe("SELECT 1 FROM not_found").await.unwrap_err();
     let err = err
@@ -425,7 +425,7 @@ async fn it_describes_literal_subquery() -> anyhow::Result<()> {
         Ok(())
     }
 
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
     assert_literal_described(&mut conn, "SELECT 'a', NULL").await?;
     assert_literal_described(&mut conn, "SELECT * FROM (SELECT 'a', NULL)").await?;
     assert_literal_described(
@@ -692,7 +692,7 @@ async fn it_describes_strange_queries() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_func_date() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     let query = "SELECT date();";
     let info = conn.describe(query).await?;
@@ -718,7 +718,7 @@ async fn it_describes_func_date() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_func_time() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     let query = "SELECT time();";
     let info = conn.describe(query).await?;
@@ -744,7 +744,7 @@ async fn it_describes_func_time() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_func_datetime() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     let query = "SELECT datetime();";
     let info = conn.describe(query).await?;
@@ -770,7 +770,7 @@ async fn it_describes_func_datetime() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_func_julianday() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     let query = "SELECT julianday();";
     let info = conn.describe(query).await?;
@@ -796,7 +796,7 @@ async fn it_describes_func_julianday() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_func_strftime() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     let query = "SELECT strftime('%s','now');";
     let info = conn.describe(query).await?;
@@ -817,7 +817,7 @@ async fn it_describes_func_strftime() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_describes_with_recursive() -> anyhow::Result<()> {
-    let mut conn = new::<Sqlite>().await?;
+    let mut conn = new().await?;
 
     let query = "
         WITH RECURSIVE schedule(begin_date) AS (

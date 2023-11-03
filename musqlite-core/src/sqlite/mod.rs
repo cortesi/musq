@@ -45,8 +45,8 @@ pub type SqlitePool = crate::pool::Pool;
 pub type SqlitePoolOptions = crate::pool::PoolOptions;
 
 /// An alias for [`Executor<'_, Database = Sqlite>`][Executor].
-pub trait SqliteExecutor<'c>: Executor<'c, Database = Sqlite> {}
-impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
+pub trait SqliteExecutor<'c>: Executor<'c> {}
+impl<'c, T: Executor<'c>> SqliteExecutor<'c> for T {}
 
 // NOTE: required due to the lack of lazy normalization
 crate::impl_into_arguments_for_arguments!(Arguments<'q>);

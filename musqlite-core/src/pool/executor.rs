@@ -4,7 +4,6 @@ use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 
 use crate::{
-    database::Database,
     describe::Describe,
     error::Error,
     executor::{Execute, Executor},
@@ -12,18 +11,16 @@ use crate::{
     sqlite, Connection, QueryResult, Row, Statement,
 };
 
-impl<'p, DB: Database> Executor<'p> for &'_ Pool
+impl<'p> Executor<'p> for &'_ Pool
 where
-    for<'c> &'c mut Connection: Executor<'c, Database = DB>,
+    for<'c> &'c mut Connection: Executor<'c>,
 {
-    type Database = DB;
-
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
     ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         let pool = self.clone();
 
@@ -44,7 +41,7 @@ where
         query: E,
     ) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
-        E: Execute<'q, Self::Database>,
+        E: Execute<'q>,
     {
         let pool = self.clone();
 

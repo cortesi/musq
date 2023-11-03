@@ -7,7 +7,7 @@ use crate::{
     decode::Decode,
     error::{mismatched_types, Error},
     ext::ustr::UStr,
-    sqlite::{statement::StatementHandle, Column, Sqlite, Value, ValueRef},
+    sqlite::{statement::StatementHandle, Column, Value, ValueRef},
     types::Type,
     HashMap,
 };
@@ -167,7 +167,7 @@ impl Row {
             if !ty.is_null() && !T::compatible(&ty) {
                 return Err(Error::ColumnDecode {
                     index: format!("{:?}", index),
-                    source: mismatched_types::<Sqlite, T>(&ty),
+                    source: mismatched_types::<T>(&ty),
                 });
             }
         }
