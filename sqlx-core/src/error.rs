@@ -78,10 +78,6 @@ pub enum Error {
     #[error("error occurred while decoding: {0}")]
     Decode(#[source] BoxDynError),
 
-    /// Error occurred within the `Any` driver mapping to/from the native driver.
-    #[error("error in Any driver mapping: {0}")]
-    AnyDriverError(#[source] BoxDynError),
-
     /// A [`Pool::acquire`] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.
     ///
