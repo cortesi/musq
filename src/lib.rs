@@ -26,7 +26,7 @@ pub use sqlx_core::{
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};
 
-pub use sqlx_sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
+pub use sqlx_core::sqlite::{self as sqlite, Sqlite, SqliteConnection, SqliteExecutor, SqlitePool};
 #[doc(hidden)]
 pub extern crate sqlx_macros;
 

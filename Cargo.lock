@@ -399,13 +399,13 @@ checksum = "0206175f82b8d6bf6652ff7d71a1e27fd2e4efde587fd368662814d6ec1d9ce0"
 
 [[package]]
 name = "flume"
-version = "0.10.14"
+version = "0.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "1657b4441c3403d9f7b3409e47575237dac27b1b5726df654a6ecbf92f0f7577"
+checksum = "55ac459de2512911e4b674ce33cf20befaba382d05b62b008afc1c8b57cbf181"
 dependencies = [
  "futures-core",
  "futures-sink",
- "pin-project",
+ "nanorand",
  "spin",
 ]
 
@@ -531,8 +531,10 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "be4136b2a15dd319360be1c07d9933517ccf0be8f16bf62a3bee4f0d618df427"
 dependencies = [
  "cfg-if",
+ "js-sys",
  "libc",
  "wasi",
+ "wasm-bindgen",
 ]
 
 [[package]]
@@ -818,6 +820,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "nanorand"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6a51313c5820b0b02bd422f4b44776fbf47961755c74ce64afc73bfad10226c3"
+dependencies = [
+ "getrandom",
+]
+
+[[package]]
 name = "nix"
 version = "0.23.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -920,26 +931,6 @@ name = "percent-encoding"
 version = "2.3.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b2a4787296e9989611394c33f193f676704af1686e70b8f8033ab5ba9a35a94"
-
-[[package]]
-name = "pin-project"
-version = "1.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fda4ed1c6c173e3fc7a83629421152e01d7b1f9b7f65fb301e490e8cfc656422"
-dependencies = [
- "pin-project-internal",
-]
-
-[[package]]
-name = "pin-project-internal"
-version = "1.1.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4359fd9c9171ec6e8c62926d6faaf553a8dc3f64e1507e76da7911b4f6a04405"
-dependencies = [
- "proc-macro2",
- "quote",
- "syn 2.0.38",
-]
 
 [[package]]
 name = "pin-project-lite"
@@ -1314,7 +1305,6 @@ dependencies = [
  "serde_json",
  "sqlx-core",
  "sqlx-macros",
- "sqlx-sqlite",
  "sqlx-test",
  "tempdir",
  "time",
@@ -1328,6 +1318,7 @@ name = "sqlx-core"
 version = "0.7.1"
 dependencies = [
  "ahash",
+ "atoi",
  "bit-vec",
  "bstr",
  "bytes",
@@ -1335,16 +1326,21 @@ dependencies = [
  "crossbeam-queue",
  "either",
  "event-listener",
+ "flume",
  "futures-channel",
  "futures-core",
+ "futures-executor",
+ "futures-intrusive",
  "futures-util",
  "hashlink",
  "indexmap 2.1.0",
  "ipnetwork",
+ "libsqlite3-sys",
  "log",
  "mac_address",
  "memchr",
  "percent-encoding",
+ "regex",
  "serde",
  "serde_json",
  "smallvec",
@@ -1376,31 +1372,6 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
-]
-
-[[package]]
-name = "sqlx-sqlite"
-version = "0.7.1"
-dependencies = [
- "atoi",
- "chrono",
- "flume",
- "futures-channel",
- "futures-core",
- "futures-executor",
- "futures-intrusive",
- "futures-util",
- "libsqlite3-sys",
- "log",
- "percent-encoding",
- "regex",
- "serde",
- "sqlx",
- "sqlx-core",
- "time",
- "tracing",
- "url",
- "uuid",
 ]
 
 [[package]]

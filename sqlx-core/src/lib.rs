@@ -17,12 +17,11 @@
 #![allow(clippy::needless_doctest_main, clippy::type_complexity)]
 // See `clippy.toml` at the workspace root
 #![deny(clippy::disallowed_method)]
-// The only unsafe code in SQLx is that necessary to interact with native APIs like with SQLite,
-// and that can live in its own separate driver crate.
-#![forbid(unsafe_code)]
 // Allows an API be documented as only available in some specific platforms.
 // <https://doc.rust-lang.org/unstable-book/language-features/doc-cfg.html>
 #![cfg_attr(docsrs, feature(doc_cfg))]
+
+pub mod sqlite;
 
 #[macro_use]
 pub mod ext;

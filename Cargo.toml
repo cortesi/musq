@@ -1,11 +1,5 @@
 [workspace]
-members = [
-    "sqlx-core",
-    "sqlx-macros",
-    "sqlx-test",
-    "sqlx-sqlite",
-    "examples/sqlite/todos",
-]
+members = ["sqlx-core", "sqlx-macros", "sqlx-test", "examples/sqlite/todos"]
 
 [workspace.package]
 version = "0.7.1"
@@ -36,9 +30,6 @@ sqlx-core = { version = "=0.7.1", path = "sqlx-core" }
 sqlx-macros-core = { version = "=0.7.1", path = "sqlx-macros-core" }
 sqlx-macros = { version = "=0.7.1", path = "sqlx-macros" }
 
-# Driver crates
-sqlx-sqlite = { version = "=0.7.1", path = "sqlx-sqlite" }
-
 # Facade crate (for reference from sqlx-cli)
 sqlx = { version = "=0.7.1", path = "." }
 
@@ -62,7 +53,6 @@ default-features = false
 [dependencies]
 sqlx-core = { workspace = true }
 sqlx-macros = { workspace = true }
-sqlx-sqlite = { workspace = true }
 
 [dev-dependencies]
 anyhow = "1.0.52"
@@ -84,7 +74,13 @@ tempdir = "0.3.7"
 criterion = { version = "0.4", features = ["async_tokio"] }
 
 # Needed to test SQLCipher
-libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
+libsqlite3-sys = { version = "0.26", features = [
+    "pkg-config",
+    "vcpkg",
+    "bundled",
+    "unlock_notify",
+    "bundled-sqlcipher",
+] }
 
 [[test]]
 name = "sqlite"
