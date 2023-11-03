@@ -19,8 +19,6 @@
     feature(track_path)
 )]
 
-use crate::query::QueryDriver;
-
 pub type Error = Box<dyn std::error::Error>;
 
 pub type Result<T> = std::result::Result<T, Error>;
@@ -29,12 +27,9 @@ mod common;
 mod database;
 
 pub mod derives;
-pub mod query;
 
 // The compiler gives misleading help messages about `#[cfg(test)]` when this is just named `test`.
 pub mod test_attr;
-
-pub const FOSS_DRIVERS: &[QueryDriver] = &[QueryDriver::new::<sqlx_sqlite::Sqlite>()];
 
 pub fn block_on<F>(f: F) -> F::Output
 where
