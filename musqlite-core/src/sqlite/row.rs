@@ -114,7 +114,7 @@ impl Row {
     pub fn get<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r> + Type<Sqlite>,
+        T: Decode<'r> + Type,
     {
         self.try_get::<T, I>(index).unwrap()
     }
@@ -157,7 +157,7 @@ impl Row {
     pub fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r> + Type<Sqlite>,
+        T: Decode<'r> + Type,
     {
         let value = self.try_get_raw(&index)?;
 

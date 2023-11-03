@@ -18,7 +18,7 @@ use crate::{error::BoxDynError, ValueRef};
 /// #
 /// struct MyType;
 ///
-/// # impl<DB: Database> Type<DB> for MyType {
+/// # impl Type for MyType {
 /// # fn type_info() -> TypeInfo { todo!() }
 /// # }
 /// #

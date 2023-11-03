@@ -6,7 +6,7 @@ use crate::{
     encode::{Encode, IsNull},
 };
 
-impl Type<Sqlite> for i8 {
+impl Type for i8 {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Int)
     }
@@ -30,7 +30,7 @@ impl<'r> Decode<'r> for i8 {
     }
 }
 
-impl Type<Sqlite> for i16 {
+impl Type for i16 {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Int)
     }
@@ -54,7 +54,7 @@ impl<'r> Decode<'r> for i16 {
     }
 }
 
-impl Type<Sqlite> for i32 {
+impl Type for i32 {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Int)
     }
@@ -78,7 +78,7 @@ impl<'r> Decode<'r> for i32 {
     }
 }
 
-impl Type<Sqlite> for i64 {
+impl Type for i64 {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Int64)
     }

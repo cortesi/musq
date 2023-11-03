@@ -13,17 +13,16 @@ use crate::{
 #[doc(no_inline)]
 pub use bstr::{BStr, BString, ByteSlice};
 
-impl<DB> Type<DB> for BString
+impl Type for BString
 where
-    DB: Database,
-    [u8]: Type<DB>,
+    [u8]: Type,
 {
     fn type_info() -> sqlite::TypeInfo {
-        <&[u8] as Type<DB>>::type_info()
+        <&[u8] as Type>::type_info()
     }
 
     fn compatible(ty: &sqlite::TypeInfo) -> bool {
-        <&[u8] as Type<DB>>::compatible(ty)
+        <&[u8] as Type>::compatible(ty)
     }
 }
 

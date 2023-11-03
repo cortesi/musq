@@ -9,7 +9,7 @@ use crate::sqlite::{
     error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo, ValueRef,
 };
 
-impl Type<Sqlite> for str {
+impl Type for str {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Text)
     }
@@ -29,9 +29,9 @@ impl<'r> Decode<'r> for &'r str {
     }
 }
 
-impl Type<Sqlite> for String {
+impl Type for String {
     fn type_info() -> TypeInfo {
-        <&str as Type<Sqlite>>::type_info()
+        <&str as Type>::type_info()
     }
 }
 
@@ -55,13 +55,13 @@ impl<'r> Decode<'r> for String {
     }
 }
 
-impl Type<Sqlite> for Cow<'_, str> {
+impl Type for Cow<'_, str> {
     fn type_info() -> TypeInfo {
-        <&str as Type<Sqlite>>::type_info()
+        <&str as Type>::type_info()
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        <&str as Type<Sqlite>>::compatible(ty)
+        <&str as Type>::compatible(ty)
     }
 }
 

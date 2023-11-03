@@ -13,17 +13,17 @@ use chrono::{
     DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc,
 };
 
-impl<Tz: TimeZone> Type<Sqlite> for DateTime<Tz> {
+impl<Tz: TimeZone> Type for DateTime<Tz> {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Datetime)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        <NaiveDateTime as Type<Sqlite>>::compatible(ty)
+        <NaiveDateTime as Type>::compatible(ty)
     }
 }
 
-impl Type<Sqlite> for NaiveDateTime {
+impl Type for NaiveDateTime {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Datetime)
     }
@@ -36,7 +36,7 @@ impl Type<Sqlite> for NaiveDateTime {
     }
 }
 
-impl Type<Sqlite> for NaiveDate {
+impl Type for NaiveDate {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Date)
     }
@@ -46,7 +46,7 @@ impl Type<Sqlite> for NaiveDate {
     }
 }
 
-impl Type<Sqlite> for NaiveTime {
+impl Type for NaiveTime {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Time)
     }

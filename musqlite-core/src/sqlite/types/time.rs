@@ -10,17 +10,17 @@ use time::format_description::{well_known::Rfc3339, FormatItem};
 use time::macros::format_description as fd;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
-impl Type<Sqlite> for OffsetDateTime {
+impl Type for OffsetDateTime {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Datetime)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        <PrimitiveDateTime as Type<Sqlite>>::compatible(ty)
+        <PrimitiveDateTime as Type>::compatible(ty)
     }
 }
 
-impl Type<Sqlite> for PrimitiveDateTime {
+impl Type for PrimitiveDateTime {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Datetime)
     }
@@ -33,7 +33,7 @@ impl Type<Sqlite> for PrimitiveDateTime {
     }
 }
 
-impl Type<Sqlite> for Date {
+impl Type for Date {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Date)
     }
@@ -43,7 +43,7 @@ impl Type<Sqlite> for Date {
     }
 }
 
-impl Type<Sqlite> for Time {
+impl Type for Time {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Time)
     }

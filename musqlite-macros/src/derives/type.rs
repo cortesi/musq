@@ -61,23 +61,20 @@ fn expand_derive_has_sql_type_transparent(
         let mut generics = generics.clone();
 
         generics
-            .params
-            .insert(0, parse_quote!(DB: musqlite_core::Database));
-        generics
             .make_where_clause()
             .predicates
-            .push(parse_quote!(#ty: musqlite_core::Type<DB>));
+            .push(parse_quote!(#ty: musqlite_core::Type));
         let (impl_generics, _, where_clause) = generics.split_for_impl();
 
         let tokens = quote!(
             #[automatically_derived]
-            impl #impl_generics musqlite_core::Type< DB > for #ident #ty_generics #where_clause {
+            impl #impl_generics musqlite_core::Type for #ident #ty_generics #where_clause {
                 fn type_info() -> sqlite::TypeInfo {
-                    <#ty as musqlite_core::Type<DB>>::type_info()
+                    <#ty as musqlite_core::Type>::type_info()
                 }
 
                 fn compatible(ty: &musqlite_core::sqlite::TypeInfo) -> ::std::primitive::bool {
-                    <#ty as musqlite_core::Type<DB>>::compatible(ty)
+                    <#ty as musqlite_core::Type>::compatible(ty)
                 }
             }
         );
@@ -97,16 +94,16 @@ fn expand_derive_has_sql_type_weak_enum(
     let ident = &input.ident;
     let ts = quote!(
         #[automatically_derived]
-        impl<DB: musqlite_core::Database> musqlite_core::Type<DB> for #ident
+        impl musqlite_core::Type for #ident
         where
-            #repr: musqlite_core::Type<DB>,
+            #repr: musqlite_core::Type,
         {
             fn type_info() -> musqlite_core::sqlite::TypeInfo {
-                <#repr as musqlite_core::Type<DB>>::type_info()
+                <#repr as musqlite_core::Type>::type_info()
             }
 
             fn compatible(ty: &musqlite_core::sqlite::TypeInfo) -> bool {
-                <#repr as musqlite_core::Type<DB>>::compatible(ty)
+                <#repr as musqlite_core::Type>::compatible(ty)
             }
         }
     );
@@ -122,13 +119,13 @@ fn expand_derive_has_sql_type_strong_enum(
     let mut tts = TokenStream::new();
     tts.extend(quote!(
         #[automatically_derived]
-        impl Type<::Sqlite> for #ident {
+        impl Type for #ident {
             fn type_info() -> musqlite_core::sqlite::TypeInfo {
-                <::std::primitive::str as musqlite_core::Type<Sqlite>>::type_info()
+                <::std::primitive::str as musqlite_core::Type>::type_info()
             }
 
             fn compatible(ty: &musqlite_core::sqlite::TypeInfo) -> ::std::primitive::bool {
-                <&::std::primitive::str as ::types::Type<sqlite::Sqlite>>::compatible(ty)
+                <&::std::primitive::str as ::types::Type>::compatible(ty)
             }
         }
     ));

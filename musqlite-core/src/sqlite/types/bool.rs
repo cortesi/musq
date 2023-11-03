@@ -6,7 +6,7 @@ use crate::{
     encode::{Encode, IsNull},
 };
 
-impl Type<Sqlite> for bool {
+impl Type for bool {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Bool)
     }

@@ -125,17 +125,16 @@ where
     }
 }
 
-impl<DB> Type<DB> for JsonValue
+impl Type for JsonValue
 where
-    Json<Self>: Type<DB>,
-    DB: Database,
+    Json<Self>: Type,
 {
     fn type_info() -> sqlite::TypeInfo {
-        <Json<Self> as Type<DB>>::type_info()
+        <Json<Self> as Type>::type_info()
     }
 
     fn compatible(ty: &sqlite::TypeInfo) -> bool {
-        <Json<Self> as Type<DB>>::compatible(ty)
+        <Json<Self> as Type>::compatible(ty)
     }
 }
 
@@ -158,17 +157,16 @@ where
     }
 }
 
-impl<DB> Type<DB> for JsonRawValue
+impl Type for JsonRawValue
 where
-    for<'a> Json<&'a Self>: Type<DB>,
-    DB: Database,
+    for<'a> Json<&'a Self>: Type,
 {
     fn type_info() -> sqlite::TypeInfo {
-        <Json<&Self> as Type<DB>>::type_info()
+        <Json<&Self> as Type>::type_info()
     }
 
     fn compatible(ty: &sqlite::TypeInfo) -> bool {
-        <Json<&Self> as Type<DB>>::compatible(ty)
+        <Json<&Self> as Type>::compatible(ty)
     }
 }
 

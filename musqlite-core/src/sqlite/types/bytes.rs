@@ -8,7 +8,7 @@ use crate::{
     encode::{Encode, IsNull},
 };
 
-impl Type<Sqlite> for [u8] {
+impl Type for [u8] {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Blob)
     }
@@ -32,13 +32,13 @@ impl<'r> Decode<'r> for &'r [u8] {
     }
 }
 
-impl Type<Sqlite> for Vec<u8> {
+impl Type for Vec<u8> {
     fn type_info() -> TypeInfo {
-        <&[u8] as Type<Sqlite>>::type_info()
+        <&[u8] as Type>::type_info()
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        <&[u8] as Type<Sqlite>>::compatible(ty)
+        <&[u8] as Type>::compatible(ty)
     }
 }
 

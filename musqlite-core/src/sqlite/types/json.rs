@@ -11,13 +11,13 @@ use crate::{
     encode::{Encode, IsNull},
 };
 
-impl<T> Type<Sqlite> for Json<T> {
+impl<T> Type for Json<T> {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Text)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        <&str as Type<Sqlite>>::compatible(ty)
+        <&str as Type>::compatible(ty)
     }
 }
 

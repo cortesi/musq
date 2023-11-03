@@ -11,7 +11,7 @@ use uuid::{
     Uuid,
 };
 
-impl Type<Sqlite> for Uuid {
+impl Type for Uuid {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Blob)
     }
@@ -36,7 +36,7 @@ impl Decode<'_> for Uuid {
     }
 }
 
-impl Type<Sqlite> for Hyphenated {
+impl Type for Hyphenated {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Text)
     }
@@ -59,7 +59,7 @@ impl Decode<'_> for Hyphenated {
     }
 }
 
-impl Type<Sqlite> for Simple {
+impl Type for Simple {
     fn type_info() -> TypeInfo {
         TypeInfo(DataType::Text)
     }

@@ -78,7 +78,7 @@ macro_rules! impl_encode_for_option {
     ($DB:ident) => {
         impl<'q, T> $crate::encode::Encode<'q, $DB> for Option<T>
         where
-            T: $crate::encode::Encode<'q, $DB> + $crate::types::Type<$DB> + 'q,
+            T: $crate::encode::Encode<'q, $DB> + $crate::types::Type + 'q,
         {
             #[inline]
             fn produces(&self) -> Option<$crate::sqlite::TypeInfo> {

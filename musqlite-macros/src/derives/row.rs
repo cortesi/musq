@@ -88,7 +88,7 @@ fn expand_derive_from_row_struct(
                 (false, None) => {
                     predicates
                         .push(parse_quote!(#ty: musqlite_core::decode::Decode<#lifetime, R::Database>));
-                    predicates.push(parse_quote!(#ty: musqlite_core::types::Type<R::Database>));
+                    predicates.push(parse_quote!(#ty: musqlite_core::types::Type));
 
                     let id_s = attributes
                         .rename
@@ -107,7 +107,7 @@ fn expand_derive_from_row_struct(
                 (false,Some(try_from)) => {
                     predicates
                         .push(parse_quote!(#try_from: musqlite_core::decode::Decode<#lifetime, R::Database>));
-                    predicates.push(parse_quote!(#try_from: musqlite_core::types::Type<R::Database>));
+                    predicates.push(parse_quote!(#try_from: musqlite_core::types::Type));
 
                     let id_s = attributes
                         .rename
@@ -189,7 +189,7 @@ fn expand_derive_from_row_struct_unnamed(
         let ty = &field.ty;
 
         predicates.push(parse_quote!(#ty: musqlite_core::decode::Decode<#lifetime, R::Database>));
-        predicates.push(parse_quote!(#ty: musqlite_core::types::Type<R::Database>));
+        predicates.push(parse_quote!(#ty: musqlite_core::types::Type));
     }
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();

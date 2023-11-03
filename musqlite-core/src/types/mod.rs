@@ -15,7 +15,7 @@
 //! An `Option<T>` represents a potentially `NULL` value from SQL.
 //!
 
-use crate::{database::Database, sqlite};
+use crate::sqlite;
 
 pub mod bstr;
 
@@ -107,7 +107,7 @@ pub use json::{Json, JsonRawValue, JsonValue};
 /// enum Color { Red, Green, Blue }
 /// ```
 ///
-pub trait Type<DB: Database> {
+pub trait Type {
     /// Returns the canonical SQL type for this Rust type.
     ///
     /// When binding arguments, this is used to tell the database what is about to be sent; which,
@@ -130,23 +130,23 @@ pub trait Type<DB: Database> {
 }
 
 // for references, the underlying SQL type is identical
-impl<T: ?Sized + Type<DB>, DB: Database> Type<DB> for &'_ T {
+impl<T: ?Sized + Type> Type for &'_ T {
     fn type_info() -> sqlite::TypeInfo {
-        <T as Type<DB>>::type_info()
+        <T as Type>::type_info()
     }
 
     fn compatible(ty: &sqlite::TypeInfo) -> bool {
-        <T as Type<DB>>::compatible(ty)
+        <T as Type>::compatible(ty)
     }
 }
 
 // for optionals, the underlying SQL type is identical
-impl<T: Type<DB>, DB: Database> Type<DB> for Option<T> {
+impl<T: Type> Type for Option<T> {
     fn type_info() -> sqlite::TypeInfo {
-        <T as Type<DB>>::type_info()
+        <T as Type>::type_info()
     }
 
     fn compatible(ty: &sqlite::TypeInfo) -> bool {
-        <T as Type<DB>>::compatible(ty)
+        <T as Type>::compatible(ty)
     }
 }

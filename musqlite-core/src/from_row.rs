@@ -1,5 +1,4 @@
 use crate::error::Error;
-use crate::sqlite::Sqlite;
 use crate::Row;
 
 /// A record that can be built from a row returned by the database.
@@ -223,7 +222,7 @@ macro_rules! impl_from_row_for_tuple {
         impl<'r, $($T,)+> FromRow<'r> for ($($T,)+)
         where
             usize: crate::column::ColumnIndex<Row>,
-            $($T: crate::decode::Decode<'r> + crate::types::Type<Sqlite>,)+
+            $($T: crate::decode::Decode<'r> + crate::types::Type,)+
         {
             #[inline]
             fn from_row(row: &'r Row) -> Result<Self, Error> {

@@ -55,7 +55,7 @@ impl<'q, O> QueryAs<'q, Sqlite, O, Arguments<'q>> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](Query::bind).
-    pub fn bind<T: 'q + Send + Encode<'q, Sqlite> + Type<Sqlite>>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Send + Encode<'q, Sqlite> + Type>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
     }
