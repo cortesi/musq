@@ -35,23 +35,6 @@ use crate::IndexMap;
 /// `sqlite://data.db` | Open the file `data.db` in the current directory. |
 /// `sqlite:///data.db` | Open the file `data.db` from the root (`/`) directory. |
 /// `sqlite://data.db?mode=ro` | Open the file `data.db` for read-only access. |
-///
-/// # Example
-///
-/// ```rust,no_run
-/// # async fn example() -> Result<()> {
-/// use ConnectOptions;
-/// use sqlite::{SqliteConnectOptions, SqliteJournalMode};
-/// use std::str::FromStr;
-///
-/// let conn = SqliteConnectOptions::from_str("sqlite://data.db")?
-///     .journal_mode(SqliteJournalMode::Wal)
-///     .read_only(true)
-///     .connect().await?;
-/// #
-/// # Ok(())
-/// # }
-/// ```
 #[derive(Clone, Debug)]
 pub struct SqliteConnectOptions {
     pub(crate) filename: Cow<'static, Path>,
@@ -444,17 +427,6 @@ impl SqliteConnectOptions {
     ///
     /// Multiple extensions can be loaded by calling the method repeatedly on the options struct, they
     /// will be loaded in the order they are added.
-    /// ```rust,no_run
-    /// # use crate::error::Error;
-    /// # use std::str::FromStr;
-    /// # use sqlx_sqlite::SqliteConnectOptions;
-    /// # fn options() -> Result<SqliteConnectOptions, Error> {
-    /// let options = SqliteConnectOptions::from_str("sqlite://data.db")?
-    ///     .extension("vsv")
-    ///     .extension("mod_spatialite");
-    /// # Ok(options)
-    /// # }
-    /// ```
     pub fn extension(mut self, extension_name: impl Into<Cow<'static, str>>) -> Self {
         self.extensions.insert(extension_name.into(), None);
         self
@@ -526,8 +498,7 @@ impl SqliteConnectOptions {
     ///
     /// ```
     /// # use std::str::FromStr;
-    /// # use {ConnectOptions, Connection, Row};
-    /// # use sqlx_sqlite::SqliteConnectOptions;
+    /// # use musqlite_core::{query, ConnectOptions, Connection, Row, sqlite::SqliteConnectOptions, error::Result};
     /// # async fn run() -> Result<()> {
     /// let mut sqlite = SqliteConnectOptions::from_str("sqlite://:memory:")?
     ///     .with_regexp()

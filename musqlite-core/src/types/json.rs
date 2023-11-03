@@ -14,16 +14,12 @@ use crate::types::Type;
 ///
 /// Will attempt to cast to type passed in as the generic.
 ///
-/// ```toml
-/// [dependencies]
-/// serde_json = { version = "1.0", features = ["raw_value"] }
-///
-/// ```
-///
 /// # Example
 ///
-/// ```
+/// ```no_run
 /// # use serde::Deserialize;
+/// # use musqlite_core::types;
+/// # use musqlite_macros::*;
 /// #[derive(Deserialize)]
 /// struct Book {
 ///   name: String
@@ -37,7 +33,9 @@ use crate::types::Type;
 /// ```
 ///
 /// Can also be used to turn the json/jsonb into a hashmap
-/// ```
+/// ```no_run
+/// # use musqlite_core::types;
+/// # use musqlite_macros::*;
 /// use std::collections::HashMap;
 /// use serde::Deserialize;
 ///

@@ -53,19 +53,6 @@ pub trait Connection: Send {
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not
     /// return an error, the transaction will be committed.
-    ///
-    /// # Example
-    ///
-    /// ```rust
-    /// use postgres::{PgConnection, PgRow};
-    /// use Connection;
-    ///
-    /// # pub async fn _f(conn: &mut PgConnection) -> Result<Vec<PgRow>> {
-    /// conn.transaction(|txn| Box::pin(async move {
-    ///     query("select * from ..").fetch_all(&mut **txn).await
-    /// })).await
-    /// # }
-    /// ```
     fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> BoxFuture<'a, Result<R, E>>
     where
         for<'c> F: FnOnce(&'c mut Transaction<'_, Self::Database>) -> BoxFuture<'c, Result<R, E>>

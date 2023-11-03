@@ -1,26 +1,3 @@
-//! **SQLite** database driver.
-//!
-//! ### Note: linkage is semver-exempt.
-//! This driver uses the `libsqlite3-sys` crate which links the native library for SQLite 3.
-//! For portability, we enable the `bundled` feature which builds and links SQLite from source.
-//!
-//! We reserve the right to upgrade the version of `libsqlite3-sys` as necessary to pick up new
-//! `3.x.y` versions of SQLite.
-//!
-//! Due to Cargo's requirement that only one version of a crate that links a given native library
-//! exists in the dependency graph at a time, using SQLx alongside another crate linking
-//! `libsqlite3-sys` like `rusqlite` is a semver hazard.
-//!
-//! If you are doing so, we recommend pinning the version of both SQLx and the other crate you're
-//! using to prevent a `cargo update` from breaking things, e.g.:
-//!
-//! ```toml
-//! sqlx = { version = "=0.7.0", features = ["sqlite"] }
-//! rusqlite = "=0.28.0"
-//! ```
-//!
-//! and then upgrade these crates in lockstep when necessary.
-
 use std::sync::atomic::AtomicBool;
 
 pub use arguments::{SqliteArgumentValue, SqliteArguments};

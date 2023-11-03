@@ -1,4 +1,4 @@
-//! Provides the connection pool for asynchronous SQLx connections.
+//! Provides the connection pool for asynchronous connections.
 //!
 //! Opening a database connection for each and every operation to the database can quickly
 //! become expensive. Furthermore, sharing a database connection between threads and functions
@@ -8,41 +8,6 @@
 //! Normally it also enforces a maximum number of connections as these are an expensive resource
 //! on the database server.
 //!
-//! SQLx provides a canonical connection pool implementation intended to satisfy the majority
-//! of use cases.
-//!
-//! See [Pool][crate::pool::Pool] for details.
-//!
-//! Type aliases are provided for each database to make it easier to sprinkle `Pool` through
-//! your codebase:
-//!
-//! * [SqlitePool][crate::sqlite::SqlitePool] (SQLite)
-//!
-//! # Opening a connection pool
-//!
-//! A new connection pool with a default configuration can be created by supplying `Pool`
-//! with the database driver and a connection string.
-//!
-//! ```rust,ignore
-//! use Pool;
-//! use postgres::Postgres;
-//!
-//! let pool = Pool::<Postgres>::connect("postgres://").await?;
-//! ```
-//!
-//! # Using a connection pool
-//!
-//! A connection pool implements [`Executor`][crate::executor::Executor] and can be used directly
-//! when executing a query. Notice that only an immutable reference (`&Pool`) is needed.
-//!
-//! ```rust,ignore
-//! query("DELETE FROM articles").execute(&pool).await?;
-//! ```
-//!
-//! A connection or transaction may also be manually acquired with
-//! [`Pool::acquire`] or
-//! [`Pool::begin`].
-
 use self::inner::PoolInner;
 use crate::connection::Connection;
 use crate::database::Database;
@@ -118,18 +83,6 @@ pub use self::maybe::MaybePoolConnection;
 ///
 /// [web::Data]: https://docs.rs/actix-web/3/actix_web/web/struct.Data.html
 ///
-/// ### Note: Drop Behavior
-/// Due to a lack of async `Drop`, dropping the last `Pool` handle may not immediately clean
-/// up connections by itself. The connections will be dropped locally, which is sufficient for
-/// SQLite, but for client/server databases like MySQL and Postgres, that only closes the
-/// client side of the connection. The server will not know the connection is closed until
-/// potentially much later: this is usually dictated by the TCP keepalive timeout in the server
-/// settings.
-///
-/// Because the connection may not be cleaned up immediately on the server side, you may run
-/// into errors regarding connection limits if you are creating and dropping many pools in short
-/// order.
-///
 /// We recommend calling [`.close().await`] to gracefully close the pool and its connections
 /// when you are done using it. This will also wake any tasks that are waiting on an `.acquire()`
 /// call, so for long-lived applications it's a good idea to call `.close()` during shutdown.
@@ -138,73 +91,6 @@ pub use self::maybe::MaybePoolConnection;
 /// the pool for you.
 ///
 /// [`.close().await`]: Pool::close
-///
-/// ### Why Use a Pool?
-///
-/// A single database connection (in general) cannot be used by multiple threads simultaneously
-/// for various reasons, but an application or web server will typically need to execute numerous
-/// queries or commands concurrently (think of concurrent requests against a web server; many or all
-/// of them will probably need to hit the database).
-///
-/// You could place the connection in a `Mutex` but this will make it a huge bottleneck.
-///
-/// Naively, you might also think to just open a new connection per request, but this
-/// has a number of other caveats, generally due to the high overhead involved in working with
-/// a fresh connection. Examples to follow.
-///
-/// Connection pools facilitate reuse of connections to _amortize_ these costs, helping to ensure
-/// that you're not paying for them each time you need a connection.
-///
-/// ##### 1. Overhead of Opening a Connection
-/// Opening a database connection is not exactly a cheap operation.
-///
-/// For SQLite, it means numerous requests to the filesystem and memory allocations, while for
-/// server-based databases it involves performing DNS resolution, opening a new TCP connection and
-/// allocating buffers.
-///
-/// Each connection involves a nontrivial allocation of resources for the database server, usually
-/// including spawning a new thread or process specifically to handle the connection, both for
-/// concurrency and isolation of faults.
-///
-/// Additionally, database connections typically involve a complex handshake including
-/// authentication, negotiation regarding connection parameters (default character sets, timezones,
-/// locales, supported features) and upgrades to encrypted tunnels.
-///
-/// If `acquire()` is called on a pool with all connections checked out but it is not yet at its
-/// connection limit (see next section), then a new connection is immediately opened, so this pool
-/// does not _automatically_ save you from the overhead of creating a new connection.
-///
-/// However, because this pool by design enforces _reuse_ of connections, this overhead cost
-/// is not paid each and every time you need a connection. In fact, if you set
-/// [the `min_connections` option in PoolOptions][PoolOptions::min_connections], the pool will
-/// create that many connections up-front so that they are ready to go when a request comes in,
-/// and maintain that number on a best-effort basis for consistent performance.
-///
-/// ##### 2. Resource Reuse
-/// The first time you execute a query against your database, the database engine must first turn
-/// the SQL into an actionable _query plan_ which it may then execute against the database. This
-/// involves parsing the SQL query, validating and analyzing it, and in the case of Postgres 12+ and
-/// SQLite, generating code to execute the query plan (native or bytecode, respectively).
-///
-/// These database servers provide a way to amortize this overhead by _preparing_ the query,
-/// associating it with an object ID and placing its query plan in a cache to be referenced when
-/// it is later executed.
-///
-/// Prepared statements have other features, like bind parameters, which make them safer and more
-/// ergonomic to use as well. By design, SQLx pushes you towards using prepared queries/statements
-/// via the [Query][crate::query::Query] API _et al._ and the `query!()` macro _et al._, for
-/// reasons of safety, ergonomics, and efficiency.
-///
-/// However, because database connections are typically isolated from each other in the database
-/// server (either by threads or separate processes entirely), they don't typically share prepared
-/// statements between connections so this work must be redone _for each connection_.
-///
-/// As with section 1, by facilitating reuse of connections, `Pool` helps to ensure their prepared
-/// statements (and thus cached query plans) can be reused as much as possible, thus amortizing
-/// the overhead involved.
-///
-/// Depending on the database server, a connection will have caches for all kinds of other data as
-/// well and queries will generally benefit from these caches being "warm" (populated with data).
 pub struct Pool<DB: Database>(pub(crate) Arc<PoolInner<DB>>);
 
 /// A future that resolves when the pool is closed.
@@ -362,71 +248,6 @@ impl<DB: Database> Pool<DB> {
     /// This can be used to cancel long-running operations that hold onto a [`PoolConnection`]
     /// so they don't prevent the pool from closing (which would otherwise wait until all
     /// connections are returned).
-    ///
-    /// Examples
-    /// ========
-    /// These examples use Postgres and Tokio, but should suffice to demonstrate the concept.
-    ///
-    /// Do something when the pool is closed:
-    /// ```rust,no_run
-    /// # #[cfg(feature = "postgres")]
-    /// # async fn bleh() -> musqlite_core::error::Result<()> {
-    /// use PgPool;
-    ///
-    /// let pool = PgPool::connect("postgresql://...").await?;
-    ///
-    /// let pool2 = pool.clone();
-    ///
-    /// tokio::spawn(async move {
-    ///     // Demonstrates that `CloseEvent` is itself a `Future` you can wait on.
-    ///     // This lets you implement any kind of on-close event that you like.
-    ///     pool2.close_event().await;
-    ///
-    ///     println!("Pool is closing!");
-    ///
-    ///     // Imagine maybe recording application statistics or logging a report, etc.
-    /// });
-    ///
-    /// // The rest of the application executes normally...
-    ///
-    /// // Close the pool before the application exits...
-    /// pool.close().await;
-    ///
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// Cancel a long-running operation:
-    /// ```rust,no_run
-    /// # #[cfg(feature = "postgres")]
-    /// # async fn bleh() -> musqlite_core::error::Result<()> {
-    /// use {Executor, PgPool};
-    ///
-    /// let pool = PgPool::connect("postgresql://...").await?;
-    ///
-    /// let pool2 = pool.clone();
-    ///
-    /// tokio::spawn(async move {
-    ///     pool2.close_event().do_until(async {
-    ///         // This statement normally won't return for 30 days!
-    ///         // (Assuming the connection doesn't time out first, of course.)
-    ///         pool2.execute("SELECT pg_sleep('30 days')").await;
-    ///
-    ///         // If the pool is closed before the statement completes, this won't be printed.
-    ///         // This is because `.do_until()` cancels the future it's given if the
-    ///         // pool is closed first.
-    ///         println!("Waited!");
-    ///     }).await;
-    /// });
-    ///
-    /// // This normally wouldn't return until the above statement completed and the connection
-    /// // was returned to the pool. However, thanks to `.do_until()`, the operation was
-    /// // cancelled as soon as we called `.close().await`.
-    /// pool.close().await;
-    ///
-    /// # Ok(())
-    /// # }
-    /// ```
     pub fn close_event(&self) -> CloseEvent {
         self.0.close_event()
     }

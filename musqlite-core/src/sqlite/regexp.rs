@@ -174,8 +174,8 @@ unsafe extern "C" fn cleanup_arc_regex_pointer(ptr: *mut std::ffi::c_void) {
 
 #[cfg(test)]
 mod tests {
+    use crate::{query, ConnectOptions, Error, Row};
     use std::str::FromStr;
-    use {ConnectOptions, Connection, Row};
 
     async fn test_db() -> crate::sqlite::SqliteConnection {
         let mut conn = crate::sqlite::SqliteConnectOptions::from_str("sqlite://:memory:")
@@ -198,7 +198,7 @@ mod tests {
         conn
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_regexp_does_not_fail() {
         let mut conn = test_db().await;
         let result = query("SELECT col FROM test WHERE col REGEXP 'foo.*bar'")
@@ -208,7 +208,7 @@ mod tests {
         assert!(result.is_empty());
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_regexp_filters_correctly() {
         let mut conn = test_db().await;
 
@@ -226,7 +226,7 @@ mod tests {
         assert!(result.is_empty());
     }
 
-    #[test]
+    #[tokio::test]
     async fn test_invalid_regexp_should_fail() {
         let mut conn = test_db().await;
         let result = query("SELECT col from test WHERE col REGEXP '(?:?)'")

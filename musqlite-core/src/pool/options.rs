@@ -278,12 +278,6 @@ impl<DB: Database> PoolOptions<DB> {
     /// in first-come-first-serve order. If `false`, "drive-by" tasks may steal idle connections
     /// ahead of tasks that have been waiting.
     ///
-    /// According to `sqlx-bench/benches/pg_pool` this may slightly increase time
-    /// to `acquire()` at low pool contention but at very high contention it helps
-    /// avoid tasks at the head of the waiter queue getting repeatedly preempted by
-    /// these "drive-by" tasks and tasks further back in the queue timing out because
-    /// the queue isn't moving.
-    ///
     /// Currently only exposed for benchmarking; `fair = true` seems to be the superior option
     /// in most cases.
     #[doc(hidden)]
@@ -307,27 +301,6 @@ impl<DB: Database> PoolOptions<DB> {
     /// # Example: Additional Parameters
     /// This callback may be used to set additional configuration parameters
     /// that are not exposed by the database's `ConnectOptions`.
-    ///
-    /// This example is written for PostgreSQL but can likely be adapted to other databases.
-    ///
-    /// ```no_run
-    /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
-    /// use Executor;
-    /// use postgres::PgPoolOptions;
-    ///
-    /// let pool = PgPoolOptions::new()
-    ///     .after_connect(|conn, _meta| Box::pin(async move {
-    ///         // When directly invoking `Executor` methods,
-    ///         // it is possible to execute multiple statements with one call.
-    ///         conn.execute("SET application_name = 'your_app'; SET search_path = 'my_schema';")
-    ///             .await?;
-    ///
-    ///         Ok(())
-    ///     }))
-    ///     .connect("postgres:// …").await?;
-    /// # Ok(())
-    /// # }
-    /// ```
     ///
     /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
     pub fn after_connect<F>(mut self, callback: F) -> Self
@@ -359,31 +332,6 @@ impl<DB: Database> PoolOptions<DB> {
     /// This is *not* invoked for new connections. Use [`after_connect`][Self::after_connect]
     /// for those.
     ///
-    /// # Example: Custom `test_before_acquire` Logic
-    /// If you only want to ping connections if they've been idle a certain amount of time,
-    /// you can implement your own logic here:
-    ///
-    /// This example is written for Postgres but should be trivially adaptable to other databases.
-    /// ```no_run
-    /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
-    /// use {Connection, Executor};
-    /// use postgres::PgPoolOptions;
-    ///
-    /// let pool = PgPoolOptions::new()
-    ///     .test_before_acquire(false)
-    ///     .before_acquire(|conn, meta| Box::pin(async move {
-    ///         // One minute
-    ///         if meta.idle_for.as_secs() > 60 {
-    ///             conn.ping().await?;
-    ///         }
-    ///
-    ///         Ok(true)
-    ///     }))
-    ///     .connect("postgres:// …").await?;
-    /// # Ok(())
-    /// # }
-    ///```
-    ///
     /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
     pub fn before_acquire<F>(mut self, callback: F) -> Self
     where
@@ -405,43 +353,6 @@ impl<DB: Database> PoolOptions<DB> {
     /// If the operation returns `Ok(false)` or an error, the error is logged (if applicable)
     /// and the connection is closed, allowing a task waiting on [`Pool::acquire`] to
     /// open a new one in its place.
-    ///
-    /// # Example (Postgres): Close Memory-Hungry Connections
-    /// Instead of relying on [`max_lifetime`][Self::max_lifetime] to close connections,
-    /// we can monitor their memory usage directly and close any that have allocated too much.
-    ///
-    /// Note that this is purely an example showcasing a possible use for this callback
-    /// and may be flawed as it has not been tested.
-    ///
-    /// This example queries [`pg_backend_memory_contexts`](https://www.postgresql.org/docs/current/view-pg-backend-memory-contexts.html)
-    /// which is only allowed for superusers.
-    ///
-    /// ```no_run
-    /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
-    /// use {Connection, Executor};
-    /// use postgres::PgPoolOptions;
-    ///
-    /// let pool = PgPoolOptions::new()
-    ///     // Let connections live as long as they want.
-    ///     .max_lifetime(None)
-    ///     .after_release(|conn, meta| Box::pin(async move {
-    ///         // Only check connections older than 6 hours.
-    ///         if meta.age.as_secs() < 6 * 60 * 60 {
-    ///             return Ok(true);
-    ///         }
-    ///
-    ///         let total_memory_usage: i64 = query_scalar(
-    ///             "select sum(used_bytes) from pg_backend_memory_contexts"
-    ///         )
-    ///         .fetch_one(conn)
-    ///         .await?;
-    ///
-    ///         // Close the connection if the backend memory usage exceeds 256 MiB.
-    ///         Ok(total_memory_usage <= (2 << 28))
-    ///     }))
-    ///     .connect("postgres:// …").await?;
-    /// # Ok(())
-    /// # }
     pub fn after_release<F>(mut self, callback: F) -> Self
     where
         for<'c> F: Fn(&'c mut DB::Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>

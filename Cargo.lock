@@ -807,6 +807,8 @@ dependencies = [
  "libsqlite3-sys",
  "log",
  "mac_address",
+ "musqlite-macros",
+ "musqlite-test",
  "percent-encoding",
  "regex",
  "serde",

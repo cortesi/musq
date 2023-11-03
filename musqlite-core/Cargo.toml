@@ -9,16 +9,12 @@ repository.workspace = true
 
 [dependencies]
 tokio = { version = "1.15.0", features = ["full"] }
-
-
 bit-vec = "0.6.3"
 chrono = { version = "0.4.22" }
 ipnetwork = "0.20.0"
 mac_address = "1.1.5"
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
-
-
 ahash = "0.8"
 bytes = "1.1.0"
 crossbeam-queue = "0.3.2"
@@ -49,7 +45,18 @@ indexmap = "2.0"
 event-listener = "2.5.2"
 flume = "0.11.0"
 futures-executor = "0.3.29"
-libsqlite3-sys = "0.26.0"
+libsqlite3-sys = { version = "0.26", features = [
+    "pkg-config",
+    "vcpkg",
+    "bundled",
+    "unlock_notify",
+    "bundled-sqlcipher",
+] }
+
 futures-intrusive = "0.5.0"
 regex = "1.10.2"
 atoi = "2.0.0"
+
+[dev-dependencies]
+musqlite-test = { path = "../musqlite-test" }
+musqlite-macros = { path = "../musqlite-macros" }
