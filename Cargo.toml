@@ -2,7 +2,6 @@
 members = [
     "sqlx-core",
     "sqlx-macros",
-    "sqlx-macros-core",
     "sqlx-test",
     "sqlx-sqlite",
     "examples/sqlite/todos",

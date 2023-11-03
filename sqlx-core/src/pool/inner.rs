@@ -1,21 +1,27 @@
-use super::connection::{Floating, Idle, Live};
-use crate::connection::ConnectOptions;
-use crate::connection::Connection;
-use crate::database::Database;
-use crate::error::Error;
-use crate::pool::{deadline_as_timeout, CloseEvent, Pool, PoolOptions};
+use std::{
+    cmp,
+    future::Future,
+    sync::{
+        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
+        Arc, RwLock,
+    },
+    task::Poll,
+    time::{Duration, Instant},
+};
+
 use crossbeam_queue::ArrayQueue;
+use futures_util::{
+    future::{self},
+    FutureExt,
+};
 
-use std::cmp;
-use std::future::Future;
-use std::sync::atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering};
-use std::sync::{Arc, RwLock};
-use std::task::Poll;
-
-use crate::pool::options::PoolConnectionMetadata;
-use futures_util::future::{self};
-use futures_util::FutureExt;
-use std::time::{Duration, Instant};
+use super::connection::{Floating, Idle, Live};
+use crate::{
+    connection::{ConnectOptions, Connection},
+    database::Database,
+    error::Error,
+    pool::{deadline_as_timeout, options::PoolConnectionMetadata, CloseEvent, Pool, PoolOptions},
+};
 
 pub(crate) struct PoolInner<DB: Database> {
     pub(super) connect_options: RwLock<Arc<<DB::Connection as Connection>::Options>>,

@@ -40,9 +40,6 @@ mod macros;
 #[doc(hidden)]
 pub mod ty_match;
 
-#[doc(hidden)]
-pub use sqlx_core::rt as __rt;
-
 /// Conversions between Rust and SQL types.
 ///
 /// To see how each SQL type maps to a Rust type, see the corresponding `types` module for each

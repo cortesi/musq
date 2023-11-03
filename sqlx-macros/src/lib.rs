@@ -1,5 +1,6 @@
 use proc_macro::TokenStream;
-use sqlx_macros_core::*;
+
+mod derives;
 
 #[proc_macro_derive(Encode, attributes(sqlx))]
 pub fn derive_encode(tokenstream: TokenStream) -> TokenStream {

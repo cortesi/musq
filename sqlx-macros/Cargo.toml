@@ -11,10 +11,15 @@ repository.workspace = true
 proc-macro = true
 
 [dependencies]
-sqlx-macros-core = { workspace = true }
+heck = { version = "0.4", features = ["unicode"] }
+proc-macro2 = { version = "1.0.36", default-features = false }
 
 syn = { version = "1.0.84", default-features = false, features = [
-    "parsing",
     "proc-macro",
+    "full",
+    "derive",
+    "parsing",
+    "printing",
+    "clone-impls",
 ] }
 quote = { version = "1.0.14", default-features = false }
