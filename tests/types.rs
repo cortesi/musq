@@ -1,7 +1,7 @@
 extern crate time_ as time;
 
-use musqlite_core::row::Row;
-use musqlite_core::sqlite::{Sqlite, SqliteRow};
+use musqlite_core::sqlite::Sqlite;
+use musqlite_core::Row;
 use musqlite_test::new;
 use musqlite_test::test_type;
 
@@ -82,7 +82,7 @@ mod json_tests {
             "select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1",
         )
         .bind(42_i32)
-        .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
+        .try_map(|row: Row| row.try_get::<bool, _>(0))
         .fetch_one(&mut conn)
         .await?;
 

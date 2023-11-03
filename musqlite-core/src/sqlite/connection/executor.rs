@@ -1,7 +1,7 @@
 use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
-use crate::sqlite::{Sqlite, SqliteConnection, SqliteQueryResult, SqliteRow, Statement, TypeInfo};
+use crate::sqlite::{Row, Sqlite, SqliteConnection, SqliteQueryResult, Statement, TypeInfo};
 use crate::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
@@ -13,7 +13,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxStream<'e, Result<Either<SqliteQueryResult, SqliteRow>, Error>>
+    ) -> BoxStream<'e, Result<Either<SqliteQueryResult, Row>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -33,7 +33,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     fn fetch_optional<'e, 'q: 'e, E: 'q>(
         self,
         mut query: E,
-    ) -> BoxFuture<'e, Result<Option<SqliteRow>, Error>>
+    ) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,

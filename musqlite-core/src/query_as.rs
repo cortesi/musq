@@ -85,7 +85,7 @@ impl<'q, DB, O, A> QueryAs<'q, DB, O, A>
 where
     DB: Database,
     A: 'q + IntoArguments<'q>,
-    O: Send + Unpin + for<'r> FromRow<'r, DB::Row>,
+    O: Send + Unpin + for<'r> FromRow<'r>,
 {
     /// Execute the query and return the generated results as a stream.
     pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
@@ -175,7 +175,7 @@ where
 pub fn query_as<'q, DB, O>(sql: &'q str) -> QueryAs<'q, DB, O, Arguments<'q>>
 where
     DB: Database,
-    O: for<'r> FromRow<'r, DB::Row>,
+    O: for<'r> FromRow<'r>,
 {
     QueryAs {
         inner: query(sql),
@@ -190,7 +190,7 @@ pub fn query_as_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryAs<'q, DB
 where
     DB: Database,
     A: IntoArguments<'q>,
-    O: for<'r> FromRow<'r, DB::Row>,
+    O: for<'r> FromRow<'r>,
 {
     QueryAs {
         inner: query_with(sql, arguments),
@@ -204,7 +204,7 @@ pub fn query_statement_as<'q, DB, O>(
 ) -> QueryAs<'q, DB, O, Arguments<'_>>
 where
     DB: Database,
-    O: for<'r> FromRow<'r, DB::Row>,
+    O: for<'r> FromRow<'r>,
 {
     QueryAs {
         inner: query_statement(statement),
@@ -220,7 +220,7 @@ pub fn query_statement_as_with<'q, DB, O, A>(
 where
     DB: Database,
     A: IntoArguments<'q>,
-    O: for<'r> FromRow<'r, DB::Row>,
+    O: for<'r> FromRow<'r>,
 {
     QueryAs {
         inner: query_statement_with(statement, arguments),

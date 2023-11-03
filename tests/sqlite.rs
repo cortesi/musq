@@ -1,8 +1,8 @@
 use futures::TryStreamExt;
 use musqlite_core::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use musqlite_core::{
-    query, query_as, query_scalar, sqlite::Sqlite, sqlite::SqliteConnection, sqlite::SqlitePool,
-    sqlite::SqliteRow, Column, ConnectOptions, Connection, Error, Executor, Row, Statement,
+    query, query_as, query_scalar, sqlite::Row, sqlite::Sqlite, sqlite::SqliteConnection,
+    sqlite::SqlitePool, ConnectOptions, Connection, Error, Executor,
 };
 use musqlite_test::{new, tdb};
 use rand::{Rng, SeedableRng};
@@ -86,7 +86,7 @@ async fn it_maths() -> anyhow::Result<()> {
 
     let value = query("select 1 + ?1")
         .bind(5_i32)
-        .try_map(|row: SqliteRow| row.try_get::<i32, _>(0))
+        .try_map(|row: Row| row.try_get::<i32, _>(0))
         .fetch_one(&mut conn)
         .await?;
 
@@ -130,11 +130,11 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
-    use musqlite_core::{decode::Decode, ValueRef};
+    use musqlite_core::decode::Decode;
 
     let mut conn = tdb().await?;
     let defaults = query("pragma table_info (tweet)")
-        .try_map(|row: SqliteRow| {
+        .try_map(|row: Row| {
             let val = row.try_get_raw("dflt_value")?;
             let ty = val.type_info().clone().into_owned();
 
@@ -429,7 +429,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE
         .execute(&mut conn)
         .await?;
 
-    let row: SqliteRow = conn
+    let row: Row = conn
         .fetch_one("SELECT name FROM users ORDER BY name ASC")
         .await?;
     let name: &str = row.try_get(0)?;

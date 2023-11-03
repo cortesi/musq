@@ -2,7 +2,7 @@ use crate::sqlite::connection::{ConnectionHandle, ConnectionState};
 use crate::sqlite::error::Error;
 use crate::sqlite::logger::QueryLogger;
 use crate::sqlite::statement::{StatementHandle, VirtualStatement};
-use crate::sqlite::{Arguments, SqliteQueryResult, SqliteRow};
+use crate::sqlite::{Arguments, Row, SqliteQueryResult};
 use crate::Either;
 
 pub struct ExecuteIter<'a> {
@@ -64,7 +64,7 @@ impl ExecuteIter<'_> {
 }
 
 impl Iterator for ExecuteIter<'_> {
-    type Item = Result<Either<SqliteQueryResult, SqliteRow>, Error>;
+    type Item = Result<Either<SqliteQueryResult, Row>, Error>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let statement = if self.goto_next {
@@ -97,7 +97,7 @@ impl Iterator for ExecuteIter<'_> {
             Ok(true) => {
                 self.logger.increment_rows_returned();
 
-                Some(Ok(Either::Right(SqliteRow::current(
+                Some(Ok(Either::Right(Row::current(
                     &statement.handle,
                     &statement.columns,
                     &statement.column_names,

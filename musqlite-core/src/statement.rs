@@ -22,10 +22,7 @@ macro_rules! impl_statement_query {
             &self,
         ) -> $crate::query_as::QueryAs<'_, crate::sqlite::Sqlite, O, Arguments<'_>>
         where
-            O: for<'r> $crate::from_row::FromRow<
-                'r,
-                <crate::sqlite::Sqlite as $crate::database::Database>::Row,
-            >,
+            O: for<'r> $crate::from_row::FromRow<'r>,
         {
             $crate::query_as::query_statement_as(self)
         }
@@ -36,10 +33,7 @@ macro_rules! impl_statement_query {
             arguments: A,
         ) -> $crate::query_as::QueryAs<'s, crate::sqlite::Sqlite, O, A>
         where
-            O: for<'r> $crate::from_row::FromRow<
-                'r,
-                <crate::sqlite::Sqlite as $crate::database::Database>::Row,
-            >,
+            O: for<'r> $crate::from_row::FromRow<'r>,
             A: $crate::arguments::IntoArguments<'s>,
         {
             $crate::query_as::query_statement_as_with(self, arguments)
@@ -50,10 +44,7 @@ macro_rules! impl_statement_query {
             &self,
         ) -> $crate::query_scalar::QueryScalar<'_, crate::sqlite::Sqlite, O, Arguments<'_>>
         where
-            (O,): for<'r> $crate::from_row::FromRow<
-                'r,
-                <crate::sqlite::Sqlite as $crate::database::Database>::Row,
-            >,
+            (O,): for<'r> $crate::from_row::FromRow<'r>,
         {
             $crate::query_scalar::query_statement_scalar(self)
         }
@@ -64,10 +55,7 @@ macro_rules! impl_statement_query {
             arguments: A,
         ) -> $crate::query_scalar::QueryScalar<'s, crate::sqlite::Sqlite, O, A>
         where
-            (O,): for<'r> $crate::from_row::FromRow<
-                'r,
-                <crate::sqlite::Sqlite as $crate::database::Database>::Row,
-            >,
+            (O,): for<'r> $crate::from_row::FromRow<'r>,
             A: $crate::arguments::IntoArguments<'s>,
         {
             $crate::query_scalar::query_statement_scalar_with(self, arguments)

@@ -9,7 +9,7 @@ pub use options::{
     SqliteAutoVacuum, SqliteConnectOptions, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
 };
 pub use query_result::SqliteQueryResult;
-pub use row::SqliteRow;
+pub use row::Row;
 pub use statement::Statement;
 pub use transaction::SqliteTransactionManager;
 pub use type_info::TypeInfo;
@@ -50,7 +50,7 @@ impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
 
 // NOTE: required due to the lack of lazy normalization
 crate::impl_into_arguments_for_arguments!(Arguments<'q>);
-crate::impl_column_index_for_row!(SqliteRow);
+crate::impl_column_index_for_row!(Row);
 crate::impl_column_index_for_statement!(Statement);
 crate::impl_acquire!(Sqlite, SqliteConnection);
 

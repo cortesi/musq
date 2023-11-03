@@ -1,4 +1,6 @@
-use crate::{database::Database, describe::Describe, error::Error, sqlite, Arguments, Statement};
+use crate::{
+    database::Database, describe::Describe, error::Error, sqlite, Arguments, Row, Statement,
+};
 
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -56,10 +58,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and return the generated results as a stream.
-    fn fetch<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxStream<'e, Result<<Self::Database as Database>::Row, Error>>
+    fn fetch<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxStream<'e, Result<Row, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -79,22 +78,13 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<
-        'e,
-        Result<
-            Either<<Self::Database as Database>::QueryResult, <Self::Database as Database>::Row>,
-            Error,
-        >,
-    >
+    ) -> BoxStream<'e, Result<Either<<Self::Database as Database>::QueryResult, Row>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>;
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    fn fetch_all<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<Vec<<Self::Database as Database>::Row>, Error>>
+    fn fetch_all<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Vec<Row>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -103,10 +93,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and returns exactly one row.
-    fn fetch_one<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<<Self::Database as Database>::Row, Error>>
+    fn fetch_one<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Row, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>,
@@ -123,7 +110,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch_optional<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxFuture<'e, Result<Option<<Self::Database as Database>::Row>, Error>>
+    ) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
         'c: 'e,
         E: Execute<'q, Self::Database>;

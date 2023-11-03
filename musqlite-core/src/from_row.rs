@@ -1,5 +1,6 @@
 use crate::error::Error;
-use crate::row::Row;
+use crate::sqlite::Sqlite;
+use crate::Row;
 
 /// A record that can be built from a row returned by the database.
 ///
@@ -210,8 +211,8 @@ use crate::row::Row;
 ///
 /// In MySql, `BigInt` type matches `i64`, but you can convert it to `u64` by `try_from`.
 ///
-pub trait FromRow<'r, R: Row>: Sized {
-    fn from_row(row: &'r R) -> Result<Self, Error>;
+pub trait FromRow<'r>: Sized {
+    fn from_row(row: &'r Row) -> Result<Self, Error>;
 }
 
 // implement FromRow for tuples of types that implement Decode
@@ -219,14 +220,13 @@ pub trait FromRow<'r, R: Row>: Sized {
 
 macro_rules! impl_from_row_for_tuple {
     ($( ($idx:tt) -> $T:ident );+;) => {
-        impl<'r, R, $($T,)+> FromRow<'r, R> for ($($T,)+)
+        impl<'r, $($T,)+> FromRow<'r> for ($($T,)+)
         where
-            R: Row,
-            usize: crate::column::ColumnIndex<R>,
-            $($T: crate::decode::Decode<'r, R::Database> + crate::types::Type<R::Database>,)+
+            usize: crate::column::ColumnIndex<Row>,
+            $($T: crate::decode::Decode<'r, Sqlite> + crate::types::Type<Sqlite>,)+
         {
             #[inline]
-            fn from_row(row: &'r R) -> Result<Self, Error> {
+            fn from_row(row: &'r Row) -> Result<Self, Error> {
                 Ok(($(row.try_get($idx as usize)?,)+))
             }
         }

@@ -1,6 +1,6 @@
 pub(crate) use crate::database::{Database, HasStatementCache};
 
-use crate::sqlite::{SqliteConnection, SqliteQueryResult, SqliteRow, SqliteTransactionManager};
+use crate::sqlite::{SqliteConnection, SqliteQueryResult, SqliteTransactionManager};
 
 /// Sqlite database driver.
 #[derive(Debug)]
@@ -10,8 +10,6 @@ impl Database for Sqlite {
     type Connection = SqliteConnection;
 
     type TransactionManager = SqliteTransactionManager;
-
-    type Row = SqliteRow;
 
     type QueryResult = SqliteQueryResult;
 }

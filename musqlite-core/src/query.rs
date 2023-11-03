@@ -12,7 +12,7 @@ use crate::{
     executor::{Execute, Executor},
     sqlite::Sqlite,
     types::Type,
-    Arguments, Statement,
+    Arguments, Row, Statement,
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
@@ -118,12 +118,9 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
     #[inline]
-    pub fn map<F, O>(
-        self,
-        mut f: F,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<O, Error> + Send, A>
+    pub fn map<F, O>(self, mut f: F) -> Map<'q, DB, impl FnMut(Row) -> Result<O, Error> + Send, A>
     where
-        F: FnMut(DB::Row) -> O + Send,
+        F: FnMut(Row) -> O + Send,
         O: Unpin,
     {
         self.try_map(move |row| Ok(f(row)))
@@ -136,7 +133,7 @@ where
     #[inline]
     pub fn try_map<F, O>(self, f: F) -> Map<'q, DB, F, A>
     where
-        F: FnMut(DB::Row) -> Result<O, Error> + Send,
+        F: FnMut(Row) -> Result<O, Error> + Send,
         O: Unpin,
     {
         Map {
@@ -172,7 +169,7 @@ where
 
     /// Execute the query and return the generated results as a stream.
     #[inline]
-    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<DB::Row, Error>>
+    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<Row, Error>>
     where
         'q: 'e,
         A: 'e,
@@ -187,7 +184,7 @@ where
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<DB::QueryResult, DB::Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<DB::QueryResult, Row>, Error>>
     where
         'q: 'e,
         A: 'e,
@@ -198,7 +195,7 @@ where
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
     #[inline]
-    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<DB::Row>, Error>
+    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<Row>, Error>
     where
         'q: 'e,
         A: 'e,
@@ -209,7 +206,7 @@ where
 
     /// Execute the query and returns exactly one row.
     #[inline]
-    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<DB::Row, Error>
+    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<Row, Error>
     where
         'q: 'e,
         A: 'e,
@@ -220,7 +217,7 @@ where
 
     /// Execute the query and returns at most one row.
     #[inline]
-    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<DB::Row>, Error>
+    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<Row>, Error>
     where
         'q: 'e,
         A: 'e,
@@ -259,7 +256,7 @@ where
 impl<'q, DB, F, O, A> Map<'q, DB, F, A>
 where
     DB: Database,
-    F: FnMut(DB::Row) -> Result<O, Error> + Send,
+    F: FnMut(Row) -> Result<O, Error> + Send,
     O: Send + Unpin,
     A: 'q + Send + IntoArguments<'q>,
 {
@@ -270,10 +267,7 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
     #[inline]
-    pub fn map<G, P>(
-        self,
-        mut g: G,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
+    pub fn map<G, P>(self, mut g: G) -> Map<'q, DB, impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> P + Send,
         P: Unpin,
@@ -289,7 +283,7 @@ where
     pub fn try_map<G, P>(
         self,
         mut g: G,
-    ) -> Map<'q, DB, impl FnMut(DB::Row) -> Result<P, Error> + Send, A>
+    ) -> Map<'q, DB, impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> Result<P, Error> + Send,
         P: Unpin,

@@ -81,7 +81,7 @@ where
     DB: Database,
     O: Send + Unpin,
     A: 'q + IntoArguments<'q>,
-    (O,): Send + Unpin + for<'r> FromRow<'r, DB::Row>,
+    (O,): Send + Unpin + for<'r> FromRow<'r>,
 {
     /// Execute the query and return the generated results as a stream.
     #[inline]
@@ -166,7 +166,7 @@ where
 pub fn query_scalar<'q, DB, O>(sql: &'q str) -> QueryScalar<'q, DB, O, Arguments<'q>>
 where
     DB: Database,
-    (O,): for<'r> FromRow<'r, DB::Row>,
+    (O,): for<'r> FromRow<'r>,
 {
     QueryScalar {
         inner: query_as(sql),
@@ -180,7 +180,7 @@ pub fn query_scalar_with<'q, DB, O, A>(sql: &'q str, arguments: A) -> QueryScala
 where
     DB: Database,
     A: IntoArguments<'q>,
-    (O,): for<'r> FromRow<'r, DB::Row>,
+    (O,): for<'r> FromRow<'r>,
 {
     QueryScalar {
         inner: query_as_with(sql, arguments),
@@ -193,7 +193,7 @@ pub fn query_statement_scalar<'q, DB, O>(
 ) -> QueryScalar<'q, DB, O, Arguments<'_>>
 where
     DB: Database,
-    (O,): for<'r> FromRow<'r, DB::Row>,
+    (O,): for<'r> FromRow<'r>,
 {
     QueryScalar {
         inner: query_statement_as(statement),
@@ -208,7 +208,7 @@ pub fn query_statement_scalar_with<'q, DB, O, A>(
 where
     DB: Database,
     A: IntoArguments<'q>,
-    (O,): for<'r> FromRow<'r, DB::Row>,
+    (O,): for<'r> FromRow<'r>,
 {
     QueryScalar {
         inner: query_statement_as_with(statement, arguments),

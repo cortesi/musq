@@ -3,7 +3,6 @@
 use std::fmt::Debug;
 
 use crate::connection::Connection;
-use crate::row::Row;
 
 use crate::transaction::TransactionManager;
 
@@ -17,9 +16,6 @@ pub trait Database: 'static + Sized + Send + Debug {
 
     /// The concrete `TransactionManager` implementation for this database.
     type TransactionManager: TransactionManager<Database = Self>;
-
-    /// The concrete `Row` implementation for this database.
-    type Row: Row<Database = Self>;
 
     /// The concrete `QueryResult` implementation for this database.
     type QueryResult: 'static + Sized + Send + Sync + Default + Extend<Self::QueryResult>;

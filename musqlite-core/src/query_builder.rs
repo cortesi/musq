@@ -5,15 +5,8 @@ use std::fmt::Write;
 use std::marker::PhantomData;
 
 use crate::{
-    arguments::IntoArguments,
-    encode::Encode,
-    from_row::FromRow,
-    query::Query,
-    query_as::QueryAs,
-    query_scalar::QueryScalar,
-    sqlite::{Sqlite, SqliteRow},
-    types::Type,
-    Arguments, Either,
+    arguments::IntoArguments, encode::Encode, from_row::FromRow, query::Query, query_as::QueryAs,
+    query_scalar::QueryScalar, sqlite::Sqlite, types::Type, Arguments, Either,
 };
 
 /// A builder type for constructing queries at runtime.
@@ -452,7 +445,7 @@ impl<'args> QueryBuilder<'args> {
     /// to the state it was in immediately after [`new()`][Self::new].
     ///
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
-    pub fn build_query_as<'q, T: FromRow<'q, SqliteRow>>(
+    pub fn build_query_as<'q, T: FromRow<'q>>(
         &'q mut self,
     ) -> QueryAs<'q, Sqlite, T, Arguments<'args>> {
         QueryAs {
@@ -475,7 +468,7 @@ impl<'args> QueryBuilder<'args> {
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
     pub fn build_query_scalar<'q, T>(&'q mut self) -> QueryScalar<'q, Sqlite, T, Arguments<'args>>
     where
-        (T,): for<'r> FromRow<'r, SqliteRow>,
+        (T,): for<'r> FromRow<'r>,
     {
         QueryScalar {
             inner: self.build_query_as(),

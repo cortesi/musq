@@ -55,7 +55,7 @@ macro_rules! impl_column_index_for_row {
     ($R:ident) => {
         impl $crate::column::ColumnIndex<$R> for usize {
             fn index(&self, row: &$R) -> Result<usize, $crate::error::Error> {
-                let len = $crate::row::Row::len(row);
+                let len = $crate::Row::len(row);
 
                 if *self >= len {
                     return Err($crate::error::Error::ColumnIndexOutOfBounds { len, index: *self });
