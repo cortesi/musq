@@ -1,6 +1,6 @@
 use crate::sqlite::{
     error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue,
-    SqliteTypeInfo, SqliteValueRef,
+    SqliteValueRef, TypeInfo,
 };
 use crate::{
     decode::Decode,
@@ -8,8 +8,8 @@ use crate::{
 };
 
 impl Type<Sqlite> for f32 {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Float)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Float)
     }
 }
 
@@ -28,8 +28,8 @@ impl<'r> Decode<'r, Sqlite> for f32 {
 }
 
 impl Type<Sqlite> for f64 {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Float)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Float)
     }
 }
 

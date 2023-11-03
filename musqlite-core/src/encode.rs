@@ -2,7 +2,10 @@
 
 use std::mem;
 
-use crate::database::{Database, HasArguments};
+use crate::{
+    database::{Database, HasArguments},
+    sqlite,
+};
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -33,7 +36,7 @@ pub trait Encode<'q, DB: Database> {
     #[must_use]
     fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull;
 
-    fn produces(&self) -> Option<DB::TypeInfo> {
+    fn produces(&self) -> Option<sqlite::TypeInfo> {
         // `produces` is inherently a hook to allow database drivers to produce value-dependent
         // type information; if the driver doesn't need this, it can leave this as `None`
         None
@@ -60,7 +63,7 @@ where
     }
 
     #[inline]
-    fn produces(&self) -> Option<DB::TypeInfo> {
+    fn produces(&self) -> Option<sqlite::TypeInfo> {
         (**self).produces()
     }
 
@@ -78,7 +81,7 @@ macro_rules! impl_encode_for_option {
             T: $crate::encode::Encode<'q, $DB> + $crate::types::Type<$DB> + 'q,
         {
             #[inline]
-            fn produces(&self) -> Option<<$DB as $crate::database::Database>::TypeInfo> {
+            fn produces(&self) -> Option<$crate::sqlite::TypeInfo> {
                 if let Some(v) = self {
                     v.produces()
                 } else {

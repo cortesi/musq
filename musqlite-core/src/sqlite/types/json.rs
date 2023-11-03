@@ -4,7 +4,7 @@ use crate::sqlite::{
     error::BoxDynError,
     type_info::DataType,
     types::{Json, Type},
-    Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef,
+    Sqlite, SqliteArgumentValue, SqliteValueRef, TypeInfo,
 };
 use crate::{
     decode::Decode,
@@ -12,11 +12,11 @@ use crate::{
 };
 
 impl<T> Type<Sqlite> for Json<T> {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Text)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Text)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         <&str as Type<Sqlite>>::compatible(ty)
     }
 }

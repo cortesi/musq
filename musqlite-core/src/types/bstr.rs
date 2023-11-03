@@ -1,9 +1,12 @@
 /// Conversions between `bstr` types and SQL types.
 use crate::database::{Database, HasArguments, HasValueRef};
-use crate::decode::Decode;
-use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
-use crate::types::Type;
+use crate::{
+    decode::Decode,
+    encode::{Encode, IsNull},
+    error::BoxDynError,
+    sqlite,
+    types::Type,
+};
 
 #[doc(no_inline)]
 pub use bstr::{BStr, BString, ByteSlice};
@@ -13,11 +16,11 @@ where
     DB: Database,
     [u8]: Type<DB>,
 {
-    fn type_info() -> DB::TypeInfo {
+    fn type_info() -> sqlite::TypeInfo {
         <&[u8] as Type<DB>>::type_info()
     }
 
-    fn compatible(ty: &DB::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::TypeInfo) -> bool {
         <&[u8] as Type<DB>>::compatible(ty)
     }
 }

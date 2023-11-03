@@ -2,7 +2,7 @@ use crate::sqlite::value::ValueRef;
 
 use crate::sqlite::{
     error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue,
-    SqliteTypeInfo, SqliteValueRef,
+    SqliteValueRef, TypeInfo,
 };
 use crate::{
     decode::Decode,
@@ -13,21 +13,21 @@ use time::macros::format_description as fd;
 use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
 
 impl Type<Sqlite> for OffsetDateTime {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Datetime)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Datetime)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         <PrimitiveDateTime as Type<Sqlite>>::compatible(ty)
     }
 }
 
 impl Type<Sqlite> for PrimitiveDateTime {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Datetime)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Datetime)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         matches!(
             ty.0,
             DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int
@@ -36,21 +36,21 @@ impl Type<Sqlite> for PrimitiveDateTime {
 }
 
 impl Type<Sqlite> for Date {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Date)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Date)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         matches!(ty.0, DataType::Date | DataType::Text)
     }
 }
 
 impl Type<Sqlite> for Time {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Time)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Time)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         matches!(ty.0, DataType::Time | DataType::Text)
     }
 }

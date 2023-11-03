@@ -89,7 +89,7 @@ fn expand_derive_encode_transparent(
                 <#ty as musqlite_core::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.0, buf)
             }
 
-            fn produces(&self) -> Option<DB::TypeInfo> {
+            fn produces(&self) -> Option<sqlite::TypeInfo> {
                 <#ty as musqlite_core::encode::Encode<#lifetime, DB>>::produces(&self.0)
             }
 

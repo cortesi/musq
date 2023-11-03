@@ -72,11 +72,11 @@ fn expand_derive_has_sql_type_transparent(
         let tokens = quote!(
             #[automatically_derived]
             impl #impl_generics musqlite_core::Type< DB > for #ident #ty_generics #where_clause {
-                fn type_info() -> DB::TypeInfo {
+                fn type_info() -> sqlite::TypeInfo {
                     <#ty as musqlite_core::Type<DB>>::type_info()
                 }
 
-                fn compatible(ty: &DB::TypeInfo) -> ::std::primitive::bool {
+                fn compatible(ty: &musqlite_core::sqlite::TypeInfo) -> ::std::primitive::bool {
                     <#ty as musqlite_core::Type<DB>>::compatible(ty)
                 }
             }
@@ -101,11 +101,11 @@ fn expand_derive_has_sql_type_weak_enum(
         where
             #repr: musqlite_core::Type<DB>,
         {
-            fn type_info() -> DB::TypeInfo {
+            fn type_info() -> musqlite_core::sqlite::TypeInfo {
                 <#repr as musqlite_core::Type<DB>>::type_info()
             }
 
-            fn compatible(ty: &DB::TypeInfo) -> bool {
+            fn compatible(ty: &musqlite_core::sqlite::TypeInfo) -> bool {
                 <#repr as musqlite_core::Type<DB>>::compatible(ty)
             }
         }
@@ -123,11 +123,11 @@ fn expand_derive_has_sql_type_strong_enum(
     tts.extend(quote!(
         #[automatically_derived]
         impl Type<::Sqlite> for #ident {
-            fn type_info() -> ::sqlite::SqliteTypeInfo {
+            fn type_info() -> musqlite_core::sqlite::TypeInfo {
                 <::std::primitive::str as musqlite_core::Type<Sqlite>>::type_info()
             }
 
-            fn compatible(ty: &::sqlite::SqliteTypeInfo) -> ::std::primitive::bool {
+            fn compatible(ty: &musqlite_core::sqlite::TypeInfo) -> ::std::primitive::bool {
                 <&::std::primitive::str as ::types::Type<sqlite::Sqlite>>::compatible(ty)
             }
         }

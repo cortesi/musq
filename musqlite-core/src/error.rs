@@ -8,8 +8,7 @@ use std::io;
 
 use crate::database::Database;
 
-use crate::type_info::TypeInfo;
-use crate::types::Type;
+use crate::{sqlite, types::Type};
 
 /// A specialized `Result` type for SQLx.
 pub type Result<T, E = Error> = ::std::result::Result<T, E>;
@@ -133,7 +132,7 @@ impl Error {
     }
 }
 
-pub fn mismatched_types<DB: Database, T: Type<DB>>(ty: &DB::TypeInfo) -> BoxDynError {
+pub fn mismatched_types<DB: Database, T: Type<DB>>(ty: &sqlite::TypeInfo) -> BoxDynError {
     // TODO: `#name` only produces `TINYINT` but perhaps we want to show `TINYINT(1)`
     format!(
         "mismatched types; Rust type `{}` (as SQL type `{}`) is not compatible with SQL type `{}`",

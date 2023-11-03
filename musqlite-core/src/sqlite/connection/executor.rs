@@ -2,7 +2,7 @@ use crate::describe::Describe;
 use crate::error::Error;
 use crate::executor::{Execute, Executor};
 use crate::sqlite::{
-    Sqlite, SqliteConnection, SqliteQueryResult, SqliteRow, SqliteStatement, SqliteTypeInfo,
+    Sqlite, SqliteConnection, SqliteQueryResult, SqliteRow, SqliteStatement, TypeInfo,
 };
 use crate::Either;
 use futures_core::future::BoxFuture;
@@ -66,7 +66,7 @@ impl<'c> Executor<'c> for &'c mut SqliteConnection {
     fn prepare_with<'e, 'q: 'e>(
         self,
         sql: &'q str,
-        _parameters: &[SqliteTypeInfo],
+        _parameters: &[TypeInfo],
     ) -> BoxFuture<'e, Result<SqliteStatement<'q>, Error>>
     where
         'c: 'e,

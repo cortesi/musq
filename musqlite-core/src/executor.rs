@@ -1,6 +1,9 @@
-use crate::database::{Database, HasArguments, HasStatement};
-use crate::describe::Describe;
-use crate::error::Error;
+use crate::{
+    database::{Database, HasArguments, HasStatement},
+    describe::Describe,
+    error::Error,
+    sqlite,
+};
 
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -157,7 +160,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn prepare_with<'e, 'q: 'e>(
         self,
         sql: &'q str,
-        parameters: &'e [<Self::Database as Database>::TypeInfo],
+        parameters: &'e [sqlite::TypeInfo],
     ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>>
     where
         'c: 'e;

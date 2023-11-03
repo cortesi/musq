@@ -3,7 +3,6 @@ use musqlite_core::executor::Executor;
 use musqlite_core::sqlite::Sqlite;
 use musqlite_core::sqlite::{SqliteConnection, SqliteError};
 use musqlite_core::Column;
-use musqlite_core::TypeInfo;
 use musqlite_test::{new, tdb};
 
 #[tokio::test]

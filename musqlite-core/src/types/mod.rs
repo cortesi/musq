@@ -15,7 +15,7 @@
 //! An `Option<T>` represents a potentially `NULL` value from SQL.
 //!
 
-use crate::database::Database;
+use crate::{database::Database, sqlite};
 
 pub mod bstr;
 
@@ -115,7 +115,7 @@ pub trait Type<DB: Database> {
     ///
     /// A map of SQL types to Rust types is populated with this and used
     /// to determine the type that is returned from the anonymous struct type from `query!`.
-    fn type_info() -> DB::TypeInfo;
+    fn type_info() -> sqlite::TypeInfo;
 
     /// Determines if this Rust type is compatible with the given SQL type.
     ///
@@ -124,29 +124,29 @@ pub trait Type<DB: Database> {
     ///
     /// When binding arguments with `query!` or `query_as!`, this method is consulted to determine
     /// if the Rust type is acceptable.
-    fn compatible(ty: &DB::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::TypeInfo) -> bool {
         *ty == Self::type_info()
     }
 }
 
 // for references, the underlying SQL type is identical
 impl<T: ?Sized + Type<DB>, DB: Database> Type<DB> for &'_ T {
-    fn type_info() -> DB::TypeInfo {
+    fn type_info() -> sqlite::TypeInfo {
         <T as Type<DB>>::type_info()
     }
 
-    fn compatible(ty: &DB::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::TypeInfo) -> bool {
         <T as Type<DB>>::compatible(ty)
     }
 }
 
 // for optionals, the underlying SQL type is identical
 impl<T: Type<DB>, DB: Database> Type<DB> for Option<T> {
-    fn type_info() -> DB::TypeInfo {
+    fn type_info() -> sqlite::TypeInfo {
         <T as Type<DB>>::type_info()
     }
 
-    fn compatible(ty: &DB::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::TypeInfo) -> bool {
         <T as Type<DB>>::compatible(ty)
     }
 }

@@ -3,11 +3,14 @@ use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 
-use crate::database::{Database, HasStatement};
-use crate::describe::Describe;
-use crate::error::Error;
-use crate::executor::{Execute, Executor};
-use crate::pool::Pool;
+use crate::{
+    database::{Database, HasStatement},
+    describe::Describe,
+    error::Error,
+    executor::{Execute, Executor},
+    pool::Pool,
+    sqlite,
+};
 
 impl<'p, DB: Database> Executor<'p> for &'_ Pool<DB>
 where
@@ -51,7 +54,7 @@ where
     fn prepare_with<'e, 'q: 'e>(
         self,
         sql: &'q str,
-        parameters: &'e [<Self::Database as Database>::TypeInfo],
+        parameters: &'e [sqlite::TypeInfo],
     ) -> BoxFuture<'e, Result<<Self::Database as HasStatement<'q>>::Statement, Error>> {
         let pool = self.clone();
 

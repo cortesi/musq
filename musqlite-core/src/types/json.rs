@@ -4,11 +4,14 @@ use serde::{Deserialize, Serialize};
 pub use serde_json::value::RawValue as JsonRawValue;
 pub use serde_json::Value as JsonValue;
 
-use crate::database::{Database, HasArguments, HasValueRef};
-use crate::decode::Decode;
-use crate::encode::{Encode, IsNull};
-use crate::error::BoxDynError;
-use crate::types::Type;
+use crate::{
+    database::{Database, HasArguments, HasValueRef},
+    decode::Decode,
+    encode::{Encode, IsNull},
+    error::BoxDynError,
+    sqlite,
+    types::Type,
+};
 
 /// Json for json and jsonb fields
 ///
@@ -125,11 +128,11 @@ where
     Json<Self>: Type<DB>,
     DB: Database,
 {
-    fn type_info() -> DB::TypeInfo {
+    fn type_info() -> sqlite::TypeInfo {
         <Json<Self> as Type<DB>>::type_info()
     }
 
-    fn compatible(ty: &DB::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::TypeInfo) -> bool {
         <Json<Self> as Type<DB>>::compatible(ty)
     }
 }
@@ -159,11 +162,11 @@ where
     for<'a> Json<&'a Self>: Type<DB>,
     DB: Database,
 {
-    fn type_info() -> DB::TypeInfo {
+    fn type_info() -> sqlite::TypeInfo {
         <Json<&Self> as Type<DB>>::type_info()
     }
 
-    fn compatible(ty: &DB::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::TypeInfo) -> bool {
         <Json<&Self> as Type<DB>>::compatible(ty)
     }
 }

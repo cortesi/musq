@@ -6,8 +6,6 @@ use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQL
 
 use crate::sqlite::error::BoxDynError;
 
-pub(crate) use crate::type_info::*;
-
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub(crate) enum DataType {
     Null,
@@ -30,20 +28,20 @@ pub(crate) enum DataType {
 
 /// Type information for a SQLite type.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct SqliteTypeInfo(pub(crate) DataType);
+pub struct TypeInfo(pub(crate) DataType);
 
-impl Display for SqliteTypeInfo {
+impl Display for TypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(self.name())
     }
 }
 
-impl TypeInfo for SqliteTypeInfo {
-    fn is_null(&self) -> bool {
+impl TypeInfo {
+    pub fn is_null(&self) -> bool {
         matches!(self.0, DataType::Null)
     }
 
-    fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         match self.0 {
             DataType::Null => "NULL",
             DataType::Text => "TEXT",

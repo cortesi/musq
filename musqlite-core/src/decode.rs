@@ -25,7 +25,7 @@ use crate::value::ValueRef;
 /// struct MyType;
 ///
 /// # impl<DB: Database> Type<DB> for MyType {
-/// # fn type_info() -> DB::TypeInfo { todo!() }
+/// # fn type_info() -> sqlite::TypeInfo { todo!() }
 /// # }
 /// #
 /// # impl std::str::FromStr for MyType {

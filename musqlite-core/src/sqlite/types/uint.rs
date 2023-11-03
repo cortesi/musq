@@ -1,18 +1,18 @@
 use crate::sqlite::error::BoxDynError;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::types::Type;
-use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
+use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteValueRef, TypeInfo};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
 };
 
 impl Type<Sqlite> for u8 {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Int)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Int)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         matches!(ty.0, DataType::Int | DataType::Int64)
     }
 }
@@ -32,11 +32,11 @@ impl<'r> Decode<'r, Sqlite> for u8 {
 }
 
 impl Type<Sqlite> for u16 {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Int)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Int)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         matches!(ty.0, DataType::Int | DataType::Int64)
     }
 }
@@ -56,11 +56,11 @@ impl<'r> Decode<'r, Sqlite> for u16 {
 }
 
 impl Type<Sqlite> for u32 {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Int64)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Int64)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         matches!(ty.0, DataType::Int | DataType::Int64)
     }
 }

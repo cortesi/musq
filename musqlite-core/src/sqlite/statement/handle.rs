@@ -22,7 +22,7 @@ use libsqlite3_sys::{
 
 use crate::sqlite::error::{BoxDynError, Error};
 use crate::sqlite::type_info::DataType;
-use crate::sqlite::{SqliteError, SqliteTypeInfo};
+use crate::sqlite::{SqliteError, TypeInfo};
 
 use super::unlock_notify;
 
@@ -93,19 +93,19 @@ impl StatementHandle {
         }
     }
 
-    pub(crate) fn column_type_info(&self, index: usize) -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::from_code(self.column_type(index)))
+    pub(crate) fn column_type_info(&self, index: usize) -> TypeInfo {
+        TypeInfo(DataType::from_code(self.column_type(index)))
     }
 
-    pub(crate) fn column_type_info_opt(&self, index: usize) -> Option<SqliteTypeInfo> {
+    pub(crate) fn column_type_info_opt(&self, index: usize) -> Option<TypeInfo> {
         match DataType::from_code(self.column_type(index)) {
             DataType::Null => None,
-            dt => Some(SqliteTypeInfo(dt)),
+            dt => Some(TypeInfo(dt)),
         }
     }
 
     #[inline]
-    pub(crate) fn column_decltype(&self, index: usize) -> Option<SqliteTypeInfo> {
+    pub(crate) fn column_decltype(&self, index: usize) -> Option<TypeInfo> {
         unsafe {
             let decl = sqlite3_column_decltype(self.0.as_ptr(), index as c_int);
             if decl.is_null() {
@@ -117,7 +117,7 @@ impl StatementHandle {
             let decl = from_utf8_unchecked(CStr::from_ptr(decl).to_bytes());
             let ty: DataType = decl.parse().ok()?;
 
-            Some(SqliteTypeInfo(ty))
+            Some(TypeInfo(ty))
         }
     }
 

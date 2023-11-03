@@ -7,12 +7,12 @@ use crate::{
 
 use crate::sqlite::{
     error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue,
-    SqliteTypeInfo, SqliteValueRef,
+    SqliteValueRef, TypeInfo,
 };
 
 impl Type<Sqlite> for str {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Text)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Text)
     }
 }
 
@@ -31,7 +31,7 @@ impl<'r> Decode<'r, Sqlite> for &'r str {
 }
 
 impl Type<Sqlite> for String {
-    fn type_info() -> SqliteTypeInfo {
+    fn type_info() -> TypeInfo {
         <&str as Type<Sqlite>>::type_info()
     }
 }
@@ -57,11 +57,11 @@ impl<'r> Decode<'r, Sqlite> for String {
 }
 
 impl Type<Sqlite> for Cow<'_, str> {
-    fn type_info() -> SqliteTypeInfo {
+    fn type_info() -> TypeInfo {
         <&str as Type<Sqlite>>::type_info()
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         <&str as Type<Sqlite>>::compatible(ty)
     }
 }

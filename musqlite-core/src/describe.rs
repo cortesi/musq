@@ -2,6 +2,8 @@ use crate::database::Database;
 use either::Either;
 use std::convert::identity;
 
+use crate::sqlite;
+
 /// Provides extended information on a statement.
 ///
 /// Returned from [`Executor::describe`].
@@ -10,13 +12,13 @@ use std::convert::identity;
 /// output and parameter types; and, generate an anonymous record.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
-    serialize = "DB::TypeInfo: serde::Serialize, DB::Column: serde::Serialize",
-    deserialize = "DB::TypeInfo: serde::de::DeserializeOwned, DB::Column: serde::de::DeserializeOwned",
+    serialize = "sqlite::TypeInfo: serde::Serialize, DB::Column: serde::Serialize",
+    deserialize = "sqlite::TypeInfo: serde::de::DeserializeOwned, DB::Column: serde::de::DeserializeOwned",
 ))]
 #[doc(hidden)]
 pub struct Describe<DB: Database> {
     pub columns: Vec<DB::Column>,
-    pub parameters: Option<Either<Vec<DB::TypeInfo>, usize>>,
+    pub parameters: Option<Either<Vec<sqlite::TypeInfo>, usize>>,
     pub nullable: Vec<Option<bool>>,
 }
 
@@ -38,7 +40,7 @@ impl<DB: Database> Describe<DB> {
     /// Some drivers may return more or less than others. As an example, **PostgreSQL** will
     /// return `Some(Either::Left(_))` with a full list of type information for each parameter.
     /// However, **MSSQL** will return `None` as there is no information available.
-    pub fn parameters(&self) -> Option<Either<&[DB::TypeInfo], usize>> {
+    pub fn parameters(&self) -> Option<Either<&[sqlite::TypeInfo], usize>> {
         self.parameters.as_ref().map(|p| match p {
             Either::Left(params) => Either::Left(&**params),
             Either::Right(count) => Either::Right(*count),

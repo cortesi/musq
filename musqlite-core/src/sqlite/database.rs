@@ -4,8 +4,7 @@ pub(crate) use crate::database::{
 
 use crate::sqlite::{
     SqliteArgumentValue, SqliteArguments, SqliteColumn, SqliteConnection, SqliteQueryResult,
-    SqliteRow, SqliteStatement, SqliteTransactionManager, SqliteTypeInfo, SqliteValue,
-    SqliteValueRef,
+    SqliteRow, SqliteStatement, SqliteTransactionManager, SqliteValue, SqliteValueRef,
 };
 
 /// Sqlite database driver.
@@ -23,13 +22,7 @@ impl Database for Sqlite {
 
     type Column = SqliteColumn;
 
-    type TypeInfo = SqliteTypeInfo;
-
     type Value = SqliteValue;
-
-    const NAME: &'static str = "SQLite";
-
-    const URL_SCHEMES: &'static [&'static str] = &["sqlite"];
 }
 
 impl<'r> HasValueRef<'r> for Sqlite {

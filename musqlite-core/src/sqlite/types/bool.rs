@@ -1,6 +1,6 @@
 use crate::sqlite::{
     error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue,
-    SqliteTypeInfo, SqliteValueRef,
+    SqliteValueRef, TypeInfo,
 };
 use crate::{
     decode::Decode,
@@ -8,11 +8,11 @@ use crate::{
 };
 
 impl Type<Sqlite> for bool {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Bool)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Bool)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         matches!(ty.0, DataType::Bool | DataType::Int | DataType::Int64)
     }
 }

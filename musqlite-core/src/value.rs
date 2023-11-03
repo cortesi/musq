@@ -1,8 +1,10 @@
-use crate::database::{Database, HasValueRef};
-use crate::decode::Decode;
-use crate::error::{mismatched_types, Error};
-use crate::type_info::TypeInfo;
-use crate::types::Type;
+use crate::{
+    database::{Database, HasValueRef},
+    decode::Decode,
+    error::{mismatched_types, Error},
+    sqlite,
+    types::Type,
+};
 use std::borrow::Cow;
 
 /// An owned value from the database.
@@ -13,7 +15,7 @@ pub trait Value {
     fn as_ref(&self) -> <Self::Database as HasValueRef<'_>>::ValueRef;
 
     /// Get the type information for this value.
-    fn type_info(&self) -> Cow<'_, <Self::Database as Database>::TypeInfo>;
+    fn type_info(&self) -> Cow<'_, sqlite::TypeInfo>;
 
     /// Returns `true` if the SQL value is `NULL`.
     fn is_null(&self) -> bool;
@@ -106,7 +108,7 @@ pub trait ValueRef<'r>: Sized {
     fn to_owned(&self) -> <Self::Database as Database>::Value;
 
     /// Get the type information for this value.
-    fn type_info(&self) -> Cow<'_, <Self::Database as Database>::TypeInfo>;
+    fn type_info(&self) -> Cow<'_, sqlite::TypeInfo>;
 
     /// Returns `true` if the SQL value is `NULL`.
     fn is_null(&self) -> bool;

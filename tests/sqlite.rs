@@ -3,7 +3,6 @@ use musqlite_core::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
 use musqlite_core::{
     query, query_as, query_scalar, sqlite::Sqlite, sqlite::SqliteConnection, sqlite::SqlitePool,
     sqlite::SqliteRow, Column, ConnectOptions, Connection, Error, Executor, Row, Statement,
-    TypeInfo,
 };
 use musqlite_test::{new, tdb};
 use rand::{Rng, SeedableRng};
@@ -131,7 +130,7 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
-    use musqlite_core::{decode::Decode, TypeInfo, ValueRef};
+    use musqlite_core::{decode::Decode, ValueRef};
 
     let mut conn = tdb().await?;
     let defaults = query("pragma table_info (tweet)")

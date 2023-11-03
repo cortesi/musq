@@ -2,7 +2,7 @@ use std::borrow::Cow;
 
 use crate::sqlite::{
     error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue,
-    SqliteTypeInfo, SqliteValueRef,
+    SqliteValueRef, TypeInfo,
 };
 use crate::{
     decode::Decode,
@@ -10,11 +10,11 @@ use crate::{
 };
 
 impl Type<Sqlite> for [u8] {
-    fn type_info() -> SqliteTypeInfo {
-        SqliteTypeInfo(DataType::Blob)
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Blob)
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         matches!(ty.0, DataType::Blob | DataType::Text)
     }
 }
@@ -34,11 +34,11 @@ impl<'r> Decode<'r, Sqlite> for &'r [u8] {
 }
 
 impl Type<Sqlite> for Vec<u8> {
-    fn type_info() -> SqliteTypeInfo {
+    fn type_info() -> TypeInfo {
         <&[u8] as Type<Sqlite>>::type_info()
     }
 
-    fn compatible(ty: &SqliteTypeInfo) -> bool {
+    fn compatible(ty: &TypeInfo) -> bool {
         <&[u8] as Type<Sqlite>>::compatible(ty)
     }
 }

@@ -1,7 +1,7 @@
 use crate::ext::ustr::UStr;
 use crate::sqlite::column::ColumnIndex;
 use crate::sqlite::error::Error;
-use crate::sqlite::{Sqlite, SqliteArguments, SqliteColumn, SqliteTypeInfo};
+use crate::sqlite::{Sqlite, SqliteArguments, SqliteColumn, TypeInfo};
 use crate::{Either, HashMap};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -42,7 +42,7 @@ impl<'q> Statement<'q> for SqliteStatement<'q> {
         &self.sql
     }
 
-    fn parameters(&self) -> Option<Either<&[SqliteTypeInfo], usize>> {
+    fn parameters(&self) -> Option<Either<&[TypeInfo], usize>> {
         Some(Either::Right(self.parameters))
     }
 

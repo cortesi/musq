@@ -1,11 +1,14 @@
-use crate::arguments::IntoArguments;
-use crate::column::ColumnIndex;
-use crate::database::{Database, HasArguments, HasStatement};
-use crate::error::Error;
-use crate::from_row::FromRow;
-use crate::query::Query;
-use crate::query_as::QueryAs;
-use crate::query_scalar::QueryScalar;
+use crate::{
+    arguments::IntoArguments,
+    column::ColumnIndex,
+    database::{Database, HasArguments, HasStatement},
+    error::Error,
+    from_row::FromRow,
+    query::Query,
+    query_as::QueryAs,
+    query_scalar::QueryScalar,
+    sqlite,
+};
 use either::Either;
 
 /// An explicitly prepared statement.
@@ -30,7 +33,7 @@ pub trait Statement<'q>: Send + Sync {
     ///
     /// The information returned depends on what is available from the driver. SQLite can
     /// only tell us the number of parameters. PostgreSQL can give us full type information.
-    fn parameters(&self) -> Option<Either<&[<Self::Database as Database>::TypeInfo], usize>>;
+    fn parameters(&self) -> Option<Either<&[sqlite::TypeInfo], usize>>;
 
     /// Get the columns expected to be returned by executing this statement.
     fn columns(&self) -> &[<Self::Database as Database>::Column];

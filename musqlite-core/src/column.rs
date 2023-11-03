@@ -1,5 +1,4 @@
-use crate::database::Database;
-use crate::error::Error;
+use crate::{database::Database, error::Error, sqlite};
 
 use std::fmt::Debug;
 
@@ -19,7 +18,7 @@ pub trait Column: 'static + Send + Sync + Debug {
     fn name(&self) -> &str;
 
     /// Gets the type information for the column.
-    fn type_info(&self) -> &<Self::Database as Database>::TypeInfo;
+    fn type_info(&self) -> &sqlite::TypeInfo;
 }
 
 /// A type that can be used to index into a [`Row`] or [`Statement`].

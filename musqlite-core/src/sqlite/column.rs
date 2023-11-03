@@ -1,5 +1,5 @@
 use crate::ext::ustr::UStr;
-use crate::sqlite::{Sqlite, SqliteTypeInfo};
+use crate::sqlite::{Sqlite, TypeInfo};
 
 pub(crate) use crate::column::*;
 
@@ -7,7 +7,7 @@ pub(crate) use crate::column::*;
 pub struct SqliteColumn {
     pub(crate) name: UStr,
     pub(crate) ordinal: usize,
-    pub(crate) type_info: SqliteTypeInfo,
+    pub(crate) type_info: TypeInfo,
 }
 
 impl Column for SqliteColumn {
@@ -21,7 +21,7 @@ impl Column for SqliteColumn {
         &*self.name
     }
 
-    fn type_info(&self) -> &SqliteTypeInfo {
+    fn type_info(&self) -> &TypeInfo {
         &self.type_info
     }
 }

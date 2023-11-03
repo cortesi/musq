@@ -3,7 +3,7 @@ use crate::sqlite::connection::intmap::IntMap;
 use crate::sqlite::connection::{execute, ConnectionState};
 use crate::sqlite::error::Error;
 use crate::sqlite::type_info::DataType;
-use crate::sqlite::SqliteTypeInfo;
+use crate::sqlite::TypeInfo;
 use crate::HashMap;
 use std::collections::HashSet;
 use std::str::from_utf8;
@@ -385,7 +385,7 @@ struct QueryState {
     // State of the virtual machine
     pub mem: MemoryState,
     // Results published by the execution
-    pub result: Option<Vec<(Option<SqliteTypeInfo>, Option<bool>)>>,
+    pub result: Option<Vec<(Option<TypeInfo>, Option<bool>)>>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -427,7 +427,7 @@ impl BranchList {
 pub(super) fn explain(
     conn: &mut ConnectionState,
     query: &str,
-) -> Result<(Vec<SqliteTypeInfo>, Vec<Option<bool>>), Error> {
+) -> Result<(Vec<TypeInfo>, Vec<Option<bool>>), Error> {
     let root_block_cols = root_block_columns(conn)?;
     let program: Vec<(i64, String, i64, i64, i64, Vec<u8>)> =
         execute::iter(conn, &format!("EXPLAIN {}", query), None, false)?
@@ -1289,8 +1289,7 @@ pub(super) fn explain(
                             .map(|i| {
                                 let coltype = state.mem.r.get(&i);
 
-                                let sqltype =
-                                    coltype.map(|d| d.map_to_datatype()).map(SqliteTypeInfo);
+                                let sqltype = coltype.map(|d| d.map_to_datatype()).map(TypeInfo);
                                 let nullable =
                                     coltype.map(|d| d.map_to_nullable()).unwrap_or_default();
 
@@ -1328,7 +1327,7 @@ pub(super) fn explain(
         }
     }
 
-    let mut output: Vec<Option<SqliteTypeInfo>> = Vec::new();
+    let mut output: Vec<Option<TypeInfo>> = Vec::new();
     let mut nullable: Vec<Option<bool>> = Vec::new();
 
     while let Some(state) = result_states.pop() {
@@ -1339,7 +1338,7 @@ pub(super) fn explain(
                 if output.len() == idx {
                     output.push(this_type);
                 } else if output[idx].is_none()
-                    || matches!(output[idx], Some(SqliteTypeInfo(DataType::Null)))
+                    || matches!(output[idx], Some(TypeInfo(DataType::Null)))
                 {
                     output[idx] = this_type;
                 }
@@ -1361,7 +1360,7 @@ pub(super) fn explain(
 
     let output = output
         .into_iter()
-        .map(|o| o.unwrap_or(SqliteTypeInfo(DataType::Null)))
+        .map(|o| o.unwrap_or(TypeInfo(DataType::Null)))
         .collect();
 
     Ok((output, nullable))

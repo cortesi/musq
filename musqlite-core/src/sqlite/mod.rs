@@ -12,7 +12,7 @@ pub use query_result::SqliteQueryResult;
 pub use row::SqliteRow;
 pub use statement::SqliteStatement;
 pub use transaction::SqliteTransactionManager;
-pub use type_info::SqliteTypeInfo;
+pub use type_info::TypeInfo;
 pub use value::{SqliteValue, SqliteValueRef};
 
 use crate::sqlite::connection::establish::EstablishParams;
