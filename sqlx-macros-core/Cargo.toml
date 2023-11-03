@@ -9,20 +9,9 @@ repository.workspace = true
 
 
 [dependencies]
-sqlx-core = { workspace = true }
-sqlx-sqlite = { workspace = true }
 
-tokio = { workspace = true }
-dotenvy = { workspace = true }
-
-hex = { version = "0.4.3" }
 heck = { version = "0.4", features = ["unicode"] }
-either = "1.6.1"
-once_cell = "1.9.0"
 proc-macro2 = { version = "1.0.36", default-features = false }
-serde = { version = "1.0.132", features = ["derive"] }
-serde_json = { version = "1.0.73" }
-sha2 = { version = "0.10.0" }
 syn = { version = "1.0.84", default-features = false, features = [
     "full",
     "derive",
@@ -30,6 +19,4 @@ syn = { version = "1.0.84", default-features = false, features = [
     "printing",
     "clone-impls",
 ] }
-tempfile = { version = "3.3.0" }
 quote = { version = "1.0.14", default-features = false }
-url = { version = "2.2.2", default-features = false }
