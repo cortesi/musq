@@ -43,7 +43,6 @@ impl<DB: Database> PoolInner<DB> {
 
         let semaphore_capacity = if let Some(parent) = &options.parent_pool {
             assert!(options.max_connections <= parent.options().max_connections);
-            assert_eq!(options.fair, parent.options().fair);
             // The child pool must steal permits from the parent
             0
         } else {
