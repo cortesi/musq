@@ -1,7 +1,7 @@
 use std::borrow::Cow;
 
 use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo, ValueRef,
+    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo, ValueRef,
 };
 use crate::{
     decode::Decode,
@@ -18,7 +18,7 @@ impl Type for [u8] {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for &'q [u8] {
+impl<'q> Encode<'q> for &'q [u8] {
     fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Blob(Cow::Borrowed(self)));
 
@@ -42,7 +42,7 @@ impl Type for Vec<u8> {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Vec<u8> {
+impl<'q> Encode<'q> for Vec<u8> {
     fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Blob(Cow::Owned(self)));
 

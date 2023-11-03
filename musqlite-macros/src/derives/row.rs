@@ -53,9 +53,6 @@ fn expand_derive_from_row_struct(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics
-        .params
-        .insert(0, parse_quote!(R: musqlite_core::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
@@ -63,7 +60,7 @@ fn expand_derive_from_row_struct(
 
     let predicates = &mut generics.make_where_clause().predicates;
 
-    predicates.push(parse_quote!(&#lifetime ::std::primitive::str: musqlite_core::ColumnIndex<R>));
+    predicates.push(parse_quote!(&#lifetime ::std::primitive::str: musqlite_core::ColumnIndex<musqlite_core::Row>));
 
     let container_attributes = parse_container_attributes(&input.attrs)?;
 
@@ -87,7 +84,7 @@ fn expand_derive_from_row_struct(
                 }
                 (false, None) => {
                     predicates
-                        .push(parse_quote!(#ty: musqlite_core::decode::Decode<#lifetime, R::Database>));
+                        .push(parse_quote!(#ty: musqlite_core::decode::Decode<#lifetime>));
                     predicates.push(parse_quote!(#ty: musqlite_core::types::Type));
 
                     let id_s = attributes
@@ -106,7 +103,7 @@ fn expand_derive_from_row_struct(
                 }
                 (false,Some(try_from)) => {
                     predicates
-                        .push(parse_quote!(#try_from: musqlite_core::decode::Decode<#lifetime, R::Database>));
+                        .push(parse_quote!(#try_from: musqlite_core::decode::Decode<#lifetime>));
                     predicates.push(parse_quote!(#try_from: musqlite_core::types::Type));
 
                     let id_s = attributes
@@ -143,7 +140,7 @@ fn expand_derive_from_row_struct(
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics musqlite_core::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime R) -> musqlite_core::Result<Self> {
+            fn from_row(row: &#lifetime musqlite_core::Row) -> musqlite_core::Result<Self> {
                 #(#reads)*
 
                 ::std::result::Result::Ok(#ident {
@@ -182,13 +179,13 @@ fn expand_derive_from_row_struct_unnamed(
     let predicates = &mut generics.make_where_clause().predicates;
 
     predicates.push(parse_quote!(
-        ::std::primitive::usize: ::ColumnIndex<R>
+        ::std::primitive::usize: musqlite_core::ColumnIndex<musqlite_core::Row>
     ));
 
     for field in fields {
         let ty = &field.ty;
 
-        predicates.push(parse_quote!(#ty: musqlite_core::decode::Decode<#lifetime, R::Database>));
+        predicates.push(parse_quote!(#ty: musqlite_core::decode::Decode<#lifetime>));
         predicates.push(parse_quote!(#ty: musqlite_core::types::Type));
     }
 
@@ -202,7 +199,7 @@ fn expand_derive_from_row_struct_unnamed(
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics musqlite_core::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime R) -> ::Result<Self> {
+            fn from_row(row: &#lifetime musqlite_core::Row) -> musqlite_core::Result<Self> {
                 ::std::result::Result::Ok(#ident (
                     #(#gets),*
                 ))

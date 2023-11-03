@@ -69,32 +69,29 @@ fn expand_derive_encode_transparent(
         .insert(0, LifetimeDef::new(lifetime.clone()).into());
 
     generics
-        .params
-        .insert(0, parse_quote!(DB: musqlite_core::Database));
-    generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: musqlite_core::encode::Encode<#lifetime, DB>));
+        .push(parse_quote!(#ty: musqlite_core::encode::Encode<#lifetime>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite_core::encode::Encode<#lifetime, DB> for #ident #ty_generics
+        impl #impl_generics musqlite_core::encode::Encode<#lifetime> for #ident #ty_generics
         #where_clause
         {
             fn encode_by_ref(
                 &self,
                 buf: &mut musqlite_core::sqlite::ArgumentBuffer<#lifetime>,
             ) -> musqlite_core::encode::IsNull {
-                <#ty as musqlite_core::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.0, buf)
+                <#ty as musqlite_core::encode::Encode<#lifetime>>::encode_by_ref(&self.0, buf)
             }
 
             fn produces(&self) -> Option<sqlite::TypeInfo> {
-                <#ty as musqlite_core::encode::Encode<#lifetime, DB>>::produces(&self.0)
+                <#ty as musqlite_core::encode::Encode<#lifetime>>::produces(&self.0)
             }
 
             fn size_hint(&self) -> usize {
-                <#ty as musqlite_core::encode::Encode<#lifetime, DB>>::size_hint(&self.0)
+                <#ty as musqlite_core::encode::Encode<#lifetime>>::size_hint(&self.0)
             }
         }
     ))
@@ -117,9 +114,9 @@ fn expand_derive_encode_weak_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'q, DB: musqlite_core::Database> musqlite_core::encode::Encode<'q, DB> for #ident
+        impl<'q> musqlite_core::encode::Encode<'q> for #ident
         where
-            #repr: musqlite_core::encode::Encode<'q, DB>,
+            #repr: musqlite_core::encode::Encode<'q>,
         {
             fn encode_by_ref(
                 &self,
@@ -129,11 +126,11 @@ fn expand_derive_encode_weak_enum(
                     #(#values)*
                 };
 
-                <#repr as musqlite_core::encode::Encode<DB>>::encode_by_ref(&value, buf)
+                <#repr as musqlite_core::encode::Encode>::encode_by_ref(&value, buf)
             }
 
             fn size_hint(&self) -> usize {
-                <#repr as musqlite_core::encode::Encode<DB>>::size_hint(&Default::default())
+                <#repr as musqlite_core::encode::Encode>::size_hint(&Default::default())
             }
         }
     ))
@@ -167,9 +164,9 @@ fn expand_derive_encode_strong_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'q, DB: musqlite_core::Database> musqlite_core::encode::Encode<'q, DB> for #ident
+        impl<'q> musqlite_core::encode::Encode<'q> for #ident
         where
-            &'q ::std::primitive::str: musqlite_core::encode::Encode<'q, DB>,
+            &'q ::std::primitive::str: musqlite_core::encode::Encode<'q>,
         {
             fn encode_by_ref(
                 &self,
@@ -179,7 +176,7 @@ fn expand_derive_encode_strong_enum(
                     #(#value_arms)*
                 };
 
-                <&::std::primitive::str as musqlite_core::encode::Encode<'q, DB>>::encode(val, buf)
+                <&::std::primitive::str as musqlite_core::encode::Encode<'q>>::encode(val, buf)
             }
 
             fn size_hint(&self) -> ::std::primitive::usize {
@@ -187,7 +184,7 @@ fn expand_derive_encode_strong_enum(
                     #(#value_arms)*
                 };
 
-                <&::std::primitive::str as musqlite_core::encode::Encode<'q, DB>>::size_hint(&val)
+                <&::std::primitive::str as musqlite_core::encode::Encode<'q>>::size_hint(&val)
             }
         }
     ))

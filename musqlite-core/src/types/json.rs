@@ -5,7 +5,6 @@ pub use serde_json::value::RawValue as JsonRawValue;
 pub use serde_json::Value as JsonValue;
 
 use crate::{
-    database::Database,
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
@@ -138,13 +137,12 @@ where
     }
 }
 
-impl<'q, DB> Encode<'q, DB> for JsonValue
+impl<'q> Encode<'q> for JsonValue
 where
-    for<'a> Json<&'a Self>: Encode<'q, DB>,
-    DB: Database,
+    for<'a> Json<&'a Self>: Encode<'q>,
 {
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
-        <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
+        <Json<&Self> as Encode<'q>>::encode(Json(self), buf)
     }
 }
 

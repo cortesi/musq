@@ -4,7 +4,7 @@ use crate::sqlite::{
     error::BoxDynError,
     type_info::DataType,
     types::{Json, Type},
-    ArgumentValue, Sqlite, TypeInfo, ValueRef,
+    ArgumentValue, TypeInfo, ValueRef,
 };
 use crate::{
     decode::Decode,
@@ -21,12 +21,12 @@ impl<T> Type for Json<T> {
     }
 }
 
-impl<T> Encode<'_, Sqlite> for Json<T>
+impl<T> Encode<'_> for Json<T>
 where
     T: Serialize,
 {
     fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.encode_to_string(), buf)
+        Encode::encode(self.encode_to_string(), buf)
     }
 }
 

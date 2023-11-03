@@ -175,7 +175,7 @@ fn expand_derive_decode_strong_enum(
 
     tts.extend(quote!(
         #[automatically_derived]
-        impl<'r> musqlite_core::decode::Decode<'r, ::sqlite::Sqlite> for #ident {
+        impl<'r> musqlite_core::decode::Decode<'r> for #ident {
             fn decode(
                 value: ::sqlite::SqliteValueRef<'r>,
             ) -> ::std::result::Result<
@@ -189,7 +189,6 @@ fn expand_derive_decode_strong_enum(
             > {
                 let value = <&'r ::std::primitive::str as musqlite_core::decode::Decode<
                     'r,
-                    ::sqlite::Sqlite,
                 >>::decode(value)?;
 
                 #values

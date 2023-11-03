@@ -10,7 +10,6 @@ use crate::{
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
-    sqlite::Sqlite,
     types::Type,
     Arguments, QueryResult, Row, Statement,
 };
@@ -79,7 +78,7 @@ impl<'q, DB: Database> Query<'q, DB, Arguments<'q>> {
     ///
     /// There is no validation that the value is of the type expected by the query. Most SQL
     /// flavors will perform type coercion (Postgres will return a database error).
-    pub fn bind<T: 'q + Send + Encode<'q, Sqlite> + Type>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Send + Encode<'q> + Type>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value);
         }

@@ -1,5 +1,5 @@
 use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo, ValueRef,
+    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo, ValueRef,
 };
 use crate::{
     decode::Decode,
@@ -16,7 +16,7 @@ impl Type for bool {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for bool {
+impl<'q> Encode<'q> for bool {
     fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Int((*self).into()));
 

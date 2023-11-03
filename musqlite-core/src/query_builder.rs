@@ -124,7 +124,7 @@ impl<'args> QueryBuilder<'args> {
     /// [`SQLITE_LIMIT_VARIABLE_NUMBER`]: https://www.sqlite.org/limits.html#max_variable_number
     pub fn push_bind<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, Sqlite> + Send + Type,
+        T: 'args + Encode<'args> + Send + Type,
     {
         self.sanity_check();
 
@@ -539,7 +539,7 @@ where
     /// See [`QueryBuilder::push_bind()`] for details.
     pub fn push_bind<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, Sqlite> + Send + Type,
+        T: 'args + Encode<'args> + Send + Type,
     {
         if self.push_separator {
             self.query_builder.push(&self.separator);
@@ -557,7 +557,7 @@ where
     /// Simply calls [`QueryBuilder::push_bind()`] directly.
     pub fn push_bind_unseparated<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, Sqlite> + Send + Type,
+        T: 'args + Encode<'args> + Send + Type,
     {
         self.query_builder.push_bind(value);
         self

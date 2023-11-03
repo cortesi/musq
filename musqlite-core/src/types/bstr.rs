@@ -1,6 +1,5 @@
 /// Conversions between `bstr` types and SQL types.
 use crate::{
-    database::Database,
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
@@ -35,22 +34,20 @@ where
     }
 }
 
-impl<'q, DB: Database> Encode<'q, DB> for &'q BStr
+impl<'q> Encode<'q> for &'q BStr
 where
-    DB: Database,
-    &'q [u8]: Encode<'q, DB>,
+    &'q [u8]: Encode<'q>,
 {
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
-        <&[u8] as Encode<DB>>::encode(self.as_bytes(), buf)
+        <&[u8] as Encode>::encode(self.as_bytes(), buf)
     }
 }
 
-impl<'q, DB: Database> Encode<'q, DB> for BString
+impl<'q> Encode<'q> for BString
 where
-    DB: Database,
-    Vec<u8>: Encode<'q, DB>,
+    Vec<u8>: Encode<'q>,
 {
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
-        <Vec<u8> as Encode<DB>>::encode(self.as_bytes().to_vec(), buf)
+        <Vec<u8> as Encode>::encode(self.as_bytes().to_vec(), buf)
     }
 }

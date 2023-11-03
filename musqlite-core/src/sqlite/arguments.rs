@@ -1,7 +1,6 @@
 use crate::encode::{Encode, IsNull};
 use crate::sqlite::error::Error;
 use crate::sqlite::statement::StatementHandle;
-use crate::sqlite::Sqlite;
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
 use std::borrow::Cow;
@@ -27,7 +26,7 @@ pub struct Arguments<'q> {
 impl<'q> Arguments<'q> {
     pub fn add<T>(&mut self, value: T)
     where
-        T: Encode<'q, Sqlite>,
+        T: Encode<'q>,
     {
         if let IsNull::Yes = value.encode(&mut self.values) {
             self.values.push(ArgumentValue::Null);

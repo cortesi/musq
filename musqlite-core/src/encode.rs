@@ -2,10 +2,7 @@
 
 use std::mem;
 
-use crate::{
-    database::Database,
-    sqlite::{self, ArgumentBuffer},
-};
+use crate::sqlite::{self, ArgumentBuffer};
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -19,7 +16,7 @@ pub enum IsNull {
 }
 
 /// Encode a single value to be sent to the database.
-pub trait Encode<'q, DB: Database> {
+pub trait Encode<'q> {
     /// Writes the value of `self` into `buf` in the expected format for the database.
     #[must_use]
     fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull
@@ -48,18 +45,18 @@ pub trait Encode<'q, DB: Database> {
     }
 }
 
-impl<'q, T, DB: Database> Encode<'q, DB> for &'_ T
+impl<'q, T> Encode<'q> for &'_ T
 where
-    T: Encode<'q, DB>,
+    T: Encode<'q>,
 {
     #[inline]
     fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
-        <T as Encode<DB>>::encode_by_ref(self, buf)
+        <T as Encode>::encode_by_ref(self, buf)
     }
 
     #[inline]
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
-        <&T as Encode<DB>>::encode(self, buf)
+        <&T as Encode>::encode(self, buf)
     }
 
     #[inline]
@@ -76,9 +73,9 @@ where
 #[macro_export]
 macro_rules! impl_encode_for_option {
     ($DB:ident) => {
-        impl<'q, T> $crate::encode::Encode<'q, $DB> for Option<T>
+        impl<'q, T> $crate::encode::Encode<'q> for Option<T>
         where
-            T: $crate::encode::Encode<'q, $DB> + $crate::types::Type + 'q,
+            T: $crate::encode::Encode<'q> + $crate::types::Type + 'q,
         {
             #[inline]
             fn produces(&self) -> Option<$crate::sqlite::TypeInfo> {

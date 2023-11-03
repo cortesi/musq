@@ -3,9 +3,7 @@ use std::fmt::Display;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{
-        error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo,
-    },
+    sqlite::{error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo},
     ValueRef,
 };
 use chrono::FixedOffset;
@@ -56,30 +54,30 @@ impl Type for NaiveTime {
     }
 }
 
-impl<Tz: TimeZone> Encode<'_, Sqlite> for DateTime<Tz>
+impl<Tz: TimeZone> Encode<'_> for DateTime<Tz>
 where
     Tz::Offset: Display,
 {
     fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.to_rfc3339_opts(SecondsFormat::AutoSi, false), buf)
+        Encode::encode(self.to_rfc3339_opts(SecondsFormat::AutoSi, false), buf)
     }
 }
 
-impl Encode<'_, Sqlite> for NaiveDateTime {
+impl Encode<'_> for NaiveDateTime {
     fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.format("%F %T%.f").to_string(), buf)
+        Encode::encode(self.format("%F %T%.f").to_string(), buf)
     }
 }
 
-impl Encode<'_, Sqlite> for NaiveDate {
+impl Encode<'_> for NaiveDate {
     fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.format("%F").to_string(), buf)
+        Encode::encode(self.format("%F").to_string(), buf)
     }
 }
 
-impl Encode<'_, Sqlite> for NaiveTime {
+impl Encode<'_> for NaiveTime {
     fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
-        Encode::<Sqlite>::encode(self.format("%T%.f").to_string(), buf)
+        Encode::encode(self.format("%T%.f").to_string(), buf)
     }
 }
 

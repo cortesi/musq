@@ -6,7 +6,7 @@ use crate::{
 };
 
 use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo, ValueRef,
+    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo, ValueRef,
 };
 
 impl Type for str {
@@ -15,7 +15,7 @@ impl Type for str {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for &'q str {
+impl<'q> Encode<'q> for &'q str {
     fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Text(Cow::Borrowed(*self)));
 
@@ -35,7 +35,7 @@ impl Type for String {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for String {
+impl<'q> Encode<'q> for String {
     fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Text(Cow::Owned(self)));
 
@@ -65,7 +65,7 @@ impl Type for Cow<'_, str> {
     }
 }
 
-impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
+impl<'q> Encode<'q> for Cow<'q, str> {
     fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Text(self));
 
