@@ -2,9 +2,9 @@ use criterion::BenchmarkId;
 use criterion::Criterion;
 use criterion::{criterion_group, criterion_main};
 
-use sqlx::sqlite::{Sqlite, SqliteConnection};
-use sqlx::{Connection, Executor};
+use sqlite::{Sqlite, SqliteConnection};
 use sqlx_test::new;
+use {Connection, Executor};
 
 // Here we have an async function to benchmark
 async fn do_describe_trivial(db: &std::cell::RefCell<SqliteConnection>) {

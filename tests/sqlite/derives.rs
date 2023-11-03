@@ -1,7 +1,8 @@
-use sqlx::Sqlite;
+use sqlx_core::sqlite::Sqlite;
+use sqlx_macros::Type;
 use sqlx_test::test_type;
 
-#[derive(Debug, PartialEq, sqlx::Type)]
+#[derive(Debug, PartialEq, Type)]
 #[repr(u32)]
 enum Origin {
     Foo = 1,

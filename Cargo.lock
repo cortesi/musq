@@ -1381,7 +1381,7 @@ dependencies = [
  "anyhow",
  "dotenvy",
  "env_logger",
- "sqlx",
+ "sqlx-core",
 ]
 
 [[package]]

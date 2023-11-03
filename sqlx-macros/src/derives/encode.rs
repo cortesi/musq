@@ -70,31 +70,31 @@ fn expand_derive_encode_transparent(
 
     generics
         .params
-        .insert(0, parse_quote!(DB: ::sqlx::Database));
+        .insert(0, parse_quote!(DB: sqlx_core::Database));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: ::sqlx::encode::Encode<#lifetime, DB>));
+        .push(parse_quote!(#ty: sqlx_core::encode::Encode<#lifetime, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics ::sqlx::encode::Encode<#lifetime, DB> for #ident #ty_generics
+        impl #impl_generics sqlx_core::encode::Encode<#lifetime, DB> for #ident #ty_generics
         #where_clause
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut <DB as ::sqlx::database::HasArguments<#lifetime>>::ArgumentBuffer,
-            ) -> ::sqlx::encode::IsNull {
-                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.0, buf)
+                buf: &mut <DB as sqlx_core::database::HasArguments<#lifetime>>::ArgumentBuffer,
+            ) -> sqlx_core::encode::IsNull {
+                <#ty as sqlx_core::encode::Encode<#lifetime, DB>>::encode_by_ref(&self.0, buf)
             }
 
             fn produces(&self) -> Option<DB::TypeInfo> {
-                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::produces(&self.0)
+                <#ty as sqlx_core::encode::Encode<#lifetime, DB>>::produces(&self.0)
             }
 
             fn size_hint(&self) -> usize {
-                <#ty as ::sqlx::encode::Encode<#lifetime, DB>>::size_hint(&self.0)
+                <#ty as sqlx_core::encode::Encode<#lifetime, DB>>::size_hint(&self.0)
             }
         }
     ))
@@ -117,23 +117,23 @@ fn expand_derive_encode_weak_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'q, DB: ::sqlx::Database> ::sqlx::encode::Encode<'q, DB> for #ident
+        impl<'q, DB: sqlx_core::Database> sqlx_core::encode::Encode<'q, DB> for #ident
         where
-            #repr: ::sqlx::encode::Encode<'q, DB>,
+            #repr: sqlx_core::encode::Encode<'q, DB>,
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut <DB as ::sqlx::database::HasArguments<'q>>::ArgumentBuffer,
-            ) -> ::sqlx::encode::IsNull {
+                buf: &mut <DB as sqlx_core::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> sqlx_core::encode::IsNull {
                 let value = match self {
                     #(#values)*
                 };
 
-                <#repr as ::sqlx::encode::Encode<DB>>::encode_by_ref(&value, buf)
+                <#repr as sqlx_core::encode::Encode<DB>>::encode_by_ref(&value, buf)
             }
 
             fn size_hint(&self) -> usize {
-                <#repr as ::sqlx::encode::Encode<DB>>::size_hint(&Default::default())
+                <#repr as sqlx_core::encode::Encode<DB>>::size_hint(&Default::default())
             }
         }
     ))
@@ -167,19 +167,19 @@ fn expand_derive_encode_strong_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'q, DB: ::sqlx::Database> ::sqlx::encode::Encode<'q, DB> for #ident
+        impl<'q, DB: sqlx_core::Database> sqlx_core::encode::Encode<'q, DB> for #ident
         where
-            &'q ::std::primitive::str: ::sqlx::encode::Encode<'q, DB>,
+            &'q ::std::primitive::str: sqlx_core::encode::Encode<'q, DB>,
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut <DB as ::sqlx::database::HasArguments<'q>>::ArgumentBuffer,
-            ) -> ::sqlx::encode::IsNull {
+                buf: &mut <DB as sqlx_core::database::HasArguments<'q>>::ArgumentBuffer,
+            ) -> sqlx_core::encode::IsNull {
                 let val = match self {
                     #(#value_arms)*
                 };
 
-                <&::std::primitive::str as ::sqlx::encode::Encode<'q, DB>>::encode(val, buf)
+                <&::std::primitive::str as sqlx_core::encode::Encode<'q, DB>>::encode(val, buf)
             }
 
             fn size_hint(&self) -> ::std::primitive::usize {
@@ -187,7 +187,7 @@ fn expand_derive_encode_strong_enum(
                     #(#value_arms)*
                 };
 
-                <&::std::primitive::str as ::sqlx::encode::Encode<'q, DB>>::size_hint(&val)
+                <&::std::primitive::str as sqlx_core::encode::Encode<'q, DB>>::size_hint(&val)
             }
         }
     ))

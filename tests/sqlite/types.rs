@@ -1,7 +1,7 @@
 extern crate time_ as time;
 
-use sqlx::sqlite::{Sqlite, SqliteRow};
 use sqlx_core::row::Row;
+use sqlx_core::sqlite::{Sqlite, SqliteRow};
 use sqlx_test::new;
 use sqlx_test::test_type;
 
@@ -39,7 +39,7 @@ test_type!(bytes<Vec<u8>>(Sqlite,
 mod json_tests {
     use super::*;
     use serde_json::{json, Value as JsonValue};
-    use sqlx::types::Json;
+    use sqlx_core::types;
     use sqlx_test::test_type;
 
     test_type!(json<JsonValue>(
@@ -56,9 +56,9 @@ mod json_tests {
         age: u32,
     }
 
-    test_type!(json_struct<Json<Friend>>(
+    test_type!(json_struct<types::Json<Friend>>(
         Sqlite,
-        "\'{\"name\":\"Joe\",\"age\":33}\'" == Json(Friend { name: "Joe".to_string(), age: 33 })
+        "\'{\"name\":\"Joe\",\"age\":33}\'" == types::Json(Friend { name: "Joe".to_string(), age: 33 })
     ));
 
     // NOTE: This is testing recursive (and transparent) usage of the `Json` wrapper. You don't
@@ -66,23 +66,24 @@ mod json_tests {
 
     #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
     struct Customer {
-        json_column: Json<Vec<i64>>,
+        json_column: types::Json<Vec<i64>>,
     }
 
-    test_type!(json_struct_json_column<Json<Customer>>(
+    test_type!(json_struct_json_column<types::Json<Customer>>(
         Sqlite,
-        "\'{\"json_column\":[1,2]}\'" == Json(Customer { json_column: Json(vec![1, 2]) })
+        "\'{\"json_column\":[1,2]}\'" == types::Json(Customer { json_column: types::Json(vec![1, 2]) })
     ));
 
     #[tokio::test]
     async fn it_json_extracts() -> anyhow::Result<()> {
         let mut conn = new::<Sqlite>().await?;
 
-        let value = sqlx::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
-            .bind(42_i32)
-            .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
-            .fetch_one(&mut conn)
-            .await?;
+        let value =
+            sqlx_core::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
+                .bind(42_i32)
+                .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
+                .fetch_one(&mut conn)
+                .await?;
 
         assert_eq!(true, value);
 
@@ -92,7 +93,9 @@ mod json_tests {
 
 mod chrono {
     use super::*;
-    use sqlx::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
+    use sqlx_core::types::chrono::{
+        DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc,
+    };
 
     test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2019-01-02 05:10:20'" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()
@@ -109,7 +112,7 @@ mod chrono {
 
 mod time_tests {
     use super::*;
-    use sqlx::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use sqlx_core::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
     use time::macros::{date, datetime, time};
 
     test_type!(time_offset_date_time<OffsetDateTime>(
@@ -156,7 +159,7 @@ mod time_tests {
 
 mod bstr {
     use super::*;
-    use sqlx::types::bstr::BString;
+    use sqlx_core::types::bstr::BString;
 
     test_type!(bstring<BString>(Sqlite,
         "cast('abc123' as blob)" == BString::from(&b"abc123"[..]),
@@ -164,23 +167,23 @@ mod bstr {
     ));
 }
 
-test_type!(uuid<sqlx::types::Uuid>(Sqlite,
+test_type!(uuid<sqlx_core::types::Uuid>(Sqlite,
     "x'b731678f636f4135bc6f19440c13bd19'"
-        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+        == sqlx_core::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
     "x'00000000000000000000000000000000'"
-        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+        == sqlx_core::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
-test_type!(uuid_hyphenated<sqlx::types::uuid::fmt::Hyphenated>(Sqlite,
+test_type!(uuid_hyphenated<sqlx_core::types::uuid::fmt::Hyphenated>(Sqlite,
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
-        == sqlx::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
+        == sqlx_core::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
     "'00000000-0000-0000-0000-000000000000'"
-        == sqlx::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
+        == sqlx_core::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
 
-test_type!(uuid_simple<sqlx::types::uuid::fmt::Simple>(Sqlite,
+test_type!(uuid_simple<sqlx_core::types::uuid::fmt::Simple>(Sqlite,
     "'b731678f636f4135bc6f19440c13bd19'"
-        == sqlx::types::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
+        == sqlx_core::types::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
     "'00000000000000000000000000000000'"
-        == sqlx::types::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
+        == sqlx_core::types::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
 ));

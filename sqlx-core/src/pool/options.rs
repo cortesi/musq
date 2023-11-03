@@ -312,8 +312,8 @@ impl<DB: Database> PoolOptions<DB> {
     ///
     /// ```no_run
     /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
-    /// use sqlx::Executor;
-    /// use sqlx::postgres::PgPoolOptions;
+    /// use Executor;
+    /// use postgres::PgPoolOptions;
     ///
     /// let pool = PgPoolOptions::new()
     ///     .after_connect(|conn, _meta| Box::pin(async move {
@@ -366,8 +366,8 @@ impl<DB: Database> PoolOptions<DB> {
     /// This example is written for Postgres but should be trivially adaptable to other databases.
     /// ```no_run
     /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
-    /// use sqlx::{Connection, Executor};
-    /// use sqlx::postgres::PgPoolOptions;
+    /// use {Connection, Executor};
+    /// use postgres::PgPoolOptions;
     ///
     /// let pool = PgPoolOptions::new()
     ///     .test_before_acquire(false)
@@ -418,8 +418,8 @@ impl<DB: Database> PoolOptions<DB> {
     ///
     /// ```no_run
     /// # async fn f() -> Result<(), Box<dyn std::error::Error>> {
-    /// use sqlx::{Connection, Executor};
-    /// use sqlx::postgres::PgPoolOptions;
+    /// use {Connection, Executor};
+    /// use postgres::PgPoolOptions;
     ///
     /// let pool = PgPoolOptions::new()
     ///     // Let connections live as long as they want.
@@ -430,7 +430,7 @@ impl<DB: Database> PoolOptions<DB> {
     ///             return Ok(true);
     ///         }
     ///
-    ///         let total_memory_usage: i64 = sqlx::query_scalar(
+    ///         let total_memory_usage: i64 = query_scalar(
     ///             "select sum(used_bytes) from pg_backend_memory_contexts"
     ///         )
     ///         .fetch_one(conn)

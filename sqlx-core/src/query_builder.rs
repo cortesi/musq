@@ -165,7 +165,7 @@ where
     ///
     /// ```rust
     /// # #[cfg(feature = "mysql")] {
-    /// use sqlx::{Execute, MySql, QueryBuilder};
+    /// use {Execute, MySql, QueryBuilder};
     /// let foods = vec!["pizza".to_string(), "chips".to_string()];
     /// let mut query_builder: QueryBuilder<MySql> = QueryBuilder::new(
     ///     "SELECT * from food where name in ("
@@ -235,7 +235,7 @@ where
     /// ```rust
     /// # #[cfg(feature = "mysql")]
     /// # {
-    /// use sqlx::{Execute, MySql, QueryBuilder};
+    /// use {Execute, MySql, QueryBuilder};
     ///
     /// struct User {
     ///     id: i32,
@@ -342,7 +342,7 @@ where
     /// ```rust
     /// # #[cfg(feature = "mysql")]
     /// # {
-    /// use sqlx::{Execute, MySql, QueryBuilder};
+    /// use {Execute, MySql, QueryBuilder};
     ///
     /// struct User {
     ///     id: i32,

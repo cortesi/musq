@@ -174,8 +174,8 @@ unsafe extern "C" fn cleanup_arc_regex_pointer(ptr: *mut std::ffi::c_void) {
 
 #[cfg(test)]
 mod tests {
-    use sqlx::{ConnectOptions, Connection, Row};
     use std::str::FromStr;
+    use {ConnectOptions, Connection, Row};
 
     async fn test_db() -> crate::sqlite::SqliteConnection {
         let mut conn = crate::sqlite::SqliteConnectOptions::from_str("sqlite://:memory:")
@@ -184,12 +184,12 @@ mod tests {
             .connect()
             .await
             .unwrap();
-        sqlx::query("CREATE TABLE test (col TEXT NOT NULL)")
+        query("CREATE TABLE test (col TEXT NOT NULL)")
             .execute(&mut conn)
             .await
             .unwrap();
         for i in 0..10 {
-            sqlx::query("INSERT INTO test VALUES (?)")
+            query("INSERT INTO test VALUES (?)")
                 .bind(format!("value {}", i))
                 .execute(&mut conn)
                 .await
@@ -198,40 +198,40 @@ mod tests {
         conn
     }
 
-    #[sqlx::test]
+    #[test]
     async fn test_regexp_does_not_fail() {
         let mut conn = test_db().await;
-        let result = sqlx::query("SELECT col FROM test WHERE col REGEXP 'foo.*bar'")
+        let result = query("SELECT col FROM test WHERE col REGEXP 'foo.*bar'")
             .fetch_all(&mut conn)
             .await
             .expect("Could not execute query");
         assert!(result.is_empty());
     }
 
-    #[sqlx::test]
+    #[test]
     async fn test_regexp_filters_correctly() {
         let mut conn = test_db().await;
 
-        let result = sqlx::query("SELECT col FROM test WHERE col REGEXP '.*2'")
+        let result = query("SELECT col FROM test WHERE col REGEXP '.*2'")
             .fetch_all(&mut conn)
             .await
             .expect("Could not execute query");
         assert_eq!(result.len(), 1);
         assert_eq!(result[0].get::<String, usize>(0), String::from("value 2"));
 
-        let result = sqlx::query("SELECT col FROM test WHERE col REGEXP '^3'")
+        let result = query("SELECT col FROM test WHERE col REGEXP '^3'")
             .fetch_all(&mut conn)
             .await
             .expect("Could not execute query");
         assert!(result.is_empty());
     }
 
-    #[sqlx::test]
+    #[test]
     async fn test_invalid_regexp_should_fail() {
         let mut conn = test_db().await;
-        let result = sqlx::query("SELECT col from test WHERE col REGEXP '(?:?)'")
+        let result = query("SELECT col from test WHERE col REGEXP '(?:?)'")
             .execute(&mut conn)
             .await;
-        assert!(matches!(result, Err(sqlx::Error::Database(_))));
+        assert!(matches!(result, Err(Error::Database(_))));
     }
 }

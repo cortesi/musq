@@ -1,6 +1,8 @@
-use sqlx::pool::PoolOptions;
-use sqlx::sqlite::{Sqlite, SqliteConnection};
-use sqlx::{Connection, Database, Pool};
+use sqlx_core::connection::Connection;
+use sqlx_core::database::Database;
+
+use sqlx_core::pool::{Pool, PoolOptions};
+use sqlx_core::sqlite::{Sqlite, SqliteConnection};
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
@@ -38,7 +40,9 @@ where
 /// Return a connection to a database pre-configured with our test schema.
 pub async fn tdb() -> anyhow::Result<SqliteConnection> {
     let mut conn = new::<Sqlite>().await?;
-    sqlx::query(TEST_SCHEMA).execute(&mut conn).await?;
+    sqlx_core::query::query(TEST_SCHEMA)
+        .execute(&mut conn)
+        .await?;
     Ok(conn)
 }
 
@@ -100,7 +104,7 @@ macro_rules! test_unprepared_type {
         paste::item! {
             #[tokio::test]
             async fn [< test_unprepared_type_ $name >] () -> anyhow::Result<()> {
-                use sqlx::prelude::*;
+                use sqlx_core::*;
                 use futures::TryStreamExt;
 
                 let mut conn = sqlx_test::new::<$db>().await?;
@@ -129,14 +133,14 @@ macro_rules! __test_prepared_decode_type {
         paste::item! {
             #[tokio::test]
             async fn [< test_prepared_decode_type_ $name >] () -> anyhow::Result<()> {
-                use sqlx::Row;
+                use Row;
 
                 let mut conn = sqlx_test::new::<$db>().await?;
 
                 $(
                     let query = format!("SELECT {}", $text);
 
-                    let row = sqlx::query(&query)
+                    let row = query(&query)
                         .fetch_one(&mut conn)
                         .await?;
 
@@ -158,7 +162,7 @@ macro_rules! __test_prepared_type {
         paste::item! {
             #[tokio::test]
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
-                use sqlx::Row;
+                use sqlx_core::Row;
 
                 let mut conn = sqlx_test::new::<$db>().await?;
 
@@ -166,7 +170,7 @@ macro_rules! __test_prepared_type {
                     let query = format!($sql, $text);
                     println!("{query}");
 
-                    let row = sqlx::query(&query)
+                    let row = sqlx_core::query(&query)
                         .bind($value)
                         .bind($value)
                         .fetch_one(&mut conn)

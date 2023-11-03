@@ -1,4 +1,4 @@
-#[derive(sqlx::Type)]
+#[derive(Type)]
 #[sqlx(rename = "foo")]
 enum Foo {
     One,

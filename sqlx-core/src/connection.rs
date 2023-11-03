@@ -57,12 +57,12 @@ pub trait Connection: Send {
     /// # Example
     ///
     /// ```rust
-    /// use sqlx::postgres::{PgConnection, PgRow};
-    /// use sqlx::Connection;
+    /// use postgres::{PgConnection, PgRow};
+    /// use Connection;
     ///
-    /// # pub async fn _f(conn: &mut PgConnection) -> sqlx::Result<Vec<PgRow>> {
+    /// # pub async fn _f(conn: &mut PgConnection) -> Result<Vec<PgRow>> {
     /// conn.transaction(|txn| Box::pin(async move {
-    ///     sqlx::query("select * from ..").fetch_all(&mut **txn).await
+    ///     query("select * from ..").fetch_all(&mut **txn).await
     /// })).await
     /// # }
     /// ```

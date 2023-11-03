@@ -95,8 +95,8 @@ impl<'q> QueryLogger<'q> {
         if let Some((tracing_level, log_level)) = private_level_filter_to_levels(lvl) {
             // The enabled level could be set from either tracing world or log world, so check both
             // to see if logging should be enabled for our level
-            let log_is_enabled = log::log_enabled!(target: "sqlx::query", log_level)
-                || private_tracing_dynamic_enabled!(target: "sqlx::query", tracing_level);
+            let log_is_enabled = log::log_enabled!(target: "query", log_level)
+                || private_tracing_dynamic_enabled!(target: "query", tracing_level);
             if log_is_enabled {
                 let mut summary = parse_query_summary(&self.sql);
 
@@ -115,7 +115,7 @@ impl<'q> QueryLogger<'q> {
                 };
 
                 private_tracing_dynamic_event!(
-                    target: "sqlx::query",
+                    target: "query",
                     tracing_level,
                     summary,
                     db.statement = sql,

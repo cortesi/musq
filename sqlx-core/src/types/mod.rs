@@ -76,7 +76,7 @@ pub use json::{Json, JsonRawValue, JsonValue};
 /// to the implementation of the inner type.
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::Type)]
+/// #[derive(Type)]
 /// #[sqlx(transparent)]
 /// struct UserId(i64);
 /// ```
@@ -96,13 +96,13 @@ pub use json::{Json, JsonRawValue, JsonValue};
 /// expects a textual SQL type (e.g., `VARCHAR`, `TEXT`).
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::Type)]
+/// #[derive(Type)]
 /// #[repr(i32)]
 /// enum Color { Red = 1, Green = 2, Blue = 3 }
 /// ```
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::Type)]
+/// #[derive(Type)]
 /// #[sqlx(rename_all = "lowercase")]
 /// enum Color { Red, Green, Blue }
 /// ```

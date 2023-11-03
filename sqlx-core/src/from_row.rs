@@ -12,7 +12,7 @@ use crate::row::Row;
 /// struct field.
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct User {
 ///     id: i32,
 ///     name: String,
@@ -30,7 +30,7 @@ use crate::row::Row;
 /// For example:
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct User {
 ///     id: i32,
 ///     name: String,
@@ -52,7 +52,7 @@ use crate::row::Row;
 /// Placed at the struct level, this attribute changes how the field name is mapped to its SQL column name:
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// #[sqlx(rename_all = "camelCase")]
 /// struct UserPost {
 ///     id: i32,
@@ -74,7 +74,7 @@ use crate::row::Row;
 /// For example:
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct User {
 ///     id: i32,
 ///     name: String,
@@ -100,14 +100,14 @@ use crate::row::Row;
 /// For example:
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct Address {
 ///     country: String,
 ///     city: String,
 ///     road: String,
 /// }
 ///
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct User {
 ///     id: i32,
 ///     name: String,
@@ -128,18 +128,18 @@ use crate::row::Row;
 /// This is a variant of the `default` attribute which instead always takes the value from
 /// the `Default` implementation for this field type ignoring any results in your query.
 /// This can be useful, if some field does not satifisfy the trait bounds (i.e.
-/// `sqlx::decode::Decode`, `sqlx::type::Type`), in particular in case of nested structures.
+/// `decode::Decode`, `type::Type`), in particular in case of nested structures.
 /// For example:
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct Address {
 ///     user_name: String,
 ///     street: String,
 ///     city: String,
 /// }
 ///
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct User {
 ///     name: String,
 ///     #[sqlx(skip)]
@@ -150,7 +150,7 @@ use crate::row::Row;
 /// Then when querying into `User`, only `name` needs to be set:
 ///
 /// ```rust,ignore
-/// let user: User = sqlx::query_as("SELECT name FROM users")
+/// let user: User = query_as("SELECT name FROM users")
 ///    .fetch_one(&mut some_connection)
 ///    .await?;
 ///
@@ -165,7 +165,7 @@ use crate::row::Row;
 ///
 ///
 /// ```rust,ignore
-/// use sqlx::{FromRow, sqlite::SqliteRow, sqlx::Row};
+/// use {FromRow, sqlite::SqliteRow, Row};
 /// struct MyCustomType {
 ///     custom: String,
 /// }
@@ -175,7 +175,7 @@ use crate::row::Row;
 /// }
 ///
 /// impl FromRow<'_, SqliteRow> for Foo {
-///     fn from_row(row: &SqliteRow) -> sqlx::Result<Self> {
+///     fn from_row(row: &SqliteRow) -> Result<Self> {
 ///         Ok(Self {
 ///             bar: MyCustomType {
 ///                 custom: row.try_get("custom")?
@@ -193,7 +193,7 @@ use crate::row::Row;
 /// For example:
 ///
 /// ```rust,ignore
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct User {
 ///     id: i32,
 ///     name: String,

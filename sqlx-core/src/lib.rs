@@ -85,3 +85,25 @@ pub use smallvec::SmallVec;
 pub use url::{self, Url};
 
 pub use bytes;
+
+pub use crate::{
+    acquire::Acquire,
+    arguments::{Arguments, IntoArguments},
+    column::{Column, ColumnIndex},
+    connection::{ConnectOptions, Connection},
+    database::Database,
+    describe::Describe,
+    executor::{Execute, Executor},
+    from_row::FromRow,
+    pool::Pool,
+    query::{query, query_with},
+    query_as::{query_as, query_as_with},
+    query_builder::QueryBuilder,
+    query_scalar::{query_scalar, query_scalar_with},
+    row::Row,
+    statement::Statement,
+    transaction::{Transaction, TransactionManager},
+    type_info::TypeInfo,
+    types::Type,
+    value::{Value, ValueRef},
+};

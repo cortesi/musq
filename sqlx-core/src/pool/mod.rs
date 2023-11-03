@@ -24,8 +24,8 @@
 //! with the database driver and a connection string.
 //!
 //! ```rust,ignore
-//! use sqlx::Pool;
-//! use sqlx::postgres::Postgres;
+//! use Pool;
+//! use postgres::Postgres;
 //!
 //! let pool = Pool::<Postgres>::connect("postgres://").await?;
 //! ```
@@ -36,7 +36,7 @@
 //! when executing a query. Notice that only an immutable reference (`&Pool`) is needed.
 //!
 //! ```rust,ignore
-//! sqlx::query("DELETE FROM articles").execute(&pool).await?;
+//! query("DELETE FROM articles").execute(&pool).await?;
 //! ```
 //!
 //! A connection or transaction may also be manually acquired with
@@ -134,7 +134,7 @@ pub use self::maybe::MaybePoolConnection;
 /// when you are done using it. This will also wake any tasks that are waiting on an `.acquire()`
 /// call, so for long-lived applications it's a good idea to call `.close()` during shutdown.
 ///
-/// If you're writing tests, consider using `#[sqlx::test]` which handles the lifetime of
+/// If you're writing tests, consider using `#[test]` which handles the lifetime of
 /// the pool for you.
 ///
 /// [`.close().await`]: Pool::close
@@ -371,7 +371,7 @@ impl<DB: Database> Pool<DB> {
     /// ```rust,no_run
     /// # #[cfg(feature = "postgres")]
     /// # async fn bleh() -> sqlx_core::error::Result<()> {
-    /// use sqlx::PgPool;
+    /// use PgPool;
     ///
     /// let pool = PgPool::connect("postgresql://...").await?;
     ///
@@ -400,7 +400,7 @@ impl<DB: Database> Pool<DB> {
     /// ```rust,no_run
     /// # #[cfg(feature = "postgres")]
     /// # async fn bleh() -> sqlx_core::error::Result<()> {
-    /// use sqlx::{Executor, PgPool};
+    /// use {Executor, PgPool};
     ///
     /// let pool = PgPool::connect("postgresql://...").await?;
     ///

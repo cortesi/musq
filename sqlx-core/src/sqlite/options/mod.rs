@@ -39,9 +39,9 @@ use crate::IndexMap;
 /// # Example
 ///
 /// ```rust,no_run
-/// # async fn example() -> sqlx::Result<()> {
-/// use sqlx::ConnectOptions;
-/// use sqlx::sqlite::{SqliteConnectOptions, SqliteJournalMode};
+/// # async fn example() -> Result<()> {
+/// use ConnectOptions;
+/// use sqlite::{SqliteConnectOptions, SqliteJournalMode};
 /// use std::str::FromStr;
 ///
 /// let conn = SqliteConnectOptions::from_str("sqlite://data.db")?
@@ -526,14 +526,14 @@ impl SqliteConnectOptions {
     ///
     /// ```
     /// # use std::str::FromStr;
-    /// # use sqlx::{ConnectOptions, Connection, Row};
+    /// # use {ConnectOptions, Connection, Row};
     /// # use sqlx_sqlite::SqliteConnectOptions;
-    /// # async fn run() -> sqlx::Result<()> {
+    /// # async fn run() -> Result<()> {
     /// let mut sqlite = SqliteConnectOptions::from_str("sqlite://:memory:")?
     ///     .with_regexp()
     ///     .connect()
     ///     .await?;
-    /// let tables = sqlx::query("SELECT name FROM sqlite_schema WHERE name REGEXP 'foo(\\d+)bar'")
+    /// let tables = query("SELECT name FROM sqlite_schema WHERE name REGEXP 'foo(\\d+)bar'")
     ///     .fetch_all(&mut sqlite)
     ///     .await?;
     /// # Ok(())

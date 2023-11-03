@@ -47,8 +47,8 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
         let lvl = self.settings.statements_level;
 
         if let Some((tracing_level, log_level)) = logger::private_level_filter_to_levels(lvl) {
-            let log_is_enabled = log::log_enabled!(target: "sqlx::explain", log_level)
-                || private_tracing_dynamic_enabled!(target: "sqlx::explain", tracing_level);
+            let log_is_enabled = log::log_enabled!(target: "explain", log_level)
+                || private_tracing_dynamic_enabled!(target: "explain", tracing_level);
             if log_is_enabled {
                 let mut summary = parse_query_summary(&self.sql);
 
@@ -72,7 +72,7 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
                 );
 
                 crate::private_tracing_dynamic_event!(
-                    target: "sqlx::explain",
+                    target: "explain",
                     tracing_level,
                     message,
                 );

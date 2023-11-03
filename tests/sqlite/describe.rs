@@ -1,7 +1,9 @@
-use sqlx::error::DatabaseError;
-use sqlx::sqlite::SqliteError;
-use sqlx::TypeInfo;
-use sqlx::{sqlite::Sqlite, Column, Executor};
+use sqlx_core::error::DatabaseError;
+use sqlx_core::executor::Executor;
+use sqlx_core::sqlite::Sqlite;
+use sqlx_core::sqlite::{SqliteConnection, SqliteError};
+use sqlx_core::Column;
+use sqlx_core::TypeInfo;
 use sqlx_test::{new, tdb};
 
 #[tokio::test]
@@ -415,7 +417,7 @@ async fn it_describes_ungrouped_aggregate() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_describes_literal_subquery() -> anyhow::Result<()> {
     async fn assert_literal_described(
-        conn: &mut sqlx::SqliteConnection,
+        conn: &mut SqliteConnection,
         query: &str,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
@@ -450,10 +452,7 @@ async fn it_describes_literal_subquery() -> anyhow::Result<()> {
     Ok(())
 }
 
-async fn assert_tweet_described(
-    conn: &mut sqlx::SqliteConnection,
-    query: &str,
-) -> anyhow::Result<()> {
+async fn assert_tweet_described(conn: &mut SqliteConnection, query: &str) -> anyhow::Result<()> {
     let info = conn.describe(query).await?;
     let columns = info.columns();
 
@@ -513,7 +512,7 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
     .await?;
 
     async fn assert_literal_order_by_described(
-        conn: &mut sqlx::SqliteConnection,
+        conn: &mut SqliteConnection,
         query: &str,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
@@ -551,7 +550,7 @@ async fn it_describes_table_order_by() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_describes_union() -> anyhow::Result<()> {
     async fn assert_union_described(
-        conn: &mut sqlx::SqliteConnection,
+        conn: &mut SqliteConnection,
         query: &str,
     ) -> anyhow::Result<()> {
         let info = conn.describe(query).await?;
@@ -597,7 +596,7 @@ async fn it_describes_union() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_describes_strange_queries() -> anyhow::Result<()> {
     async fn assert_single_column_described(
-        conn: &mut sqlx::SqliteConnection,
+        conn: &mut SqliteConnection,
         query: &str,
         typename: &str,
         nullable: bool,

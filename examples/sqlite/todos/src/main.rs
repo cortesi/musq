@@ -1,4 +1,4 @@
-use sqlx::sqlite::SqlitePool;
+use sqlite::SqlitePool;
 use std::env;
 use structopt::StructOpt;
 
@@ -46,7 +46,7 @@ async fn add_todo(pool: &SqlitePool, description: String) -> anyhow::Result<i64>
     let mut conn = pool.acquire().await?;
 
     // Insert the task, then obtain the ID of this row
-    let id = sqlx::query!(
+    let id = query!(
         r#"
 INSERT INTO todos ( description )
 VALUES ( ?1 )
@@ -61,7 +61,7 @@ VALUES ( ?1 )
 }
 
 async fn complete_todo(pool: &SqlitePool, id: i64) -> anyhow::Result<bool> {
-    let rows_affected = sqlx::query!(
+    let rows_affected = query!(
         r#"
 UPDATE todos
 SET done = TRUE
@@ -77,7 +77,7 @@ WHERE id = ?1
 }
 
 async fn list_todos(pool: &SqlitePool) -> anyhow::Result<()> {
-    let recs = sqlx::query!(
+    let recs = query!(
         r#"
 SELECT id, description, done
 FROM todos

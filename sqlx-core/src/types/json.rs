@@ -29,10 +29,10 @@ use crate::types::Type;
 ///   name: String
 /// }
 ///
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct Author {
 ///   name: String,
-///   books: sqlx::types::Json<Book>
+///   books: types::Json<Book>
 /// }
 /// ```
 ///
@@ -45,10 +45,10 @@ use crate::types::Type;
 /// struct Book {
 ///   name: String
 /// }
-/// #[derive(sqlx::FromRow)]
+/// #[derive(FromRow)]
 /// struct Library {
 ///   id: String,
-///   dewey_decimal: sqlx::types::Json<HashMap<String, Book>>
+///   dewey_decimal: types::Json<HashMap<String, Book>>
 /// }
 /// ```
 #[derive(
