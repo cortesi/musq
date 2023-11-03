@@ -1,26 +1,27 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
-pub use sqlx_core::acquire::Acquire;
-pub use sqlx_core::arguments::{Arguments, IntoArguments};
-pub use sqlx_core::column::Column;
-pub use sqlx_core::column::ColumnIndex;
-pub use sqlx_core::connection::{ConnectOptions, Connection};
-pub use sqlx_core::database::{self, Database};
-pub use sqlx_core::describe::Describe;
-pub use sqlx_core::executor::{Execute, Executor};
-pub use sqlx_core::from_row::FromRow;
-pub use sqlx_core::pool::{self, Pool};
-pub use sqlx_core::query::{query, query_with};
-pub use sqlx_core::query_as::{query_as, query_as_with};
-pub use sqlx_core::query_builder::{self, QueryBuilder};
-pub use sqlx_core::query_scalar::{query_scalar, query_scalar_with};
-pub use sqlx_core::row::Row;
-pub use sqlx_core::statement::Statement;
-pub use sqlx_core::transaction::{Transaction, TransactionManager};
-pub use sqlx_core::type_info::TypeInfo;
-pub use sqlx_core::types::Type;
-pub use sqlx_core::value::{Value, ValueRef};
-pub use sqlx_core::Either;
+pub use sqlx_core::{
+    acquire::Acquire,
+    arguments::{Arguments, IntoArguments},
+    column::{Column, ColumnIndex},
+    connection::{ConnectOptions, Connection},
+    database::{self, Database},
+    describe::Describe,
+    executor::{Execute, Executor},
+    from_row::FromRow,
+    pool::{self, Pool},
+    query::{query, query_with},
+    query_as::{query_as, query_as_with},
+    query_builder::{self, QueryBuilder},
+    query_scalar::{query_scalar, query_scalar_with},
+    row::Row,
+    statement::Statement,
+    transaction::{Transaction, TransactionManager},
+    type_info::TypeInfo,
+    types::Type,
+    value::{Value, ValueRef},
+    Either,
+};
 
 #[doc(inline)]
 pub use sqlx_core::error::{self, Error, Result};

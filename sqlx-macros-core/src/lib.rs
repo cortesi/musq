@@ -20,34 +20,9 @@
 )]
 
 pub type Error = Box<dyn std::error::Error>;
-
 pub type Result<T> = std::result::Result<T, Error>;
-
-mod common;
-mod database;
 
 pub mod derives;
 
 // The compiler gives misleading help messages about `#[cfg(test)]` when this is just named `test`.
 pub mod test_attr;
-
-pub fn block_on<F>(f: F) -> F::Output
-where
-    F: std::future::Future,
-{
-    {
-        use once_cell::sync::Lazy;
-        use tokio::runtime::{self, Runtime};
-
-        // We need a single, persistent Tokio runtime since we're caching connections,
-        // otherwise we'll get "IO driver has terminated" errors.
-        static TOKIO_RT: Lazy<Runtime> = Lazy::new(|| {
-            runtime::Builder::new_current_thread()
-                .enable_all()
-                .build()
-                .expect("failed to start Tokio runtime")
-        });
-
-        return TOKIO_RT.block_on(f);
-    }
-}
