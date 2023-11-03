@@ -243,7 +243,7 @@ impl<DB: Database> PoolInner<DB> {
 
         let deadline = Instant::now() + self.options.acquire_timeout;
 
-        crate::rt::timeout(
+        tokio::time::timeout(
             self.options.acquire_timeout,
             async {
                 loop {
@@ -275,7 +275,7 @@ impl<DB: Database> PoolInner<DB> {
                             // If so, we're likely in the current-thread runtime if it's Tokio
                             // and so we should yield to let any spawned release_to_pool() tasks
                             // execute.
-                            crate::rt::yield_now().await;
+                            tokio::task::yield_now().await;
                             continue;
                         }
                     };
@@ -314,7 +314,7 @@ impl<DB: Database> PoolInner<DB> {
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
-            match crate::rt::timeout(timeout, connect_options.connect()).await {
+            match tokio::time::timeout(timeout, connect_options.connect()).await {
                 // successfully established connection
                 Ok(Ok(mut raw)) => {
                     // See comment on `PoolOptions::after_connect`
@@ -358,7 +358,7 @@ impl<DB: Database> PoolInner<DB> {
             // If the connection is refused, wait in exponentially
             // increasing steps for the server to come up,
             // capped by a factor of the remaining time until the deadline
-            crate::rt::sleep(backoff).await;
+            tokio::time::sleep(backoff).await;
             backoff = cmp::min(backoff * 2, max_backoff);
         }
     }
@@ -371,13 +371,13 @@ impl<DB: Database> PoolInner<DB> {
             // If no extra permits are available then we shouldn't be trying to spin up
             // connections anyway.
             let Some(permit) = self.semaphore.try_acquire(1) else {
-				return Ok(());
-			};
+                return Ok(());
+            };
 
             // We must always obey `max_connections`.
             let Some(guard) = self.try_increment_size(permit).ok() else {
-				return Ok(());
-			};
+                return Ok(());
+            };
 
             // We skip `after_release` since the connection was never provided to user code
             // besides `after_connect`, if they set it.
@@ -486,7 +486,7 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
 
         (None, None) => {
             if pool.options.min_connections > 0 {
-                crate::rt::spawn(async move {
+                tokio::task::spawn(async move {
                     if let Some(pool) = pool_weak.upgrade() {
                         pool.min_connections_maintenance(None).await;
                     }
@@ -500,7 +500,7 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
     // Immediately cancel this task if the pool is closed.
     let mut close_event = pool.close_event();
 
-    crate::rt::spawn(async move {
+    tokio::task::spawn(async move {
         let _ = close_event
             .do_until(async {
                 let mut slept = true;
@@ -525,10 +525,10 @@ fn spawn_maintenance_tasks<DB: Database>(pool: &Arc<PoolInner<DB>>) {
 
                     if let Some(duration) = next_run.checked_duration_since(Instant::now()) {
                         // `async-std` doesn't have a `sleep_until()`
-                        crate::rt::sleep(duration).await;
+                        tokio::time::sleep(duration).await;
                     } else {
                         // `next_run` is in the past, just yield.
-                        crate::rt::yield_now().await;
+                        tokio::task::yield_now().await;
                     }
 
                     slept = true;

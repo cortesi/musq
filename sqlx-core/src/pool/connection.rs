@@ -166,7 +166,7 @@ impl<DB: Database> Drop for PoolConnection<DB> {
     fn drop(&mut self) {
         // We still need to spawn a task to maintain `min_connections`.
         if self.live.is_some() || self.pool.options.min_connections > 0 {
-            crate::rt::spawn(self.return_to_pool());
+            tokio::task::spawn(self.return_to_pool());
         }
     }
 }
