@@ -51,16 +51,6 @@ pub mod time {
     pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 }
 
-#[cfg(feature = "bigdecimal")]
-#[cfg_attr(docsrs, doc(cfg(feature = "bigdecimal")))]
-#[doc(no_inline)]
-pub use bigdecimal::BigDecimal;
-
-#[cfg(feature = "rust_decimal")]
-#[cfg_attr(docsrs, doc(cfg(feature = "rust_decimal")))]
-#[doc(no_inline)]
-pub use rust_decimal::Decimal;
-
 #[cfg(feature = "ipnetwork")]
 #[cfg_attr(docsrs, doc(cfg(feature = "ipnetwork")))]
 pub mod ipnetwork {

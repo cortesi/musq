@@ -44,10 +44,6 @@ SQLx is an async, pure Rust<sub>†</sub> SQL crate featuring compile-time check
 
 -   `bstr`: Add support for `bstr::BString`.
 
--   `bigdecimal`: Add support for `NUMERIC` using the `bigdecimal` crate.
-
--   `rust_decimal`: Add support for `NUMERIC` using the `rust_decimal` crate.
-
 -   `ipnetwork`: Add support for `INET` and `CIDR` (in postgres) using the `ipnetwork` crate.
 
 -   `json`: Add support for `JSON` and `JSONB` (in postgres) using the `serde_json` crate.

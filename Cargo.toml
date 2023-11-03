@@ -1,11 +1,9 @@
 [workspace]
 members = [
-    ".",
     "sqlx-core",
     "sqlx-macros",
     "sqlx-macros-core",
     "sqlx-test",
-    "sqlx-bench",
     "sqlx-sqlite",
     "examples/sqlite/todos",
 ]
@@ -41,8 +39,6 @@ macros = ["sqlx-macros"]
 # intended mainly for CI and docs
 all-databases = ["sqlite", "any"]
 _unstable-all-types = [
-    "bigdecimal",
-    "rust_decimal",
     "json",
     "time",
     "chrono",
@@ -60,12 +56,10 @@ sqlite = ["sqlx-sqlite", "sqlx-macros?/sqlite"]
 
 # types
 json = ["sqlx-macros?/json", "sqlx-sqlite?/json"]
-bigdecimal = ["sqlx-core/bigdecimal", "sqlx-macros?/bigdecimal"]
 bit-vec = ["sqlx-core/bit-vec", "sqlx-macros?/bit-vec"]
 chrono = ["sqlx-core/chrono", "sqlx-macros?/chrono", "sqlx-sqlite?/chrono"]
 ipnetwork = ["sqlx-core/ipnetwork", "sqlx-macros?/ipnetwork"]
 mac_address = ["sqlx-core/mac_address", "sqlx-macros?/mac_address"]
-rust_decimal = ["sqlx-core/rust_decimal", "sqlx-macros?/rust_decimal"]
 time = ["sqlx-core/time", "sqlx-macros?/time", "sqlx-sqlite?/time"]
 uuid = ["sqlx-core/uuid", "sqlx-macros?/uuid", "sqlx-sqlite?/uuid"]
 regexp = ["sqlx-sqlite?/regexp"]
@@ -84,12 +78,10 @@ sqlx = { version = "=0.7.1", path = ".", default-features = false }
 
 # Common type integrations shared by multiple driver crates.
 # These are optional unless enabled in a workspace crate.
-bigdecimal = "0.3.0"
 bit-vec = "0.6.3"
 chrono = { version = "0.4.22", default-features = false }
 ipnetwork = "0.20.0"
 mac_address = "1.1.5"
-rust_decimal = "1.26.1"
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 
@@ -161,10 +153,4 @@ required-features = ["sqlite"]
 [[test]]
 name = "sqlite-sqlcipher"
 path = "tests/sqlite/sqlcipher.rs"
-required-features = ["sqlite"]
-
-[[bench]]
-name = "sqlite-describe"
-path = "benches/sqlite/describe.rs"
-harness = false
 required-features = ["sqlite"]
