@@ -1,6 +1,6 @@
-use sqlx_core::sqlite::Sqlite;
-use sqlx_macros::Type;
-use sqlx_test::test_type;
+use musqlite_core::sqlite::Sqlite;
+use musqlite_macros::Type;
+use musqlite_test::test_type;
 
 #[derive(Debug, PartialEq, Type)]
 #[repr(u32)]

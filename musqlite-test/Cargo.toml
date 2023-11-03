@@ -1,10 +1,10 @@
 [package]
-name = "sqlx-test"
+name = "musqlite-test"
 version = "0.1.0"
 edition = "2021"
 publish = false
 
 [dependencies]
-sqlx-core = { path = "../sqlx-core" }
+musqlite-core = { path = "../musqlite-core" }
 env_logger = "0.9.0"
 anyhow = "1.0.26"

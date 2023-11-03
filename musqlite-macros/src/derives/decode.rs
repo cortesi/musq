@@ -64,26 +64,26 @@ fn expand_derive_decode_transparent(
     let mut generics = generics.clone();
     generics
         .params
-        .insert(0, parse_quote!(DB: sqlx_core::Database));
+        .insert(0, parse_quote!(DB: musqlite_core::Database));
     generics.params.insert(0, parse_quote!('r));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: sqlx_core::decode::Decode<'r, DB>));
+        .push(parse_quote!(#ty: musqlite_core::decode::Decode<'r, DB>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let tts = quote!(
         #[automatically_derived]
-        impl #impl_generics sqlx_core::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
+        impl #impl_generics musqlite_core::decode::Decode<'r, DB> for #ident #ty_generics #where_clause {
             fn decode(
-                value: <DB as sqlx_core::database::HasValueRef<'r>>::ValueRef,
+                value: <DB as musqlite_core::database::HasValueRef<'r>>::ValueRef,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                <#ty as sqlx_core::decode::Decode<'r, DB>>::decode(value).map(Self)
+                <#ty as musqlite_core::decode::Decode<'r, DB>>::decode(value).map(Self)
             }
         }
     );
@@ -113,23 +113,23 @@ fn expand_derive_decode_weak_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'r, DB: sqlx_core::Database> sqlx_core::decode::Decode<'r, DB> for #ident
+        impl<'r, DB: musqlite_core::Database> musqlite_core::decode::Decode<'r, DB> for #ident
         where
-            #repr: sqlx_core::decode::Decode<'r, DB>,
+            #repr: musqlite_core::decode::Decode<'r, DB>,
         {
             fn decode(
-                value: <DB as sqlx_core::database::HasValueRef<'r>>::ValueRef,
+                value: <DB as musqlite_core::database::HasValueRef<'r>>::ValueRef,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                let value = <#repr as sqlx_core::decode::Decode<'r, DB>>::decode(value)?;
+                let value = <#repr as musqlite_core::decode::Decode<'r, DB>>::decode(value)?;
 
                 match value {
                     #(#arms)*
-                    _ => ::std::result::Result::Err(::std::boxed::Box::new(sqlx_core::Error::Decode(
+                    _ => ::std::result::Result::Err(::std::boxed::Box::new(musqlite_core::Error::Decode(
                         ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into(),
                     )))
                 }
@@ -175,7 +175,7 @@ fn expand_derive_decode_strong_enum(
 
     tts.extend(quote!(
         #[automatically_derived]
-        impl<'r> sqlx_core::decode::Decode<'r, ::sqlite::Sqlite> for #ident {
+        impl<'r> musqlite_core::decode::Decode<'r, ::sqlite::Sqlite> for #ident {
             fn decode(
                 value: ::sqlite::SqliteValueRef<'r>,
             ) -> ::std::result::Result<
@@ -187,7 +187,7 @@ fn expand_derive_decode_strong_enum(
                         + ::std::marker::Sync,
                 >,
             > {
-                let value = <&'r ::std::primitive::str as sqlx_core::decode::Decode<
+                let value = <&'r ::std::primitive::str as musqlite_core::decode::Decode<
                     'r,
                     ::sqlite::Sqlite,
                 >>::decode(value)?;

@@ -1,10 +1,10 @@
-use sqlx_core::error::DatabaseError;
-use sqlx_core::executor::Executor;
-use sqlx_core::sqlite::Sqlite;
-use sqlx_core::sqlite::{SqliteConnection, SqliteError};
-use sqlx_core::Column;
-use sqlx_core::TypeInfo;
-use sqlx_test::{new, tdb};
+use musqlite_core::error::DatabaseError;
+use musqlite_core::executor::Executor;
+use musqlite_core::sqlite::Sqlite;
+use musqlite_core::sqlite::{SqliteConnection, SqliteError};
+use musqlite_core::Column;
+use musqlite_core::TypeInfo;
+use musqlite_test::{new, tdb};
 
 #[tokio::test]
 async fn it_describes_simple() -> anyhow::Result<()> {
@@ -211,7 +211,7 @@ async fn it_describes_insert() -> anyhow::Result<()> {
 async fn it_describes_insert_with_read_only() -> anyhow::Result<()> {
     // FIXME
 
-    // sqlx_test::setup_if_needed();
+    // musqlite_test::setup_if_needed();
 
     // let mut options: SqliteConnectOptions = env::var("DATABASE_URL")?.parse().unwrap();
     // options = options.read_only(true);

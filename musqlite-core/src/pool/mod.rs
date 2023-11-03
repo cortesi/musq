@@ -370,7 +370,7 @@ impl<DB: Database> Pool<DB> {
     /// Do something when the pool is closed:
     /// ```rust,no_run
     /// # #[cfg(feature = "postgres")]
-    /// # async fn bleh() -> sqlx_core::error::Result<()> {
+    /// # async fn bleh() -> musqlite_core::error::Result<()> {
     /// use PgPool;
     ///
     /// let pool = PgPool::connect("postgresql://...").await?;
@@ -399,7 +399,7 @@ impl<DB: Database> Pool<DB> {
     /// Cancel a long-running operation:
     /// ```rust,no_run
     /// # #[cfg(feature = "postgres")]
-    /// # async fn bleh() -> sqlx_core::error::Result<()> {
+    /// # async fn bleh() -> musqlite_core::error::Result<()> {
     /// use {Executor, PgPool};
     ///
     /// let pool = PgPool::connect("postgresql://...").await?;

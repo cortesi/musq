@@ -1,13 +1,13 @@
 use futures::TryStreamExt;
-use rand::{Rng, SeedableRng};
-use rand_xoshiro::Xoshiro256PlusPlus;
-use sqlx_core::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
-use sqlx_core::{
+use musqlite_core::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+use musqlite_core::{
     query, query_as, query_scalar, sqlite::Sqlite, sqlite::SqliteConnection, sqlite::SqlitePool,
     sqlite::SqliteRow, Column, ConnectOptions, Connection, Error, Executor, Row, Statement,
     TypeInfo,
 };
-use sqlx_test::{new, tdb};
+use musqlite_test::{new, tdb};
+use rand::{Rng, SeedableRng};
+use rand_xoshiro::Xoshiro256PlusPlus;
 use std::sync::Arc;
 
 #[tokio::test]
@@ -100,7 +100,7 @@ async fn it_maths() -> anyhow::Result<()> {
 async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let values: Vec<i32> = sqlx_core::query_scalar::<_, i32>("select ?; select ?")
+    let values: Vec<i32> = musqlite_core::query_scalar::<_, i32>("select ?; select ?")
         .bind(5_i32)
         .bind(15_i32)
         .fetch_all(&mut conn)
@@ -117,7 +117,7 @@ async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
 async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let values: Vec<i32> = sqlx_core::query_scalar::<_, i32>("select ?1; select ?1")
+    let values: Vec<i32> = musqlite_core::query_scalar::<_, i32>("select ?1; select ?1")
         .bind(25_i32)
         .fetch_all(&mut conn)
         .await?;
@@ -131,7 +131,7 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
-    use sqlx_core::{decode::Decode, TypeInfo, ValueRef};
+    use musqlite_core::{decode::Decode, TypeInfo, ValueRef};
 
     let mut conn = tdb().await?;
     let defaults = query("pragma table_info (tweet)")
@@ -140,7 +140,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
             let ty = val.type_info().clone().into_owned();
 
             let val: Option<i32> =
-                Decode::<Sqlite>::decode(val).map_err(sqlx_core::Error::Decode)?;
+                Decode::<Sqlite>::decode(val).map_err(musqlite_core::Error::Decode)?;
 
             if val.is_some() {
                 assert_eq!(ty.name(), "TEXT");
@@ -161,7 +161,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
 async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
-    let row: (i32, i32, i32, i32) = sqlx_core::query_as("select ?1, ?1, ?3, ?2")
+    let row: (i32, i32, i32, i32) = musqlite_core::query_as("select ?1, ?1, ?3, ?2")
         .bind(5_i32)
         .bind(500_i32)
         .bind(1020_i32)
@@ -376,16 +376,16 @@ async fn it_interleaves_reads_and_writes() -> anyhow::Result<()> {
 
     let mut cursor = conn.fetch(
         "
-CREATE TABLE IF NOT EXISTS _sqlx_test (
+CREATE TABLE IF NOT EXISTS _musqlite_test (
     id INT PRIMARY KEY,
     text TEXT NOT NULL
 );
 
 SELECT 'Hello World' as _1;
 
-INSERT INTO _sqlx_test (text) VALUES ('this is a test');
+INSERT INTO _musqlite_test (text) VALUES ('this is a test');
 
-SELECT id, text FROM _sqlx_test;
+SELECT id, text FROM _musqlite_test;
     ",
     );
 

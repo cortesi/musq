@@ -3,15 +3,15 @@
 //! ### Note: Semver Exempt API
 //! The API of this crate is not meant for general use and does *not* follow Semantic Versioning.
 //! The only crate that follows Semantic Versioning in the project is the `sqlx` crate itself.
-//! If you are building a custom SQLx driver, you should pin an exact version for `sqlx-core` to
+//! If you are building a custom SQLx driver, you should pin an exact version for `musqlite-core` to
 //! avoid breakages:
 //!
 //! ```toml
-//! sqlx-core = { version = "=0.6.2" }
+//! musqlite-core = { version = "=0.6.2" }
 //! ```
 //!
-//! And then make releases in lockstep with `sqlx-core`. We recommend all driver crates, in-tree
-//! or otherwise, use the same version numbers as `sqlx-core` to avoid confusion.
+//! And then make releases in lockstep with `musqlite-core`. We recommend all driver crates, in-tree
+//! or otherwise, use the same version numbers as `musqlite-core` to avoid confusion.
 #![recursion_limit = "512"]
 #![warn(future_incompatible, rust_2018_idioms)]
 #![allow(clippy::needless_doctest_main, clippy::type_complexity)]

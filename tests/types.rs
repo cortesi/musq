@@ -1,9 +1,9 @@
 extern crate time_ as time;
 
-use sqlx_core::row::Row;
-use sqlx_core::sqlite::{Sqlite, SqliteRow};
-use sqlx_test::new;
-use sqlx_test::test_type;
+use musqlite_core::row::Row;
+use musqlite_core::sqlite::{Sqlite, SqliteRow};
+use musqlite_test::new;
+use musqlite_test::test_type;
 
 test_type!(null<Option<i32>>(Sqlite,
     "NULL" == None::<i32>
@@ -38,9 +38,9 @@ test_type!(bytes<Vec<u8>>(Sqlite,
 
 mod json_tests {
     use super::*;
+    use musqlite_core::types;
+    use musqlite_test::test_type;
     use serde_json::{json, Value as JsonValue};
-    use sqlx_core::types;
-    use sqlx_test::test_type;
 
     test_type!(json<JsonValue>(
         Sqlite,
@@ -78,12 +78,13 @@ mod json_tests {
     async fn it_json_extracts() -> anyhow::Result<()> {
         let mut conn = new::<Sqlite>().await?;
 
-        let value =
-            sqlx_core::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
-                .bind(42_i32)
-                .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
-                .fetch_one(&mut conn)
-                .await?;
+        let value = musqlite_core::query(
+            "select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1",
+        )
+        .bind(42_i32)
+        .try_map(|row: SqliteRow| row.try_get::<bool, _>(0))
+        .fetch_one(&mut conn)
+        .await?;
 
         assert_eq!(true, value);
 
@@ -93,7 +94,7 @@ mod json_tests {
 
 mod chrono {
     use super::*;
-    use sqlx_core::types::chrono::{
+    use musqlite_core::types::chrono::{
         DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc,
     };
 
@@ -112,7 +113,7 @@ mod chrono {
 
 mod time_tests {
     use super::*;
-    use sqlx_core::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use musqlite_core::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
     use time::macros::{date, datetime, time};
 
     test_type!(time_offset_date_time<OffsetDateTime>(
@@ -159,7 +160,7 @@ mod time_tests {
 
 mod bstr {
     use super::*;
-    use sqlx_core::types::bstr::BString;
+    use musqlite_core::types::bstr::BString;
 
     test_type!(bstring<BString>(Sqlite,
         "cast('abc123' as blob)" == BString::from(&b"abc123"[..]),
@@ -167,23 +168,23 @@ mod bstr {
     ));
 }
 
-test_type!(uuid<sqlx_core::types::Uuid>(Sqlite,
+test_type!(uuid<musqlite_core::types::Uuid>(Sqlite,
     "x'b731678f636f4135bc6f19440c13bd19'"
-        == sqlx_core::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+        == musqlite_core::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
     "x'00000000000000000000000000000000'"
-        == sqlx_core::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+        == musqlite_core::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
-test_type!(uuid_hyphenated<sqlx_core::types::uuid::fmt::Hyphenated>(Sqlite,
+test_type!(uuid_hyphenated<musqlite_core::types::uuid::fmt::Hyphenated>(Sqlite,
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
-        == sqlx_core::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
+        == musqlite_core::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
     "'00000000-0000-0000-0000-000000000000'"
-        == sqlx_core::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
+        == musqlite_core::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
 
-test_type!(uuid_simple<sqlx_core::types::uuid::fmt::Simple>(Sqlite,
+test_type!(uuid_simple<musqlite_core::types::uuid::fmt::Simple>(Sqlite,
     "'b731678f636f4135bc6f19440c13bd19'"
-        == sqlx_core::types::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
+        == musqlite_core::types::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
     "'00000000000000000000000000000000'"
-        == sqlx_core::types::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
+        == musqlite_core::types::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
 ));

@@ -1,5 +1,5 @@
-use sqlx_core::{error::ErrorKind, query, Connection, Error};
-use sqlx_test::tdb;
+use musqlite_core::{error::ErrorKind, query, Connection, Error};
+use musqlite_test::tdb;
 
 #[tokio::test]
 async fn it_fails_with_unique_violation() -> anyhow::Result<()> {

@@ -1,5 +1,5 @@
 [package]
-name = "sqlx-core"
+name = "musqlite-core"
 description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
 version.workspace = true
 license.workspace = true

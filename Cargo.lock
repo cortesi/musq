@@ -783,6 +783,64 @@ dependencies = [
 ]
 
 [[package]]
+name = "musqlite-core"
+version = "0.7.1"
+dependencies = [
+ "ahash",
+ "atoi",
+ "bit-vec",
+ "bstr",
+ "bytes",
+ "chrono",
+ "crossbeam-queue",
+ "either",
+ "event-listener",
+ "flume",
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-intrusive",
+ "futures-util",
+ "hashlink",
+ "indexmap 2.1.0",
+ "ipnetwork",
+ "libsqlite3-sys",
+ "log",
+ "mac_address",
+ "percent-encoding",
+ "regex",
+ "serde",
+ "serde_json",
+ "smallvec",
+ "sqlformat",
+ "thiserror",
+ "time",
+ "tokio",
+ "tracing",
+ "url",
+ "uuid",
+]
+
+[[package]]
+name = "musqlite-macros"
+version = "0.7.1"
+dependencies = [
+ "heck",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
+name = "musqlite-test"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "env_logger",
+ "musqlite-core",
+]
+
+[[package]]
 name = "nanorand"
 version = "0.7.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1227,64 +1285,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "sqlx-core"
-version = "0.7.1"
-dependencies = [
- "ahash",
- "atoi",
- "bit-vec",
- "bstr",
- "bytes",
- "chrono",
- "crossbeam-queue",
- "either",
- "event-listener",
- "flume",
- "futures-channel",
- "futures-core",
- "futures-executor",
- "futures-intrusive",
- "futures-util",
- "hashlink",
- "indexmap 2.1.0",
- "ipnetwork",
- "libsqlite3-sys",
- "log",
- "mac_address",
- "percent-encoding",
- "regex",
- "serde",
- "serde_json",
- "smallvec",
- "sqlformat",
- "thiserror",
- "time",
- "tokio",
- "tracing",
- "url",
- "uuid",
-]
-
-[[package]]
-name = "sqlx-macros"
-version = "0.7.1"
-dependencies = [
- "heck",
- "proc-macro2",
- "quote",
- "syn 1.0.109",
-]
-
-[[package]]
-name = "sqlx-test"
-version = "0.1.0"
-dependencies = [
- "anyhow",
- "env_logger",
- "sqlx-core",
-]
-
-[[package]]
 name = "syn"
 version = "1.0.109"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1335,14 +1335,14 @@ dependencies = [
  "futures",
  "hex",
  "libsqlite3-sys",
+ "musqlite-core",
+ "musqlite-macros",
+ "musqlite-test",
  "paste",
  "rand 0.8.5",
  "rand_xoshiro",
  "serde",
  "serde_json",
- "sqlx-core",
- "sqlx-macros",
- "sqlx-test",
  "tempdir",
  "time",
  "tokio",

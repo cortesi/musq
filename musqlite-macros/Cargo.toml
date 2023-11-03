@@ -1,5 +1,5 @@
 [package]
-name = "sqlx-macros"
+name = "musqlite-macros"
 description = "Macros for SQLx, the rust SQL toolkit. Not intended to be used directly."
 version.workspace = true
 license.workspace = true

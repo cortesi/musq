@@ -1,8 +1,8 @@
 use std::str::FromStr;
 
-use sqlx_core::sqlite::SqliteQueryResult;
-use sqlx_core::{query, Connection};
-use sqlx_core::{sqlite::*, ConnectOptions};
+use musqlite_core::sqlite::SqliteQueryResult;
+use musqlite_core::{query, Connection};
+use musqlite_core::{sqlite::*, ConnectOptions};
 use tempdir::TempDir;
 
 async fn new_db_url() -> anyhow::Result<(String, TempDir)> {
