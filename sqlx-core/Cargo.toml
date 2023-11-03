@@ -11,13 +11,11 @@ repository.workspace = true
 default = []
 any = []
 json = ["serde", "serde_json"]
-# for conditional compilation
-_rt-tokio = ["tokio"]
 
 [dependencies]
-# Runtimes
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true }
 
+# Runtimes
 # Type Integrations
 bit-vec = { workspace = true, optional = true }
 time = { workspace = true, optional = true }

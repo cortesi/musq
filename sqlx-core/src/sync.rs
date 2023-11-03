@@ -4,26 +4,9 @@
 // We'll generally lean towards Tokio's types as those are more featureful
 // (including `tokio-console` support) and more widely deployed.
 
-#[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
-pub use async_std::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
-
-#[cfg(feature = "_rt-tokio")]
 pub use tokio::sync::{Mutex as AsyncMutex, MutexGuard as AsyncMutexGuard};
 
 pub struct AsyncSemaphore {
-    // We use the semaphore from futures-intrusive as the one from async-std
-    // is missing the ability to add arbitrary permits, and is not guaranteed to be fair:
-    // * https://github.com/smol-rs/async-lock/issues/22
-    // * https://github.com/smol-rs/async-lock/issues/23
-    //
-    // We're on the look-out for a replacement, however, as futures-intrusive is not maintained
-    // and there are some soundness concerns (although it turns out any intrusive future is unsound
-    // in MIRI due to the necessitated mutable aliasing):
-    // https://github.com/launchbadge/sqlx/issues/1668
-    #[cfg(all(feature = "_rt-async-std", not(feature = "_rt-tokio")))]
-    inner: futures_intrusive::sync::Semaphore,
-
-    #[cfg(feature = "_rt-tokio")]
     inner: tokio::sync::Semaphore,
 }
 

@@ -10,9 +10,6 @@ repository.workspace = true
 [features]
 default = []
 
-# for conditional compilation
-_rt-tokio = ["tokio", "sqlx-core/_rt-tokio"]
-
 # database
 sqlite = ["sqlx-sqlite"]
 
@@ -30,7 +27,7 @@ uuid = ["sqlx-core/uuid", "sqlx-sqlite?/uuid"]
 sqlx-core = { workspace = true }
 sqlx-sqlite = { workspace = true, optional = true }
 
-tokio = { workspace = true, optional = true }
+tokio = { workspace = true }
 
 dotenvy = { workspace = true }
 

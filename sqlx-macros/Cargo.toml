@@ -13,9 +13,6 @@ proc-macro = true
 [features]
 default = []
 
-# for conditional compilation
-_rt-tokio = ["sqlx-macros-core/_rt-tokio"]
-
 # database
 sqlite = ["sqlx-macros-core/sqlite"]
 

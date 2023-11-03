@@ -33,7 +33,7 @@ features = ["all-databases", "_unstable-all-types"]
 rustdoc-args = ["--cfg", "docsrs"]
 
 [features]
-default = ["macros", "json", "runtime-tokio", "sqlite"]
+default = ["macros", "json", "sqlite"]
 macros = ["sqlx-macros"]
 
 # intended mainly for CI and docs
@@ -47,8 +47,6 @@ _unstable-all-types = [
     "uuid",
     "bit-vec",
 ]
-
-runtime-tokio = ["sqlx-core/_rt-tokio", "sqlx-macros?/_rt-tokio"]
 
 # database
 any = ["sqlx-core/any", "sqlx-sqlite?/any"]
