@@ -4,31 +4,30 @@ use std::fmt::Display;
 use std::fmt::Write;
 use std::marker::PhantomData;
 
-use crate::arguments::{Arguments, IntoArguments};
-use crate::database::{Database, HasArguments};
-use crate::encode::Encode;
-use crate::from_row::FromRow;
-use crate::query::Query;
-use crate::query_as::QueryAs;
-use crate::query_scalar::QueryScalar;
-use crate::types::Type;
-use crate::Either;
+use crate::{
+    arguments::IntoArguments,
+    encode::Encode,
+    from_row::FromRow,
+    query::Query,
+    query_as::QueryAs,
+    query_scalar::QueryScalar,
+    sqlite::{Sqlite, SqliteRow},
+    types::Type,
+    Arguments, Either,
+};
 
 /// A builder type for constructing queries at runtime.
 ///
 /// See [`.push_values()`][Self::push_values] for an example of building a bulk `INSERT` statement.
 ///
 /// [See our FAQ]: https://github.com/launchbadge/sqlx/blob/master/FAQ.md#how-can-i-bind-an-array-to-a-values-clause-how-can-i-do-bulk-inserts
-pub struct QueryBuilder<'args, DB>
-where
-    DB: Database,
-{
+pub struct QueryBuilder<'args> {
     query: String,
     init_len: usize,
-    arguments: Option<<DB as HasArguments<'args>>::Arguments>,
+    arguments: Option<Arguments<'args>>,
 }
 
-impl<'args, DB: Database> Default for QueryBuilder<'args, DB> {
+impl<'args> Default for QueryBuilder<'args> {
     fn default() -> Self {
         QueryBuilder {
             init_len: 0,
@@ -38,23 +37,17 @@ impl<'args, DB: Database> Default for QueryBuilder<'args, DB> {
     }
 }
 
-impl<'args, DB: Database> QueryBuilder<'args, DB>
-where
-    DB: Database,
-{
+impl<'args> QueryBuilder<'args> {
     // `init` is provided because a query will almost always start with a constant fragment
     // such as `INSERT INTO ...` or `SELECT ...`, etc.
     /// Start building a query with an initial SQL fragment, which may be an empty string.
-    pub fn new(init: impl Into<String>) -> Self
-    where
-        <DB as HasArguments<'args>>::Arguments: Default,
-    {
+    pub fn new(init: impl Into<String>) -> Self {
         let init = init.into();
 
         QueryBuilder {
             init_len: init.len(),
             query: init,
-            arguments: Some(Default::default()),
+            arguments: Some(Arguments::default()),
         }
     }
 
@@ -64,8 +57,7 @@ where
     /// This does *not* check if `arguments` is valid for the given SQL.
     pub fn with_arguments<A>(init: impl Into<String>, arguments: A) -> Self
     where
-        DB: Database,
-        A: IntoArguments<'args, DB>,
+        A: IntoArguments<'args>,
     {
         let init = init.into();
 
@@ -139,7 +131,7 @@ where
     /// [`SQLITE_LIMIT_VARIABLE_NUMBER`]: https://www.sqlite.org/limits.html#max_variable_number
     pub fn push_bind<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, DB> + Send + Type<DB>,
+        T: 'args + Encode<'args, Sqlite> + Send + Type<Sqlite>,
     {
         self.sanity_check();
 
@@ -184,7 +176,7 @@ where
     /// # }
     /// ```
 
-    pub fn separated<'qb, Sep>(&'qb mut self, separator: Sep) -> Separated<'qb, 'args, DB, Sep>
+    pub fn separated<'qb, Sep>(&'qb mut self, separator: Sep) -> Separated<'qb, 'args, Sep>
     where
         'args: 'qb,
         Sep: Display,
@@ -298,7 +290,7 @@ where
     pub fn push_values<I, F>(&mut self, tuples: I, mut push_tuple: F) -> &mut Self
     where
         I: IntoIterator,
-        F: FnMut(Separated<'_, 'args, DB, &'static str>, I::Item),
+        F: FnMut(Separated<'_, 'args, &'static str>, I::Item),
     {
         self.sanity_check();
 
@@ -405,7 +397,7 @@ where
     pub fn push_tuples<I, F>(&mut self, tuples: I, mut push_tuple: F) -> &mut Self
     where
         I: IntoIterator,
-        F: FnMut(Separated<'_, 'args, DB, &'static str>, I::Item),
+        F: FnMut(Separated<'_, 'args, &'static str>, I::Item),
     {
         self.sanity_check();
 
@@ -437,7 +429,7 @@ where
     /// to the state it was in immediately after [`new()`][Self::new].
     ///
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
-    pub fn build(&mut self) -> Query<'_, DB, <DB as HasArguments<'args>>::Arguments> {
+    pub fn build(&mut self) -> Query<'_, Sqlite, Arguments<'args>> {
         self.sanity_check();
 
         Query {
@@ -460,9 +452,9 @@ where
     /// to the state it was in immediately after [`new()`][Self::new].
     ///
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
-    pub fn build_query_as<'q, T: FromRow<'q, DB::Row>>(
+    pub fn build_query_as<'q, T: FromRow<'q, SqliteRow>>(
         &'q mut self,
-    ) -> QueryAs<'q, DB, T, <DB as HasArguments<'args>>::Arguments> {
+    ) -> QueryAs<'q, Sqlite, T, Arguments<'args>> {
         QueryAs {
             inner: self.build(),
             output: PhantomData,
@@ -481,12 +473,9 @@ where
     /// to the state it was in immediately after [`new()`][Self::new].
     ///
     /// Calling any other method but `.reset()` after `.build()` will panic for sanity reasons.
-    pub fn build_query_scalar<'q, T>(
-        &'q mut self,
-    ) -> QueryScalar<'q, DB, T, <DB as HasArguments<'args>>::Arguments>
+    pub fn build_query_scalar<'q, T>(&'q mut self) -> QueryScalar<'q, Sqlite, T, Arguments<'args>>
     where
-        DB: Database,
-        (T,): for<'r> FromRow<'r, DB::Row>,
+        (T,): for<'r> FromRow<'r, SqliteRow>,
     {
         QueryScalar {
             inner: self.build_query_as(),
@@ -519,18 +508,14 @@ where
 ///
 /// See [`QueryBuilder::separated()`] for details.
 #[allow(explicit_outlives_requirements)]
-pub struct Separated<'qb, 'args: 'qb, DB, Sep>
-where
-    DB: Database,
-{
-    query_builder: &'qb mut QueryBuilder<'args, DB>,
+pub struct Separated<'qb, 'args: 'qb, Sep> {
+    query_builder: &'qb mut QueryBuilder<'args>,
     separator: Sep,
     push_separator: bool,
 }
 
-impl<'qb, 'args: 'qb, DB, Sep> Separated<'qb, 'args, DB, Sep>
+impl<'qb, 'args: 'qb, Sep> Separated<'qb, 'args, Sep>
 where
-    DB: Database,
     Sep: Display,
 {
     /// Push the separator if applicable, and then the given SQL fragment.
@@ -561,7 +546,7 @@ where
     /// See [`QueryBuilder::push_bind()`] for details.
     pub fn push_bind<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, DB> + Send + Type<DB>,
+        T: 'args + Encode<'args, Sqlite> + Send + Type<Sqlite>,
     {
         if self.push_separator {
             self.query_builder.push(&self.separator);
@@ -579,7 +564,7 @@ where
     /// Simply calls [`QueryBuilder::push_bind()`] directly.
     pub fn push_bind_unseparated<T>(&mut self, value: T) -> &mut Self
     where
-        T: 'args + Encode<'args, DB> + Send + Type<DB>,
+        T: 'args + Encode<'args, Sqlite> + Send + Type<Sqlite>,
     {
         self.query_builder.push_bind(value);
         self
@@ -588,19 +573,17 @@ where
 
 #[cfg(test)]
 mod tests {
-    use crate::sqlite::Sqlite;
-
     use super::*;
 
     #[test]
     fn test_new() {
-        let qb: QueryBuilder<'_, Sqlite> = QueryBuilder::new("SELECT * FROM users");
+        let qb: QueryBuilder<'_> = QueryBuilder::new("SELECT * FROM users");
         assert_eq!(qb.query, "SELECT * FROM users");
     }
 
     #[test]
     fn test_push() {
-        let mut qb: QueryBuilder<'_, Sqlite> = QueryBuilder::new("SELECT * FROM users");
+        let mut qb: QueryBuilder<'_> = QueryBuilder::new("SELECT * FROM users");
         let second_line = " WHERE last_name LIKE '[A-N]%;";
         qb.push(second_line);
 

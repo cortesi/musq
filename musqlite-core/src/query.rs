@@ -4,13 +4,17 @@ use either::Either;
 use futures_core::stream::BoxStream;
 use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
 
-use crate::arguments::{Arguments, IntoArguments};
-use crate::database::{Database, HasArguments, HasStatement, HasStatementCache};
-use crate::encode::Encode;
-use crate::error::Error;
-use crate::executor::{Execute, Executor};
-use crate::statement::Statement;
-use crate::types::Type;
+use crate::{
+    arguments::IntoArguments,
+    database::{Database, HasStatement, HasStatementCache},
+    encode::Encode,
+    error::Error,
+    executor::{Execute, Executor},
+    sqlite::Sqlite,
+    statement::Statement,
+    types::Type,
+    Arguments,
+};
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
@@ -39,7 +43,7 @@ pub struct Map<'q, DB: Database, F, A> {
 impl<'q, DB, A> Execute<'q, DB> for Query<'q, DB, A>
 where
     DB: Database,
-    A: Send + IntoArguments<'q, DB>,
+    A: Send + IntoArguments<'q>,
 {
     #[inline]
     fn sql(&self) -> &'q str {
@@ -57,7 +61,7 @@ where
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         self.arguments.take().map(IntoArguments::into_arguments)
     }
 
@@ -67,7 +71,7 @@ where
     }
 }
 
-impl<'q, DB: Database> Query<'q, DB, <DB as HasArguments<'q>>::Arguments> {
+impl<'q, DB: Database> Query<'q, DB, Arguments<'q>> {
     /// Bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that
@@ -76,7 +80,7 @@ impl<'q, DB: Database> Query<'q, DB, <DB as HasArguments<'q>>::Arguments> {
     ///
     /// There is no validation that the value is of the type expected by the query. Most SQL
     /// flavors will perform type coercion (Postgres will return a database error).
-    pub fn bind<T: 'q + Send + Encode<'q, DB> + Type<DB>>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Send + Encode<'q, Sqlite> + Type<DB>>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value);
         }
@@ -106,7 +110,7 @@ where
 impl<'q, DB, A: Send> Query<'q, DB, A>
 where
     DB: Database,
-    A: 'q + IntoArguments<'q, DB>,
+    A: 'q + IntoArguments<'q>,
 {
     /// Map each row in the result to another type.
     ///
@@ -230,7 +234,7 @@ where
 impl<'q, DB, F: Send, A: Send> Execute<'q, DB> for Map<'q, DB, F, A>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
+    A: IntoArguments<'q>,
 {
     #[inline]
     fn sql(&self) -> &'q str {
@@ -243,7 +247,7 @@ where
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         self.inner.take_arguments()
     }
 
@@ -258,7 +262,7 @@ where
     DB: Database,
     F: FnMut(DB::Row) -> Result<O, Error> + Send,
     O: Send + Unpin,
-    A: 'q + Send + IntoArguments<'q, DB>,
+    A: 'q + Send + IntoArguments<'q>,
 {
     /// Map each row in the result to another type.
     ///
@@ -397,7 +401,7 @@ where
 // Make a SQL query from a statement.
 pub fn query_statement<'q, DB>(
     statement: &'q <DB as HasStatement<'q>>::Statement,
-) -> Query<'q, DB, <DB as HasArguments<'_>>::Arguments>
+) -> Query<'q, DB, Arguments<'_>>
 where
     DB: Database,
 {
@@ -416,7 +420,7 @@ pub fn query_statement_with<'q, DB, A>(
 ) -> Query<'q, DB, A>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
+    A: IntoArguments<'q>,
 {
     Query {
         database: PhantomData,
@@ -427,7 +431,7 @@ where
 }
 
 /// Make a SQL query.
-pub fn query<DB>(sql: &str) -> Query<'_, DB, <DB as HasArguments<'_>>::Arguments>
+pub fn query<DB>(sql: &str) -> Query<'_, DB, Arguments<'_>>
 where
     DB: Database,
 {
@@ -443,7 +447,7 @@ where
 pub fn query_with<'q, DB, A>(sql: &'q str, arguments: A) -> Query<'q, DB, A>
 where
     DB: Database,
-    A: IntoArguments<'q, DB>,
+    A: IntoArguments<'q>,
 {
     Query {
         database: PhantomData,

@@ -8,7 +8,6 @@
 
 use std::fmt::Debug;
 
-use crate::arguments::Arguments;
 use crate::column::Column;
 use crate::connection::Connection;
 use crate::row::Row;
@@ -21,12 +20,7 @@ use crate::transaction::TransactionManager;
 /// This trait encapsulates a complete set of traits that implement a driver for a
 /// specific database.
 pub trait Database:
-    'static
-    + Sized
-    + Send
-    + Debug
-    + for<'q> HasArguments<'q, Database = Self>
-    + for<'q> HasStatement<'q, Database = Self>
+    'static + Sized + Send + Debug + for<'q> HasStatement<'q, Database = Self>
 {
     /// The concrete `Connection` implementation for this database.
     type Connection: Connection<Database = Self>;
@@ -42,24 +36,6 @@ pub trait Database:
 
     /// The concrete `Column` implementation for this database.
     type Column: Column<Database = Self>;
-}
-
-/// Associate [`Database`] with an [`Arguments`](crate::arguments::Arguments) of a generic lifetime.
-///
-/// ---
-///
-/// The upcoming Rust feature, [Generic Associated Types], should obviate
-/// the need for this trait.
-///
-/// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
-pub trait HasArguments<'q> {
-    type Database: Database;
-
-    /// The concrete `Arguments` implementation for this database.
-    type Arguments: Arguments<'q, Database = Self::Database>;
-
-    /// The concrete type used as a buffer for arguments while encoding.
-    type ArgumentBuffer;
 }
 
 /// Associate [`Database`] with a [`Statement`](crate::statement::Statement) of a generic lifetime.

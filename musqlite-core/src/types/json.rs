@@ -5,11 +5,12 @@ pub use serde_json::value::RawValue as JsonRawValue;
 pub use serde_json::Value as JsonValue;
 
 use crate::{
-    database::{Database, HasArguments},
+    database::Database,
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
     sqlite,
+    sqlite::ArgumentBuffer,
     types::Type,
     ValueRef,
 };
@@ -143,7 +144,7 @@ where
     for<'a> Json<&'a Self>: Encode<'q, DB>,
     DB: Database,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         <Json<&Self> as Encode<'q, DB>>::encode(Json(self), buf)
     }
 }

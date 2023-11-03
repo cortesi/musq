@@ -1,6 +1,5 @@
 use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue, TypeInfo,
-    ValueRef,
+    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo, ValueRef,
 };
 use crate::{
     decode::Decode,
@@ -23,10 +22,8 @@ impl Type<Sqlite> for Uuid {
 }
 
 impl<'q> Encode<'q, Sqlite> for Uuid {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Blob(Cow::Owned(
-            self.as_bytes().to_vec(),
-        )));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Blob(Cow::Owned(self.as_bytes().to_vec())));
 
         IsNull::No
     }
@@ -46,8 +43,8 @@ impl Type<Sqlite> for Hyphenated {
 }
 
 impl<'q> Encode<'q, Sqlite> for Hyphenated {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self.to_string())));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Text(Cow::Owned(self.to_string())));
 
         IsNull::No
     }
@@ -69,8 +66,8 @@ impl Type<Sqlite> for Simple {
 }
 
 impl<'q> Encode<'q, Sqlite> for Simple {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self.to_string())));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Text(Cow::Owned(self.to_string())));
 
         IsNull::No
     }

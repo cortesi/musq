@@ -1,6 +1,6 @@
 use std::sync::atomic::AtomicBool;
 
-pub use arguments::{SqliteArgumentValue, SqliteArguments};
+pub use arguments::{ArgumentBuffer, ArgumentValue, Arguments};
 pub use column::SqliteColumn;
 pub use connection::{LockedSqliteHandle, SqliteConnection};
 pub use database::Sqlite;
@@ -49,7 +49,7 @@ pub trait SqliteExecutor<'c>: Executor<'c, Database = Sqlite> {}
 impl<'c, T: Executor<'c, Database = Sqlite>> SqliteExecutor<'c> for T {}
 
 // NOTE: required due to the lack of lazy normalization
-crate::impl_into_arguments_for_arguments!(SqliteArguments<'q>);
+crate::impl_into_arguments_for_arguments!(Arguments<'q>);
 crate::impl_column_index_for_row!(SqliteRow);
 crate::impl_column_index_for_statement!(SqliteStatement);
 crate::impl_acquire!(Sqlite, SqliteConnection);

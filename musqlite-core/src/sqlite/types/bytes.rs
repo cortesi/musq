@@ -1,8 +1,7 @@
 use std::borrow::Cow;
 
 use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue, TypeInfo,
-    ValueRef,
+    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo, ValueRef,
 };
 use crate::{
     decode::Decode,
@@ -20,8 +19,8 @@ impl Type<Sqlite> for [u8] {
 }
 
 impl<'q> Encode<'q, Sqlite> for &'q [u8] {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Blob(Cow::Borrowed(self)));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Blob(Cow::Borrowed(self)));
 
         IsNull::No
     }
@@ -44,14 +43,14 @@ impl Type<Sqlite> for Vec<u8> {
 }
 
 impl<'q> Encode<'q, Sqlite> for Vec<u8> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Blob(Cow::Owned(self)));
+    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Blob(Cow::Owned(self)));
 
         IsNull::No
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Blob(Cow::Owned(self.clone())));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Blob(Cow::Owned(self.clone())));
 
         IsNull::No
     }

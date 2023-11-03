@@ -1,6 +1,5 @@
 use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue, TypeInfo,
-    ValueRef,
+    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo, ValueRef,
 };
 use crate::{
     decode::Decode,
@@ -18,8 +17,8 @@ impl Type<Sqlite> for i8 {
 }
 
 impl<'q> Encode<'q, Sqlite> for i8 {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Int(*self as i32));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Int(*self as i32));
 
         IsNull::No
     }
@@ -42,8 +41,8 @@ impl Type<Sqlite> for i16 {
 }
 
 impl<'q> Encode<'q, Sqlite> for i16 {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Int(*self as i32));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Int(*self as i32));
 
         IsNull::No
     }
@@ -66,8 +65,8 @@ impl Type<Sqlite> for i32 {
 }
 
 impl<'q> Encode<'q, Sqlite> for i32 {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Int(*self));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Int(*self));
 
         IsNull::No
     }
@@ -90,8 +89,8 @@ impl Type<Sqlite> for i64 {
 }
 
 impl<'q> Encode<'q, Sqlite> for i64 {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Int64(*self));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Int64(*self));
 
         IsNull::No
     }

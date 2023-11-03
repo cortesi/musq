@@ -1,8 +1,8 @@
 use super::attributes::{
-    check_transparent_attributes, check_weak_enum_attributes, parse_container_attributes, TypeName,
+    check_transparent_attributes, check_weak_enum_attributes, parse_container_attributes,
 };
-use proc_macro2::{Ident, TokenStream};
-use quote::{quote, quote_spanned};
+use proc_macro2::TokenStream;
+use quote::quote;
 use syn::punctuated::Punctuated;
 use syn::token::Comma;
 use syn::{

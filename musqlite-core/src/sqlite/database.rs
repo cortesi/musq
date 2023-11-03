@@ -1,8 +1,8 @@
-pub(crate) use crate::database::{Database, HasArguments, HasStatement, HasStatementCache};
+pub(crate) use crate::database::{Database, HasStatement, HasStatementCache};
 
 use crate::sqlite::{
-    SqliteArgumentValue, SqliteArguments, SqliteColumn, SqliteConnection, SqliteQueryResult,
-    SqliteRow, SqliteStatement, SqliteTransactionManager,
+    SqliteColumn, SqliteConnection, SqliteQueryResult, SqliteRow, SqliteStatement,
+    SqliteTransactionManager,
 };
 
 /// Sqlite database driver.
@@ -19,14 +19,6 @@ impl Database for Sqlite {
     type QueryResult = SqliteQueryResult;
 
     type Column = SqliteColumn;
-}
-
-impl<'q> HasArguments<'q> for Sqlite {
-    type Database = Sqlite;
-
-    type Arguments = SqliteArguments<'q>;
-
-    type ArgumentBuffer = Vec<SqliteArgumentValue<'q>>;
 }
 
 impl<'q> HasStatement<'q> for Sqlite {

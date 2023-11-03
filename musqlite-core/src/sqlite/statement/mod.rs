@@ -1,7 +1,7 @@
 use crate::ext::ustr::UStr;
 use crate::sqlite::column::ColumnIndex;
 use crate::sqlite::error::Error;
-use crate::sqlite::{Sqlite, SqliteArguments, SqliteColumn, TypeInfo};
+use crate::sqlite::{Arguments, Sqlite, SqliteColumn, TypeInfo};
 use crate::{Either, HashMap};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -50,7 +50,7 @@ impl<'q> Statement<'q> for SqliteStatement<'q> {
         &self.columns
     }
 
-    impl_statement_query!(SqliteArguments<'_>);
+    impl_statement_query!(Arguments<'_>);
 }
 
 impl ColumnIndex<SqliteStatement<'_>> for &'_ str {

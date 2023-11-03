@@ -18,7 +18,7 @@ use crate::sqlite::connection::describe::describe;
 use crate::sqlite::connection::establish::EstablishParams;
 use crate::sqlite::connection::ConnectionState;
 use crate::sqlite::connection::{execute, ConnectionHandleRaw};
-use crate::sqlite::{Sqlite, SqliteArguments, SqliteQueryResult, SqliteRow, SqliteStatement};
+use crate::sqlite::{Arguments, Sqlite, SqliteQueryResult, SqliteRow, SqliteStatement};
 
 // Each SQLite connection has a dedicated thread.
 
@@ -50,7 +50,7 @@ enum Command {
     },
     Execute {
         query: Box<str>,
-        arguments: Option<SqliteArguments<'static>>,
+        arguments: Option<Arguments<'static>>,
         persistent: bool,
         tx: flume::Sender<Result<Either<SqliteQueryResult, SqliteRow>, Error>>,
     },
@@ -282,7 +282,7 @@ impl ConnectionWorker {
     pub(crate) async fn execute(
         &mut self,
         query: &str,
-        args: Option<SqliteArguments<'_>>,
+        args: Option<Arguments<'_>>,
         chan_size: usize,
         persistent: bool,
     ) -> Result<flume::Receiver<Result<Either<SqliteQueryResult, SqliteRow>, Error>>, Error> {
@@ -291,7 +291,7 @@ impl ConnectionWorker {
         self.command_tx
             .send_async(Command::Execute {
                 query: query.into(),
-                arguments: args.map(SqliteArguments::into_static),
+                arguments: args.map(Arguments::into_static),
                 persistent,
                 tx,
             })

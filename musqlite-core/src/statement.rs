@@ -1,13 +1,13 @@
 use crate::{
     arguments::IntoArguments,
     column::ColumnIndex,
-    database::{Database, HasArguments, HasStatement},
+    database::{Database, HasStatement},
     error::Error,
     from_row::FromRow,
     query::Query,
     query_as::QueryAs,
     query_scalar::QueryScalar,
-    sqlite,
+    sqlite, Arguments,
 };
 use either::Either;
 
@@ -62,33 +62,29 @@ pub trait Statement<'q>: Send + Sync {
         Ok(&self.columns()[index.index(self)?])
     }
 
-    fn query(&self) -> Query<'_, Self::Database, <Self::Database as HasArguments<'_>>::Arguments>;
+    fn query(&self) -> Query<'_, Self::Database, Arguments<'_>>;
 
     fn query_with<'s, A>(&'s self, arguments: A) -> Query<'s, Self::Database, A>
     where
-        A: IntoArguments<'s, Self::Database>;
+        A: IntoArguments<'s>;
 
-    fn query_as<O>(
-        &self,
-    ) -> QueryAs<'_, Self::Database, O, <Self::Database as HasArguments<'_>>::Arguments>
+    fn query_as<O>(&self) -> QueryAs<'_, Self::Database, O, Arguments<'_>>
     where
         O: for<'r> FromRow<'r, <Self::Database as Database>::Row>;
 
     fn query_as_with<'s, O, A>(&'s self, arguments: A) -> QueryAs<'s, Self::Database, O, A>
     where
         O: for<'r> FromRow<'r, <Self::Database as Database>::Row>,
-        A: IntoArguments<'s, Self::Database>;
+        A: IntoArguments<'s>;
 
-    fn query_scalar<O>(
-        &self,
-    ) -> QueryScalar<'_, Self::Database, O, <Self::Database as HasArguments<'_>>::Arguments>
+    fn query_scalar<O>(&self) -> QueryScalar<'_, Self::Database, O, Arguments<'_>>
     where
         (O,): for<'r> FromRow<'r, <Self::Database as Database>::Row>;
 
     fn query_scalar_with<'s, O, A>(&'s self, arguments: A) -> QueryScalar<'s, Self::Database, O, A>
     where
         (O,): for<'r> FromRow<'r, <Self::Database as Database>::Row>,
-        A: IntoArguments<'s, Self::Database>;
+        A: IntoArguments<'s>;
 }
 
 #[macro_export]
@@ -102,20 +98,13 @@ macro_rules! impl_statement_query {
         #[inline]
         fn query_with<'s, A>(&'s self, arguments: A) -> $crate::query::Query<'s, Self::Database, A>
         where
-            A: $crate::arguments::IntoArguments<'s, Self::Database>,
+            A: $crate::arguments::IntoArguments<'s>,
         {
             $crate::query::query_statement_with(self, arguments)
         }
 
         #[inline]
-        fn query_as<O>(
-            &self,
-        ) -> $crate::query_as::QueryAs<
-            '_,
-            Self::Database,
-            O,
-            <Self::Database as $crate::database::HasArguments<'_>>::Arguments,
-        >
+        fn query_as<O>(&self) -> $crate::query_as::QueryAs<'_, Self::Database, O, Arguments<'_>>
         where
             O: for<'r> $crate::from_row::FromRow<
                 'r,
@@ -135,7 +124,7 @@ macro_rules! impl_statement_query {
                 'r,
                 <Self::Database as $crate::database::Database>::Row,
             >,
-            A: $crate::arguments::IntoArguments<'s, Self::Database>,
+            A: $crate::arguments::IntoArguments<'s>,
         {
             $crate::query_as::query_statement_as_with(self, arguments)
         }
@@ -143,12 +132,7 @@ macro_rules! impl_statement_query {
         #[inline]
         fn query_scalar<O>(
             &self,
-        ) -> $crate::query_scalar::QueryScalar<
-            '_,
-            Self::Database,
-            O,
-            <Self::Database as $crate::database::HasArguments<'_>>::Arguments,
-        >
+        ) -> $crate::query_scalar::QueryScalar<'_, Self::Database, O, Arguments<'_>>
         where
             (O,): for<'r> $crate::from_row::FromRow<
                 'r,
@@ -168,7 +152,7 @@ macro_rules! impl_statement_query {
                 'r,
                 <Self::Database as $crate::database::Database>::Row,
             >,
-            A: $crate::arguments::IntoArguments<'s, Self::Database>,
+            A: $crate::arguments::IntoArguments<'s>,
         {
             $crate::query_scalar::query_statement_scalar_with(self, arguments)
         }

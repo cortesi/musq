@@ -65,7 +65,7 @@ pub use bytes;
 
 pub use crate::{
     acquire::Acquire,
-    arguments::{Arguments, IntoArguments},
+    arguments::IntoArguments,
     column::{Column, ColumnIndex},
     connection::{ConnectOptions, Connection},
     database::Database,
@@ -79,7 +79,7 @@ pub use crate::{
     query_scalar::{query_scalar, query_scalar_with},
     row::Row,
     sqlite::TypeInfo,
-    sqlite::{Value, ValueRef},
+    sqlite::{Arguments, Value, ValueRef},
     statement::Statement,
     transaction::{Transaction, TransactionManager},
     types::Type,

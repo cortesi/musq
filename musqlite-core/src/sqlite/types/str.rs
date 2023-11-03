@@ -6,8 +6,7 @@ use crate::{
 };
 
 use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue, TypeInfo,
-    ValueRef,
+    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, Sqlite, TypeInfo, ValueRef,
 };
 
 impl Type<Sqlite> for str {
@@ -17,8 +16,8 @@ impl Type<Sqlite> for str {
 }
 
 impl<'q> Encode<'q, Sqlite> for &'q str {
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Text(Cow::Borrowed(*self)));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Text(Cow::Borrowed(*self)));
 
         IsNull::No
     }
@@ -37,14 +36,14 @@ impl Type<Sqlite> for String {
 }
 
 impl<'q> Encode<'q, Sqlite> for String {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self)));
+    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Text(Cow::Owned(self)));
 
         IsNull::No
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Text(Cow::Owned(self.clone())));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Text(Cow::Owned(self.clone())));
 
         IsNull::No
     }
@@ -67,14 +66,14 @@ impl Type<Sqlite> for Cow<'_, str> {
 }
 
 impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
-    fn encode(self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Text(self));
+    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Text(self));
 
         IsNull::No
     }
 
-    fn encode_by_ref(&self, args: &mut Vec<SqliteArgumentValue<'q>>) -> IsNull {
-        args.push(SqliteArgumentValue::Text(self.clone()));
+    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Text(self.clone()));
 
         IsNull::No
     }

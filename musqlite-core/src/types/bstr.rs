@@ -1,10 +1,11 @@
 /// Conversions between `bstr` types and SQL types.
-use crate::database::{Database, HasArguments};
 use crate::{
+    database::Database,
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
     sqlite,
+    sqlite::ArgumentBuffer,
     types::Type,
     ValueRef,
 };
@@ -41,7 +42,7 @@ where
     DB: Database,
     &'q [u8]: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         <&[u8] as Encode<DB>>::encode(self.as_bytes(), buf)
     }
 }
@@ -51,7 +52,7 @@ where
     DB: Database,
     Vec<u8>: Encode<'q, DB>,
 {
-    fn encode_by_ref(&self, buf: &mut <DB as HasArguments<'q>>::ArgumentBuffer) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         <Vec<u8> as Encode<DB>>::encode(self.as_bytes().to_vec(), buf)
     }
 }

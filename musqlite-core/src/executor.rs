@@ -1,8 +1,8 @@
 use crate::{
-    database::{Database, HasArguments, HasStatement},
+    database::{Database, HasStatement},
     describe::Describe,
     error::Error,
-    sqlite,
+    sqlite, Arguments,
 };
 
 use either::Either;
@@ -198,7 +198,7 @@ pub trait Execute<'q, DB: Database>: Send + Sized {
     /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments>;
+    fn take_arguments(&mut self) -> Option<Arguments<'q>>;
 
     /// Returns `true` if the statement should be cached.
     fn persistent(&self) -> bool;
@@ -218,7 +218,7 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         None
     }
 
@@ -228,7 +228,7 @@ impl<'q, DB: Database> Execute<'q, DB> for &'q str {
     }
 }
 
-impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<'q>>::Arguments>) {
+impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<Arguments<'q>>) {
     #[inline]
     fn sql(&self) -> &'q str {
         self.0
@@ -240,7 +240,7 @@ impl<'q, DB: Database> Execute<'q, DB> for (&'q str, Option<<DB as HasArguments<
     }
 
     #[inline]
-    fn take_arguments(&mut self) -> Option<<DB as HasArguments<'q>>::Arguments> {
+    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         self.1.take()
     }
 

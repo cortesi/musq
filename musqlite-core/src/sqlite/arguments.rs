@@ -5,12 +5,12 @@ use crate::sqlite::Sqlite;
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
 use std::borrow::Cow;
+use std::fmt::{self, Write};
 
-pub(crate) use crate::arguments::*;
 use crate::err_protocol;
 
 #[derive(Debug, Clone)]
-pub enum SqliteArgumentValue<'q> {
+pub enum ArgumentValue<'q> {
     Null,
     Text(Cow<'q, str>),
     Blob(Cow<'q, [u8]>),
@@ -20,47 +20,40 @@ pub enum SqliteArgumentValue<'q> {
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct SqliteArguments<'q> {
-    pub(crate) values: Vec<SqliteArgumentValue<'q>>,
+pub struct Arguments<'q> {
+    pub(crate) values: Vec<ArgumentValue<'q>>,
 }
 
-impl<'q> SqliteArguments<'q> {
-    pub(crate) fn add<T>(&mut self, value: T)
+impl<'q> Arguments<'q> {
+    pub fn add<T>(&mut self, value: T)
     where
         T: Encode<'q, Sqlite>,
     {
         if let IsNull::Yes = value.encode(&mut self.values) {
-            self.values.push(SqliteArgumentValue::Null);
+            self.values.push(ArgumentValue::Null);
         }
     }
 
-    pub(crate) fn into_static(self) -> SqliteArguments<'static> {
-        SqliteArguments {
+    pub(crate) fn into_static(self) -> Arguments<'static> {
+        Arguments {
             values: self
                 .values
                 .into_iter()
-                .map(SqliteArgumentValue::into_static)
+                .map(ArgumentValue::into_static)
                 .collect(),
         }
     }
-}
 
-impl<'q> Arguments<'q> for SqliteArguments<'q> {
-    type Database = Sqlite;
-
-    fn reserve(&mut self, len: usize, _size_hint: usize) {
+    pub fn reserve(&mut self, len: usize, _size_hint: usize) {
         self.values.reserve(len);
     }
 
-    fn add<T>(&mut self, value: T)
-    where
-        T: Encode<'q, Self::Database>,
-    {
-        self.add(value)
+    pub fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
+        writer.write_str("?")
     }
 }
 
-impl SqliteArguments<'_> {
+impl Arguments<'_> {
     pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize, Error> {
         let mut arg_i = offset;
         // for handle in &statement.handles {
@@ -106,9 +99,9 @@ impl SqliteArguments<'_> {
     }
 }
 
-impl SqliteArgumentValue<'_> {
-    fn into_static(self) -> SqliteArgumentValue<'static> {
-        use SqliteArgumentValue::*;
+impl ArgumentValue<'_> {
+    fn into_static(self) -> ArgumentValue<'static> {
+        use ArgumentValue::*;
 
         match self {
             Null => Null,
@@ -121,7 +114,7 @@ impl SqliteArgumentValue<'_> {
     }
 
     fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<(), Error> {
-        use SqliteArgumentValue::*;
+        use ArgumentValue::*;
 
         let status = match self {
             Text(v) => handle.bind_text(i, v),
@@ -139,3 +132,5 @@ impl SqliteArgumentValue<'_> {
         Ok(())
     }
 }
+
+pub type ArgumentBuffer<'q> = Vec<ArgumentValue<'q>>;
