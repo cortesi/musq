@@ -1,10 +1,12 @@
-use crate::column::ColumnIndex;
-use crate::database::Database;
-use crate::decode::Decode;
-use crate::error::{mismatched_types, Error};
-
-use crate::sqlite::ValueRef;
-use crate::types::Type;
+use crate::{
+    column::ColumnIndex,
+    database::Database,
+    decode::Decode,
+    error::{mismatched_types, Error},
+    sqlite::ValueRef,
+    types::Type,
+    Column,
+};
 
 /// Represents a single row from the database.
 ///
@@ -36,7 +38,7 @@ pub trait Row: Unpin + Send + Sync + 'static {
     ///
     /// Panics if `index` is out of bounds.
     /// See [`try_column`](Self::try_column) for a non-panicking version.
-    fn column<I>(&self, index: I) -> &<Self::Database as Database>::Column
+    fn column<I>(&self, index: I) -> &Column
     where
         I: ColumnIndex<Self>,
     {
@@ -44,7 +46,7 @@ pub trait Row: Unpin + Send + Sync + 'static {
     }
 
     /// Gets the column information at `index` or `None` if out of bounds.
-    fn try_column<I>(&self, index: I) -> Result<&<Self::Database as Database>::Column, Error>
+    fn try_column<I>(&self, index: I) -> Result<&Column, Error>
     where
         I: ColumnIndex<Self>,
     {
@@ -52,7 +54,7 @@ pub trait Row: Unpin + Send + Sync + 'static {
     }
 
     /// Gets all columns in this statement.
-    fn columns(&self) -> &[<Self::Database as Database>::Column];
+    fn columns(&self) -> &[Column];
 
     /// Index into the database row and decode a single value.
     ///

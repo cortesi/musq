@@ -1,7 +1,7 @@
 use crate::ext::ustr::UStr;
 use crate::sqlite::column::ColumnIndex;
 use crate::sqlite::error::Error;
-use crate::sqlite::{Arguments, SqliteColumn, TypeInfo};
+use crate::sqlite::{Arguments, Column, TypeInfo};
 use crate::{Either, HashMap};
 use std::borrow::Cow;
 use std::sync::Arc;
@@ -28,7 +28,7 @@ pub(crate) use r#virtual::VirtualStatement;
 pub struct Statement<'q> {
     pub(crate) sql: Cow<'q, str>,
     pub(crate) parameters: usize,
-    pub(crate) columns: Arc<Vec<SqliteColumn>>,
+    pub(crate) columns: Arc<Vec<Column>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
 
@@ -50,7 +50,7 @@ impl<'q> Statement<'q> {
         Some(Either::Right(self.parameters))
     }
 
-    pub fn columns(&self) -> &[SqliteColumn] {
+    pub fn columns(&self) -> &[Column] {
         &self.columns
     }
 
@@ -63,7 +63,7 @@ impl<'q> Statement<'q> {
     ///
     /// Panics if `index` is out of bounds.
     /// See [`try_column`](Self::try_column) for a non-panicking version.
-    pub fn column<I>(&self, index: I) -> &SqliteColumn
+    pub fn column<I>(&self, index: I) -> &Column
     where
         I: ColumnIndex<Self>,
     {
@@ -71,7 +71,7 @@ impl<'q> Statement<'q> {
     }
 
     /// Gets the column information at `index` or `None` if out of bounds.
-    pub fn try_column<I>(&self, index: I) -> Result<&SqliteColumn, Error>
+    pub fn try_column<I>(&self, index: I) -> Result<&Column, Error>
     where
         I: ColumnIndex<Self>,
     {

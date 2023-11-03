@@ -17,7 +17,7 @@ use crate::{HashMap, SmallVec};
 
 use crate::sqlite::connection::ConnectionHandle;
 use crate::sqlite::statement::StatementHandle;
-use crate::sqlite::{SqliteColumn, SqliteError};
+use crate::sqlite::{Column, SqliteError};
 
 // A virtual statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
 // on `;` to support multiple statements in one query.
@@ -41,7 +41,7 @@ pub struct VirtualStatement {
     pub(crate) handles: SmallVec<[StatementHandle; 1]>,
 
     // each set of columns
-    pub(crate) columns: SmallVec<[Arc<Vec<SqliteColumn>>; 1]>,
+    pub(crate) columns: SmallVec<[Arc<Vec<Column>>; 1]>,
 
     // each set of column names
     pub(crate) column_names: SmallVec<[Arc<HashMap<UStr, usize>>; 1]>,
@@ -49,7 +49,7 @@ pub struct VirtualStatement {
 
 pub struct PreparedStatement<'a> {
     pub(crate) handle: &'a mut StatementHandle,
-    pub(crate) columns: &'a Arc<Vec<SqliteColumn>>,
+    pub(crate) columns: &'a Arc<Vec<Column>>,
     pub(crate) column_names: &'a Arc<HashMap<UStr, usize>>,
 }
 
@@ -101,7 +101,7 @@ impl VirtualStatement {
                         .column_decltype(i)
                         .unwrap_or_else(|| statement.column_type_info(i));
 
-                    columns.push(SqliteColumn {
+                    columns.push(Column {
                         ordinal: i,
                         name: name.clone(),
                         type_info,

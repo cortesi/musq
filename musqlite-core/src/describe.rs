@@ -1,8 +1,7 @@
-use crate::database::Database;
 use either::Either;
 use std::convert::identity;
 
-use crate::sqlite;
+use crate::{sqlite, Column};
 
 /// Provides extended information on a statement.
 ///
@@ -12,26 +11,26 @@ use crate::sqlite;
 /// output and parameter types; and, generate an anonymous record.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
-    serialize = "sqlite::TypeInfo: serde::Serialize, DB::Column: serde::Serialize",
-    deserialize = "sqlite::TypeInfo: serde::de::DeserializeOwned, DB::Column: serde::de::DeserializeOwned",
+    serialize = "sqlite::TypeInfo: serde::Serialize, Column: serde::Serialize",
+    deserialize = "sqlite::TypeInfo: serde::de::DeserializeOwned, Column: serde::de::DeserializeOwned",
 ))]
 #[doc(hidden)]
-pub struct Describe<DB: Database> {
-    pub columns: Vec<DB::Column>,
+pub struct Describe {
+    pub columns: Vec<Column>,
     pub parameters: Option<Either<Vec<sqlite::TypeInfo>, usize>>,
     pub nullable: Vec<Option<bool>>,
 }
 
-impl<DB: Database> Describe<DB> {
+impl Describe {
     /// Gets all columns in this statement.
-    pub fn columns(&self) -> &[DB::Column] {
+    pub fn columns(&self) -> &[Column] {
         &self.columns
     }
 
     /// Gets the column information at `index`.
     ///
     /// Panics if `index` is out of bounds.
-    pub fn column(&self, index: usize) -> &DB::Column {
+    pub fn column(&self, index: usize) -> &Column {
         &self.columns[index]
     }
 

@@ -1,7 +1,7 @@
 use std::sync::atomic::AtomicBool;
 
 pub use arguments::{ArgumentBuffer, ArgumentValue, Arguments};
-pub use column::SqliteColumn;
+pub use column::Column;
 pub use connection::{LockedSqliteHandle, SqliteConnection};
 pub use database::Sqlite;
 pub use error::SqliteError;
@@ -63,7 +63,7 @@ pub static CREATE_DB_WAL: AtomicBool = AtomicBool::new(true);
 
 /// UNSTABLE: for use by `sqlite-macros-core` only.
 #[doc(hidden)]
-pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe<Sqlite>, Error> {
+pub fn describe_blocking(query: &str, database_url: &str) -> Result<Describe, Error> {
     let opts: SqliteConnectOptions = database_url.parse()?;
     let params = EstablishParams::from_options(&opts)?;
     let mut conn = params.establish()?;

@@ -1,27 +1,25 @@
 use crate::ext::ustr::UStr;
-use crate::sqlite::{Sqlite, TypeInfo};
+use crate::sqlite::TypeInfo;
 
 pub(crate) use crate::column::*;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
-pub struct SqliteColumn {
+pub struct Column {
     pub(crate) name: UStr,
     pub(crate) ordinal: usize,
     pub(crate) type_info: TypeInfo,
 }
 
-impl Column for SqliteColumn {
-    type Database = Sqlite;
-
-    fn ordinal(&self) -> usize {
+impl Column {
+    pub fn ordinal(&self) -> usize {
         self.ordinal
     }
 
-    fn name(&self) -> &str {
+    pub fn name(&self) -> &str {
         &*self.name
     }
 
-    fn type_info(&self) -> &TypeInfo {
+    pub fn type_info(&self) -> &TypeInfo {
         &self.type_info
     }
 }

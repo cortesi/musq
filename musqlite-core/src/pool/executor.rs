@@ -62,10 +62,7 @@ where
     }
 
     #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(
-        self,
-        sql: &'q str,
-    ) -> BoxFuture<'e, Result<Describe<Self::Database>, Error>> {
+    fn describe<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Describe, Error>> {
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.describe(sql).await })

@@ -18,7 +18,7 @@ use crate::sqlite::connection::describe::describe;
 use crate::sqlite::connection::establish::EstablishParams;
 use crate::sqlite::connection::ConnectionState;
 use crate::sqlite::connection::{execute, ConnectionHandleRaw};
-use crate::sqlite::{Arguments, Sqlite, SqliteQueryResult, SqliteRow, Statement};
+use crate::sqlite::{Arguments, SqliteQueryResult, SqliteRow, Statement};
 
 // Each SQLite connection has a dedicated thread.
 
@@ -46,7 +46,7 @@ enum Command {
     },
     Describe {
         query: Box<str>,
-        tx: oneshot::Sender<Result<Describe<Sqlite>, Error>>,
+        tx: oneshot::Sender<Result<Describe, Error>>,
     },
     Execute {
         query: Box<str>,
@@ -271,7 +271,7 @@ impl ConnectionWorker {
         .await?
     }
 
-    pub(crate) async fn describe(&mut self, query: &str) -> Result<Describe<Sqlite>, Error> {
+    pub(crate) async fn describe(&mut self, query: &str) -> Result<Describe, Error> {
         self.oneshot_cmd(|tx| Command::Describe {
             query: query.into(),
             tx,

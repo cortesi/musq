@@ -1,14 +1,7 @@
 //! Traits to represent a database driver.
-//!
-//! ## Example
-//!
-//! ```rust,ignore
-//! // connect to SQLite
-//! let conn = AnyConnection::connect("sqlite://file.db").await?;
 
 use std::fmt::Debug;
 
-use crate::column::Column;
 use crate::connection::Connection;
 use crate::row::Row;
 
@@ -30,9 +23,6 @@ pub trait Database: 'static + Sized + Send + Debug {
 
     /// The concrete `QueryResult` implementation for this database.
     type QueryResult: 'static + Sized + Send + Sync + Default + Extend<Self::QueryResult>;
-
-    /// The concrete `Column` implementation for this database.
-    type Column: Column<Database = Self>;
 }
 
 /// A [`Database`] that maintains a client-side cache of prepared statements.

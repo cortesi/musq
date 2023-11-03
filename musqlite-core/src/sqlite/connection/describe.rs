@@ -1,12 +1,12 @@
 use crate::sqlite::connection::explain::explain;
 use crate::sqlite::{
     connection::ConnectionState, error::Error, statement::VirtualStatement, type_info::DataType,
-    Sqlite, SqliteColumn,
+    Column,
 };
 use crate::{describe::Describe, Either};
 use std::convert::identity;
 
-pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Describe<Sqlite>, Error> {
+pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Describe, Error> {
     // describing a statement from SQLite can be involved
     // each SQLx statement is comprised of multiple SQL statements
 
@@ -76,7 +76,7 @@ pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Descri
 
             nullable.push(exp_nullable.or(col_nullable));
 
-            columns.push(SqliteColumn {
+            columns.push(Column {
                 name: name.into(),
                 type_info,
                 ordinal: col,
