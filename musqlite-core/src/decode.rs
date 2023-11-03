@@ -1,9 +1,6 @@
 //! Provides [`Decode`] for decoding values from the database.
 
-use crate::database::{Database, HasValueRef};
-use crate::error::BoxDynError;
-
-use crate::value::ValueRef;
+use crate::{database::Database, error::BoxDynError, ValueRef};
 
 /// A type that can be decoded from the database.
 ///
@@ -12,20 +9,17 @@ use crate::value::ValueRef;
 /// A manual implementation of `Decode` can be useful when adding support for
 /// types externally to SQLx.
 ///
-/// The following showcases how to implement `Decode` to be generic over [`Database`]. The
-/// implementation can be marginally simpler if you remove the `DB` type parameter and explicitly
-/// use the concrete [`ValueRef`](HasValueRef::ValueRef) and [`TypeInfo`](Database::TypeInfo) types.
-///
 /// ```rust
-/// # use musqlite_core::database::{Database, HasValueRef};
+/// # use musqlite_core::database::{Database};
 /// # use musqlite_core::decode::Decode;
 /// # use musqlite_core::types::Type;
+/// # use musqlite_core::{TypeInfo, ValueRef};
 /// # use std::error::Error;
 /// #
 /// struct MyType;
 ///
 /// # impl<DB: Database> Type<DB> for MyType {
-/// # fn type_info() -> sqlite::TypeInfo { todo!() }
+/// # fn type_info() -> TypeInfo { todo!() }
 /// # }
 /// #
 /// # impl std::str::FromStr for MyType {
@@ -42,7 +36,7 @@ use crate::value::ValueRef;
 ///     &'r str: Decode<'r, DB>
 /// {
 ///     fn decode(
-///         value: <DB as HasValueRef<'r>>::ValueRef,
+///         value: ValueRef<'r>,
 ///     ) -> Result<MyType, Box<dyn Error + 'static + Send + Sync>> {
 ///         // the interface of ValueRef is largely unstable at the moment
 ///         // so this is not directly implementable
@@ -60,7 +54,7 @@ use crate::value::ValueRef;
 /// ```
 pub trait Decode<'r, DB: Database>: Sized {
     /// Decode a new value of this type using a raw value from the database.
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError>;
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError>;
 }
 
 // implement `Decode` for Option<T> for all SQL types
@@ -69,7 +63,7 @@ where
     DB: Database,
     T: Decode<'r, DB>,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         if value.is_null() {
             Ok(None)
         } else {

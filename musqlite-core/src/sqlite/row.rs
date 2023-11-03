@@ -9,11 +9,11 @@ use crate::row::Row;
 use crate::HashMap;
 
 use crate::sqlite::statement::StatementHandle;
-use crate::sqlite::{Sqlite, SqliteColumn, SqliteValue, SqliteValueRef};
+use crate::sqlite::{Sqlite, SqliteColumn, Value, ValueRef};
 
 /// Implementation of [`Row`] for SQLite.
 pub struct SqliteRow {
-    pub(crate) values: Box<[SqliteValue]>,
+    pub(crate) values: Box<[Value]>,
     pub(crate) columns: Arc<Vec<SqliteColumn>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
@@ -40,7 +40,7 @@ impl SqliteRow {
             values.push(unsafe {
                 let raw = statement.column_value(i);
 
-                SqliteValue::new(raw, columns[i].type_info.clone())
+                Value::new(raw, columns[i].type_info.clone())
             });
         }
 
@@ -59,12 +59,12 @@ impl Row for SqliteRow {
         &self.columns
     }
 
-    fn try_get_raw<I>(&self, index: I) -> Result<SqliteValueRef<'_>, Error>
+    fn try_get_raw<I>(&self, index: I) -> Result<ValueRef<'_>, Error>
     where
         I: ColumnIndex<Self>,
     {
         let index = index.index(self)?;
-        Ok(SqliteValueRef::value(&self.values[index]))
+        Ok(ValueRef::value(&self.values[index]))
     }
 }
 

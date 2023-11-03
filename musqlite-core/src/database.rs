@@ -15,7 +15,6 @@ use crate::row::Row;
 
 use crate::statement::Statement;
 use crate::transaction::TransactionManager;
-use crate::value::{Value, ValueRef};
 
 /// A database driver.
 ///
@@ -26,7 +25,6 @@ pub trait Database:
     + Sized
     + Send
     + Debug
-    + for<'r> HasValueRef<'r, Database = Self>
     + for<'q> HasArguments<'q, Database = Self>
     + for<'q> HasStatement<'q, Database = Self>
 {
@@ -44,26 +42,6 @@ pub trait Database:
 
     /// The concrete `Column` implementation for this database.
     type Column: Column<Database = Self>;
-
-    /// The concrete type used to hold an owned copy of the not-yet-decoded value that was
-    /// received from the database.
-    type Value: Value<Database = Self> + 'static;
-}
-
-/// Associate [`Database`] with a [`ValueRef`](crate::value::ValueRef) of a generic lifetime.
-///
-/// ---
-///
-/// The upcoming Rust feature, [Generic Associated Types], should obviate
-/// the need for this trait.
-///
-/// [Generic Associated Types]: https://github.com/rust-lang/rust/issues/44265
-pub trait HasValueRef<'r> {
-    type Database: Database;
-
-    /// The concrete type used to hold a reference to the not-yet-decoded value that has just been
-    /// received from the database.
-    type ValueRef: ValueRef<'r, Database = Self::Database>;
 }
 
 /// Associate [`Database`] with an [`Arguments`](crate::arguments::Arguments) of a generic lifetime.

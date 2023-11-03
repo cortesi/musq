@@ -6,8 +6,8 @@ use crate::{
 };
 
 use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue,
-    SqliteValueRef, TypeInfo,
+    error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue, TypeInfo,
+    ValueRef,
 };
 
 impl Type<Sqlite> for str {
@@ -25,7 +25,7 @@ impl<'q> Encode<'q, Sqlite> for &'q str {
 }
 
 impl<'r> Decode<'r, Sqlite> for &'r str {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text()
     }
 }
@@ -51,7 +51,7 @@ impl<'q> Encode<'q, Sqlite> for String {
 }
 
 impl<'r> Decode<'r, Sqlite> for String {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text().map(ToOwned::to_owned)
     }
 }
@@ -81,7 +81,7 @@ impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
 }
 
 impl<'r> Decode<'r, Sqlite> for Cow<'r, str> {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text().map(Cow::Borrowed)
     }
 }

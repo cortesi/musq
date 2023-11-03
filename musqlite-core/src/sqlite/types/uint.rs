@@ -1,7 +1,7 @@
 use crate::sqlite::error::BoxDynError;
 use crate::sqlite::type_info::DataType;
 use crate::sqlite::types::Type;
-use crate::sqlite::{Sqlite, SqliteArgumentValue, SqliteValueRef, TypeInfo};
+use crate::sqlite::{Sqlite, SqliteArgumentValue, TypeInfo, ValueRef};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -26,7 +26,7 @@ impl<'q> Encode<'q, Sqlite> for u8 {
 }
 
 impl<'r> Decode<'r, Sqlite> for u8 {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(value.int().try_into()?)
     }
 }
@@ -50,7 +50,7 @@ impl<'q> Encode<'q, Sqlite> for u16 {
 }
 
 impl<'r> Decode<'r, Sqlite> for u16 {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(value.int().try_into()?)
     }
 }
@@ -74,7 +74,7 @@ impl<'q> Encode<'q, Sqlite> for u32 {
 }
 
 impl<'r> Decode<'r, Sqlite> for u32 {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(value.int64().try_into()?)
     }
 }

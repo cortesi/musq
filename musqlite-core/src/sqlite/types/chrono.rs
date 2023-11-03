@@ -1,13 +1,12 @@
 use std::fmt::Display;
 
-use crate::sqlite::value::ValueRef;
-use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue,
-    SqliteValueRef, TypeInfo,
-};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
+    sqlite::{
+        error::BoxDynError, type_info::DataType, types::Type, Sqlite, SqliteArgumentValue, TypeInfo,
+    },
+    ValueRef,
 };
 use chrono::FixedOffset;
 use chrono::{
@@ -85,24 +84,24 @@ impl Encode<'_, Sqlite> for NaiveTime {
 }
 
 impl<'r> Decode<'r, Sqlite> for DateTime<Utc> {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Utc.from_utc_datetime(&decode_datetime(value)?.naive_utc()))
     }
 }
 
 impl<'r> Decode<'r, Sqlite> for DateTime<Local> {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Local.from_utc_datetime(&decode_datetime(value)?.naive_utc()))
     }
 }
 
 impl<'r> Decode<'r, Sqlite> for DateTime<FixedOffset> {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         decode_datetime(value)
     }
 }
 
-fn decode_datetime(value: SqliteValueRef<'_>) -> Result<DateTime<FixedOffset>, BoxDynError> {
+fn decode_datetime(value: ValueRef<'_>) -> Result<DateTime<FixedOffset>, BoxDynError> {
     let dt = match value.type_info().0 {
         DataType::Text => decode_datetime_from_text(value.text()?),
         DataType::Int | DataType::Int64 => decode_datetime_from_int(value.int64()),
@@ -170,19 +169,19 @@ fn decode_datetime_from_float(value: f64) -> Option<DateTime<FixedOffset>> {
 }
 
 impl<'r> Decode<'r, Sqlite> for NaiveDateTime {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(decode_datetime(value)?.naive_local())
     }
 }
 
 impl<'r> Decode<'r, Sqlite> for NaiveDate {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(NaiveDate::parse_from_str(value.text()?, "%F")?)
     }
 }
 
 impl<'r> Decode<'r, Sqlite> for NaiveTime {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         let value = value.text()?;
 
         // Loop over common time patterns, inspired by Diesel

@@ -10,20 +10,18 @@ use libsqlite3_sys::{
     sqlite3_value_type, SQLITE_NULL,
 };
 
-pub(crate) use crate::value::{Value, ValueRef};
-
 use crate::sqlite::error::BoxDynError;
 use crate::sqlite::type_info::DataType;
-use crate::sqlite::{Sqlite, TypeInfo};
+use crate::sqlite::TypeInfo;
 
 enum SqliteValueData<'r> {
-    Value(&'r SqliteValue),
+    Value(&'r Value),
 }
 
-pub struct SqliteValueRef<'r>(SqliteValueData<'r>);
+pub struct ValueRef<'r>(SqliteValueData<'r>);
 
-impl<'r> SqliteValueRef<'r> {
-    pub(crate) fn value(value: &'r SqliteValue) -> Self {
+impl<'r> ValueRef<'r> {
+    pub(crate) fn value(value: &'r Value) -> Self {
         Self(SqliteValueData::Value(value))
     }
 
@@ -56,24 +54,20 @@ impl<'r> SqliteValueRef<'r> {
             SqliteValueData::Value(v) => v.text(),
         }
     }
-}
 
-impl<'r> ValueRef<'r> for SqliteValueRef<'r> {
-    type Database = Sqlite;
-
-    fn to_owned(&self) -> SqliteValue {
+    pub fn to_owned(&self) -> Value {
         match self.0 {
             SqliteValueData::Value(v) => v.clone(),
         }
     }
 
-    fn type_info(&self) -> Cow<'_, TypeInfo> {
+    pub fn type_info(&self) -> Cow<'_, TypeInfo> {
         match self.0 {
             SqliteValueData::Value(v) => v.type_info(),
         }
     }
 
-    fn is_null(&self) -> bool {
+    pub fn is_null(&self) -> bool {
         match self.0 {
             SqliteValueData::Value(v) => v.is_null(),
         }
@@ -81,7 +75,7 @@ impl<'r> ValueRef<'r> for SqliteValueRef<'r> {
 }
 
 #[derive(Clone)]
-pub struct SqliteValue {
+pub struct Value {
     pub(crate) handle: Arc<ValueHandle>,
     pub(crate) type_info: TypeInfo,
 }
@@ -92,7 +86,7 @@ pub(crate) struct ValueHandle(NonNull<sqlite3_value>);
 unsafe impl Send for ValueHandle {}
 unsafe impl Sync for ValueHandle {}
 
-impl SqliteValue {
+impl Value {
     pub(crate) unsafe fn new(value: *mut sqlite3_value, type_info: TypeInfo) -> Self {
         debug_assert!(!value.is_null());
 
@@ -143,22 +137,18 @@ impl SqliteValue {
     fn text(&self) -> Result<&str, BoxDynError> {
         Ok(from_utf8(self.blob())?)
     }
-}
 
-impl Value for SqliteValue {
-    type Database = Sqlite;
-
-    fn as_ref(&self) -> SqliteValueRef<'_> {
-        SqliteValueRef::value(self)
+    pub fn as_ref(&self) -> ValueRef<'_> {
+        ValueRef::value(self)
     }
 
-    fn type_info(&self) -> Cow<'_, TypeInfo> {
+    pub fn type_info(&self) -> Cow<'_, TypeInfo> {
         self.type_info_opt()
             .map(Cow::Owned)
             .unwrap_or(Cow::Borrowed(&self.type_info))
     }
 
-    fn is_null(&self) -> bool {
+    pub fn is_null(&self) -> bool {
         unsafe { sqlite3_value_type(self.handle.0.as_ptr()) == SQLITE_NULL }
     }
 }

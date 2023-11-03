@@ -1,11 +1,12 @@
 /// Conversions between `bstr` types and SQL types.
-use crate::database::{Database, HasArguments, HasValueRef};
+use crate::database::{Database, HasArguments};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
     sqlite,
     types::Type,
+    ValueRef,
 };
 
 #[doc(no_inline)]
@@ -30,7 +31,7 @@ where
     DB: Database,
     Vec<u8>: Decode<'r, DB>,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         <Vec<u8> as Decode<DB>>::decode(value).map(BString::from)
     }
 }

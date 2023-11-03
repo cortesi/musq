@@ -5,12 +5,13 @@ pub use serde_json::value::RawValue as JsonRawValue;
 pub use serde_json::Value as JsonValue;
 
 use crate::{
-    database::{Database, HasArguments, HasValueRef},
+    database::{Database, HasArguments},
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
     sqlite,
     types::Type,
+    ValueRef,
 };
 
 /// Json for json and jsonb fields
@@ -152,7 +153,7 @@ where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }
 }
@@ -178,7 +179,7 @@ where
     Json<Self>: Decode<'r, DB>,
     DB: Database,
 {
-    fn decode(value: <DB as HasValueRef<'r>>::ValueRef) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
     }
 }

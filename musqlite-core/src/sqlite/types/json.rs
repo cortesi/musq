@@ -4,7 +4,7 @@ use crate::sqlite::{
     error::BoxDynError,
     type_info::DataType,
     types::{Json, Type},
-    Sqlite, SqliteArgumentValue, SqliteValueRef, TypeInfo,
+    Sqlite, SqliteArgumentValue, TypeInfo, ValueRef,
 };
 use crate::{
     decode::Decode,
@@ -34,7 +34,7 @@ impl<'r, T> Decode<'r, Sqlite> for Json<T>
 where
     T: 'r + Deserialize<'r>,
 {
-    fn decode(value: SqliteValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Self::decode_from_string(Decode::<Sqlite>::decode(value)?)
     }
 }

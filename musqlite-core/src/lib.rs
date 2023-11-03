@@ -79,8 +79,8 @@ pub use crate::{
     query_scalar::{query_scalar, query_scalar_with},
     row::Row,
     sqlite::TypeInfo,
+    sqlite::{Value, ValueRef},
     statement::Statement,
     transaction::{Transaction, TransactionManager},
     types::Type,
-    value::{Value, ValueRef},
 };
