@@ -1,10 +1,8 @@
 use sqlx::error::DatabaseError;
-use sqlx::sqlite::{SqliteConnectOptions, SqliteError};
-use sqlx::ConnectOptions;
+use sqlx::sqlite::SqliteError;
 use sqlx::TypeInfo;
 use sqlx::{sqlite::Sqlite, Column, Executor};
 use sqlx_test::{new, tdb};
-use std::env;
 
 #[sqlx_macros::test]
 async fn it_describes_simple() -> anyhow::Result<()> {

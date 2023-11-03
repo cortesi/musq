@@ -1,5 +1,5 @@
-use crate::ext::ustr::UStr;
 use crate::{Sqlite, SqliteTypeInfo};
+use sqlx_core::ext::ustr::UStr;
 
 pub(crate) use sqlx_core::column::*;
 

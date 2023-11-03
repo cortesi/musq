@@ -1,7 +1,7 @@
 use crate::column::ColumnIndex;
 use crate::error::Error;
-use crate::ext::ustr::UStr;
 use crate::{Sqlite, SqliteArguments, SqliteColumn, SqliteTypeInfo};
+use sqlx_core::ext::ustr::UStr;
 use sqlx_core::{Either, HashMap};
 use std::borrow::Cow;
 use std::sync::Arc;

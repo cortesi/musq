@@ -1,9 +1,9 @@
 use crate::connection::intmap::IntMap;
 use crate::connection::{execute, ConnectionState};
 use crate::error::Error;
-use crate::from_row::FromRow;
 use crate::type_info::DataType;
 use crate::SqliteTypeInfo;
+use sqlx_core::from_row::FromRow;
 use sqlx_core::HashMap;
 use std::collections::HashSet;
 use std::str::from_utf8;

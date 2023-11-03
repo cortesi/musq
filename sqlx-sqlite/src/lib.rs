@@ -48,8 +48,6 @@ pub use value::{SqliteValue, SqliteValueRef};
 
 use crate::connection::establish::EstablishParams;
 
-pub(crate) use sqlx_core::driver_prelude::*;
-
 use sqlx_core::describe::Describe;
 use sqlx_core::error::Error;
 use sqlx_core::executor::Executor;
@@ -76,10 +74,10 @@ mod regexp;
 mod testing;
 
 /// An alias for [`Pool`][crate::pool::Pool], specialized for SQLite.
-pub type SqlitePool = crate::pool::Pool<Sqlite>;
+pub type SqlitePool = sqlx_core::pool::Pool<Sqlite>;
 
 /// An alias for [`PoolOptions`][crate::pool::PoolOptions], specialized for SQLite.
-pub type SqlitePoolOptions = crate::pool::PoolOptions<Sqlite>;
+pub type SqlitePoolOptions = sqlx_core::pool::PoolOptions<Sqlite>;
 
 /// An alias for [`Executor<'_, Database = Sqlite>`][Executor].
 pub trait SqliteExecutor<'c>: Executor<'c, Database = Sqlite> {}

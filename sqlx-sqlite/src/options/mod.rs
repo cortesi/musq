@@ -16,8 +16,8 @@ use std::sync::Arc;
 use std::{borrow::Cow, time::Duration};
 pub use synchronous::SqliteSynchronous;
 
-use crate::common::DebugFn;
 use crate::connection::collation::Collation;
+use sqlx_core::common::DebugFn;
 use sqlx_core::IndexMap;
 
 /// Options and flags which can be used to configure a SQLite connection.

@@ -5,7 +5,7 @@ members = [
     "sqlx-macros",
     "sqlx-macros-core",
     "sqlx-test",
-#    "sqlx-bench",
+    "sqlx-bench",
     "sqlx-sqlite",
     "examples/sqlite/todos",
 ]
@@ -17,9 +17,7 @@ edition = "2021"
 repository = "https://github.com/cortesi/musqlite"
 keywords = ["database", "async", "sqlite"]
 categories = ["database", "asynchronous"]
-authors = [
-    "Aldo Cortesi <aldo@corte.si>"
-]
+authors = ["Aldo Cortesi <aldo@corte.si>"]
 
 [package]
 name = "sqlx"
@@ -125,7 +123,7 @@ rand = "0.8.4"
 rand_xoshiro = "0.6.0"
 hex = "0.4.3"
 tempdir = "0.3.7"
-criterion = {version = "0.4", features = ["async_tokio"]}
+criterion = { version = "0.4", features = ["async_tokio"] }
 
 # Needed to test SQLCipher
 libsqlite3-sys = { version = "0.26", features = ["bundled-sqlcipher"] }
@@ -165,15 +163,8 @@ name = "sqlite-sqlcipher"
 path = "tests/sqlite/sqlcipher.rs"
 required-features = ["sqlite"]
 
-[[test]]
-name = "sqlite-test-attr"
-path = "tests/sqlite/test-attr.rs"
-required-features = ["sqlite", "macros"]
-
-
 [[bench]]
 name = "sqlite-describe"
 path = "benches/sqlite/describe.rs"
 harness = false
 required-features = ["sqlite"]
-

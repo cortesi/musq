@@ -1,9 +1,11 @@
-use crate::decode::Decode;
-use crate::encode::{Encode, IsNull};
 use crate::error::BoxDynError;
 use crate::type_info::DataType;
 use crate::types::Type;
 use crate::{Sqlite, SqliteArgumentValue, SqliteTypeInfo, SqliteValueRef};
+use sqlx_core::{
+    decode::Decode,
+    encode::{Encode, IsNull},
+};
 
 impl Type<Sqlite> for u8 {
     fn type_info() -> SqliteTypeInfo {

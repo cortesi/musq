@@ -16,7 +16,6 @@ where
     DB: Database,
 {
     setup_if_needed();
-
     Ok(DB::Connection::connect("sqlite::memory:").await?)
 }
 
@@ -27,14 +26,12 @@ where
     DB: Database,
 {
     setup_if_needed();
-
     let pool = PoolOptions::<DB>::new()
         .min_connections(0)
         .max_connections(5)
         .test_before_acquire(true)
         .connect("sqlite::memory:")
         .await?;
-
     Ok(pool)
 }
 

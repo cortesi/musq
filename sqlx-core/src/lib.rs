@@ -79,10 +79,6 @@ pub mod sync;
 pub mod type_info;
 pub mod value;
 
-// Implements test support with automatic DB management.
-#[cfg(feature = "migrate")]
-pub mod testing;
-
 pub use error::{Error, Result};
 
 /// sqlx uses ahash for increased performance, at the cost of reduced DoS resistance.
@@ -94,21 +90,3 @@ pub use smallvec::SmallVec;
 pub use url::{self, Url};
 
 pub use bytes;
-
-//type HashMap<K, V> = std::collections::HashMap<K, V, ahash::RandomState>;
-
-/// Helper module to get drivers compiling again that used to be in this crate,
-/// to avoid having to replace tons of `use crate::<...>` imports.
-///
-/// This module can be glob-imported and should not clash with any modules a driver
-/// would want to implement itself.
-pub mod driver_prelude {
-    pub use crate::{
-        acquire, common, decode, describe, encode, executor, ext, from_row, fs, io, logger, pool,
-        query, query_as, query_builder, query_scalar, rt, sync,
-    };
-
-    pub use crate::error::{Error, Result};
-    pub use crate::HashMap;
-    pub use either::Either;
-}

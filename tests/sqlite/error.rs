@@ -1,5 +1,5 @@
-use sqlx::{error::ErrorKind, sqlite::Sqlite, Connection, Executor};
-use sqlx_test::{new, tdb};
+use sqlx::{error::ErrorKind, Connection};
+use sqlx_test::tdb;
 
 #[sqlx_macros::test]
 async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
