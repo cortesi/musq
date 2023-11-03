@@ -43,7 +43,7 @@ async fn fill_db(conn: &mut SqliteConnection) -> anyhow::Result<SqliteQueryResul
     .map_err(|e| e.into())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_encrypts() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 
@@ -68,7 +68,7 @@ async fn it_encrypts() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 
@@ -97,7 +97,7 @@ async fn it_can_store_and_read_encrypted_data() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_fails_if_password_is_incorrect() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 
@@ -125,7 +125,7 @@ async fn it_fails_if_password_is_incorrect() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 
@@ -168,7 +168,7 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_allows_to_rekey_the_db() -> anyhow::Result<()> {
     let (url, _dir) = new_db_url().await?;
 

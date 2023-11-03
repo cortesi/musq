@@ -1,7 +1,4 @@
 use proc_macro::TokenStream;
-
-use quote::quote;
-
 use sqlx_macros_core::*;
 
 #[proc_macro_derive(Encode, attributes(sqlx))]
@@ -38,22 +35,5 @@ pub fn derive_from_row(input: TokenStream) -> TokenStream {
     match derives::expand_derive_from_row(&input) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
-    }
-}
-
-#[proc_macro_attribute]
-pub fn test(args: TokenStream, input: TokenStream) -> TokenStream {
-    let args = syn::parse_macro_input!(args as syn::AttributeArgs);
-    let input = syn::parse_macro_input!(input as syn::ItemFn);
-    match test_attr::expand(args, input) {
-        Ok(ts) => ts.into(),
-        Err(e) => {
-            if let Some(parse_err) = e.downcast_ref::<syn::Error>() {
-                parse_err.to_compile_error().into()
-            } else {
-                let msg = e.to_string();
-                quote!(::std::compile_error!(#msg)).into()
-            }
-        }
     }
 }

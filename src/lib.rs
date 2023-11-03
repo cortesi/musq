@@ -34,11 +34,6 @@ pub extern crate sqlx_macros;
 #[doc(hidden)]
 pub use sqlx_macros::{FromRow, Type};
 
-pub use sqlx_macros::test;
-
-#[doc(hidden)]
-pub use sqlx_core::rt::test_block_on;
-
 mod macros;
 
 // macro support

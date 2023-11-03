@@ -1,7 +1,7 @@
 use sqlx::{error::ErrorKind, Connection};
 use sqlx_test::tdb;
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
     let mut tx = conn.begin().await?;
@@ -18,7 +18,7 @@ async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
     let mut tx = conn.begin().await?;
@@ -36,7 +36,7 @@ async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
     let mut tx = conn.begin().await?;
@@ -53,7 +53,7 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_fails_with_check_violation() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
     let mut tx = conn.begin().await?;

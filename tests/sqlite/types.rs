@@ -74,7 +74,7 @@ mod json_tests {
         "\'{\"json_column\":[1,2]}\'" == Json(Customer { json_column: Json(vec![1, 2]) })
     ));
 
-    #[sqlx_macros::test]
+    #[tokio::test]
     async fn it_json_extracts() -> anyhow::Result<()> {
         let mut conn = new::<Sqlite>().await?;
 

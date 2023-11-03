@@ -9,12 +9,12 @@ use sqlx::{
 use sqlx_test::{new, tdb};
 use std::sync::Arc;
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_connects() -> anyhow::Result<()> {
     Ok(new::<Sqlite>().await?.ping().await?)
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -80,7 +80,7 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_maths() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -95,7 +95,7 @@ async fn it_maths() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -112,7 +112,7 @@ async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -128,7 +128,7 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
     use sqlx::{Decode, TypeInfo, ValueRef};
 
@@ -155,7 +155,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -174,7 +174,7 @@ async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_fetches_in_loop() -> anyhow::Result<()> {
     // this is trying to check for any data races
     // there were a few that triggered *sometimes* while building out StatementWorker
@@ -188,7 +188,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
     let pool: SqlitePool = SqlitePoolOptions::new()
         .min_connections(2)
@@ -204,7 +204,7 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_opens_with_extension() -> anyhow::Result<()> {
     // FIXME
     // use std::str::FromStr;
@@ -219,7 +219,7 @@ async fn it_opens_with_extension() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_opens_in_memory() -> anyhow::Result<()> {
     // If the filename is ":memory:", then a private, temporary in-memory database
     // is created for the connection.
@@ -229,7 +229,7 @@ async fn it_opens_in_memory() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_opens_temp_on_disk() -> anyhow::Result<()> {
     // If the filename is an empty string, then a private, temporary on-disk database will
     // be created.
@@ -239,7 +239,7 @@ async fn it_opens_temp_on_disk() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_fails_to_parse() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     let res = conn.execute("SEELCT 1").await;
@@ -256,7 +256,7 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_handles_empty_queries() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
     let done = conn.execute("").await?;
@@ -266,8 +266,8 @@ async fn it_handles_empty_queries() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
-fn it_binds_parameters() -> anyhow::Result<()> {
+#[tokio::test]
+async fn it_binds_parameters() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let v: i32 = sqlx::query_scalar("SELECT ?")
@@ -288,8 +288,8 @@ fn it_binds_parameters() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
-fn it_binds_dollar_parameters() -> anyhow::Result<()> {
+#[tokio::test]
+async fn it_binds_dollar_parameters() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
     let v: (i32, i32) = sqlx::query_as("SELECT $1, $2")
@@ -304,7 +304,7 @@ fn it_binds_dollar_parameters() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_executes_queries() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -335,7 +335,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_can_execute_multiple_statements() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -368,7 +368,7 @@ SELECT id, other FROM users WHERE id = last_insert_rowid();
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_interleaves_reads_and_writes() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -402,7 +402,7 @@ SELECT id, text FROM _sqlx_test;
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_supports_collations() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -438,7 +438,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -489,7 +489,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
     let mut tx = conn.begin().await?;
@@ -520,7 +520,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -539,7 +539,7 @@ async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -560,7 +560,7 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 }
 
 // https://github.com/launchbadge/sqlx/issues/1300
-#[sqlx_macros::test]
+#[tokio::test]
 async fn concurrent_resets_dont_segfault() {
     use sqlx::{sqlite::SqliteConnectOptions, ConnectOptions};
     use std::{str::FromStr, time::Duration};
@@ -593,7 +593,7 @@ async fn concurrent_resets_dont_segfault() {
 // https://github.com/launchbadge/sqlx/issues/1419
 // note: this passes before and after the fix; you need to run it with `--nocapture`
 // to see the panic from the worker thread, which doesn't happen after the fix
-#[sqlx_macros::test]
+#[tokio::test]
 async fn row_dropped_after_connection_doesnt_panic() {
     let mut conn = SqliteConnection::connect(":memory:").await.unwrap();
 
@@ -617,7 +617,7 @@ async fn row_dropped_after_connection_doesnt_panic() {
 // May spuriously fail with UNIQUE constraint failures (which aren't relevant to the original issue)
 // which I have tried to reproduce using the same seed as printed from CI but to no avail.
 // It may be due to some nondeterminism in SQLite itself for all I know.
-#[sqlx_macros::test]
+#[tokio::test]
 #[ignore]
 async fn issue_1467() -> anyhow::Result<()> {
     let mut conn = SqliteConnectOptions::new()
@@ -678,7 +678,7 @@ async fn issue_1467() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn concurrent_read_and_write() {
     let pool: SqlitePool = SqlitePoolOptions::new()
         .min_connections(2)
@@ -726,7 +726,7 @@ async fn concurrent_read_and_write() {
     write.await.unwrap();
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn test_query_with_progress_handler() -> anyhow::Result<()> {
     let mut conn = new::<Sqlite>().await?;
 
@@ -748,7 +748,7 @@ async fn test_query_with_progress_handler() -> anyhow::Result<()> {
     Ok(())
 }
 
-#[sqlx_macros::test]
+#[tokio::test]
 async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::Result<()> {
     let ref_counted_object = Arc::new(0);
     assert_eq!(1, Arc::strong_count(&ref_counted_object));

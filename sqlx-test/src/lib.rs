@@ -98,7 +98,7 @@ macro_rules! test_prepared_type {
 macro_rules! test_unprepared_type {
     ($name:ident<$ty:ty>($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
-            #[sqlx_macros::test]
+            #[tokio::test]
             async fn [< test_unprepared_type_ $name >] () -> anyhow::Result<()> {
                 use sqlx::prelude::*;
                 use futures::TryStreamExt;
@@ -127,7 +127,7 @@ macro_rules! test_unprepared_type {
 macro_rules! __test_prepared_decode_type {
     ($name:ident<$ty:ty>($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
-            #[sqlx_macros::test]
+            #[tokio::test]
             async fn [< test_prepared_decode_type_ $name >] () -> anyhow::Result<()> {
                 use sqlx::Row;
 
@@ -156,7 +156,7 @@ macro_rules! __test_prepared_decode_type {
 macro_rules! __test_prepared_type {
     ($name:ident<$ty:ty>($db:ident, $sql:expr, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
-            #[sqlx_macros::test]
+            #[tokio::test]
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
                 use sqlx::Row;
 
