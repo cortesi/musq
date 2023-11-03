@@ -24,7 +24,7 @@ impl<'q> Encode<'q, Sqlite> for bool {
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for bool {
+impl<'r> Decode<'r> for bool {
     fn decode(value: ValueRef<'r>) -> Result<bool, BoxDynError> {
         Ok(value.int() != 0)
     }

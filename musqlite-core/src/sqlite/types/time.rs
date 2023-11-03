@@ -80,25 +80,25 @@ impl Encode<'_, Sqlite> for Time {
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for OffsetDateTime {
+impl<'r> Decode<'r> for OffsetDateTime {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         decode_offset_datetime(value)
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for PrimitiveDateTime {
+impl<'r> Decode<'r> for PrimitiveDateTime {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         decode_datetime(value)
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for Date {
+impl<'r> Decode<'r> for Date {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Date::parse(value.text()?, &fd!("[year]-[month]-[day]"))?)
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for Time {
+impl<'r> Decode<'r> for Time {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         let value = value.text()?;
 

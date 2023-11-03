@@ -223,7 +223,7 @@ macro_rules! impl_from_row_for_tuple {
         impl<'r, $($T,)+> FromRow<'r> for ($($T,)+)
         where
             usize: crate::column::ColumnIndex<Row>,
-            $($T: crate::decode::Decode<'r, Sqlite> + crate::types::Type<Sqlite>,)+
+            $($T: crate::decode::Decode<'r> + crate::types::Type<Sqlite>,)+
         {
             #[inline]
             fn from_row(row: &'r Row) -> Result<Self, Error> {

@@ -1,6 +1,6 @@
 //! Provides [`Decode`] for decoding values from the database.
 
-use crate::{database::Database, error::BoxDynError, ValueRef};
+use crate::{error::BoxDynError, ValueRef};
 
 /// A type that can be decoded from the database.
 ///
@@ -29,11 +29,11 @@ use crate::{database::Database, error::BoxDynError, ValueRef};
 /// #
 /// // DB is the database driver
 /// // `'r` is the lifetime of the `Row` being decoded
-/// impl<'r, DB: Database> Decode<'r, DB> for MyType
+/// impl<'r> Decode<'r> for MyType
 /// where
 ///     // we want to delegate some of the work to string decoding so let's make sure strings
 ///     // are supported by the database
-///     &'r str: Decode<'r, DB>
+///     &'r str: Decode<'r>
 /// {
 ///     fn decode(
 ///         value: ValueRef<'r>,
@@ -44,7 +44,7 @@ use crate::{database::Database, error::BoxDynError, ValueRef};
 ///         // however, you can delegate to a type that matches the format of the type you want
 ///         // to decode (such as a UTF-8 string)
 ///
-///         let value = <&str as Decode<DB>>::decode(value)?;
+///         let value = <&str as Decode>::decode(value)?;
 ///
 ///         // now you can parse this into your type (assuming there is a `FromStr`)
 ///
@@ -52,16 +52,15 @@ use crate::{database::Database, error::BoxDynError, ValueRef};
 ///     }
 /// }
 /// ```
-pub trait Decode<'r, DB: Database>: Sized {
+pub trait Decode<'r>: Sized {
     /// Decode a new value of this type using a raw value from the database.
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError>;
 }
 
 // implement `Decode` for Option<T> for all SQL types
-impl<'r, DB, T> Decode<'r, DB> for Option<T>
+impl<'r, T> Decode<'r> for Option<T>
 where
-    DB: Database,
-    T: Decode<'r, DB>,
+    T: Decode<'r>,
 {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         if value.is_null() {

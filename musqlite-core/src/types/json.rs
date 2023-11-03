@@ -149,13 +149,12 @@ where
     }
 }
 
-impl<'r, DB> Decode<'r, DB> for JsonValue
+impl<'r> Decode<'r> for JsonValue
 where
-    Json<Self>: Decode<'r, DB>,
-    DB: Database,
+    Json<Self>: Decode<'r>,
 {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
-        <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
+        <Json<Self> as Decode>::decode(value).map(|item| item.0)
     }
 }
 
@@ -175,12 +174,11 @@ where
 
 // We don't have to implement Encode for JsonRawValue because that's covered by the default
 // implementation for Encode
-impl<'r, DB> Decode<'r, DB> for &'r JsonRawValue
+impl<'r> Decode<'r> for &'r JsonRawValue
 where
-    Json<Self>: Decode<'r, DB>,
-    DB: Database,
+    Json<Self>: Decode<'r>,
 {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
-        <Json<Self> as Decode<DB>>::decode(value).map(|item| item.0)
+        <Json<Self> as Decode>::decode(value).map(|item| item.0)
     }
 }

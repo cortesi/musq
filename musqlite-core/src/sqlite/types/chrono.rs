@@ -83,19 +83,19 @@ impl Encode<'_, Sqlite> for NaiveTime {
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for DateTime<Utc> {
+impl<'r> Decode<'r> for DateTime<Utc> {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Utc.from_utc_datetime(&decode_datetime(value)?.naive_utc()))
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for DateTime<Local> {
+impl<'r> Decode<'r> for DateTime<Local> {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(Local.from_utc_datetime(&decode_datetime(value)?.naive_utc()))
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for DateTime<FixedOffset> {
+impl<'r> Decode<'r> for DateTime<FixedOffset> {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         decode_datetime(value)
     }
@@ -168,19 +168,19 @@ fn decode_datetime_from_float(value: f64) -> Option<DateTime<FixedOffset>> {
     NaiveDateTime::from_timestamp_opt(seconds, nanos).map(|dt| Utc.fix().from_utc_datetime(&dt))
 }
 
-impl<'r> Decode<'r, Sqlite> for NaiveDateTime {
+impl<'r> Decode<'r> for NaiveDateTime {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(decode_datetime(value)?.naive_local())
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for NaiveDate {
+impl<'r> Decode<'r> for NaiveDate {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         Ok(NaiveDate::parse_from_str(value.text()?, "%F")?)
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for NaiveTime {
+impl<'r> Decode<'r> for NaiveTime {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         let value = value.text()?;
 

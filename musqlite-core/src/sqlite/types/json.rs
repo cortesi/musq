@@ -30,11 +30,11 @@ where
     }
 }
 
-impl<'r, T> Decode<'r, Sqlite> for Json<T>
+impl<'r, T> Decode<'r> for Json<T>
 where
     T: 'r + Deserialize<'r>,
 {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
-        Self::decode_from_string(Decode::<Sqlite>::decode(value)?)
+        Self::decode_from_string(Decode::decode(value)?)
     }
 }

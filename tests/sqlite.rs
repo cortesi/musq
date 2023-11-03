@@ -140,8 +140,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
             let val = row.try_get_raw("dflt_value")?;
             let ty = val.type_info().clone().into_owned();
 
-            let val: Option<i32> =
-                Decode::<Sqlite>::decode(val).map_err(musqlite_core::Error::Decode)?;
+            let val: Option<i32> = Decode::decode(val).map_err(musqlite_core::Error::Decode)?;
 
             if val.is_some() {
                 assert_eq!(ty.name(), "TEXT");

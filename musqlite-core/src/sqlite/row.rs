@@ -114,7 +114,7 @@ impl Row {
     pub fn get<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Sqlite> + Type<Sqlite>,
+        T: Decode<'r> + Type<Sqlite>,
     {
         self.try_get::<T, I>(index).unwrap()
     }
@@ -134,7 +134,7 @@ impl Row {
     pub fn get_unchecked<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Sqlite>,
+        T: Decode<'r>,
     {
         self.try_get_unchecked::<T, I>(index).unwrap()
     }
@@ -157,7 +157,7 @@ impl Row {
     pub fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Sqlite> + Type<Sqlite>,
+        T: Decode<'r> + Type<Sqlite>,
     {
         let value = self.try_get_raw(&index)?;
 
@@ -198,7 +198,7 @@ impl Row {
     pub fn try_get_unchecked<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r, Sqlite>,
+        T: Decode<'r>,
     {
         let value = self.try_get_raw(&index)?;
 

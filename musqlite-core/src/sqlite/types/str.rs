@@ -23,7 +23,7 @@ impl<'q> Encode<'q, Sqlite> for &'q str {
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for &'r str {
+impl<'r> Decode<'r> for &'r str {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text()
     }
@@ -49,7 +49,7 @@ impl<'q> Encode<'q, Sqlite> for String {
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for String {
+impl<'r> Decode<'r> for String {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text().map(ToOwned::to_owned)
     }
@@ -79,7 +79,7 @@ impl<'q> Encode<'q, Sqlite> for Cow<'q, str> {
     }
 }
 
-impl<'r> Decode<'r, Sqlite> for Cow<'r, str> {
+impl<'r> Decode<'r> for Cow<'r, str> {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         value.text().map(Cow::Borrowed)
     }

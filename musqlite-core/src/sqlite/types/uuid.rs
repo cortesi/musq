@@ -29,7 +29,7 @@ impl<'q> Encode<'q, Sqlite> for Uuid {
     }
 }
 
-impl Decode<'_, Sqlite> for Uuid {
+impl Decode<'_> for Uuid {
     fn decode(value: ValueRef<'_>) -> Result<Self, BoxDynError> {
         // construct a Uuid from the returned bytes
         Uuid::from_slice(value.blob()).map_err(Into::into)
@@ -50,7 +50,7 @@ impl<'q> Encode<'q, Sqlite> for Hyphenated {
     }
 }
 
-impl Decode<'_, Sqlite> for Hyphenated {
+impl Decode<'_> for Hyphenated {
     fn decode(value: ValueRef<'_>) -> Result<Self, BoxDynError> {
         let uuid: Result<Uuid, BoxDynError> =
             Uuid::parse_str(&value.text().map(ToOwned::to_owned)?).map_err(Into::into);
@@ -73,7 +73,7 @@ impl<'q> Encode<'q, Sqlite> for Simple {
     }
 }
 
-impl Decode<'_, Sqlite> for Simple {
+impl Decode<'_> for Simple {
     fn decode(value: ValueRef<'_>) -> Result<Self, BoxDynError> {
         let uuid: Result<Uuid, BoxDynError> =
             Uuid::parse_str(&value.text().map(ToOwned::to_owned)?).map_err(Into::into);

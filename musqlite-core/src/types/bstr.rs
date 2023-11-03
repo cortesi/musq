@@ -27,13 +27,12 @@ where
     }
 }
 
-impl<'r, DB> Decode<'r, DB> for BString
+impl<'r> Decode<'r> for BString
 where
-    DB: Database,
-    Vec<u8>: Decode<'r, DB>,
+    Vec<u8>: Decode<'r>,
 {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
-        <Vec<u8> as Decode<DB>>::decode(value).map(BString::from)
+        <Vec<u8> as Decode>::decode(value).map(BString::from)
     }
 }
 
