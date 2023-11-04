@@ -40,14 +40,6 @@
 //! | `time::Date`                          | DATE                                                 |
 //! | `time::Time`                          | TIME                                                 |
 //!
-//! ### [`uuid`](https://crates.io/crates/uuid)
-//!
-//! | Rust type                             | Sqlite type(s)                                       |
-//! |---------------------------------------|------------------------------------------------------|
-//! | `uuid::Uuid`                          | BLOB, TEXT                                           |
-//! | `uuid::fmt::Hyphenated`               | TEXT                                                 |
-//! | `uuid::fmt::Simple`                   | TEXT                                                 |
-//!
 //! ### [`json`](https://crates.io/crates/serde_json)
 //!
 //! | Rust type                             | Sqlite type(s)                                       |
@@ -70,7 +62,6 @@ mod int;
 mod str;
 pub mod time;
 mod uint;
-pub mod uuid;
 
 pub mod bstr;
 mod json;

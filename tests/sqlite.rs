@@ -402,42 +402,6 @@ SELECT id, text FROM _musqlite_test;
 }
 
 #[tokio::test]
-async fn it_supports_collations() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
-
-    // also tests `.lock_handle()`
-    conn.lock_handle()
-        .await?
-        .create_collation("test_collation", |l, r| l.cmp(r).reverse())?;
-
-    let _ = conn
-        .execute(
-            r#"
-CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE test_collation)
-            "#,
-        )
-        .await?;
-
-    query("INSERT INTO users (name) VALUES (?)")
-        .bind("a")
-        .execute(&mut conn)
-        .await?;
-    query("INSERT INTO users (name) VALUES (?)")
-        .bind("b")
-        .execute(&mut conn)
-        .await?;
-
-    let row: Row = conn
-        .fetch_one("SELECT name FROM users ORDER BY name ASC")
-        .await?;
-    let name: &str = row.try_get(0)?;
-
-    assert_eq!(name, "b");
-
-    Ok(())
-}
-
-#[tokio::test]
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 

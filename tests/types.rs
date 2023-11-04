@@ -139,24 +139,3 @@ mod bstr {
         "x'0001020304'" == BString::from(&b"\x00\x01\x02\x03\x04"[..])
     ));
 }
-
-test_type!(uuid<musqlite::types::uuid::Uuid>(
-    "x'b731678f636f4135bc6f19440c13bd19'"
-        == musqlite::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
-    "x'00000000000000000000000000000000'"
-        == musqlite::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
-));
-
-test_type!(uuid_hyphenated<musqlite::types::uuid::Hyphenated>(
-    "'b731678f-636f-4135-bc6f-19440c13bd19'"
-        == musqlite::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
-    "'00000000-0000-0000-0000-000000000000'"
-        == musqlite::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
-));
-
-test_type!(uuid_simple<musqlite::types::uuid::Simple>(
-    "'b731678f636f4135bc6f19440c13bd19'"
-        == musqlite::types::uuid::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
-    "'00000000000000000000000000000000'"
-        == musqlite::types::uuid::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
-));
