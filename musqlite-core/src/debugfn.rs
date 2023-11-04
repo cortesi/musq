@@ -1,6 +1,3 @@
-mod statement_cache;
-
-pub use statement_cache::StatementCache;
 use std::fmt::{Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 

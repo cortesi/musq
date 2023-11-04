@@ -16,7 +16,7 @@ use std::sync::Arc;
 use std::{borrow::Cow, time::Duration};
 pub use synchronous::SqliteSynchronous;
 
-use crate::common::DebugFn;
+use crate::debugfn::DebugFn;
 use crate::sqlite::connection::collation::Collation;
 use crate::IndexMap;
 

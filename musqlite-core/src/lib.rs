@@ -35,7 +35,7 @@ pub mod column;
 #[macro_use]
 pub mod statement;
 
-pub mod common;
+pub mod debugfn;
 pub mod describe;
 pub mod executor;
 pub mod from_row;
@@ -43,6 +43,7 @@ pub mod logger;
 pub mod query_as;
 pub mod query_builder;
 pub mod query_scalar;
+pub mod statement_cache;
 pub mod type_info;
 
 pub use error::{Error, Result};

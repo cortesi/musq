@@ -13,7 +13,6 @@ use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
 
 use crate::{
     acquire::Acquire,
-    common::StatementCache,
     error::Error,
     executor::Executor,
     sqlite::{
@@ -22,6 +21,7 @@ use crate::{
         statement::VirtualStatement,
         ConnectOptions,
     },
+    statement_cache::StatementCache,
     transaction::Transaction,
 };
 
