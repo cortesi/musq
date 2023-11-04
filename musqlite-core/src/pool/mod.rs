@@ -9,7 +9,7 @@
 //! on the database server.
 //!
 use self::inner::PoolInner;
-use crate::{database::Database, error::Error, transaction::Transaction, ConnectOptions};
+use crate::{error::Error, transaction::Transaction, ConnectOptions};
 
 use event_listener::EventListener;
 use futures_core::FusedFuture;
@@ -372,7 +372,7 @@ impl FusedFuture for CloseEvent {
 /// get the time between the deadline and now and use that as our timeout
 ///
 /// returns `Error::PoolTimedOut` if the deadline is in the past
-fn deadline_as_timeout<DB: Database>(deadline: Instant) -> Result<Duration, Error> {
+fn deadline_as_timeout(deadline: Instant) -> Result<Duration, Error> {
     deadline
         .checked_duration_since(Instant::now())
         .ok_or(Error::PoolTimedOut)
@@ -384,7 +384,7 @@ fn assert_pool_traits() {
     fn assert_send_sync<T: Send + Sync>() {}
     fn assert_clone<T: Clone>() {}
 
-    fn assert_pool<DB: Database>() {
+    fn assert_pool() {
         assert_send_sync::<Pool>();
         assert_clone::<Pool>();
     }

@@ -19,7 +19,6 @@ use super::connection::{Floating, Idle, Live};
 use crate::{
     error::Error,
     pool::{deadline_as_timeout, options::PoolConnectionMetadata, CloseEvent, Pool, PoolOptions},
-    sqlite::Sqlite,
     ConnectOptions,
 };
 
@@ -314,10 +313,10 @@ impl PoolInner {
         }
 
         let mut backoff = Duration::from_millis(10);
-        let max_backoff = deadline_as_timeout::<Sqlite>(deadline)? / 5;
+        let max_backoff = deadline_as_timeout(deadline)? / 5;
 
         loop {
-            let timeout = deadline_as_timeout::<Sqlite>(deadline)?;
+            let timeout = deadline_as_timeout(deadline)?;
 
             // clone the connect options arc so it can be used without holding the RwLockReadGuard
             // across an async await point

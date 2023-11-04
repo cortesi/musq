@@ -1,6 +1,5 @@
 use musqlite_core::error::DatabaseError;
 use musqlite_core::executor::Executor;
-use musqlite_core::sqlite::Sqlite;
 use musqlite_core::sqlite::{Connection, SqliteError};
 use musqlite_test::{new, tdb};
 

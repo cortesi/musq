@@ -39,7 +39,6 @@ pub mod column;
 pub mod statement;
 
 pub mod common;
-pub mod database;
 pub mod describe;
 pub mod executor;
 pub mod from_row;
@@ -67,7 +66,6 @@ pub use crate::{
     acquire::Acquire,
     arguments::IntoArguments,
     column::ColumnIndex,
-    database::Database,
     describe::Describe,
     executor::{Execute, Executor},
     from_row::FromRow,

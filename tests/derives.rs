@@ -1,4 +1,3 @@
-use musqlite_core::sqlite::Sqlite;
 use musqlite_macros::Type;
 use musqlite_test::test_type;
 

@@ -3,7 +3,6 @@ use std::sync::atomic::AtomicBool;
 pub use arguments::{ArgumentBuffer, ArgumentValue, Arguments};
 pub use column::Column;
 pub use connection::{Connection, LockedSqliteHandle};
-pub use database::Sqlite;
 pub use error::SqliteError;
 pub use options::{
     ConnectOptions, SqliteAutoVacuum, SqliteJournalMode, SqliteLockingMode, SqliteSynchronous,
@@ -24,7 +23,6 @@ use crate::executor::Executor;
 mod arguments;
 mod column;
 mod connection;
-mod database;
 mod error;
 mod logger;
 mod options;
