@@ -2,7 +2,7 @@
 
 use std::mem;
 
-use crate::sqlite::{self, ArgumentBuffer};
+use crate::{sqlite::ArgumentBuffer, Type, TypeInfo};
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -33,7 +33,7 @@ pub trait Encode<'q> {
     #[must_use]
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull;
 
-    fn produces(&self) -> Option<sqlite::TypeInfo> {
+    fn produces(&self) -> Option<TypeInfo> {
         // `produces` is inherently a hook to allow database drivers to produce value-dependent
         // type information; if the driver doesn't need this, it can leave this as `None`
         None
@@ -60,7 +60,7 @@ where
     }
 
     #[inline]
-    fn produces(&self) -> Option<sqlite::TypeInfo> {
+    fn produces(&self) -> Option<TypeInfo> {
         (**self).produces()
     }
 
@@ -70,50 +70,39 @@ where
     }
 }
 
-#[macro_export]
-macro_rules! impl_encode_for_option {
-    ($DB:ident) => {
-        impl<'q, T> $crate::encode::Encode<'q> for Option<T>
-        where
-            T: $crate::encode::Encode<'q> + $crate::types::Type + 'q,
-        {
-            #[inline]
-            fn produces(&self) -> Option<$crate::sqlite::TypeInfo> {
-                if let Some(v) = self {
-                    v.produces()
-                } else {
-                    T::type_info().into()
-                }
-            }
-
-            #[inline]
-            fn encode(
-                self,
-                buf: &mut $crate::sqlite::ArgumentBuffer<'q>,
-            ) -> $crate::encode::IsNull {
-                if let Some(v) = self {
-                    v.encode(buf)
-                } else {
-                    $crate::encode::IsNull::Yes
-                }
-            }
-
-            #[inline]
-            fn encode_by_ref(
-                &self,
-                buf: &mut $crate::sqlite::ArgumentBuffer<'q>,
-            ) -> $crate::encode::IsNull {
-                if let Some(v) = self {
-                    v.encode_by_ref(buf)
-                } else {
-                    $crate::encode::IsNull::Yes
-                }
-            }
-
-            #[inline]
-            fn size_hint(&self) -> usize {
-                self.as_ref().map_or(0, $crate::encode::Encode::size_hint)
-            }
+impl<'q, T> Encode<'q> for Option<T>
+where
+    T: Encode<'q> + Type + 'q,
+{
+    #[inline]
+    fn produces(&self) -> Option<TypeInfo> {
+        if let Some(v) = self {
+            v.produces()
+        } else {
+            T::type_info().into()
         }
-    };
+    }
+
+    #[inline]
+    fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
+        if let Some(v) = self {
+            v.encode(buf)
+        } else {
+            IsNull::Yes
+        }
+    }
+
+    #[inline]
+    fn encode_by_ref(&self, buf: &mut crate::sqlite::ArgumentBuffer<'q>) -> IsNull {
+        if let Some(v) = self {
+            v.encode_by_ref(buf)
+        } else {
+            IsNull::Yes
+        }
+    }
+
+    #[inline]
+    fn size_hint(&self) -> usize {
+        self.as_ref().map_or(0, Encode::size_hint)
+    }
 }

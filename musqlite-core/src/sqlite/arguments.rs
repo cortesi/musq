@@ -1,6 +1,7 @@
 use crate::encode::{Encode, IsNull};
 use crate::sqlite::error::Error;
 use crate::sqlite::statement::StatementHandle;
+
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
 use std::borrow::Cow;
@@ -21,6 +22,12 @@ pub enum ArgumentValue<'q> {
 #[derive(Default, Debug, Clone)]
 pub struct Arguments<'q> {
     pub(crate) values: Vec<ArgumentValue<'q>>,
+}
+
+impl<'q> crate::arguments::IntoArguments<'q> for Arguments<'q> {
+    fn into_arguments(self) -> Arguments<'q> {
+        self
+    }
 }
 
 impl<'q> Arguments<'q> {
