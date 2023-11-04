@@ -4,7 +4,7 @@ use std::ops::{Deref, DerefMut};
 
 use futures_core::future::BoxFuture;
 
-use crate::{error::Error, pool::MaybePoolConnection, Connection, TransactionManager};
+use crate::{error::Error, pool::MaybePoolConnection, Connection};
 
 /// An in-progress database transaction or savepoint.
 ///
@@ -58,76 +58,6 @@ impl<'c> Transaction<'c> {
         Ok(())
     }
 }
-
-// NOTE: fails to compile due to lack of lazy normalization
-// impl<'c, 't, DB: Database> crate::executor::Executor<'t>
-//     for &'t mut crate::transaction::Transaction<'c, DB>
-// where
-//     &'c mut DB::Connection: Executor<'c, Database = DB>,
-// {
-//     type Database = DB;
-//
-//
-//
-//     fn fetch_many<'e, 'q: 'e, E: 'q>(
-//         self,
-//         query: E,
-//     ) -> futures_core::stream::BoxStream<
-//         'e,
-//         Result<
-//             crate::Either<<DB as crate::database::Database>::QueryResult, DB::Row>,
-//             crate::error::Error,
-//         >,
-//     >
-//     where
-//         't: 'e,
-//         E: crate::executor::Execute<'q, Self::Database>,
-//     {
-//         (&mut **self).fetch_many(query)
-//     }
-//
-//     fn fetch_optional<'e, 'q: 'e, E: 'q>(
-//         self,
-//         query: E,
-//     ) -> futures_core::future::BoxFuture<'e, Result<Option<DB::Row>, crate::error::Error>>
-//     where
-//         't: 'e,
-//         E: crate::executor::Execute<'q, Self::Database>,
-//     {
-//         (&mut **self).fetch_optional(query)
-//     }
-//
-//     fn prepare_with<'e, 'q: 'e>(
-//         self,
-//         sql: &'q str,
-//         parameters: &'e [<Self::Database as crate::database::Database>::TypeInfo],
-//     ) -> futures_core::future::BoxFuture<
-//         'e,
-//         Result<
-//             <Self::Database as crate::database::HasStatement<'q>>::Statement,
-//             crate::error::Error,
-//         >,
-//     >
-//     where
-//         't: 'e,
-//     {
-//         (&mut **self).prepare_with(sql, parameters)
-//     }
-//
-//     #[doc(hidden)]
-//     fn describe<'e, 'q: 'e>(
-//         self,
-//         query: &'q str,
-//     ) -> futures_core::future::BoxFuture<
-//         'e,
-//         Result<crate::describe::Describe<Self::Database>, crate::error::Error>,
-//     >
-//     where
-//         't: 'e,
-//     {
-//         (&mut **self).describe(query)
-//     }
-// }
 
 impl<'c> Debug for Transaction<'c> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -214,5 +144,26 @@ pub fn rollback_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
             "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
             depth - 1
         ))
+    }
+}
+
+/// Implementation of [`TransactionManager`] for SQLite.
+pub struct TransactionManager;
+
+impl TransactionManager {
+    pub fn begin(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(conn.worker.begin())
+    }
+
+    pub fn commit(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(conn.worker.commit())
+    }
+
+    pub fn rollback(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+        Box::pin(conn.worker.rollback())
+    }
+
+    pub fn start_rollback(conn: &mut Connection) {
+        conn.worker.start_rollback().ok();
     }
 }

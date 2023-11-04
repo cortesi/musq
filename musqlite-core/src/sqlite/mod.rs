@@ -8,7 +8,6 @@ pub use options::{
 pub use query_result::QueryResult;
 pub use row::Row;
 pub use statement::Statement;
-pub use transaction::TransactionManager;
 pub use type_info::{DataType, TypeInfo};
 pub use value::{Value, ValueRef};
 
@@ -21,7 +20,6 @@ mod options;
 mod query_result;
 mod row;
 mod statement;
-mod transaction;
 mod type_info;
 pub mod types;
 mod value;

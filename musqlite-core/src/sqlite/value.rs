@@ -1,8 +1,4 @@
-use std::borrow::Cow;
-use std::ptr::NonNull;
-use std::slice::from_raw_parts;
-use std::str::from_utf8;
-use std::sync::Arc;
+use std::{borrow::Cow, ptr::NonNull, slice::from_raw_parts, str::from_utf8, sync::Arc};
 
 use libsqlite3_sys::{
     sqlite3_value, sqlite3_value_blob, sqlite3_value_bytes, sqlite3_value_double,
@@ -10,9 +6,7 @@ use libsqlite3_sys::{
     sqlite3_value_type, SQLITE_NULL,
 };
 
-use crate::sqlite::error::BoxDynError;
-use crate::sqlite::type_info::DataType;
-use crate::sqlite::TypeInfo;
+use crate::sqlite::{error::BoxDynError, type_info::DataType, TypeInfo};
 
 enum SqliteValueData<'r> {
     Value(&'r Value),
@@ -160,25 +154,3 @@ impl Drop for ValueHandle {
         }
     }
 }
-
-// #[cfg(feature = "any")]
-// impl<'r> From<SqliteValueRef<'r>> for crate::sqlite::any::AnyValueRef<'r> {
-//     #[inline]
-//     fn from(value: SqliteValueRef<'r>) -> Self {
-//         crate::sqlite::any::AnyValueRef {
-//             type_info: value.type_info().clone().into_owned().into(),
-//             kind: crate::sqlite::any::value::AnyValueRefKind::Sqlite(value),
-//         }
-//     }
-// }
-//
-// #[cfg(feature = "any")]
-// impl From<SqliteValue> for crate::sqlite::any::AnyValue {
-//     #[inline]
-//     fn from(value: SqliteValue) -> Self {
-//         crate::sqlite::any::AnyValue {
-//             type_info: value.type_info().clone().into_owned().into(),
-//             kind: crate::sqlite::any::value::AnyValueKind::Sqlite(value),
-//         }
-//     }
-// }
