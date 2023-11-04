@@ -47,37 +47,3 @@ impl<T: ?Sized, I: ColumnIndex<T> + ?Sized> ColumnIndex<T> for &'_ I {
         (**self).index(row)
     }
 }
-
-#[macro_export]
-macro_rules! impl_column_index_for_row {
-    ($R:ident) => {
-        impl $crate::column::ColumnIndex<$R> for usize {
-            fn index(&self, row: &$R) -> Result<usize, $crate::error::Error> {
-                let len = $crate::Row::len(row);
-
-                if *self >= len {
-                    return Err($crate::error::Error::ColumnIndexOutOfBounds { len, index: *self });
-                }
-
-                Ok(*self)
-            }
-        }
-    };
-}
-
-#[macro_export]
-macro_rules! impl_column_index_for_statement {
-    ($S:ident) => {
-        impl $crate::column::ColumnIndex<$S<'_>> for usize {
-            fn index(&self, statement: &$S<'_>) -> Result<usize, $crate::error::Error> {
-                let len = $crate::Statement::columns(statement).len();
-
-                if *self >= len {
-                    return Err($crate::error::Error::ColumnIndexOutOfBounds { len, index: *self });
-                }
-
-                Ok(*self)
-            }
-        }
-    };
-}

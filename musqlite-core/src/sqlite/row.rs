@@ -19,6 +19,18 @@ pub struct Row {
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
 
+impl ColumnIndex<Row> for usize {
+    fn index(&self, row: &Row) -> Result<usize, Error> {
+        let len = Row::len(row);
+
+        if *self >= len {
+            return Err(Error::ColumnIndexOutOfBounds { len, index: *self });
+        }
+
+        Ok(*self)
+    }
+}
+
 // Accessing values from the statement object is
 // safe across threads as long as we don't call [sqlite3_step]
 

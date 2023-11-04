@@ -1,12 +1,12 @@
-use crate::ext::ustr::UStr;
-use crate::sqlite::column::ColumnIndex;
-use crate::sqlite::error::Error;
-use crate::sqlite::{Arguments, Column, TypeInfo};
-use crate::{Either, HashMap};
+use crate::{
+    ext::ustr::UStr,
+    impl_statement_query,
+    sqlite::{column::ColumnIndex, error::Error, Arguments, Column, TypeInfo},
+    Either, HashMap,
+};
+
 use std::borrow::Cow;
 use std::sync::Arc;
-
-use crate::impl_statement_query;
 
 mod handle;
 pub(super) mod unlock_notify;
@@ -30,6 +30,18 @@ pub struct Statement<'q> {
     pub(crate) parameters: usize,
     pub(crate) columns: Arc<Vec<Column>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
+}
+
+impl ColumnIndex<Statement<'_>> for usize {
+    fn index(&self, statement: &Statement<'_>) -> Result<usize, Error> {
+        let len = Statement::columns(statement).len();
+
+        if *self >= len {
+            return Err(Error::ColumnIndexOutOfBounds { len, index: *self });
+        }
+
+        Ok(*self)
+    }
 }
 
 impl<'q> Statement<'q> {

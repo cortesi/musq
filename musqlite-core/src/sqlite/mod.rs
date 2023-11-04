@@ -30,8 +30,6 @@ mod regexp;
 
 // NOTE: required due to the lack of lazy normalization
 crate::impl_into_arguments_for_arguments!(Arguments<'q>);
-crate::impl_column_index_for_row!(Row);
-crate::impl_column_index_for_statement!(Statement);
 
 // required because some databases have a different handling of NULL
 crate::impl_encode_for_option!(Sqlite);
