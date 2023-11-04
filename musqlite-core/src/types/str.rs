@@ -3,10 +3,8 @@ use std::borrow::Cow;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-};
-
-use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo, ValueRef,
+    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef},
+    Type,
 };
 
 impl Type for str {

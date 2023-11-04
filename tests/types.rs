@@ -167,23 +167,23 @@ mod bstr {
     ));
 }
 
-test_type!(uuid<musqlite_core::types::Uuid>(Sqlite,
+test_type!(uuid<musqlite_core::types::uuid::Uuid>(Sqlite,
     "x'b731678f636f4135bc6f19440c13bd19'"
-        == musqlite_core::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+        == musqlite_core::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
     "x'00000000000000000000000000000000'"
-        == musqlite_core::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+        == musqlite_core::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
-test_type!(uuid_hyphenated<musqlite_core::types::uuid::fmt::Hyphenated>(Sqlite,
+test_type!(uuid_hyphenated<musqlite_core::types::uuid::Hyphenated>(Sqlite,
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
-        == musqlite_core::types::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
+        == musqlite_core::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
     "'00000000-0000-0000-0000-000000000000'"
-        == musqlite_core::types::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
+        == musqlite_core::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
 
-test_type!(uuid_simple<musqlite_core::types::uuid::fmt::Simple>(Sqlite,
+test_type!(uuid_simple<musqlite_core::types::uuid::Simple>(Sqlite,
     "'b731678f636f4135bc6f19440c13bd19'"
-        == musqlite_core::types::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
+        == musqlite_core::types::uuid::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
     "'00000000000000000000000000000000'"
-        == musqlite_core::types::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
+        == musqlite_core::types::uuid::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
 ));

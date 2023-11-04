@@ -11,12 +11,11 @@ pub use value::{Value, ValueRef};
 
 mod arguments;
 mod connection;
-mod error;
+pub mod error;
 mod options;
 mod query_result;
 pub mod statement;
 mod type_info;
-pub mod types;
 mod value;
 
 mod regexp;

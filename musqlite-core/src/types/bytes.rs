@@ -1,11 +1,10 @@
 use std::borrow::Cow;
 
-use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo, ValueRef,
-};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
+    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef},
+    Type,
 };
 
 impl Type for [u8] {

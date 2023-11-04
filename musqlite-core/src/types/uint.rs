@@ -1,10 +1,8 @@
-use crate::sqlite::error::BoxDynError;
-use crate::sqlite::type_info::DataType;
-use crate::sqlite::types::Type;
-use crate::sqlite::{ArgumentValue, TypeInfo, ValueRef};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
+    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef},
+    Type,
 };
 
 impl Type for u8 {

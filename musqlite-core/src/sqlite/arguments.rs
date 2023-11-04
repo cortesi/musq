@@ -1,6 +1,7 @@
-use crate::encode::{Encode, IsNull};
-use crate::sqlite::error::Error;
-use crate::sqlite::statement::StatementHandle;
+use crate::{
+    encode::{Encode, IsNull},
+    sqlite::{error::Error, statement::StatementHandle},
+};
 
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;

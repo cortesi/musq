@@ -1,8 +1,8 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo},
-    ValueRef,
+    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo},
+    Type, ValueRef,
 };
 use time::format_description::{well_known::Rfc3339, FormatItem};
 use time::macros::format_description as fd;

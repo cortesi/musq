@@ -174,7 +174,7 @@ unsafe extern "C" fn cleanup_arc_regex_pointer(ptr: *mut std::ffi::c_void) {
 
 #[cfg(test)]
 mod tests {
-    use crate::{query, ConnectOptions, Error, Row};
+    use crate::{query, Error};
     use std::str::FromStr;
 
     async fn test_db() -> crate::sqlite::Connection {

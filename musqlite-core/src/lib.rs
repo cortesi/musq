@@ -47,7 +47,6 @@ pub mod query_builder;
 pub mod query_scalar;
 pub mod row;
 pub mod statement_cache;
-pub mod type_info;
 
 pub use error::{Error, Result};
 

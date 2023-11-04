@@ -3,8 +3,8 @@ use std::fmt::Display;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo},
-    ValueRef,
+    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo},
+    Type, ValueRef,
 };
 pub use chrono::{
     DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat,

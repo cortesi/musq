@@ -1,12 +1,11 @@
-use crate::sqlite::{
-    error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo, ValueRef,
-};
+use crate::sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
+    Type,
 };
 use std::borrow::Cow;
-use uuid::{
+pub use uuid::{
     fmt::{Hyphenated, Simple},
     Uuid,
 };
