@@ -4,21 +4,24 @@ use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use std::thread;
 
+use futures_channel::oneshot;
 use futures_intrusive::sync::{Mutex, MutexGuard};
 
-use crate::describe::Describe;
-use crate::error::Error;
-use crate::transaction::{
-    begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
+use crate::{
+    describe::Describe,
+    error::Error,
+    sqlite::{
+        connection::{
+            describe::describe, establish::EstablishParams, execute, ConnectionHandleRaw,
+            ConnectionState,
+        },
+        Arguments, QueryResult, Statement,
+    },
+    transaction::{
+        begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
+    },
+    Either, Row,
 };
-use crate::Either;
-use futures_channel::oneshot;
-
-use crate::sqlite::connection::describe::describe;
-use crate::sqlite::connection::establish::EstablishParams;
-use crate::sqlite::connection::ConnectionState;
-use crate::sqlite::connection::{execute, ConnectionHandleRaw};
-use crate::sqlite::{Arguments, QueryResult, Row, Statement};
 
 // Each SQLite connection has a dedicated thread.
 

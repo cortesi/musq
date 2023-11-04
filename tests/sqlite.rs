@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use musqlite_core::{
-    query, query_as, query_scalar, sqlite::Row, ConnectOptions, Connection, Error, Executor, Pool,
-    PoolOptions,
+    query, query_as, query_scalar, ConnectOptions, Connection, Error, Executor, Pool, PoolOptions,
+    Row,
 };
 use musqlite_test::{new, tdb};
 use rand::{Rng, SeedableRng};

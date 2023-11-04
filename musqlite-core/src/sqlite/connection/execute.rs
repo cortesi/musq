@@ -4,9 +4,9 @@ use crate::{
         connection::{ConnectionHandle, ConnectionState},
         error::Error,
         statement::{StatementHandle, VirtualStatement},
-        Arguments, QueryResult, Row,
+        Arguments, QueryResult,
     },
-    Either,
+    Either, Row,
 };
 
 pub struct ExecuteIter<'a> {

@@ -1,11 +1,14 @@
-use crate::describe::Describe;
-use crate::error::Error;
-use crate::executor::{Execute, Executor};
-use crate::sqlite::{Connection, QueryResult, Row, Statement, TypeInfo};
-use crate::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
 use futures_util::{TryFutureExt, TryStreamExt};
+
+use crate::{
+    describe::Describe,
+    error::Error,
+    executor::{Execute, Executor},
+    sqlite::{Connection, QueryResult, Statement, TypeInfo},
+    Either, Row,
+};
 
 impl<'c> Executor<'c> for &'c mut Connection {
     fn fetch_many<'e, 'q: 'e, E: 'q>(
