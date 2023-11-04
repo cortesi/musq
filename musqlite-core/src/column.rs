@@ -1,4 +1,4 @@
-use crate::{error::Error, ext::ustr::UStr, sqlite::TypeInfo};
+use crate::{error::Error, sqlite::TypeInfo, ustr::UStr};
 
 use std::fmt::Debug;
 

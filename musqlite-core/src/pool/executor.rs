@@ -8,7 +8,7 @@ use crate::{
     error::Error,
     executor::{Execute, Executor},
     pool::Pool,
-    sqlite, Connection, QueryResult, Row, Statement,
+    sqlite, try_stream, Connection, QueryResult, Row, Statement,
 };
 
 impl<'p> Executor<'p> for &'_ Pool

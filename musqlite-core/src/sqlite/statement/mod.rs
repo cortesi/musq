@@ -1,7 +1,7 @@
 use crate::{
-    ext::ustr::UStr,
     impl_statement_query,
     sqlite::{error::Error, Arguments, TypeInfo},
+    ustr::UStr,
     Column, ColumnIndex, Either, HashMap,
 };
 

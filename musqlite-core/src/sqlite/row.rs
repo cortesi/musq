@@ -6,9 +6,9 @@ use crate::{
     column::ColumnIndex,
     decode::Decode,
     error::{mismatched_types, Error},
-    ext::ustr::UStr,
     sqlite::{statement::StatementHandle, Value, ValueRef},
     types::Type,
+    ustr::UStr,
     Column, HashMap,
 };
 

@@ -13,8 +13,8 @@ use crate::{
     bytes::{Buf, Bytes},
     err_protocol,
     error::Error,
-    ext::ustr::UStr,
     sqlite::{connection::ConnectionHandle, statement::StatementHandle, SqliteError},
+    ustr::UStr,
     Column, HashMap, SmallVec,
 };
 
