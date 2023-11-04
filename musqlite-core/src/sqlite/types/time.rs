@@ -6,7 +6,7 @@ use crate::{
 };
 use time::format_description::{well_known::Rfc3339, FormatItem};
 use time::macros::format_description as fd;
-use time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Type for OffsetDateTime {
     fn type_info() -> TypeInfo {

@@ -12,31 +12,11 @@ pub mod bstr;
 mod json;
 pub use uuid::{self, Uuid};
 
-pub mod chrono {
-    #[doc(no_inline)]
-    pub use chrono::{
-        DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, TimeZone, Utc,
-    };
-}
+pub use sqlite::types::chrono;
+pub use sqlite::types::time;
 
 #[doc(no_inline)]
 pub use bit_vec::BitVec;
-
-pub mod time {
-    #[doc(no_inline)]
-    pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
-}
-
-pub mod ipnetwork {
-    #[doc(no_inline)]
-    pub use ipnetwork::{IpNetwork, Ipv4Network, Ipv6Network};
-}
-
-pub mod mac_address {
-    #[doc(no_inline)]
-    pub use mac_address::MacAddress;
-}
-
 pub use json::{Json, JsonRawValue, JsonValue};
 
 /// Indicates that a SQL type is supported.

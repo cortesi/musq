@@ -84,10 +84,10 @@ pub(crate) use crate::types::*;
 
 mod bool;
 mod bytes;
-mod chrono;
+pub mod chrono;
 mod float;
 mod int;
 mod str;
-mod time;
+pub mod time;
 mod uint;
 mod uuid;

@@ -6,9 +6,9 @@ use crate::{
     sqlite::{error::BoxDynError, type_info::DataType, types::Type, ArgumentValue, TypeInfo},
     ValueRef,
 };
-use chrono::FixedOffset;
-use chrono::{
-    DateTime, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat, TimeZone, Utc,
+pub use chrono::{
+    DateTime, FixedOffset, Local, NaiveDate, NaiveDateTime, NaiveTime, Offset, SecondsFormat,
+    TimeZone, Utc,
 };
 
 impl<Tz: TimeZone> Type for DateTime<Tz> {
