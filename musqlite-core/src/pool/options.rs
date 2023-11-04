@@ -43,7 +43,6 @@ use std::time::{Duration, Instant};
 /// so having the closure return `Pin<Box<dyn Future>` directly is the path of least resistance from
 /// the perspectives of both API designer and consumer.
 pub struct PoolOptions {
-    pub(crate) test_before_acquire: bool,
     pub(crate) after_connect: Option<
         Arc<
             dyn Fn(&mut Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<(), Error>>
@@ -83,7 +82,6 @@ pub struct PoolOptions {
 impl Clone for PoolOptions {
     fn clone(&self) -> Self {
         PoolOptions {
-            test_before_acquire: self.test_before_acquire,
             after_connect: self.after_connect.clone(),
             before_acquire: self.before_acquire.clone(),
             after_release: self.after_release.clone(),
@@ -132,7 +130,6 @@ impl PoolOptions {
             after_connect: None,
             before_acquire: None,
             after_release: None,
-            test_before_acquire: true,
             // A production application will want to set a higher limit than this.
             max_connections: 10,
             min_connections: 0,
@@ -250,20 +247,6 @@ impl PoolOptions {
     /// Get the maximum idle duration for individual connections.
     pub fn get_idle_timeout(&self) -> Option<Duration> {
         self.idle_timeout
-    }
-
-    /// If true, the health of a connection will be verified by a call to [`Connection::ping`]
-    /// before returning the connection.
-    ///
-    /// Defaults to `true`.
-    pub fn test_before_acquire(mut self, test: bool) -> Self {
-        self.test_before_acquire = test;
-        self
-    }
-
-    /// Get's whether `test_before_acquire` is currently set.
-    pub fn get_test_before_acquire(&self) -> bool {
-        self.test_before_acquire
     }
 
     /// Perform an asynchronous action after connecting to the database.
@@ -425,7 +408,6 @@ impl Debug for PoolOptions {
             .field("connect_timeout", &self.acquire_timeout)
             .field("max_lifetime", &self.max_lifetime)
             .field("idle_timeout", &self.idle_timeout)
-            .field("test_before_acquire", &self.test_before_acquire)
             .finish()
     }
 }

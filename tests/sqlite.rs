@@ -10,7 +10,8 @@ use std::sync::Arc;
 
 #[tokio::test]
 async fn it_connects() -> anyhow::Result<()> {
-    Ok(new().await?.ping().await?)
+    new().await?;
+    Ok(())
 }
 
 #[tokio::test]
@@ -192,7 +193,6 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
     let pool = PoolOptions::new()
         .min_connections(2)
         .max_connections(2)
-        .test_before_acquire(false)
         .connect("sqlite::memory:")
         .await?;
 

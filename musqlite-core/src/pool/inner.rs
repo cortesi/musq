@@ -457,18 +457,6 @@ async fn check_idle_conn(
         return Err(conn.close().await);
     }
 
-    if options.test_before_acquire {
-        // Check that the connection is still live
-        if let Err(error) = conn.ping().await {
-            // an error here means the other end has hung up or we lost connectivity
-            // either way we're fine to just discard the connection
-            // the error itself here isn't necessarily unexpected so WARN is too strong
-            tracing::info!(%error, "ping on idle connection returned error");
-            // connection is broken so don't try to close nicely
-            return Err(conn.close_hard().await);
-        }
-    }
-
     if let Some(test) = &options.before_acquire {
         let meta = conn.metadata();
         match test(&mut conn.live.raw, meta).await {

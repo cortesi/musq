@@ -62,9 +62,6 @@ enum Command {
     ClearCache {
         tx: oneshot::Sender<()>,
     },
-    Ping {
-        tx: oneshot::Sender<()>,
-    },
     Shutdown {
         tx: oneshot::Sender<()>,
     },
@@ -237,9 +234,6 @@ impl ConnectionWorker {
                             drop(conn);
                             conn = futures_executor::block_on(shared.conn.lock());
                         }
-                        Command::Ping { tx } => {
-                            tx.send(()).ok();
-                        }
                         Command::Shutdown { tx } => {
                             // drop the connection references before sending confirmation
                             // and ending the command loop
@@ -304,10 +298,6 @@ impl ConnectionWorker {
         self.command_tx
             .send(Command::Rollback { tx: None })
             .map_err(|_| Error::WorkerCrashed)
-    }
-
-    pub(crate) async fn ping(&mut self) -> Result<(), Error> {
-        self.oneshot_cmd(|tx| Command::Ping { tx }).await
     }
 
     async fn oneshot_cmd<F, T>(&mut self, command: F) -> Result<T, Error>

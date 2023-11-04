@@ -183,11 +183,6 @@ impl Connection {
         })
     }
 
-    /// Ensure the background worker thread is alive and accepting commands.
-    pub fn ping(&mut self) -> BoxFuture<'_, Result<(), Error>> {
-        Box::pin(self.worker.ping())
-    }
-
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.

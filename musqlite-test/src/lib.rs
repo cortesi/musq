@@ -22,7 +22,6 @@ pub async fn pool() -> anyhow::Result<Pool> {
     let pool = PoolOptions::new()
         .min_connections(0)
         .max_connections(5)
-        .test_before_acquire(true)
         .connect("sqlite::memory:")
         .await?;
     Ok(pool)

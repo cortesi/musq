@@ -250,28 +250,8 @@ impl Floating<Live> {
                 }
             }
         }
-
-        // test the connection on-release to ensure it is still viable,
-        // and flush anything time-sensitive like transaction rollbacks
-        // if an Executor future/stream is dropped during an `.await` call, the connection
-        // is likely to be left in an inconsistent state, in which case it should not be
-        // returned to the pool; also of course, if it was dropped due to an error
-        // this is simply a band-aid as SQLx-next connections should be able
-        // to recover from cancellations
-        if let Err(error) = self.raw.ping().await {
-            tracing::warn!(
-                %error,
-                "error occurred while testing the connection on-release",
-            );
-
-            // Connection is broken, don't try to gracefully close.
-            self.close_hard().await;
-            false
-        } else {
-            // if the connection is still viable, release it to the pool
-            self.release();
-            true
-        }
+        self.release();
+        true
     }
 
     pub async fn close(self) {
@@ -314,10 +294,6 @@ impl Floating<Idle> {
             inner: idle,
             guard: DecrementSizeGuard::from_permit(pool, permit),
         }
-    }
-
-    pub async fn ping(&mut self) -> Result<(), Error> {
-        self.live.raw.ping().await
     }
 
     pub fn into_live(self) -> Floating<Live> {
