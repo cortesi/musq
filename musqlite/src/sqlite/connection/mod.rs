@@ -33,7 +33,6 @@ pub(crate) mod execute;
 
 mod executor;
 mod handle;
-mod intmap;
 mod worker;
 
 /// A connection to an open [Sqlite] database.

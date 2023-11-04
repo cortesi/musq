@@ -13,12 +13,6 @@ pub enum UStr {
     Shared(Arc<str>),
 }
 
-impl UStr {
-    pub fn new(s: &str) -> Self {
-        UStr::Shared(Arc::from(s.to_owned()))
-    }
-}
-
 impl Deref for UStr {
     type Target = str;
 

@@ -1,5 +1,4 @@
-use proc_macro2::{Ident, Span, TokenStream};
-use quote::quote;
+use proc_macro2::{Ident, Span};
 use syn::punctuated::Punctuated;
 use syn::spanned::Spanned;
 use syn::token::Comma;
@@ -31,13 +30,6 @@ macro_rules! try_set {
 pub struct TypeName {
     pub val: String,
     pub span: Span,
-}
-
-impl TypeName {
-    pub fn get(&self) -> TokenStream {
-        let val = &self.val;
-        quote! { #val }
-    }
 }
 
 #[derive(Copy, Clone)]

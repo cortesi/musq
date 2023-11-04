@@ -74,11 +74,6 @@ pub use self::maybe::MaybePoolConnection;
 /// calls to [Pool::acquire] to return [Error::PoolClosed], and waits until all connections have
 /// been returned to the pool and gracefully closed.
 ///
-/// Type aliases are provided for each database to make it easier to sprinkle `Pool` through
-/// your codebase:
-///
-/// * [SqlitePool][crate::sqlite::SqlitePool] (SQLite)
-///
 /// [web::Data]: https://docs.rs/actix-web/3/actix_web/web/struct.Data.html
 ///
 /// We recommend calling [`.close().await`] to gracefully close the pool and its connections

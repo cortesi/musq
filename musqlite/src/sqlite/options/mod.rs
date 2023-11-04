@@ -14,7 +14,7 @@ pub use locking_mode::SqliteLockingMode;
 use std::cmp::Ordering;
 use std::sync::Arc;
 use std::{borrow::Cow, time::Duration};
-pub use synchronous::SqliteSynchronous;
+pub use synchronous::Synchronous;
 
 use crate::debugfn::DebugFn;
 use crate::sqlite::connection::collation::Collation;
@@ -280,7 +280,7 @@ impl ConnectOptions {
     ///
     /// The default synchronous settings is FULL. However, if durability is not a concern,
     /// then NORMAL is normally all one needs in WAL mode.
-    pub fn synchronous(self, synchronous: SqliteSynchronous) -> Self {
+    pub fn synchronous(self, synchronous: Synchronous) -> Self {
         self.pragma("synchronous", synchronous.as_str())
     }
 
