@@ -4,29 +4,29 @@ use musqlite::Row;
 use musqlite_test::new;
 use musqlite_test::test_type;
 
-test_type!(null<Option<i32>>(Sqlite,
+test_type!(null<Option<i32>>(
     "NULL" == None::<i32>
 ));
 
-test_type!(bool(Sqlite, "FALSE" == false, "TRUE" == true));
+test_type!(bool("FALSE" == false, "TRUE" == true));
 
-test_type!(i32(Sqlite, "94101" == 94101_i32));
+test_type!(i32("94101" == 94101_i32));
 
-test_type!(i64(Sqlite, "9358295312" == 9358295312_i64));
+test_type!(i64("9358295312" == 9358295312_i64));
 
 // NOTE: This behavior can be surprising. Floating-point parameters are widening to double which can
 //       result in strange rounding.
-test_type!(f32(Sqlite, "3.1410000324249268" == 3.141f32 as f64 as f32));
+test_type!(f32("3.1410000324249268" == 3.141f32 as f64 as f32));
 
-test_type!(f64(Sqlite, "939399419.1225182" == 939399419.1225182_f64));
+test_type!(f64("939399419.1225182" == 939399419.1225182_f64));
 
-test_type!(str<String>(Sqlite,
+test_type!(str<String>(
     "'this is foo'" == "this is foo",
     "cast(x'7468697320006973206E756C2D636F6E7461696E696E67' as text)" == "this \0is nul-containing",
     "''" == ""
 ));
 
-test_type!(bytes<Vec<u8>>(Sqlite,
+test_type!(bytes<Vec<u8>>(
     "X'DEADBEEF'"
         == vec![0xDE_u8, 0xAD, 0xBE, 0xEF],
     "X''"
@@ -42,7 +42,6 @@ mod json_tests {
     use serde_json::{json, Value as JsonValue};
 
     test_type!(json<JsonValue>(
-        Sqlite,
         "'\"Hello, World\"'" == json!("Hello, World"),
         "'\"😎\"'" == json!("😎"),
         "'\"🙋‍♀️\"'" == json!("🙋‍♀️"),
@@ -56,7 +55,6 @@ mod json_tests {
     }
 
     test_type!(json_struct<types::Json<Friend>>(
-        Sqlite,
         "\'{\"name\":\"Joe\",\"age\":33}\'" == types::Json(Friend { name: "Joe".to_string(), age: 33 })
     ));
 
@@ -69,7 +67,6 @@ mod json_tests {
     }
 
     test_type!(json_struct_json_column<types::Json<Customer>>(
-        Sqlite,
         "\'{\"json_column\":[1,2]}\'" == types::Json(Customer { json_column: types::Json(vec![1, 2]) })
     ));
 
@@ -94,15 +91,15 @@ mod chrono {
     use super::*;
     use musqlite::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
-    test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
+    test_type!(chrono_naive_date_time<NaiveDateTime>( "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2019-01-02 05:10:20'" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()
     ));
 
-    test_type!(chrono_date_time_utc<DateTime::<Utc>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
+    test_type!(chrono_date_time_utc<DateTime::<Utc>>( "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'1996-12-20T00:39:57+00:00'" == Utc.with_ymd_and_hms(1996, 12, 20, 0, 39, 57).unwrap()
     ));
 
-    test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
+    test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>( "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west_opt(5 * 3600).unwrap().with_ymd_and_hms(2016, 11, 08, 3, 50, 23).unwrap())
     ));
 }
@@ -113,7 +110,6 @@ mod time_tests {
     use time::macros::{date, datetime, time};
 
     test_type!(time_offset_date_time<OffsetDateTime>(
-        Sqlite,
         "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2015-11-19 01:01:39+01:00'" == datetime!(2015 - 11 - 19 1:01:39 +1),
         "'2014-10-18 00:00:38.697+00:00'" == datetime!(2014 - 10 - 18 00:00:38.697 +0),
@@ -123,7 +119,6 @@ mod time_tests {
     ));
 
     test_type!(time_primitive_date_time<PrimitiveDateTime>(
-        Sqlite,
         "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2019-01-02 05:10:20'" == datetime!(2019 - 1 - 2 5:10:20),
         "'2018-12-01 04:09:19.543'" == datetime!(2018 - 12 - 1 4:09:19.543),
@@ -140,13 +135,11 @@ mod time_tests {
     ));
 
     test_type!(time_date<Date>(
-        Sqlite,
         "SELECT date({0}) is date(?), {0}, ?",
         "'2002-06-04'" == date!(2002 - 6 - 4),
     ));
 
     test_type!(time_time<Time>(
-        Sqlite,
         "SELECT time({0}) is time(?), {0}, ?",
         "'21:46:32'" == time!(21:46:32),
         "'20:45:31.133'" == time!(20:45:31.133),
@@ -158,27 +151,27 @@ mod bstr {
     use super::*;
     use musqlite::types::bstr::BString;
 
-    test_type!(bstring<BString>(Sqlite,
+    test_type!(bstring<BString>(
         "cast('abc123' as blob)" == BString::from(&b"abc123"[..]),
         "x'0001020304'" == BString::from(&b"\x00\x01\x02\x03\x04"[..])
     ));
 }
 
-test_type!(uuid<musqlite::types::uuid::Uuid>(Sqlite,
+test_type!(uuid<musqlite::types::uuid::Uuid>(
     "x'b731678f636f4135bc6f19440c13bd19'"
         == musqlite::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
     "x'00000000000000000000000000000000'"
         == musqlite::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
-test_type!(uuid_hyphenated<musqlite::types::uuid::Hyphenated>(Sqlite,
+test_type!(uuid_hyphenated<musqlite::types::uuid::Hyphenated>(
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
         == musqlite::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
     "'00000000-0000-0000-0000-000000000000'"
         == musqlite::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
 
-test_type!(uuid_simple<musqlite::types::uuid::Simple>(Sqlite,
+test_type!(uuid_simple<musqlite::types::uuid::Simple>(
     "'b731678f636f4135bc6f19440c13bd19'"
         == musqlite::types::uuid::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
     "'00000000000000000000000000000000'"

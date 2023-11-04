@@ -1,6 +1,6 @@
-use musqlite_core::Connection;
+use musqlite::Connection;
 
-use musqlite_core::pool::{Pool, PoolOptions};
+use musqlite::pool::{Pool, PoolOptions};
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
@@ -9,7 +9,6 @@ pub fn setup_if_needed() {
 }
 
 // Make a new connection
-// Ensure [dotenvy] and [env_logger] have been setup
 pub async fn new() -> anyhow::Result<Connection> {
     setup_if_needed();
     Ok(Connection::connect("sqlite::memory:").await?)
@@ -39,62 +38,62 @@ pub async fn tdb() -> anyhow::Result<Connection> {
 // Test type encoding and decoding
 #[macro_export]
 macro_rules! test_type {
-    ($name:ident<$ty:ty>($db:ident, $sql:literal, $($text:literal == $value:expr),+ $(,)?)) => {
-        $crate::__test_prepared_type!($name<$ty>($db, $sql, $($text == $value),+));
-        $crate::test_unprepared_type!($name<$ty>($db, $($text == $value),+));
+    ($name:ident<$ty:ty>($sql:literal, $($text:literal == $value:expr),+ $(,)?)) => {
+        $crate::__test_prepared_type!($name<$ty>($sql, $($text == $value),+));
+        $crate::test_unprepared_type!($name<$ty>($($text == $value),+));
     };
 
-    ($name:ident<$ty:ty>($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
+    ($name:ident<$ty:ty>($($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
-            $crate::__test_prepared_type!($name<$ty>($db, $crate::[< $db _query_for_test_prepared_type >]!(), $($text == $value),+));
-            $crate::test_unprepared_type!($name<$ty>($db, $($text == $value),+));
+            $crate::__test_prepared_type!($name<$ty>($crate::[< query_for_test_prepared_type >]!(), $($text == $value),+));
+            $crate::test_unprepared_type!($name<$ty>($($text == $value),+));
         }
     };
 
-    ($name:ident($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
-        $crate::test_type!($name<$name>($db, $($text == $value),+));
+    ($name:ident($($text:literal == $value:expr),+ $(,)?)) => {
+        $crate::test_type!($name<$name>($($text == $value),+));
     };
 }
 
 // Test type decoding only
 #[macro_export]
 macro_rules! test_decode_type {
-    ($name:ident<$ty:ty>($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
-        $crate::__test_prepared_decode_type!($name<$ty>($db, $($text == $value),+));
-        $crate::test_unprepared_type!($name<$ty>($db, $($text == $value),+));
+    ($name:ident<$ty:ty>($($text:literal == $value:expr),+ $(,)?)) => {
+        $crate::__test_prepared_decode_type!($name<$ty>($($text == $value),+));
+        $crate::test_unprepared_type!($name<$ty>($($text == $value),+));
     };
 
-    ($name:ident($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
-        $crate::test_decode_type!($name<$name>($db, $($text == $value),+));
+    ($name:ident($($text:literal == $value:expr),+ $(,)?)) => {
+        $crate::test_decode_type!($name<$name>($($text == $value),+));
     };
 }
 
 // Test type encoding and decoding
 #[macro_export]
 macro_rules! test_prepared_type {
-    ($name:ident<$ty:ty>($db:ident, $sql:literal, $($text:literal == $value:expr),+ $(,)?)) => {
-        $crate::__test_prepared_type!($name<$ty>($db, $sql, $($text == $value),+));
+    ($name:ident<$ty:ty>($sql:literal, $($text:literal == $value:expr),+ $(,)?)) => {
+        $crate::__test_prepared_type!($name<$ty>($sql, $($text == $value),+));
     };
 
-    ($name:ident<$ty:ty>($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
+    ($name:ident<$ty:ty>($($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
-            $crate::__test_prepared_type!($name<$ty>($db, $crate::[< $db _query_for_test_prepared_type >]!(), $($text == $value),+));
+            $crate::__test_prepared_type!($name<$ty>($crate::[< query_for_test_prepared_type >]!(), $($text == $value),+));
         }
     };
 
-    ($name:ident($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
-        $crate::__test_prepared_type!($name<$name>($db, $($text == $value),+));
+    ($name:ident($($text:literal == $value:expr),+ $(,)?)) => {
+        $crate::__test_prepared_type!($name<$name>($($text == $value),+));
     };
 }
 
 // Test type decoding for the simple (unprepared) query API
 #[macro_export]
 macro_rules! test_unprepared_type {
-    ($name:ident<$ty:ty>($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
+    ($name:ident<$ty:ty>($($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
             #[tokio::test]
             async fn [< test_unprepared_type_ $name >] () -> anyhow::Result<()> {
-                use musqlite_core::*;
+                use musqlite::*;
                 use futures::TryStreamExt;
 
                 let mut conn = musqlite_test::new().await?;
@@ -119,13 +118,13 @@ macro_rules! test_unprepared_type {
 // Test type decoding only for the prepared query API
 #[macro_export]
 macro_rules! __test_prepared_decode_type {
-    ($name:ident<$ty:ty>($db:ident, $($text:literal == $value:expr),+ $(,)?)) => {
+    ($name:ident<$ty:ty>( $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
             #[tokio::test]
             async fn [< test_prepared_decode_type_ $name >] () -> anyhow::Result<()> {
                 use Row;
 
-                let mut conn = musqlite_test::new::<$db>().await?;
+                let mut conn = musqlite_test::new().await?;
 
                 $(
                     let query = format!("SELECT {}", $text);
@@ -148,11 +147,11 @@ macro_rules! __test_prepared_decode_type {
 // Test type encoding and decoding for the prepared query API
 #[macro_export]
 macro_rules! __test_prepared_type {
-    ($name:ident<$ty:ty>($db:ident, $sql:expr, $($text:literal == $value:expr),+ $(,)?)) => {
+    ($name:ident<$ty:ty>($sql:expr, $($text:literal == $value:expr),+ $(,)?)) => {
         paste::item! {
             #[tokio::test]
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
-                use musqlite_core::Row;
+                use musqlite::Row;
 
                 let mut conn = musqlite_test::new().await?;
 
@@ -160,7 +159,7 @@ macro_rules! __test_prepared_type {
                     let query = format!($sql, $text);
                     println!("{query}");
 
-                    let row = musqlite_core::query(&query)
+                    let row = musqlite::query(&query)
                         .bind($value)
                         .bind($value)
                         .fetch_one(&mut conn)
@@ -196,7 +195,7 @@ macro_rules! __test_prepared_type {
 }
 
 #[macro_export]
-macro_rules! Sqlite_query_for_test_prepared_type {
+macro_rules! query_for_test_prepared_type {
     () => {
         "SELECT {0} is ?, {0}, ?"
     };

@@ -8,7 +8,7 @@ enum Origin {
     Bar = 2,
 }
 
-test_type!(origin_enum<Origin>(Sqlite,
+test_type!(origin_enum<Origin>(
     "1" == Origin::Foo,
     "2" == Origin::Bar,
 ));
