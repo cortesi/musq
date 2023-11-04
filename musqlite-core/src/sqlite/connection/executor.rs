@@ -5,8 +5,8 @@ use futures_util::{TryFutureExt, TryStreamExt};
 use crate::{
     error::Error,
     executor::{Execute, Executor},
-    sqlite::{Connection, QueryResult, Statement, TypeInfo},
-    Either, Row,
+    sqlite::{Connection, Statement, TypeInfo},
+    Either, QueryResult, Row,
 };
 
 impl<'c> Executor<'c> for &'c mut Connection {

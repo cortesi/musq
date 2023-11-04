@@ -11,12 +11,12 @@ use crate::{
     error::Error,
     sqlite::{
         connection::{establish::EstablishParams, execute, ConnectionHandleRaw, ConnectionState},
-        Arguments, QueryResult, Statement,
+        Arguments, Statement,
     },
     transaction::{
         begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
     },
-    Either, Row,
+    Either, QueryResult, Row,
 };
 
 // Each SQLite connection has a dedicated thread.

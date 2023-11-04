@@ -44,6 +44,7 @@ pub mod from_row;
 pub mod logger;
 pub mod query_as;
 pub mod query_builder;
+mod query_result;
 pub mod query_scalar;
 pub mod row;
 pub mod statement_cache;
@@ -68,11 +69,11 @@ pub use crate::{
     query::{query, query_with},
     query_as::{query_as, query_as_with},
     query_builder::QueryBuilder,
+    query_result::QueryResult,
     query_scalar::{query_scalar, query_scalar_with},
     row::Row,
     sqlite::{
-        Arguments, ConnectOptions, Connection, IntoArguments, QueryResult, Statement, TypeInfo,
-        Value, ValueRef,
+        Arguments, ConnectOptions, Connection, IntoArguments, Statement, TypeInfo, Value, ValueRef,
     },
     transaction::{Transaction, TransactionManager},
     types::Type,
