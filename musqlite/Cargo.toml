@@ -10,7 +10,6 @@ repository.workspace = true
 [dependencies]
 tokio = { version = "1.15.0", features = ["full"] }
 bit-vec = "0.6.3"
-chrono = { version = "0.4.22" }
 ipnetwork = "0.20.0"
 mac_address = "1.1.5"
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }

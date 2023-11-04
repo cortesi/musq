@@ -87,23 +87,6 @@ mod json_tests {
     }
 }
 
-mod chrono {
-    use super::*;
-    use musqlite::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
-
-    test_type!(chrono_naive_date_time<NaiveDateTime>( "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'2019-01-02 05:10:20'" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()
-    ));
-
-    test_type!(chrono_date_time_utc<DateTime::<Utc>>( "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'1996-12-20T00:39:57+00:00'" == Utc.with_ymd_and_hms(1996, 12, 20, 0, 39, 57).unwrap()
-    ));
-
-    test_type!(chrono_date_time_fixed_offset<DateTime::<FixedOffset>>( "SELECT datetime({0}) is datetime(?), {0}, ?",
-        "'2016-11-08T03:50:23-05:00'" == DateTime::<Utc>::from(FixedOffset::west_opt(5 * 3600).unwrap().with_ymd_and_hms(2016, 11, 08, 3, 50, 23).unwrap())
-    ));
-}
-
 mod time_tests {
     use super::*;
     use musqlite::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};

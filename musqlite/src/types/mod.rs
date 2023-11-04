@@ -31,16 +31,6 @@
 //! and so it is not supported. Bit-casting it to `i64` or storing it as `REAL`, `BLOB` or `TEXT`
 //! would change the semantics of the value in SQL and so violates the principle of least surprise.
 //!
-//! ### [`chrono`](https://crates.io/crates/chrono)
-//!
-//! | Rust type                             | Sqlite type(s)                                       |
-//! |---------------------------------------|------------------------------------------------------|
-//! | `chrono::NaiveDateTime`               | DATETIME                                             |
-//! | `chrono::DateTime<Utc>`               | DATETIME                                             |
-//! | `chrono::DateTime<Local>`             | DATETIME                                             |
-//! | `chrono::NaiveDate`                   | DATE                                                 |
-//! | `chrono::NaiveTime`                   | TIME                                                 |
-//!
 //! ### [`time`](https://crates.io/crates/time)
 //!
 //! | Rust type                             | Sqlite type(s)                                       |
@@ -75,7 +65,6 @@ use crate::sqlite;
 
 mod bool;
 mod bytes;
-pub mod chrono;
 mod float;
 mod int;
 mod str;
