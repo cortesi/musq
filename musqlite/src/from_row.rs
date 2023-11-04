@@ -165,7 +165,7 @@ use crate::Row;
 ///
 ///
 /// ```rust,ignore
-/// use {FromRow, sqlite::SqliteRow, Row};
+/// use {FromRow, Row};
 /// struct MyCustomType {
 ///     custom: String,
 /// }
@@ -174,8 +174,8 @@ use crate::Row;
 ///     bar: MyCustomType,
 /// }
 ///
-/// impl FromRow<'_, SqliteRow> for Foo {
-///     fn from_row(row: &SqliteRow) -> Result<Self> {
+/// impl FromRow<'_> for Foo {
+///     fn from_row(row: &Row) -> Result<Self> {
 ///         Ok(Self {
 ///             bar: MyCustomType {
 ///                 custom: row.try_get("custom")?

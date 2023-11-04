@@ -133,12 +133,12 @@ async fn it_honors_order_of_encryption_pragmas() -> anyhow::Result<()> {
     // executed first and allow to establish valid connection
     let mut conn = ConnectOptions::from_str(&url)?
         .pragma("cipher_kdf_algorithm", "PBKDF2_HMAC_SHA1")
-        .journal_mode(SqliteJournalMode::Wal)
+        .journal_mode(JournalMode::Wal)
         .pragma("cipher_page_size", "1024")
         .pragma("key", "the_password")
         .foreign_keys(true)
         .pragma("kdf_iter", "64000")
-        .auto_vacuum(SqliteAutoVacuum::Incremental)
+        .auto_vacuum(AutoVacuum::Incremental)
         .pragma("cipher_hmac_algorithm", "HMAC_SHA1")
         .create_if_missing(true)
         .connect()

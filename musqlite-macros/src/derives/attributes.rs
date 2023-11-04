@@ -43,7 +43,7 @@ pub enum RenameAll {
     PascalCase,
 }
 
-pub struct SqlxContainerAttributes {
+pub struct ContainerAttributes {
     pub transparent: bool,
     pub type_name: Option<TypeName>,
     pub rename_all: Option<RenameAll>,
@@ -51,7 +51,7 @@ pub struct SqlxContainerAttributes {
     pub no_pg_array: bool,
 }
 
-pub struct SqlxChildAttributes {
+pub struct ChildAttributes {
     pub rename: Option<String>,
     pub default: bool,
     pub flatten: bool,
@@ -59,7 +59,7 @@ pub struct SqlxChildAttributes {
     pub skip: bool,
 }
 
-pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContainerAttributes> {
+pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<ContainerAttributes> {
     let mut transparent = None;
     let mut repr = None;
     let mut type_name = None;
@@ -141,7 +141,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
         }
     }
 
-    Ok(SqlxContainerAttributes {
+    Ok(ContainerAttributes {
         transparent: transparent.unwrap_or(false),
         repr,
         type_name,
@@ -150,7 +150,7 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<SqlxContai
     })
 }
 
-pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttributes> {
+pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<ChildAttributes> {
     let mut rename = None;
     let mut default = false;
     let mut try_from = None;
@@ -187,7 +187,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
         }
     }
 
-    Ok(SqlxChildAttributes {
+    Ok(ChildAttributes {
         rename,
         default,
         flatten,
@@ -199,7 +199,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<SqlxChildAttri
 pub fn check_transparent_attributes(
     input: &DeriveInput,
     field: &Field,
-) -> syn::Result<SqlxContainerAttributes> {
+) -> syn::Result<ContainerAttributes> {
     let attributes = parse_container_attributes(&input.attrs)?;
 
     assert_attribute!(
@@ -219,7 +219,7 @@ pub fn check_transparent_attributes(
     Ok(attributes)
 }
 
-pub fn check_enum_attributes(input: &DeriveInput) -> syn::Result<SqlxContainerAttributes> {
+pub fn check_enum_attributes(input: &DeriveInput) -> syn::Result<ContainerAttributes> {
     let attributes = parse_container_attributes(&input.attrs)?;
 
     assert_attribute!(
@@ -240,7 +240,7 @@ pub fn check_enum_attributes(input: &DeriveInput) -> syn::Result<SqlxContainerAt
 pub fn check_weak_enum_attributes(
     input: &DeriveInput,
     variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<SqlxContainerAttributes> {
+) -> syn::Result<ContainerAttributes> {
     let attributes = check_enum_attributes(input)?;
 
     assert_attribute!(attributes.repr.is_some(), "expected #[repr(..)]", input);
@@ -267,7 +267,7 @@ pub fn check_weak_enum_attributes(
 pub fn check_strong_enum_attributes(
     input: &DeriveInput,
     _variants: &Punctuated<Variant, Comma>,
-) -> syn::Result<SqlxContainerAttributes> {
+) -> syn::Result<ContainerAttributes> {
     let attributes = check_enum_attributes(input)?;
 
     assert_attribute!(attributes.repr.is_none(), "unexpected #[repr(..)]", input);
@@ -278,7 +278,7 @@ pub fn check_strong_enum_attributes(
 pub fn check_struct_attributes(
     input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
-) -> syn::Result<SqlxContainerAttributes> {
+) -> syn::Result<ContainerAttributes> {
     let attributes = parse_container_attributes(&input.attrs)?;
 
     assert_attribute!(

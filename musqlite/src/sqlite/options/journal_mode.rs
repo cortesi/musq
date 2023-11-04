@@ -2,7 +2,7 @@
 ///
 /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_journal_mode
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum SqliteJournalMode {
+pub enum JournalMode {
     Delete,
     Truncate,
     Persist,
@@ -12,15 +12,15 @@ pub enum SqliteJournalMode {
     Off,
 }
 
-impl SqliteJournalMode {
+impl JournalMode {
     pub(crate) fn as_str(&self) -> &'static str {
         match self {
-            SqliteJournalMode::Delete => "DELETE",
-            SqliteJournalMode::Truncate => "TRUNCATE",
-            SqliteJournalMode::Persist => "PERSIST",
-            SqliteJournalMode::Memory => "MEMORY",
-            SqliteJournalMode::Wal => "WAL",
-            SqliteJournalMode::Off => "OFF",
+            JournalMode::Delete => "DELETE",
+            JournalMode::Truncate => "TRUNCATE",
+            JournalMode::Persist => "PERSIST",
+            JournalMode::Memory => "MEMORY",
+            JournalMode::Wal => "WAL",
+            JournalMode::Off => "OFF",
         }
     }
 }

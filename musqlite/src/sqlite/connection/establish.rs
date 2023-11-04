@@ -19,18 +19,18 @@ use std::time::Duration;
 
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
-enum SqliteLoadExtensionMode {
+enum LoadExtensionMode {
     /// Enables only the C-API, leaving the SQL function disabled.
     Enable,
     /// Disables both the C-API and the SQL function.
     DisableAll,
 }
 
-impl SqliteLoadExtensionMode {
+impl LoadExtensionMode {
     fn as_int(&self) -> c_int {
         match self {
-            SqliteLoadExtensionMode::Enable => 1,
-            SqliteLoadExtensionMode::DisableAll => 0,
+            LoadExtensionMode::Enable => 1,
+            LoadExtensionMode::DisableAll => 0,
         }
     }
 }
@@ -156,7 +156,7 @@ impl EstablishParams {
     // https://www.sqlite.org/c3ref/c_dbconfig_defensive.html#sqlitedbconfigenableloadextension
     unsafe fn sqlite3_set_load_extension(
         db: *mut sqlite3,
-        mode: SqliteLoadExtensionMode,
+        mode: LoadExtensionMode,
     ) -> Result<(), Error> {
         let status = sqlite3_db_config(
             db,
@@ -206,7 +206,7 @@ impl EstablishParams {
         if !self.extensions.is_empty() {
             // Enable loading extensions
             unsafe {
-                Self::sqlite3_set_load_extension(handle.as_ptr(), SqliteLoadExtensionMode::Enable)?;
+                Self::sqlite3_set_load_extension(handle.as_ptr(), LoadExtensionMode::Enable)?;
             }
 
             for ext in self.extensions.iter() {
@@ -245,10 +245,7 @@ impl EstablishParams {
               // Fail-fast (via `?`) if disabling the extension loader didn't work for some reason,
               // avoids an unexpected state going undetected.
             unsafe {
-                Self::sqlite3_set_load_extension(
-                    handle.as_ptr(),
-                    SqliteLoadExtensionMode::DisableAll,
-                )?;
+                Self::sqlite3_set_load_extension(handle.as_ptr(), LoadExtensionMode::DisableAll)?;
             }
         }
 

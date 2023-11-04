@@ -8,9 +8,9 @@ mod parse;
 mod synchronous;
 
 use crate::sqlite::connection::LogSettings;
-pub use auto_vacuum::SqliteAutoVacuum;
-pub use journal_mode::SqliteJournalMode;
-pub use locking_mode::SqliteLockingMode;
+pub use auto_vacuum::AutoVacuum;
+pub use journal_mode::JournalMode;
+pub use locking_mode::LockingMode;
 use std::cmp::Ordering;
 use std::sync::Arc;
 use std::{borrow::Cow, time::Duration};
@@ -22,7 +22,7 @@ use crate::IndexMap;
 
 /// Options and flags which can be used to configure a SQLite connection.
 ///
-/// A value of `SqliteConnectOptions` can be parsed from a connection URL,
+/// A value of `ConnectOptions` can be parsed from a connection URL,
 /// as described by [SQLite](https://www.sqlite.org/uri.html).
 ///
 /// This type also implements [`FromStr`][std::str::FromStr] so you can parse it from a string
@@ -229,14 +229,14 @@ impl ConnectOptions {
     ///
     /// For consistency, any commands in `sqlx-cli` which create a SQLite database will create it
     /// in WAL mode.
-    pub fn journal_mode(self, mode: SqliteJournalMode) -> Self {
+    pub fn journal_mode(self, mode: JournalMode) -> Self {
         self.pragma("journal_mode", mode.as_str())
     }
 
     /// Sets the [locking mode](https://www.sqlite.org/pragma.html#pragma_locking_mode) for the database connection.
     ///
     /// The default locking mode is NORMAL.
-    pub fn locking_mode(self, mode: SqliteLockingMode) -> Self {
+    pub fn locking_mode(self, mode: LockingMode) -> Self {
         self.pragma("locking_mode", mode.as_str())
     }
 
@@ -290,7 +290,7 @@ impl ConnectOptions {
     ///
     /// For existing databases, a change to this value does not take effect unless a
     /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
-    pub fn auto_vacuum(self, auto_vacuum: SqliteAutoVacuum) -> Self {
+    pub fn auto_vacuum(self, auto_vacuum: AutoVacuum) -> Self {
         self.pragma("auto_vacuum", auto_vacuum.as_str())
     }
 

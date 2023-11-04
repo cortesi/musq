@@ -1,17 +1,17 @@
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum SqliteAutoVacuum {
+pub enum AutoVacuum {
     #[default]
     None,
     Full,
     Incremental,
 }
 
-impl SqliteAutoVacuum {
+impl AutoVacuum {
     pub(crate) fn as_str(&self) -> &'static str {
         match self {
-            SqliteAutoVacuum::None => "NONE",
-            SqliteAutoVacuum::Full => "FULL",
-            SqliteAutoVacuum::Incremental => "INCREMENTAL",
+            AutoVacuum::None => "NONE",
+            AutoVacuum::Full => "FULL",
+            AutoVacuum::Incremental => "INCREMENTAL",
         }
     }
 }
