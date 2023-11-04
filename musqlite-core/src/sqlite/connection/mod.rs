@@ -28,12 +28,10 @@ use crate::{
 pub(crate) use crate::connection::*;
 pub(crate) use handle::{ConnectionHandle, ConnectionHandleRaw};
 pub(crate) mod collation;
-pub(crate) mod describe;
 pub(crate) mod establish;
 pub(crate) mod execute;
 
 mod executor;
-mod explain;
 mod handle;
 mod intmap;
 mod worker;

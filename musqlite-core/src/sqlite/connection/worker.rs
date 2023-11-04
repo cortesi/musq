@@ -8,13 +8,9 @@ use futures_channel::oneshot;
 use futures_intrusive::sync::{Mutex, MutexGuard};
 
 use crate::{
-    describe::Describe,
     error::Error,
     sqlite::{
-        connection::{
-            describe::describe, establish::EstablishParams, execute, ConnectionHandleRaw,
-            ConnectionState,
-        },
+        connection::{establish::EstablishParams, execute, ConnectionHandleRaw, ConnectionState},
         Arguments, QueryResult, Statement,
     },
     transaction::{
@@ -46,10 +42,6 @@ enum Command {
     Prepare {
         query: Box<str>,
         tx: oneshot::Sender<Result<Statement<'static>, Error>>,
-    },
-    Describe {
-        query: Box<str>,
-        tx: oneshot::Sender<Result<Describe, Error>>,
     },
     Execute {
         query: Box<str>,
@@ -131,9 +123,6 @@ impl ConnectionWorker {
                                 prepared
                             }))
                             .ok();
-                        }
-                        Command::Describe { query, tx } => {
-                            tx.send(describe(&mut conn, &query)).ok();
                         }
                         Command::Execute {
                             query,
@@ -268,14 +257,6 @@ impl ConnectionWorker {
 
     pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement<'static>, Error> {
         self.oneshot_cmd(|tx| Command::Prepare {
-            query: query.into(),
-            tx,
-        })
-        .await?
-    }
-
-    pub(crate) async fn describe(&mut self, query: &str) -> Result<Describe, Error> {
-        self.oneshot_cmd(|tx| Command::Describe {
             query: query.into(),
             tx,
         })

@@ -4,7 +4,6 @@ use futures_core::stream::BoxStream;
 use futures_util::TryStreamExt;
 
 use crate::{
-    describe::Describe,
     error::Error,
     executor::{Execute, Executor},
     pool::Pool,
@@ -56,12 +55,5 @@ where
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })
-    }
-
-    #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Describe, Error>> {
-        let pool = self.clone();
-
-        Box::pin(async move { pool.acquire().await?.describe(sql).await })
     }
 }

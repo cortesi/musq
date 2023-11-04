@@ -3,7 +3,6 @@ use futures_core::stream::BoxStream;
 use futures_util::{TryFutureExt, TryStreamExt};
 
 use crate::{
-    describe::Describe,
     error::Error,
     executor::{Execute, Executor},
     sqlite::{Connection, QueryResult, Statement, TypeInfo},
@@ -78,13 +77,5 @@ impl<'c> Executor<'c> for &'c mut Connection {
                 ..statement
             })
         })
-    }
-
-    #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Describe, Error>>
-    where
-        'c: 'e,
-    {
-        Box::pin(self.worker.describe(sql))
     }
 }

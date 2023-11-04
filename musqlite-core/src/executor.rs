@@ -1,4 +1,4 @@
-use crate::{describe::Describe, error::Error, sqlite, Arguments, QueryResult, Row, Statement};
+use crate::{error::Error, sqlite, Arguments, QueryResult, Row, Statement};
 
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -131,16 +131,6 @@ pub trait Executor<'c>: Send + Debug + Sized {
         sql: &'q str,
         parameters: &'e [sqlite::TypeInfo],
     ) -> BoxFuture<'e, Result<Statement<'q>, Error>>
-    where
-        'c: 'e;
-
-    /// Describe the SQL query and return type information about its parameters
-    /// and results.
-    ///
-    /// This is used by compile-time verification in the query macros to
-    /// power their type inference.
-    #[doc(hidden)]
-    fn describe<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Describe, Error>>
     where
         'c: 'e;
 }
