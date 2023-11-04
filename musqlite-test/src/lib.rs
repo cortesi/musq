@@ -1,6 +1,7 @@
-use musqlite::Connection;
-
-use musqlite::pool::{Pool, PoolOptions};
+use musqlite::{
+    pool::{Pool, PoolOptions},
+    Connection,
+};
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
@@ -9,7 +10,7 @@ pub fn setup_if_needed() {
 }
 
 // Make a new connection
-pub async fn new() -> anyhow::Result<Connection> {
+pub async fn connection() -> anyhow::Result<Connection> {
     setup_if_needed();
     Ok(Connection::connect("sqlite::memory:").await?)
 }
@@ -28,7 +29,7 @@ pub async fn pool() -> anyhow::Result<Pool> {
 
 /// Return a connection to a database pre-configured with our test schema.
 pub async fn tdb() -> anyhow::Result<Connection> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
     musqlite::query::query(TEST_SCHEMA)
         .execute(&mut conn)
         .await?;
@@ -96,7 +97,7 @@ macro_rules! test_unprepared_type {
                 use musqlite::*;
                 use futures::TryStreamExt;
 
-                let mut conn = musqlite_test::new().await?;
+                let mut conn = musqlite_test::connection().await?;
 
                 $(
                     let query = format!("SELECT {}", $text);
@@ -153,7 +154,7 @@ macro_rules! __test_prepared_type {
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
                 use musqlite::Row;
 
-                let mut conn = musqlite_test::new().await?;
+                let mut conn = musqlite_test::connection().await?;
 
                 $(
                     let query = format!($sql, $text);

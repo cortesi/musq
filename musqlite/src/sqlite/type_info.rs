@@ -6,8 +6,9 @@ use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQL
 
 use crate::sqlite::error::BoxDynError;
 
+/// Data types supported by SQLite.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-pub enum DataType {
+pub enum SqliteDataType {
     Null,
     Int,
     Float,
@@ -28,7 +29,7 @@ pub enum DataType {
 
 /// Type information for a SQLite type.
 #[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct TypeInfo(pub(crate) DataType);
+pub struct TypeInfo(pub(crate) SqliteDataType);
 
 impl Display for TypeInfo {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
@@ -38,35 +39,35 @@ impl Display for TypeInfo {
 
 impl TypeInfo {
     pub fn is_null(&self) -> bool {
-        matches!(self.0, DataType::Null)
+        matches!(self.0, SqliteDataType::Null)
     }
 
     pub fn name(&self) -> &str {
         match self.0 {
-            DataType::Null => "NULL",
-            DataType::Text => "TEXT",
-            DataType::Float => "REAL",
-            DataType::Blob => "BLOB",
-            DataType::Int | DataType::Int64 => "INTEGER",
-            DataType::Numeric => "NUMERIC",
+            SqliteDataType::Null => "NULL",
+            SqliteDataType::Text => "TEXT",
+            SqliteDataType::Float => "REAL",
+            SqliteDataType::Blob => "BLOB",
+            SqliteDataType::Int | SqliteDataType::Int64 => "INTEGER",
+            SqliteDataType::Numeric => "NUMERIC",
 
             // non-standard extensions
-            DataType::Bool => "BOOLEAN",
-            DataType::Date => "DATE",
-            DataType::Time => "TIME",
-            DataType::Datetime => "DATETIME",
+            SqliteDataType::Bool => "BOOLEAN",
+            SqliteDataType::Date => "DATE",
+            SqliteDataType::Time => "TIME",
+            SqliteDataType::Datetime => "DATETIME",
         }
     }
 }
 
-impl DataType {
+impl SqliteDataType {
     pub(crate) fn from_code(code: c_int) -> Self {
         match code {
-            SQLITE_INTEGER => DataType::Int,
-            SQLITE_FLOAT => DataType::Float,
-            SQLITE_BLOB => DataType::Blob,
-            SQLITE_NULL => DataType::Null,
-            SQLITE_TEXT => DataType::Text,
+            SQLITE_INTEGER => SqliteDataType::Int,
+            SQLITE_FLOAT => SqliteDataType::Float,
+            SQLITE_BLOB => SqliteDataType::Blob,
+            SQLITE_NULL => SqliteDataType::Null,
+            SQLITE_TEXT => SqliteDataType::Text,
 
             // https://sqlite.org/c3ref/c_blob.html
             _ => panic!("unknown data type code {}", code),
@@ -77,27 +78,31 @@ impl DataType {
 // note: this implementation is particularly important as this is how the macros determine
 //       what Rust type maps to what *declared* SQL type
 // <https://www.sqlite.org/datatype3.html#affname>
-impl FromStr for DataType {
+impl FromStr for SqliteDataType {
     type Err = BoxDynError;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.to_ascii_lowercase();
         Ok(match &*s {
-            "int4" => DataType::Int,
-            "int8" => DataType::Int64,
-            "boolean" | "bool" => DataType::Bool,
+            "int4" => SqliteDataType::Int,
+            "int8" => SqliteDataType::Int64,
+            "boolean" | "bool" => SqliteDataType::Bool,
 
-            "date" => DataType::Date,
-            "time" => DataType::Time,
-            "datetime" | "timestamp" => DataType::Datetime,
+            "date" => SqliteDataType::Date,
+            "time" => SqliteDataType::Time,
+            "datetime" | "timestamp" => SqliteDataType::Datetime,
 
-            _ if s.contains("int") => DataType::Int64,
+            _ if s.contains("int") => SqliteDataType::Int64,
 
-            _ if s.contains("char") || s.contains("clob") || s.contains("text") => DataType::Text,
+            _ if s.contains("char") || s.contains("clob") || s.contains("text") => {
+                SqliteDataType::Text
+            }
 
-            _ if s.contains("blob") => DataType::Blob,
+            _ if s.contains("blob") => SqliteDataType::Blob,
 
-            _ if s.contains("real") || s.contains("floa") || s.contains("doub") => DataType::Float,
+            _ if s.contains("real") || s.contains("floa") || s.contains("doub") => {
+                SqliteDataType::Float
+            }
 
             _ => {
                 return Err(format!("unknown type: `{}`", s).into());
@@ -106,44 +111,36 @@ impl FromStr for DataType {
     }
 }
 
-// #[cfg(feature = "any")]
-// impl From<SqliteTypeInfo> for crate::sqlite::any::AnyTypeInfo {
-//     #[inline]
-//     fn from(ty: SqliteTypeInfo) -> Self {
-//         crate::sqlite::any::AnyTypeInfo(crate::sqlite::any::type_info::AnyTypeInfoKind::Sqlite(ty))
-//     }
-// }
-
 #[test]
 fn test_data_type_from_str() -> Result<(), BoxDynError> {
-    assert_eq!(DataType::Int, "INT4".parse()?);
+    assert_eq!(SqliteDataType::Int, "INT4".parse()?);
 
-    assert_eq!(DataType::Int64, "INT".parse()?);
-    assert_eq!(DataType::Int64, "INTEGER".parse()?);
-    assert_eq!(DataType::Int64, "INTBIG".parse()?);
-    assert_eq!(DataType::Int64, "MEDIUMINT".parse()?);
+    assert_eq!(SqliteDataType::Int64, "INT".parse()?);
+    assert_eq!(SqliteDataType::Int64, "INTEGER".parse()?);
+    assert_eq!(SqliteDataType::Int64, "INTBIG".parse()?);
+    assert_eq!(SqliteDataType::Int64, "MEDIUMINT".parse()?);
 
-    assert_eq!(DataType::Int64, "BIGINT".parse()?);
-    assert_eq!(DataType::Int64, "UNSIGNED BIG INT".parse()?);
-    assert_eq!(DataType::Int64, "INT8".parse()?);
+    assert_eq!(SqliteDataType::Int64, "BIGINT".parse()?);
+    assert_eq!(SqliteDataType::Int64, "UNSIGNED BIG INT".parse()?);
+    assert_eq!(SqliteDataType::Int64, "INT8".parse()?);
 
-    assert_eq!(DataType::Text, "CHARACTER(20)".parse()?);
-    assert_eq!(DataType::Text, "NCHAR(55)".parse()?);
-    assert_eq!(DataType::Text, "TEXT".parse()?);
-    assert_eq!(DataType::Text, "CLOB".parse()?);
+    assert_eq!(SqliteDataType::Text, "CHARACTER(20)".parse()?);
+    assert_eq!(SqliteDataType::Text, "NCHAR(55)".parse()?);
+    assert_eq!(SqliteDataType::Text, "TEXT".parse()?);
+    assert_eq!(SqliteDataType::Text, "CLOB".parse()?);
 
-    assert_eq!(DataType::Blob, "BLOB".parse()?);
+    assert_eq!(SqliteDataType::Blob, "BLOB".parse()?);
 
-    assert_eq!(DataType::Float, "REAL".parse()?);
-    assert_eq!(DataType::Float, "FLOAT".parse()?);
-    assert_eq!(DataType::Float, "DOUBLE PRECISION".parse()?);
+    assert_eq!(SqliteDataType::Float, "REAL".parse()?);
+    assert_eq!(SqliteDataType::Float, "FLOAT".parse()?);
+    assert_eq!(SqliteDataType::Float, "DOUBLE PRECISION".parse()?);
 
-    assert_eq!(DataType::Bool, "BOOLEAN".parse()?);
-    assert_eq!(DataType::Bool, "BOOL".parse()?);
+    assert_eq!(SqliteDataType::Bool, "BOOLEAN".parse()?);
+    assert_eq!(SqliteDataType::Bool, "BOOL".parse()?);
 
-    assert_eq!(DataType::Datetime, "DATETIME".parse()?);
-    assert_eq!(DataType::Time, "TIME".parse()?);
-    assert_eq!(DataType::Date, "DATE".parse()?);
+    assert_eq!(SqliteDataType::Datetime, "DATETIME".parse()?);
+    assert_eq!(SqliteDataType::Time, "TIME".parse()?);
+    assert_eq!(SqliteDataType::Date, "DATE".parse()?);
 
     Ok(())
 }

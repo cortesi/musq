@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo},
     Type, ValueRef,
 };
 pub use chrono::{
@@ -13,7 +13,7 @@ pub use chrono::{
 
 impl<Tz: TimeZone> Type for DateTime<Tz> {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Datetime)
+        TypeInfo(SqliteDataType::Datetime)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
@@ -23,34 +23,38 @@ impl<Tz: TimeZone> Type for DateTime<Tz> {
 
 impl Type for NaiveDateTime {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Datetime)
+        TypeInfo(SqliteDataType::Datetime)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
         matches!(
             ty.0,
-            DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int | DataType::Float
+            SqliteDataType::Datetime
+                | SqliteDataType::Text
+                | SqliteDataType::Int64
+                | SqliteDataType::Int
+                | SqliteDataType::Float
         )
     }
 }
 
 impl Type for NaiveDate {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Date)
+        TypeInfo(SqliteDataType::Date)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Date | DataType::Text)
+        matches!(ty.0, SqliteDataType::Date | SqliteDataType::Text)
     }
 }
 
 impl Type for NaiveTime {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Time)
+        TypeInfo(SqliteDataType::Time)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Time | DataType::Text)
+        matches!(ty.0, SqliteDataType::Time | SqliteDataType::Text)
     }
 }
 
@@ -101,9 +105,9 @@ impl<'r> Decode<'r> for DateTime<FixedOffset> {
 
 fn decode_datetime(value: ValueRef<'_>) -> Result<DateTime<FixedOffset>, BoxDynError> {
     let dt = match value.type_info().0 {
-        DataType::Text => decode_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => decode_datetime_from_int(value.int64()),
-        DataType::Float => decode_datetime_from_float(value.double()),
+        SqliteDataType::Text => decode_datetime_from_text(value.text()?),
+        SqliteDataType::Int | SqliteDataType::Int64 => decode_datetime_from_int(value.int64()),
+        SqliteDataType::Float => decode_datetime_from_float(value.double()),
 
         _ => None,
     };

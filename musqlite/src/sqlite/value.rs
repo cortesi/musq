@@ -6,7 +6,7 @@ use libsqlite3_sys::{
     sqlite3_value_type, SQLITE_NULL,
 };
 
-use crate::sqlite::{error::BoxDynError, type_info::DataType, TypeInfo};
+use crate::sqlite::{error::BoxDynError, type_info::SqliteDataType, TypeInfo};
 
 enum SqliteValueData<'r> {
     Value(&'r Value),
@@ -93,9 +93,9 @@ impl Value {
     }
 
     fn type_info_opt(&self) -> Option<TypeInfo> {
-        let dt = DataType::from_code(unsafe { sqlite3_value_type(self.handle.0.as_ptr()) });
+        let dt = SqliteDataType::from_code(unsafe { sqlite3_value_type(self.handle.0.as_ptr()) });
 
-        if let DataType::Null = dt {
+        if let SqliteDataType::Null = dt {
             None
         } else {
             Some(TypeInfo(dt))

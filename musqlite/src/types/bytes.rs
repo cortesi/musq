@@ -3,17 +3,17 @@ use std::borrow::Cow;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef},
     Type,
 };
 
 impl Type for [u8] {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Blob)
+        TypeInfo(SqliteDataType::Blob)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Blob | DataType::Text)
+        matches!(ty.0, SqliteDataType::Blob | SqliteDataType::Text)
     }
 }
 

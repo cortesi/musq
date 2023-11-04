@@ -1,17 +1,17 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef},
     Type,
 };
 
 impl Type for i8 {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Int)
+        TypeInfo(SqliteDataType::Int)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Int | DataType::Int64)
+        matches!(ty.0, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 
@@ -31,11 +31,11 @@ impl<'r> Decode<'r> for i8 {
 
 impl Type for i16 {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Int)
+        TypeInfo(SqliteDataType::Int)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Int | DataType::Int64)
+        matches!(ty.0, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 
@@ -55,11 +55,11 @@ impl<'r> Decode<'r> for i16 {
 
 impl Type for i32 {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Int)
+        TypeInfo(SqliteDataType::Int)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Int | DataType::Int64)
+        matches!(ty.0, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 
@@ -79,11 +79,11 @@ impl<'r> Decode<'r> for i32 {
 
 impl Type for i64 {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Int64)
+        TypeInfo(SqliteDataType::Int64)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Int | DataType::Int64)
+        matches!(ty.0, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 

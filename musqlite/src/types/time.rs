@@ -1,7 +1,7 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo},
     Type, ValueRef,
 };
 use time::format_description::{well_known::Rfc3339, FormatItem};
@@ -10,7 +10,7 @@ pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Type for OffsetDateTime {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Datetime)
+        TypeInfo(SqliteDataType::Datetime)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
@@ -20,34 +20,37 @@ impl Type for OffsetDateTime {
 
 impl Type for PrimitiveDateTime {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Datetime)
+        TypeInfo(SqliteDataType::Datetime)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
         matches!(
             ty.0,
-            DataType::Datetime | DataType::Text | DataType::Int64 | DataType::Int
+            SqliteDataType::Datetime
+                | SqliteDataType::Text
+                | SqliteDataType::Int64
+                | SqliteDataType::Int
         )
     }
 }
 
 impl Type for Date {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Date)
+        TypeInfo(SqliteDataType::Date)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Date | DataType::Text)
+        matches!(ty.0, SqliteDataType::Date | SqliteDataType::Text)
     }
 }
 
 impl Type for Time {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Time)
+        TypeInfo(SqliteDataType::Time)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Time | DataType::Text)
+        matches!(ty.0, SqliteDataType::Time | SqliteDataType::Text)
     }
 }
 
@@ -118,8 +121,8 @@ impl<'r> Decode<'r> for Time {
 
 fn decode_offset_datetime(value: ValueRef<'_>) -> Result<OffsetDateTime, BoxDynError> {
     let dt = match value.type_info().0 {
-        DataType::Text => decode_offset_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => {
+        SqliteDataType::Text => decode_offset_datetime_from_text(value.text()?),
+        SqliteDataType::Int | SqliteDataType::Int64 => {
             Some(OffsetDateTime::from_unix_timestamp(value.int64())?)
         }
 
@@ -151,8 +154,8 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
 
 fn decode_datetime(value: ValueRef<'_>) -> Result<PrimitiveDateTime, BoxDynError> {
     let dt = match value.type_info().0 {
-        DataType::Text => decode_datetime_from_text(value.text()?),
-        DataType::Int | DataType::Int64 => {
+        SqliteDataType::Text => decode_datetime_from_text(value.text()?),
+        SqliteDataType::Int | SqliteDataType::Int64 => {
             let parsed = OffsetDateTime::from_unix_timestamp(value.int64()).unwrap();
             Some(PrimitiveDateTime::new(parsed.date(), parsed.time()))
         }

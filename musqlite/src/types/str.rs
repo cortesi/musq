@@ -3,13 +3,13 @@ use std::borrow::Cow;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef},
     Type,
 };
 
 impl Type for str {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Text)
+        TypeInfo(SqliteDataType::Text)
     }
 }
 

@@ -21,7 +21,7 @@ use libsqlite3_sys::{
 };
 
 use crate::sqlite::error::{BoxDynError, Error};
-use crate::sqlite::type_info::DataType;
+use crate::sqlite::type_info::SqliteDataType;
 use crate::sqlite::{SqliteError, TypeInfo};
 
 use super::unlock_notify;
@@ -94,12 +94,12 @@ impl StatementHandle {
     }
 
     pub(crate) fn column_type_info(&self, index: usize) -> TypeInfo {
-        TypeInfo(DataType::from_code(self.column_type(index)))
+        TypeInfo(SqliteDataType::from_code(self.column_type(index)))
     }
 
     pub(crate) fn column_type_info_opt(&self, index: usize) -> Option<TypeInfo> {
-        match DataType::from_code(self.column_type(index)) {
-            DataType::Null => None,
+        match SqliteDataType::from_code(self.column_type(index)) {
+            SqliteDataType::Null => None,
             dt => Some(TypeInfo(dt)),
         }
     }
@@ -115,7 +115,7 @@ impl StatementHandle {
             }
 
             let decl = from_utf8_unchecked(CStr::from_ptr(decl).to_bytes());
-            let ty: DataType = decl.parse().ok()?;
+            let ty: SqliteDataType = decl.parse().ok()?;
 
             Some(TypeInfo(ty))
         }

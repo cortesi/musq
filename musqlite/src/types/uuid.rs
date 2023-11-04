@@ -1,4 +1,4 @@
-use crate::sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef};
+use crate::sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef};
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
@@ -12,11 +12,11 @@ pub use uuid::{
 
 impl Type for Uuid {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Blob)
+        TypeInfo(SqliteDataType::Blob)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Blob | DataType::Text)
+        matches!(ty.0, SqliteDataType::Blob | SqliteDataType::Text)
     }
 }
 
@@ -37,7 +37,7 @@ impl Decode<'_> for Uuid {
 
 impl Type for Hyphenated {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Text)
+        TypeInfo(SqliteDataType::Text)
     }
 }
 
@@ -60,7 +60,7 @@ impl Decode<'_> for Hyphenated {
 
 impl Type for Simple {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Text)
+        TypeInfo(SqliteDataType::Text)
     }
 }
 

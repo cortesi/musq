@@ -1,17 +1,20 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, DataType, TypeInfo, ValueRef},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef},
     Type,
 };
 
 impl Type for bool {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Bool)
+        TypeInfo(SqliteDataType::Bool)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, DataType::Bool | DataType::Int | DataType::Int64)
+        matches!(
+            ty.0,
+            SqliteDataType::Bool | SqliteDataType::Int | SqliteDataType::Int64
+        )
     }
 }
 

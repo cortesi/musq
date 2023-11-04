@@ -3,20 +3,20 @@ use musqlite::{
     query, query_as, query_scalar, ConnectOptions, Connection, Error, Executor, Pool, PoolOptions,
     Row,
 };
-use musqlite_test::{new, tdb};
+use musqlite_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::sync::Arc;
 
 #[tokio::test]
 async fn it_connects() -> anyhow::Result<()> {
-    new().await?;
+    connection().await?;
     Ok(())
 }
 
 #[tokio::test]
 async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     // process rows, one-at-a-time
     // this reuses the memory of the row
@@ -82,7 +82,7 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_maths() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let value = query("select 1 + ?1")
         .bind(5_i32)
@@ -97,7 +97,7 @@ async fn it_maths() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let values: Vec<i32> = musqlite::query_scalar::<i32>("select ?; select ?")
         .bind(5_i32)
@@ -114,7 +114,7 @@ async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let values: Vec<i32> = musqlite::query_scalar::<i32>("select ?1; select ?1")
         .bind(25_i32)
@@ -157,7 +157,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let row: (i32, i32, i32, i32) = musqlite::query_as("select ?1, ?1, ?3, ?2")
         .bind(5_i32)
@@ -179,7 +179,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
     // this is trying to check for any data races
     // there were a few that triggered *sometimes* while building out StatementWorker
     for _ in 0..1000_usize {
-        let mut conn = new().await?;
+        let mut conn = connection().await?;
         let v: Vec<(i32,)> = query_as("SELECT 1").fetch_all(&mut conn).await?;
 
         assert_eq!(v[0].0, 1);
@@ -240,7 +240,7 @@ async fn it_opens_temp_on_disk() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_fails_to_parse() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
     let res = conn.execute("SEELCT 1").await;
 
     assert!(res.is_err());
@@ -257,7 +257,7 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_handles_empty_queries() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
     let done = conn.execute("").await?;
 
     assert_eq!(done.rows_affected(), 0);
@@ -267,7 +267,7 @@ async fn it_handles_empty_queries() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_binds_parameters() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let v: i32 = query_scalar("SELECT ?")
         .bind(10_i32)
@@ -289,7 +289,7 @@ async fn it_binds_parameters() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_binds_dollar_parameters() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let v: (i32, i32) = query_as("SELECT $1, $2")
         .bind(10_i32)
@@ -305,7 +305,7 @@ async fn it_binds_dollar_parameters() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_executes_queries() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let _ = conn
         .execute(
@@ -336,7 +336,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 
 #[tokio::test]
 async fn it_can_execute_multiple_statements() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let done = conn
         .execute(
@@ -369,7 +369,7 @@ SELECT id, other FROM users WHERE id = last_insert_rowid();
 
 #[tokio::test]
 async fn it_interleaves_reads_and_writes() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     let mut cursor = conn.fetch(
         "
@@ -403,7 +403,7 @@ SELECT id, text FROM _musqlite_test;
 
 #[tokio::test]
 async fn it_supports_collations() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     // also tests `.lock_handle()`
     conn.lock_handle()
@@ -439,7 +439,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL COLLATE
 
 #[tokio::test]
 async fn it_caches_statements() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     // Initial PRAGMAs are not cached as we are not going to execute
     // them more than once.
@@ -452,7 +452,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     assert_eq!(0, conn.cached_statements_size());
 
     // `Query` is persistent by default.
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
     for i in 0..2 {
         let row = query("SELECT ? AS val")
             .bind(i)
@@ -471,7 +471,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     // `Query` is not persistent if `.persistent(false)` is used
     // explicitly.
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
     for i in 0..2 {
         let row = query("SELECT ? AS val")
             .bind(i)
@@ -521,7 +521,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     conn.execute("CREATE TEMPORARY TABLE foobar (id INTEGER)")
         .await?;
@@ -538,7 +538,7 @@ async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     conn.execute("CREATE TEMPORARY TABLE foobar (id INTEGER)")
         .await?;
@@ -721,7 +721,7 @@ async fn concurrent_read_and_write() {
 
 #[tokio::test]
 async fn test_query_with_progress_handler() -> anyhow::Result<()> {
-    let mut conn = new().await?;
+    let mut conn = connection().await?;
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
     let state = format!("test");
@@ -744,7 +744,7 @@ async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
 
     {
-        let mut conn = new().await?;
+        let mut conn = connection().await?;
 
         let o = ref_counted_object.clone();
         conn.lock_handle().await?.set_progress_handler(1, move || {

@@ -9,7 +9,7 @@ use crate::{
     encode::{Encode, IsNull},
     error::BoxDynError,
     sqlite,
-    sqlite::DataType,
+    sqlite::SqliteDataType,
     sqlite::{ArgumentBuffer, ArgumentValue},
     types::Type,
     TypeInfo, ValueRef,
@@ -127,7 +127,7 @@ where
 
 impl<T> Type for Json<T> {
     fn type_info() -> TypeInfo {
-        TypeInfo(DataType::Text)
+        TypeInfo(SqliteDataType::Text)
     }
 
     fn compatible(ty: &TypeInfo) -> bool {
