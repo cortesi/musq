@@ -1,8 +1,6 @@
 //! Provides [`Encode`] for encoding values for the database.
 
-use std::mem;
-
-use crate::{sqlite::ArgumentBuffer, Type, TypeInfo};
+use crate::{sqlite::ArgumentBuffer, Type};
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -32,17 +30,6 @@ pub trait Encode<'q> {
     /// memory.
     #[must_use]
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull;
-
-    fn produces(&self) -> Option<TypeInfo> {
-        // `produces` is inherently a hook to allow database drivers to produce value-dependent
-        // type information; if the driver doesn't need this, it can leave this as `None`
-        None
-    }
-
-    #[inline]
-    fn size_hint(&self) -> usize {
-        mem::size_of_val(self)
-    }
 }
 
 impl<'q, T> Encode<'q> for &'_ T
@@ -58,31 +45,12 @@ where
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         <&T as Encode>::encode(self, buf)
     }
-
-    #[inline]
-    fn produces(&self) -> Option<TypeInfo> {
-        (**self).produces()
-    }
-
-    #[inline]
-    fn size_hint(&self) -> usize {
-        (**self).size_hint()
-    }
 }
 
 impl<'q, T> Encode<'q> for Option<T>
 where
     T: Encode<'q> + Type + 'q,
 {
-    #[inline]
-    fn produces(&self) -> Option<TypeInfo> {
-        if let Some(v) = self {
-            v.produces()
-        } else {
-            T::type_info().into()
-        }
-    }
-
     #[inline]
     fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         if let Some(v) = self {
@@ -99,10 +67,5 @@ where
         } else {
             IsNull::Yes
         }
-    }
-
-    #[inline]
-    fn size_hint(&self) -> usize {
-        self.as_ref().map_or(0, Encode::size_hint)
     }
 }

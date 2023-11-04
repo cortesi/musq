@@ -89,10 +89,6 @@ fn expand_derive_encode_transparent(
             fn produces(&self) -> Option<sqlite::TypeInfo> {
                 <#ty as musqlite_core::encode::Encode<#lifetime>>::produces(&self.0)
             }
-
-            fn size_hint(&self) -> usize {
-                <#ty as musqlite_core::encode::Encode<#lifetime>>::size_hint(&self.0)
-            }
         }
     ))
 }
@@ -127,10 +123,6 @@ fn expand_derive_encode_weak_enum(
                 };
 
                 <#repr as musqlite_core::encode::Encode>::encode_by_ref(&value, buf)
-            }
-
-            fn size_hint(&self) -> usize {
-                <#repr as musqlite_core::encode::Encode>::size_hint(&Default::default())
             }
         }
     ))
@@ -177,14 +169,6 @@ fn expand_derive_encode_strong_enum(
                 };
 
                 <&::std::primitive::str as musqlite_core::encode::Encode<'q>>::encode(val, buf)
-            }
-
-            fn size_hint(&self) -> ::std::primitive::usize {
-                let val = match self {
-                    #(#value_arms)*
-                };
-
-                <&::std::primitive::str as musqlite_core::encode::Encode<'q>>::size_hint(&val)
             }
         }
     ))

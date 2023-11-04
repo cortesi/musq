@@ -16,7 +16,6 @@ impl Type for str {
 impl<'q> Encode<'q> for &'q str {
     fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Text(Cow::Borrowed(*self)));
-
         IsNull::No
     }
 }
