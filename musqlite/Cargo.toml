@@ -10,8 +10,6 @@ repository.workspace = true
 [dependencies]
 tokio = { version = "1.15.0", features = ["full"] }
 bit-vec = "0.6.3"
-ipnetwork = "0.20.0"
-mac_address = "1.1.5"
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
 uuid = "1.1.2"
 ahash = "0.8"
@@ -51,7 +49,6 @@ libsqlite3-sys = { version = "0.26", features = [
     "unlock_notify",
     "bundled-sqlcipher",
 ] }
-
 futures-intrusive = "0.5.0"
 regex = "1.10.2"
 atoi = "2.0.0"

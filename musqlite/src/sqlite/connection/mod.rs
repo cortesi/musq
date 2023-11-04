@@ -1,5 +1,4 @@
 use std::{
-    cmp::Ordering,
     fmt::{self, Debug, Formatter, Write},
     os::raw::{c_int, c_void},
     panic::catch_unwind,
@@ -27,7 +26,6 @@ use crate::{
 
 pub(crate) use crate::connection::*;
 pub(crate) use handle::{ConnectionHandle, ConnectionHandleRaw};
-pub(crate) mod collation;
 pub(crate) mod establish;
 pub(crate) mod execute;
 
@@ -107,6 +105,15 @@ pub(crate) struct Statements {
     temp: Option<VirtualStatement>,
 }
 
+impl Debug for Connection {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SqliteConnection")
+            .field("row_channel_size", &self.row_channel_size)
+            .field("cached_statements_size", &self.cached_statements_size())
+            .finish()
+    }
+}
+
 impl Connection {
     pub(crate) async fn establish(options: &ConnectOptions) -> Result<Self, Error> {
         let params = EstablishParams::from_options(options)?;
@@ -127,18 +134,7 @@ impl Connection {
 
         Ok(LockedSqliteHandle { guard })
     }
-}
 
-impl Debug for Connection {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SqliteConnection")
-            .field("row_channel_size", &self.row_channel_size)
-            .field("cached_statements_size", &self.cached_statements_size())
-            .finish()
-    }
-}
-
-impl Connection {
     /// Explicitly close this database connection.
     ///
     /// This notifies the database server that the connection is closing so that it can
@@ -307,21 +303,8 @@ impl LockedSqliteHandle<'_> {
     /// Thus, if you are making direct calls via `libsqlite3-sys` you should pin the version
     /// of SQLx that you're using, and upgrade it and `libsqlite3-sys` manually as new
     /// versions are released.
-    ///
-    /// See [the driver root docs][crate] for details.
     pub fn as_raw_handle(&mut self) -> NonNull<sqlite3> {
         self.guard.handle.as_non_null_ptr()
-    }
-
-    /// Apply a collation to the open database.
-    ///
-    /// See [`SqliteConnectOptions::collation()`] for details.
-    pub fn create_collation(
-        &mut self,
-        name: &str,
-        compare: impl Fn(&str, &str) -> Ordering + Send + Sync + 'static,
-    ) -> Result<(), Error> {
-        collation::create_collation(&mut self.guard.handle, name, compare)
     }
 
     /// Sets a progress handler that is invoked periodically during long running calls. If the progress callback

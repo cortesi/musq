@@ -60,8 +60,6 @@ pub use self::maybe::MaybePoolConnection;
 /// application/daemon/web server/etc. and then shared with all tasks throughout the process'
 /// lifetime. How best to accomplish this depends on your program architecture.
 ///
-/// In Actix-Web, for example, you can share a single pool with all request handlers using [web::Data].
-///
 /// Cloning `Pool` is cheap as it is simply a reference-counted handle to the inner pool state.
 /// When the last remaining handle to the pool is dropped, the connections owned by the pool are
 /// immediately closed (also by dropping). `PoolConnection` returned by [Pool::acquire] and
@@ -73,8 +71,6 @@ pub use self::maybe::MaybePoolConnection;
 /// connection is being closed), you can call [Pool::close] which causes all waiting and subsequent
 /// calls to [Pool::acquire] to return [Error::PoolClosed], and waits until all connections have
 /// been returned to the pool and gracefully closed.
-///
-/// [web::Data]: https://docs.rs/actix-web/3/actix_web/web/struct.Data.html
 ///
 /// We recommend calling [`.close().await`] to gracefully close the pool and its connections
 /// when you are done using it. This will also wake any tasks that are waiting on an `.acquire()`
