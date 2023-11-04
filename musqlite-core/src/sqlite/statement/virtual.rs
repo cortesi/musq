@@ -5,19 +5,18 @@ use std::ptr::{null, null_mut, NonNull};
 use std::sync::Arc;
 use std::{cmp, i32};
 
-use crate::err_protocol;
 use libsqlite3_sys::{
     sqlite3, sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
 };
 
-use crate::bytes::{Buf, Bytes};
-use crate::error::Error;
-use crate::ext::ustr::UStr;
-use crate::{HashMap, SmallVec};
-
-use crate::sqlite::connection::ConnectionHandle;
-use crate::sqlite::statement::StatementHandle;
-use crate::sqlite::{Column, SqliteError};
+use crate::{
+    bytes::{Buf, Bytes},
+    err_protocol,
+    error::Error,
+    ext::ustr::UStr,
+    sqlite::{connection::ConnectionHandle, statement::StatementHandle, SqliteError},
+    Column, HashMap, SmallVec,
+};
 
 // A virtual statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
 // on `;` to support multiple statements in one query.

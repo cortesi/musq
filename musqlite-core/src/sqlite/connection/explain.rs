@@ -437,7 +437,7 @@ pub(super) fn explain(
     let program_size = program.len();
 
     let mut logger =
-        crate::sqlite::logger::QueryPlanLogger::new(query, &program, conn.log_settings.clone());
+        crate::logger::QueryPlanLogger::new(query, &program, conn.log_settings.clone());
 
     let mut states = BranchList::new(QueryState {
         visited: vec![0; program_size],

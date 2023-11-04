@@ -1,9 +1,14 @@
-use crate::sqlite::connection::explain::explain;
-use crate::sqlite::{
-    connection::ConnectionState, error::Error, statement::VirtualStatement, type_info::DataType,
-    Column,
+use crate::{
+    describe::Describe,
+    sqlite::{
+        connection::{explain::explain, ConnectionState},
+        error::Error,
+        statement::VirtualStatement,
+        type_info::DataType,
+    },
+    Column, Either,
 };
-use crate::{describe::Describe, Either};
+
 use std::convert::identity;
 
 pub(crate) fn describe(conn: &mut ConnectionState, query: &str) -> Result<Describe, Error> {

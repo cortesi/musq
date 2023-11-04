@@ -1,22 +1,26 @@
-use crate::{error::Error, sqlite};
+use crate::{error::Error, ext::ustr::UStr, sqlite::TypeInfo};
 
 use std::fmt::Debug;
 
-pub trait Column: 'static + Send + Sync + Debug {
-    /// Gets the column ordinal.
-    ///
-    /// This can be used to unambiguously refer to this column within a row in case more than
-    /// one column have the same name
-    fn ordinal(&self) -> usize;
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+pub struct Column {
+    pub(crate) name: UStr,
+    pub(crate) ordinal: usize,
+    pub(crate) type_info: TypeInfo,
+}
 
-    /// Gets the column name or alias.
-    ///
-    /// The column name is unreliable (and can change between database minor versions) if this
-    /// column is an expression that has not been aliased.
-    fn name(&self) -> &str;
+impl Column {
+    pub fn ordinal(&self) -> usize {
+        self.ordinal
+    }
 
-    /// Gets the type information for the column.
-    fn type_info(&self) -> &sqlite::TypeInfo;
+    pub fn name(&self) -> &str {
+        &*self.name
+    }
+
+    pub fn type_info(&self) -> &TypeInfo {
+        &self.type_info
+    }
 }
 
 /// A type that can be used to index into a [`Row`] or [`Statement`].

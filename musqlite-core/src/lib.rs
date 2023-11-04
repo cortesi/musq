@@ -57,7 +57,7 @@ pub use smallvec::SmallVec;
 
 pub use crate::{
     acquire::Acquire,
-    column::ColumnIndex,
+    column::{Column, ColumnIndex},
     describe::Describe,
     executor::{Execute, Executor},
     from_row::FromRow,
@@ -67,7 +67,7 @@ pub use crate::{
     query_builder::QueryBuilder,
     query_scalar::{query_scalar, query_scalar_with},
     sqlite::{
-        Arguments, Column, ConnectOptions, Connection, IntoArguments, QueryResult, Row, Statement,
+        Arguments, ConnectOptions, Connection, IntoArguments, QueryResult, Row, Statement,
         TypeInfo, Value, ValueRef,
     },
     transaction::{Transaction, TransactionManager},

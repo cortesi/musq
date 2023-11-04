@@ -7,9 +7,9 @@ use crate::{
     decode::Decode,
     error::{mismatched_types, Error},
     ext::ustr::UStr,
-    sqlite::{statement::StatementHandle, Column, Value, ValueRef},
+    sqlite::{statement::StatementHandle, Value, ValueRef},
     types::Type,
-    HashMap,
+    Column, HashMap,
 };
 
 /// Implementation of [`Row`] for SQLite.

@@ -1,9 +1,13 @@
-use crate::sqlite::connection::{ConnectionHandle, ConnectionState};
-use crate::sqlite::error::Error;
-use crate::sqlite::logger::QueryLogger;
-use crate::sqlite::statement::{StatementHandle, VirtualStatement};
-use crate::sqlite::{Arguments, QueryResult, Row};
-use crate::Either;
+use crate::{
+    logger::QueryLogger,
+    sqlite::{
+        connection::{ConnectionHandle, ConnectionState},
+        error::Error,
+        statement::{StatementHandle, VirtualStatement},
+        Arguments, QueryResult, Row,
+    },
+    Either,
+};
 
 pub struct ExecuteIter<'a> {
     handle: &'a mut ConnectionHandle,

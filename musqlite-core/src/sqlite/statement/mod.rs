@@ -1,8 +1,8 @@
 use crate::{
     ext::ustr::UStr,
     impl_statement_query,
-    sqlite::{column::ColumnIndex, error::Error, Arguments, Column, TypeInfo},
-    Either, HashMap,
+    sqlite::{error::Error, Arguments, TypeInfo},
+    Column, ColumnIndex, Either, HashMap,
 };
 
 use std::borrow::Cow;
