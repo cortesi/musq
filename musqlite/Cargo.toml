@@ -46,7 +46,6 @@ libsqlite3-sys = { version = "0.26", features = [
     "vcpkg",
     "bundled",
     "unlock_notify",
-    "bundled-sqlcipher",
 ] }
 futures-intrusive = "0.5.0"
 regex = "1.10.2"
