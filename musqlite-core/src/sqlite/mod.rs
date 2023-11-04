@@ -9,7 +9,7 @@ pub use query_result::QueryResult;
 pub use row::Row;
 pub use statement::Statement;
 pub use transaction::TransactionManager;
-pub use type_info::TypeInfo;
+pub use type_info::{DataType, TypeInfo};
 pub use value::{Value, ValueRef};
 
 mod arguments;

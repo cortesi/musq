@@ -7,7 +7,7 @@ use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQL
 use crate::sqlite::error::BoxDynError;
 
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-pub(crate) enum DataType {
+pub enum DataType {
     Null,
     Int,
     Float,

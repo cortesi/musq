@@ -1,13 +1,4 @@
-//! Conversions between Rust and SQL types.
-//!
-//! To see how each SQL type maps to a Rust type, see the corresponding `types` module for each
-//! database:
-//!
-//!  * [SQLite](crate::sqlite::types)
-//!
-//! Any external types that have had [`Type`] implemented for, are re-exported in this module
-//! for convenience as downstream users need to use a compatible version of the external crate
-//! to take advantage of the implementation.
+//! Conversions between Rust and SQLite types.
 //!
 //! # Nullable
 //!
@@ -18,9 +9,7 @@
 use crate::sqlite;
 
 pub mod bstr;
-
 mod json;
-
 pub use uuid::{self, Uuid};
 
 pub mod chrono {
@@ -50,30 +39,18 @@ pub mod mac_address {
 
 pub use json::{Json, JsonRawValue, JsonValue};
 
-/// Indicates that a SQL type is supported for a database.
-///
-/// ## Compile-time verification
-///
-/// With compile-time verification, the use of type overrides is currently required to make
-/// use of any user-defined types.
-///
-/// ```rust,ignore
-/// struct MyUser { id: UserId, name: String }
-///
-/// // fetch all properties from user and override the type in Rust for `id`
-/// let user = query_as!(MyUser, r#"SELECT users.*, id as "id: UserId" FROM users"#)
-///     .fetch_one(&pool).await?;
-/// ```
+/// Indicates that a SQL type is supported.
 ///
 /// ## Derivable
 ///
-/// This trait can be derived by SQLx to support Rust-only wrapper types, enumerations, and structured records. Additionally, an implementation of [`Encode`](crate::encode::Encode) and [`Decode`](crate::decode::Decode) is
+/// This trait can be derived by SQLx to support Rust-only wrapper types, enumerations, and structured records.
+/// Additionally, an implementation of [`Encode`](crate::encode::Encode) and [`Decode`](crate::decode::Decode) is
 /// generated.
 ///
 /// ### Transparent
 ///
-/// Rust-only domain wrappers around SQL types. The generated implementations directly delegate
-/// to the implementation of the inner type.
+/// Rust-only domain wrappers around SQL types. The generated implementations directly delegate to the implementation of
+/// the inner type.
 ///
 /// ```rust,ignore
 /// #[derive(Type)]
@@ -83,17 +60,17 @@ pub use json::{Json, JsonRawValue, JsonValue};
 ///
 /// ##### Attributes
 ///
-/// * `#[sqlx(rename_all = "<strategy>")]` on struct definition: See [`derive docs in FromRow`](crate::from_row::FromRow#rename_all)
+/// * `#[sqlx(rename_all = "<strategy>")]` on struct definition: See [`derive docs in
+///   FromRow`](crate::from_row::FromRow#rename_all)
 /// * `#[sqlx(no_pg_array)]`: do not emit a `PgHasArrayType` impl (see above).
 ///
 /// ### Enumeration
 ///
-/// Enumerations may be defined in Rust and can match SQL by
-/// integer discriminant or variant name.
+/// Enumerations may be defined in Rust and can match SQL by integer discriminant or variant name.
 ///
-/// With `#[repr(_)]` the integer representation is used when converting from/to SQL and expects
-/// that SQL type (e.g., `INT`). Without, the names of the variants are used instead and
-/// expects a textual SQL type (e.g., `VARCHAR`, `TEXT`).
+/// With `#[repr(_)]` the integer representation is used when converting from/to SQL and expects that SQL type (e.g.,
+/// `INT`). Without, the names of the variants are used instead and expects a textual SQL type (e.g., `VARCHAR`,
+/// `TEXT`).
 ///
 /// ```rust,ignore
 /// #[derive(Type)]

@@ -87,7 +87,6 @@ mod bytes;
 mod chrono;
 mod float;
 mod int;
-mod json;
 mod str;
 mod time;
 mod uint;

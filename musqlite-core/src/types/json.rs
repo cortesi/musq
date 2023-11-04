@@ -9,9 +9,10 @@ use crate::{
     encode::{Encode, IsNull},
     error::BoxDynError,
     sqlite,
-    sqlite::ArgumentBuffer,
+    sqlite::DataType,
+    sqlite::{ArgumentBuffer, ArgumentValue},
     types::Type,
-    ValueRef,
+    TypeInfo, ValueRef,
 };
 
 /// Json for json and jsonb fields
@@ -124,6 +125,16 @@ where
     }
 }
 
+impl<T> Type for Json<T> {
+    fn type_info() -> TypeInfo {
+        TypeInfo(DataType::Text)
+    }
+
+    fn compatible(ty: &TypeInfo) -> bool {
+        <&str as Type>::compatible(ty)
+    }
+}
+
 impl Type for JsonValue
 where
     Json<Self>: Type,
@@ -176,5 +187,23 @@ where
 {
     fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode>::decode(value).map(|item| item.0)
+    }
+}
+
+impl<T> Encode<'_> for Json<T>
+where
+    T: Serialize,
+{
+    fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
+        Encode::encode(self.encode_to_string(), buf)
+    }
+}
+
+impl<'r, T> Decode<'r> for Json<T>
+where
+    T: 'r + Deserialize<'r>,
+{
+    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+        Self::decode_from_string(Decode::decode(value)?)
     }
 }
