@@ -44,7 +44,6 @@ pub struct EstablishParams {
     extensions: IndexMap<CString, Option<CString>>,
     pub(crate) thread_name: String,
     pub(crate) command_channel_size: usize,
-    register_regexp_function: bool,
 }
 
 impl EstablishParams {
@@ -146,7 +145,6 @@ impl EstablishParams {
             extensions,
             thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
             command_channel_size: options.command_channel_size,
-            register_regexp_function: options.register_regexp_function,
         })
     }
 
@@ -246,14 +244,6 @@ impl EstablishParams {
               // avoids an unexpected state going undetected.
             unsafe {
                 Self::sqlite3_set_load_extension(handle.as_ptr(), LoadExtensionMode::DisableAll)?;
-            }
-        }
-
-        if self.register_regexp_function {
-            // configure a `regexp` function for sqlite, it does not come with one by default
-            let status = crate::sqlite::regexp::register(handle.as_ptr());
-            if status != SQLITE_OK {
-                return Err(Error::Database(SqliteError::new(handle.as_ptr())));
             }
         }
 

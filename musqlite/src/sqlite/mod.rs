@@ -13,5 +13,3 @@ mod options;
 pub mod statement;
 mod type_info;
 mod value;
-
-mod regexp;
