@@ -46,7 +46,6 @@ pub mod logger;
 pub mod query_as;
 pub mod query_builder;
 pub mod query_scalar;
-pub mod row;
 pub mod type_info;
 pub mod value;
 
@@ -69,7 +68,7 @@ pub use crate::{
     describe::Describe,
     executor::{Execute, Executor},
     from_row::FromRow,
-    pool::Pool,
+    pool::{Pool, PoolOptions},
     query::{query, query_with},
     query_as::{query_as, query_as_with},
     query_builder::QueryBuilder,

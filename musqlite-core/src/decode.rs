@@ -10,7 +10,6 @@ use crate::{error::BoxDynError, ValueRef};
 /// types externally to SQLx.
 ///
 /// ```rust
-/// # use musqlite_core::database::{Database};
 /// # use musqlite_core::decode::Decode;
 /// # use musqlite_core::types::Type;
 /// # use musqlite_core::{TypeInfo, ValueRef};

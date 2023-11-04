@@ -113,7 +113,7 @@ fn expand_derive_has_sql_type_weak_enum(
 
 fn expand_derive_has_sql_type_strong_enum(
     input: &DeriveInput,
-    variants: &Punctuated<Variant, Comma>,
+    _: &Punctuated<Variant, Comma>,
 ) -> syn::Result<TokenStream> {
     let ident = &input.ident;
     let mut tts = TokenStream::new();
@@ -133,8 +133,8 @@ fn expand_derive_has_sql_type_strong_enum(
 }
 
 fn expand_derive_has_sql_type_struct(
-    input: &DeriveInput,
-    fields: &Punctuated<Field, Comma>,
+    _: &DeriveInput,
+    _: &Punctuated<Field, Comma>,
 ) -> syn::Result<TokenStream> {
     let tts = TokenStream::new();
     Ok(tts)

@@ -1,4 +1,4 @@
-use musqlite_core::{error::ErrorKind, query, Connection, Error};
+use musqlite_core::{error::ErrorKind, query, Error};
 use musqlite_test::tdb;
 
 #[tokio::test]

@@ -36,12 +36,6 @@ mod value;
 
 mod regexp;
 
-/// An alias for [`Pool`][crate::sqlite::pool::Pool], specialized for SQLite.
-pub type SqlitePool = crate::pool::Pool;
-
-/// An alias for [`PoolOptions`][crate::sqlite::pool::PoolOptions], specialized for SQLite.
-pub type SqlitePoolOptions = crate::pool::PoolOptions;
-
 /// An alias for [`Executor<'_, Database = Sqlite>`][Executor].
 pub trait SqliteExecutor<'c>: Executor<'c> {}
 impl<'c, T: Executor<'c>> SqliteExecutor<'c> for T {}

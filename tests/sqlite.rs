@@ -1,9 +1,7 @@
 use futures::TryStreamExt;
 use musqlite_core::{
-    query, query_as, query_scalar,
-    sqlite::Row,
-    sqlite::{SqlitePool, SqlitePoolOptions},
-    ConnectOptions, Connection, Error, Executor,
+    query, query_as, query_scalar, sqlite::Row, ConnectOptions, Connection, Error, Executor, Pool,
+    PoolOptions,
 };
 use musqlite_test::{new, tdb};
 use rand::{Rng, SeedableRng};
@@ -191,7 +189,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool: SqlitePool = SqlitePoolOptions::new()
+    let pool = PoolOptions::new()
         .min_connections(2)
         .max_connections(2)
         .test_before_acquire(false)
@@ -675,7 +673,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn concurrent_read_and_write() {
-    let pool: SqlitePool = SqlitePoolOptions::new()
+    let pool: Pool = PoolOptions::new()
         .min_connections(2)
         .connect(":memory:")
         .await
