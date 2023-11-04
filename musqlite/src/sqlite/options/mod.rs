@@ -498,7 +498,7 @@ impl ConnectOptions {
     ///
     /// ```
     /// # use std::str::FromStr;
-    /// # use musqlite_core::{query, ConnectOptions, Connection, Row, error::Result};
+    /// # use musqlite::{query, ConnectOptions, Connection, Row, error::Result};
     /// # async fn run() -> Result<()> {
     /// let mut sqlite = ConnectOptions::from_str("sqlite://:memory:")?
     ///     .with_regexp()

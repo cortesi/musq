@@ -1,4 +1,4 @@
-use musqlite_core::types;
+use musqlite::types;
 use musqlite_macros::*;
 use serde::Deserialize;
 use std::collections::HashMap;

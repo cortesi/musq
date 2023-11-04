@@ -61,7 +61,7 @@ where
     }
 
     #[inline]
-    fn encode_by_ref(&self, buf: &mut crate::sqlite::ArgumentBuffer<'q>) -> IsNull {
+    fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         if let Some(v) = self {
             v.encode_by_ref(buf)
         } else {

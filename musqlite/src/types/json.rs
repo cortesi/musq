@@ -23,7 +23,7 @@ use crate::{
 ///
 /// ```no_run
 /// # use serde::Deserialize;
-/// # use musqlite_core::types;
+/// # use musqlite::types;
 /// # use musqlite_macros::*;
 /// #[derive(Deserialize)]
 /// struct Book {
@@ -39,7 +39,7 @@ use crate::{
 ///
 /// Can also be used to turn the json/jsonb into a hashmap
 /// ```no_run
-/// # use musqlite_core::types;
+/// # use musqlite::types;
 /// # use musqlite_macros::*;
 /// use std::collections::HashMap;
 /// use serde::Deserialize;

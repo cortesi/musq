@@ -60,7 +60,8 @@ fn expand_derive_from_row_struct(
 
     let predicates = &mut generics.make_where_clause().predicates;
 
-    predicates.push(parse_quote!(&#lifetime ::std::primitive::str: musqlite_core::ColumnIndex<musqlite_core::Row>));
+    predicates
+        .push(parse_quote!(&#lifetime ::std::primitive::str: musqlite::ColumnIndex<musqlite::Row>));
 
     let container_attributes = parse_container_attributes(&input.attrs)?;
 
@@ -79,13 +80,13 @@ fn expand_derive_from_row_struct(
 
             let expr: Expr = match (attributes.flatten, attributes.try_from) {
                 (true, None) => {
-                    predicates.push(parse_quote!(#ty: musqlite_core::FromRow<#lifetime>));
-                    parse_quote!(<#ty as musqlite_core::FromRow<#lifetime>>::from_row(row))
+                    predicates.push(parse_quote!(#ty: musqlite::FromRow<#lifetime>));
+                    parse_quote!(<#ty as musqlite::FromRow<#lifetime>>::from_row(row))
                 }
                 (false, None) => {
                     predicates
-                        .push(parse_quote!(#ty: musqlite_core::decode::Decode<#lifetime>));
-                    predicates.push(parse_quote!(#ty: musqlite_core::types::Type));
+                        .push(parse_quote!(#ty: musqlite::decode::Decode<#lifetime>));
+                    predicates.push(parse_quote!(#ty: musqlite::types::Type));
 
                     let id_s = attributes
                         .rename
@@ -98,13 +99,13 @@ fn expand_derive_from_row_struct(
                     parse_quote!(row.try_get(#id_s))
                 }
                 (true,Some(try_from)) => {
-                    predicates.push(parse_quote!(#try_from: musqlite_core::FromRow<#lifetime>));
-                    parse_quote!(<#try_from as musqlite_core::FromRow<#lifetime>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musqlite_core::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                    predicates.push(parse_quote!(#try_from: musqlite::FromRow<#lifetime>));
+                    parse_quote!(<#try_from as musqlite::FromRow<#lifetime>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musqlite::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                 }
                 (false,Some(try_from)) => {
                     predicates
-                        .push(parse_quote!(#try_from: musqlite_core::decode::Decode<#lifetime>));
-                    predicates.push(parse_quote!(#try_from: musqlite_core::types::Type));
+                        .push(parse_quote!(#try_from: musqlite::decode::Decode<#lifetime>));
+                    predicates.push(parse_quote!(#try_from: musqlite::types::Type));
 
                     let id_s = attributes
                         .rename
@@ -114,13 +115,13 @@ fn expand_derive_from_row_struct(
                             None => s,
                         })
                         .unwrap();
-                    parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musqlite_core::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                    parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musqlite::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                 }
             };
 
             if attributes.default {
                 Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
-                musqlite_core::Error::ColumnNotFound(_) => {
+                musqlite::Error::ColumnNotFound(_) => {
                     ::std::result::Result::Ok(Default::default())
                 },
                 e => ::std::result::Result::Err(e)
@@ -139,8 +140,8 @@ fn expand_derive_from_row_struct(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite_core::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime musqlite_core::Row) -> musqlite_core::Result<Self> {
+        impl #impl_generics musqlite::FromRow<#lifetime> for #ident #ty_generics #where_clause {
+            fn from_row(row: &#lifetime musqlite::Row) -> musqlite::Result<Self> {
                 #(#reads)*
 
                 ::std::result::Result::Ok(#ident {
@@ -168,9 +169,7 @@ fn expand_derive_from_row_struct_unnamed(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics
-        .params
-        .insert(0, parse_quote!(R: musqlite_core::Row));
+    generics.params.insert(0, parse_quote!(R: musqlite::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
@@ -179,14 +178,14 @@ fn expand_derive_from_row_struct_unnamed(
     let predicates = &mut generics.make_where_clause().predicates;
 
     predicates.push(parse_quote!(
-        ::std::primitive::usize: musqlite_core::ColumnIndex<musqlite_core::Row>
+        ::std::primitive::usize: musqlite::ColumnIndex<musqlite::Row>
     ));
 
     for field in fields {
         let ty = &field.ty;
 
-        predicates.push(parse_quote!(#ty: musqlite_core::decode::Decode<#lifetime>));
-        predicates.push(parse_quote!(#ty: musqlite_core::types::Type));
+        predicates.push(parse_quote!(#ty: musqlite::decode::Decode<#lifetime>));
+        predicates.push(parse_quote!(#ty: musqlite::types::Type));
     }
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -198,8 +197,8 @@ fn expand_derive_from_row_struct_unnamed(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite_core::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime musqlite_core::Row) -> musqlite_core::Result<Self> {
+        impl #impl_generics musqlite::FromRow<#lifetime> for #ident #ty_generics #where_clause {
+            fn from_row(row: &#lifetime musqlite::Row) -> musqlite::Result<Self> {
                 ::std::result::Result::Ok(#ident (
                     #(#gets),*
                 ))

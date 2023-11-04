@@ -71,23 +71,23 @@ fn expand_derive_encode_transparent(
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: musqlite_core::encode::Encode<#lifetime>));
+        .push(parse_quote!(#ty: musqlite::encode::Encode<#lifetime>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite_core::encode::Encode<#lifetime> for #ident #ty_generics
+        impl #impl_generics musqlite::encode::Encode<#lifetime> for #ident #ty_generics
         #where_clause
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut musqlite_core::sqlite::ArgumentBuffer<#lifetime>,
-            ) -> musqlite_core::encode::IsNull {
-                <#ty as musqlite_core::encode::Encode<#lifetime>>::encode_by_ref(&self.0, buf)
+                buf: &mut musqlite::sqlite::ArgumentBuffer<#lifetime>,
+            ) -> musqlite::encode::IsNull {
+                <#ty as musqlite::encode::Encode<#lifetime>>::encode_by_ref(&self.0, buf)
             }
 
             fn produces(&self) -> Option<sqlite::TypeInfo> {
-                <#ty as musqlite_core::encode::Encode<#lifetime>>::produces(&self.0)
+                <#ty as musqlite::encode::Encode<#lifetime>>::produces(&self.0)
             }
         }
     ))
@@ -110,19 +110,19 @@ fn expand_derive_encode_weak_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'q> musqlite_core::encode::Encode<'q> for #ident
+        impl<'q> musqlite::encode::Encode<'q> for #ident
         where
-            #repr: musqlite_core::encode::Encode<'q>,
+            #repr: musqlite::encode::Encode<'q>,
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut musqlite_core::sqlite::ArgumentBuffer<'q>,
-            ) -> musqlite_core::encode::IsNull {
+                buf: &mut musqlite::sqlite::ArgumentBuffer<'q>,
+            ) -> musqlite::encode::IsNull {
                 let value = match self {
                     #(#values)*
                 };
 
-                <#repr as musqlite_core::encode::Encode>::encode_by_ref(&value, buf)
+                <#repr as musqlite::encode::Encode>::encode_by_ref(&value, buf)
             }
         }
     ))
@@ -156,19 +156,19 @@ fn expand_derive_encode_strong_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'q> musqlite_core::encode::Encode<'q> for #ident
+        impl<'q> musqlite::encode::Encode<'q> for #ident
         where
-            &'q ::std::primitive::str: musqlite_core::encode::Encode<'q>,
+            &'q ::std::primitive::str: musqlite::encode::Encode<'q>,
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut musqlite_core::sqlite::ArgumentBuffer<'q>,
-            ) -> musqlite_core::encode::IsNull {
+                buf: &mut musqlite::sqlite::ArgumentBuffer<'q>,
+            ) -> musqlite::encode::IsNull {
                 let val = match self {
                     #(#value_arms)*
                 };
 
-                <&::std::primitive::str as musqlite_core::encode::Encode<'q>>::encode(val, buf)
+                <&::std::primitive::str as musqlite::encode::Encode<'q>>::encode(val, buf)
             }
         }
     ))

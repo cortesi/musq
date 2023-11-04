@@ -1,6 +1,6 @@
-use musqlite_core::Connection;
+use musqlite::Connection;
 
-use musqlite_core::pool::{Pool, PoolOptions};
+use musqlite::pool::{Pool, PoolOptions};
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
@@ -30,7 +30,7 @@ pub async fn pool() -> anyhow::Result<Pool> {
 /// Return a connection to a database pre-configured with our test schema.
 pub async fn tdb() -> anyhow::Result<Connection> {
     let mut conn = new().await?;
-    musqlite_core::query::query(TEST_SCHEMA)
+    musqlite::query::query(TEST_SCHEMA)
         .execute(&mut conn)
         .await?;
     Ok(conn)
@@ -94,7 +94,7 @@ macro_rules! test_unprepared_type {
         paste::item! {
             #[tokio::test]
             async fn [< test_unprepared_type_ $name >] () -> anyhow::Result<()> {
-                use musqlite_core::*;
+                use musqlite::*;
                 use futures::TryStreamExt;
 
                 let mut conn = musqlite_test::new().await?;
@@ -152,7 +152,7 @@ macro_rules! __test_prepared_type {
         paste::item! {
             #[tokio::test]
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
-                use musqlite_core::Row;
+                use musqlite::Row;
 
                 let mut conn = musqlite_test::new().await?;
 
@@ -160,7 +160,7 @@ macro_rules! __test_prepared_type {
                     let query = format!($sql, $text);
                     println!("{query}");
 
-                    let row = musqlite_core::query(&query)
+                    let row = musqlite::query(&query)
                         .bind($value)
                         .bind($value)
                         .fetch_one(&mut conn)

@@ -1,6 +1,6 @@
 extern crate time_ as time;
 
-use musqlite_core::Row;
+use musqlite::Row;
 use musqlite_test::new;
 use musqlite_test::test_type;
 
@@ -37,7 +37,7 @@ test_type!(bytes<Vec<u8>>(Sqlite,
 
 mod json_tests {
     use super::*;
-    use musqlite_core::types;
+    use musqlite::types;
     use musqlite_test::test_type;
     use serde_json::{json, Value as JsonValue};
 
@@ -77,13 +77,12 @@ mod json_tests {
     async fn it_json_extracts() -> anyhow::Result<()> {
         let mut conn = new().await?;
 
-        let value = musqlite_core::query(
-            "select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1",
-        )
-        .bind(42_i32)
-        .try_map(|row: Row| row.try_get::<bool, _>(0))
-        .fetch_one(&mut conn)
-        .await?;
+        let value =
+            musqlite::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
+                .bind(42_i32)
+                .try_map(|row: Row| row.try_get::<bool, _>(0))
+                .fetch_one(&mut conn)
+                .await?;
 
         assert_eq!(true, value);
 
@@ -93,9 +92,7 @@ mod json_tests {
 
 mod chrono {
     use super::*;
-    use musqlite_core::types::chrono::{
-        DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc,
-    };
+    use musqlite::types::chrono::{DateTime, FixedOffset, NaiveDate, NaiveDateTime, TimeZone, Utc};
 
     test_type!(chrono_naive_date_time<NaiveDateTime>(Sqlite, "SELECT datetime({0}) is datetime(?), {0}, ?",
         "'2019-01-02 05:10:20'" == NaiveDate::from_ymd_opt(2019, 1, 2).unwrap().and_hms_opt(5, 10, 20).unwrap()
@@ -112,7 +109,7 @@ mod chrono {
 
 mod time_tests {
     use super::*;
-    use musqlite_core::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use musqlite::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
     use time::macros::{date, datetime, time};
 
     test_type!(time_offset_date_time<OffsetDateTime>(
@@ -159,7 +156,7 @@ mod time_tests {
 
 mod bstr {
     use super::*;
-    use musqlite_core::types::bstr::BString;
+    use musqlite::types::bstr::BString;
 
     test_type!(bstring<BString>(Sqlite,
         "cast('abc123' as blob)" == BString::from(&b"abc123"[..]),
@@ -167,23 +164,23 @@ mod bstr {
     ));
 }
 
-test_type!(uuid<musqlite_core::types::uuid::Uuid>(Sqlite,
+test_type!(uuid<musqlite::types::uuid::Uuid>(Sqlite,
     "x'b731678f636f4135bc6f19440c13bd19'"
-        == musqlite_core::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
+        == musqlite::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap(),
     "x'00000000000000000000000000000000'"
-        == musqlite_core::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
+        == musqlite::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap()
 ));
 
-test_type!(uuid_hyphenated<musqlite_core::types::uuid::Hyphenated>(Sqlite,
+test_type!(uuid_hyphenated<musqlite::types::uuid::Hyphenated>(Sqlite,
     "'b731678f-636f-4135-bc6f-19440c13bd19'"
-        == musqlite_core::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
+        == musqlite::types::uuid::Uuid::parse_str("b731678f-636f-4135-bc6f-19440c13bd19").unwrap().hyphenated(),
     "'00000000-0000-0000-0000-000000000000'"
-        == musqlite_core::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
+        == musqlite::types::uuid::Uuid::parse_str("00000000-0000-0000-0000-000000000000").unwrap().hyphenated()
 ));
 
-test_type!(uuid_simple<musqlite_core::types::uuid::Simple>(Sqlite,
+test_type!(uuid_simple<musqlite::types::uuid::Simple>(Sqlite,
     "'b731678f636f4135bc6f19440c13bd19'"
-        == musqlite_core::types::uuid::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
+        == musqlite::types::uuid::Uuid::parse_str("b731678f636f4135bc6f19440c13bd19").unwrap().simple(),
     "'00000000000000000000000000000000'"
-        == musqlite_core::types::uuid::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
+        == musqlite::types::uuid::Uuid::parse_str("00000000000000000000000000000000").unwrap().simple()
 ));

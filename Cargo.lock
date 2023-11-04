@@ -783,7 +783,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "musqlite-core"
+name = "musqlite"
 version = "0.7.1"
 dependencies = [
  "ahash",
@@ -839,7 +839,7 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
- "musqlite-core",
+ "musqlite",
 ]
 
 [[package]]
@@ -1337,7 +1337,7 @@ dependencies = [
  "futures",
  "hex",
  "libsqlite3-sys",
- "musqlite-core",
+ "musqlite",
  "musqlite-macros",
  "musqlite-test",
  "paste",

@@ -1,5 +1,5 @@
 use futures::TryStreamExt;
-use musqlite_core::{
+use musqlite::{
     query, query_as, query_scalar, ConnectOptions, Connection, Error, Executor, Pool, PoolOptions,
     Row,
 };
@@ -99,7 +99,7 @@ async fn it_maths() -> anyhow::Result<()> {
 async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
     let mut conn = new().await?;
 
-    let values: Vec<i32> = musqlite_core::query_scalar::<i32>("select ?; select ?")
+    let values: Vec<i32> = musqlite::query_scalar::<i32>("select ?; select ?")
         .bind(5_i32)
         .bind(15_i32)
         .fetch_all(&mut conn)
@@ -116,7 +116,7 @@ async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
 async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
     let mut conn = new().await?;
 
-    let values: Vec<i32> = musqlite_core::query_scalar::<i32>("select ?1; select ?1")
+    let values: Vec<i32> = musqlite::query_scalar::<i32>("select ?1; select ?1")
         .bind(25_i32)
         .fetch_all(&mut conn)
         .await?;
@@ -130,7 +130,7 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
-    use musqlite_core::decode::Decode;
+    use musqlite::decode::Decode;
 
     let mut conn = tdb().await?;
     let defaults = query("pragma table_info (tweet)")
@@ -138,7 +138,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
             let val = row.try_get_raw("dflt_value")?;
             let ty = val.type_info().clone().into_owned();
 
-            let val: Option<i32> = Decode::decode(val).map_err(musqlite_core::Error::Decode)?;
+            let val: Option<i32> = Decode::decode(val).map_err(musqlite::Error::Decode)?;
 
             if val.is_some() {
                 assert_eq!(ty.name(), "TEXT");
@@ -159,7 +159,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
 async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
     let mut conn = new().await?;
 
-    let row: (i32, i32, i32, i32) = musqlite_core::query_as("select ?1, ?1, ?3, ?2")
+    let row: (i32, i32, i32, i32) = musqlite::query_as("select ?1, ?1, ?3, ?2")
         .bind(5_i32)
         .bind(500_i32)
         .bind(1020_i32)

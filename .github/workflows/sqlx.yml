@@ -52,7 +52,7 @@ jobs:
         with:
           command: check
           args: >
-            --manifest-path musqlite-core/Cargo.toml
+            --manifest-path musqlite/Cargo.toml
             --no-default-features
             --features json,offline,migrate,_rt-${{ matrix.runtime }},_tls-${{ matrix.tls }}
 
@@ -87,7 +87,7 @@ jobs:
         with:
           command: test
           args: >
-            --manifest-path musqlite-core/Cargo.toml
+            --manifest-path musqlite/Cargo.toml
             --features json,_rt-${{ matrix.runtime }},_tls-${{ matrix.tls }}
 
   cli:

@@ -1,5 +1,5 @@
 [workspace]
-members = ["musqlite-core", "musqlite-macros", "musqlite-test"]
+members = ["musqlite", "musqlite-macros", "musqlite-test"]
 
 [workspace.package]
 version = "0.7.1"
@@ -16,12 +16,12 @@ version.workspace = true
 edition.workspace = true
 
 [workspace.dependencies]
-musqlite-core = { path = "musqlite-core" }
+musqlite = { path = "musqlite" }
 musqlite-macros-core = { path = "musqlite-macros-core" }
 musqlite-macros = { path = "musqlite-macros" }
 
 [dependencies]
-musqlite-core = { workspace = true }
+musqlite = { workspace = true }
 musqlite-macros = { workspace = true }
 
 [dev-dependencies]

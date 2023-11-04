@@ -2,7 +2,7 @@ use std::str::FromStr;
 
 use tempdir::TempDir;
 
-use musqlite_core::{query, sqlite::*, ConnectOptions, Connection, QueryResult};
+use musqlite::{query, sqlite::*, ConnectOptions, Connection, QueryResult};
 
 async fn new_db_url() -> anyhow::Result<(String, TempDir)> {
     let dir = TempDir::new("sqlcipher_test")?;

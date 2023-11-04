@@ -10,9 +10,9 @@ use crate::{error::BoxDynError, ValueRef};
 /// types externally to SQLx.
 ///
 /// ```rust
-/// # use musqlite_core::decode::Decode;
-/// # use musqlite_core::types::Type;
-/// # use musqlite_core::{TypeInfo, ValueRef};
+/// # use musqlite::decode::Decode;
+/// # use musqlite::types::Type;
+/// # use musqlite::{TypeInfo, ValueRef};
 /// # use std::error::Error;
 /// #
 /// struct MyType;
@@ -22,7 +22,7 @@ use crate::{error::BoxDynError, ValueRef};
 /// # }
 /// #
 /// # impl std::str::FromStr for MyType {
-/// # type Err = musqlite_core::error::Error;
+/// # type Err = musqlite::error::Error;
 /// # fn from_str(s: &str) -> Result<Self, Self::Err> { todo!() }
 /// # }
 /// #
