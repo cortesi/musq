@@ -103,7 +103,7 @@ impl Error {
 
     pub fn as_database_error(&self) -> Option<&SqliteError> {
         match self {
-            Error::Database(err) => Some(&*err),
+            Error::Database(err) => Some(err),
             _ => None,
         }
     }

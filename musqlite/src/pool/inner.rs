@@ -215,7 +215,7 @@ impl PoolInner {
 
         let Floating { inner: idle, guard } = floating.into_idle();
 
-        if !self.idle_conns.push(idle).is_ok() {
+        if self.idle_conns.push(idle).is_err() {
             panic!("BUG: connection queue overflow in release()");
         }
 
@@ -440,7 +440,7 @@ async fn check_idle_conn(
 fn spawn_maintenance_tasks(pool: &Arc<PoolInner>) {
     // NOTE: use `pool_weak` for the maintenance tasks so
     // they don't keep `PoolInner` from being dropped.
-    let pool_weak = Arc::downgrade(&pool);
+    let pool_weak = Arc::downgrade(pool);
 
     let period = match (pool.options.max_lifetime, pool.options.idle_timeout) {
         (Some(it), None) | (None, Some(it)) => it,

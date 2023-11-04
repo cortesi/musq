@@ -1,5 +1,6 @@
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum SqliteAutoVacuum {
+    #[default]
     None,
     Full,
     Incremental,
@@ -12,11 +13,5 @@ impl SqliteAutoVacuum {
             SqliteAutoVacuum::Full => "FULL",
             SqliteAutoVacuum::Incremental => "INCREMENTAL",
         }
-    }
-}
-
-impl Default for SqliteAutoVacuum {
-    fn default() -> Self {
-        SqliteAutoVacuum::None
     }
 }

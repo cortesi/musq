@@ -275,8 +275,8 @@ pub fn check_strong_enum_attributes(
     Ok(attributes)
 }
 
-pub fn check_struct_attributes<'a>(
-    input: &'a DeriveInput,
+pub fn check_struct_attributes(
+    input: &DeriveInput,
     fields: &Punctuated<Field, Comma>,
 ) -> syn::Result<SqlxContainerAttributes> {
     let attributes = parse_container_attributes(&input.attrs)?;

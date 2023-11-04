@@ -93,7 +93,7 @@ impl ConnectionState {
     pub(crate) fn remove_progress_handler(&mut self) {
         if let Some(mut handler) = self.progress_handler_callback.take() {
             unsafe {
-                sqlite3_progress_handler(self.handle.as_ptr(), 0, None, 0 as *mut _);
+                sqlite3_progress_handler(self.handle.as_ptr(), 0, None, std::ptr::null_mut());
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }
@@ -267,7 +267,7 @@ impl Connection {
     {
         let options = url.parse();
 
-        Box::pin(async move { Ok(Self::connect_with(&options?).await?) })
+        Box::pin(async move { Self::connect_with(&options?).await })
     }
 
     /// Establish a new database connection with the provided options.

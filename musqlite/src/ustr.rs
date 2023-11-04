@@ -30,14 +30,14 @@ impl Hash for UStr {
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Forward the hash to the string representation of this
         // A derive(Hash) encodes the enum discriminant
-        (&**self).hash(state);
+        (**self).hash(state);
     }
 }
 
 impl Borrow<str> for UStr {
     #[inline]
     fn borrow(&self) -> &str {
-        &**self
+        self
     }
 }
 
@@ -94,6 +94,6 @@ impl serde::Serialize for UStr {
     where
         S: serde::Serializer,
     {
-        serializer.serialize_str(&self)
+        serializer.serialize_str(self)
     }
 }
