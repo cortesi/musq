@@ -358,9 +358,6 @@ impl PoolInner {
                 // an IO error while connecting is assumed to be the system starting up
                 Ok(Err(Error::Io(e))) if e.kind() == std::io::ErrorKind::ConnectionRefused => (),
 
-                // We got a transient database error, retry.
-                Ok(Err(Error::Database(error))) if error.is_transient_in_connect_phase() => (),
-
                 // Any other error while connection should immediately
                 // terminate and bubble the error up
                 Ok(Err(e)) => return Err(e),

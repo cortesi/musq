@@ -1,12 +1,11 @@
 //! Types for working with errors produced by SQLx.
 
 use std::any::type_name;
-use std::borrow::Cow;
 use std::error::Error as StdError;
 use std::fmt::Display;
 use std::io;
 
-use crate::{sqlite, types::Type};
+use crate::{sqlite, sqlite::error::SqliteError, types::Type};
 
 /// A specialized `Result` type for SQLx.
 pub type Result<T, E = Error> = ::std::result::Result<T, E>;
@@ -33,7 +32,7 @@ pub enum Error {
 
     /// Error returned from the database.
     #[error("error returned from database: {0}")]
-    Database(#[source] Box<dyn DatabaseError>),
+    Database(#[source] sqlite::error::SqliteError),
 
     /// Error communicating with the database backend.
     #[error("error communicating with database: {0}")]
@@ -94,19 +93,17 @@ pub enum Error {
     WorkerCrashed,
 }
 
-impl StdError for Box<dyn DatabaseError> {}
-
 impl Error {
-    pub fn into_database_error(self) -> Option<Box<dyn DatabaseError + 'static>> {
+    pub fn into_database_error(self) -> Option<sqlite::error::SqliteError> {
         match self {
             Error::Database(err) => Some(err),
             _ => None,
         }
     }
 
-    pub fn as_database_error(&self) -> Option<&(dyn DatabaseError + 'static)> {
+    pub fn as_database_error(&self) -> Option<&SqliteError> {
         match self {
-            Error::Database(err) => Some(&**err),
+            Error::Database(err) => Some(&*err),
             _ => None,
         }
     }
@@ -160,128 +157,10 @@ pub enum ErrorKind {
     Other,
 }
 
-/// An error that was returned from the database.
-pub trait DatabaseError: 'static + Send + Sync + StdError {
-    /// The primary, human-readable error message.
-    fn message(&self) -> &str;
-
-    /// The (SQLSTATE) code for the error.
-    fn code(&self) -> Option<Cow<'_, str>> {
-        None
-    }
-
-    #[doc(hidden)]
-    fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static);
-
-    #[doc(hidden)]
-    fn as_error_mut(&mut self) -> &mut (dyn StdError + Send + Sync + 'static);
-
-    #[doc(hidden)]
-    fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static>;
-
-    #[doc(hidden)]
-    fn is_transient_in_connect_phase(&self) -> bool {
-        false
-    }
-
-    /// Returns the name of the constraint that triggered the error, if applicable.
-    /// If the error was caused by a conflict of a unique index, this will be the index name.
-    ///
-    /// ### Note
-    /// Currently only populated by the Postgres driver.
-    fn constraint(&self) -> Option<&str> {
-        None
-    }
-
-    /// Returns the name of the table that was affected by the error, if applicable.
-    ///
-    /// ### Note
-    /// Currently only populated by the Postgres driver.
-    fn table(&self) -> Option<&str> {
-        None
-    }
-
-    /// Returns the kind of the error, if supported.
-    ///
-    /// ### Note
-    /// Not all back-ends behave the same when reporting the error code.
-    fn kind(&self) -> ErrorKind;
-
-    /// Returns whether the error kind is a violation of a unique/primary key constraint.
-    fn is_unique_violation(&self) -> bool {
-        matches!(self.kind(), ErrorKind::UniqueViolation)
-    }
-
-    /// Returns whether the error kind is a violation of a foreign key.
-    fn is_foreign_key_violation(&self) -> bool {
-        matches!(self.kind(), ErrorKind::ForeignKeyViolation)
-    }
-
-    /// Returns whether the error kind is a violation of a check.
-    fn is_check_violation(&self) -> bool {
-        matches!(self.kind(), ErrorKind::CheckViolation)
-    }
-}
-
-impl dyn DatabaseError {
-    /// Downcast a reference to this generic database error to a specific
-    /// database error type.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the database error type is not `E`. This is a deliberate contrast from
-    /// `Error::downcast_ref` which returns `Option<&E>`. In normal usage, you should know the
-    /// specific error type. In other cases, use `try_downcast_ref`.
-    pub fn downcast_ref<E: DatabaseError>(&self) -> &E {
-        self.try_downcast_ref().unwrap_or_else(|| {
-            panic!(
-                "downcast to wrong DatabaseError type; original error: {}",
-                self
-            )
-        })
-    }
-
-    /// Downcast this generic database error to a specific database error type.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the database error type is not `E`. This is a deliberate contrast from
-    /// `Error::downcast` which returns `Option<E>`. In normal usage, you should know the
-    /// specific error type. In other cases, use `try_downcast`.
-    pub fn downcast<E: DatabaseError>(self: Box<Self>) -> Box<E> {
-        self.try_downcast().unwrap_or_else(|e| {
-            panic!(
-                "downcast to wrong DatabaseError type; original error: {}",
-                e
-            )
-        })
-    }
-
-    /// Downcast a reference to this generic database error to a specific
-    /// database error type.
+impl From<SqliteError> for Error {
     #[inline]
-    pub fn try_downcast_ref<E: DatabaseError>(&self) -> Option<&E> {
-        self.as_error().downcast_ref()
-    }
-
-    /// Downcast this generic database error to a specific database error type.
-    #[inline]
-    pub fn try_downcast<E: DatabaseError>(self: Box<Self>) -> Result<Box<E>, Box<Self>> {
-        if self.as_error().is::<E>() {
-            Ok(self.into_error().downcast().unwrap())
-        } else {
-            Err(self)
-        }
-    }
-}
-
-impl<E> From<E> for Error
-where
-    E: DatabaseError,
-{
-    #[inline]
-    fn from(error: E) -> Self {
-        Error::Database(Box::new(error))
+    fn from(error: SqliteError) -> Self {
+        Error::Database(error)
     }
 }
 

@@ -46,6 +46,42 @@ impl SqliteError {
         err.message = unsafe { from_utf8_unchecked(error_msg.to_bytes()).to_owned() };
         err
     }
+
+    #[inline]
+    pub fn message(&self) -> &str {
+        &self.message
+    }
+
+    /// The extended result code.
+    #[inline]
+    pub fn code(&self) -> Option<Cow<'_, str>> {
+        Some(format!("{}", self.code).into())
+    }
+
+    #[doc(hidden)]
+    pub fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    pub fn as_error_mut(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
+        self
+    }
+
+    #[doc(hidden)]
+    pub fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
+        self
+    }
+
+    pub fn kind(&self) -> ErrorKind {
+        match self.code {
+            SQLITE_CONSTRAINT_UNIQUE | SQLITE_CONSTRAINT_PRIMARYKEY => ErrorKind::UniqueViolation,
+            SQLITE_CONSTRAINT_FOREIGNKEY => ErrorKind::ForeignKeyViolation,
+            SQLITE_CONSTRAINT_NOTNULL => ErrorKind::NotNullViolation,
+            SQLITE_CONSTRAINT_CHECK => ErrorKind::CheckViolation,
+            _ => ErrorKind::Other,
+        }
+    }
 }
 
 impl Display for SqliteError {
@@ -59,41 +95,3 @@ impl Display for SqliteError {
 }
 
 impl StdError for SqliteError {}
-
-impl DatabaseError for SqliteError {
-    #[inline]
-    fn message(&self) -> &str {
-        &self.message
-    }
-
-    /// The extended result code.
-    #[inline]
-    fn code(&self) -> Option<Cow<'_, str>> {
-        Some(format!("{}", self.code).into())
-    }
-
-    #[doc(hidden)]
-    fn as_error(&self) -> &(dyn StdError + Send + Sync + 'static) {
-        self
-    }
-
-    #[doc(hidden)]
-    fn as_error_mut(&mut self) -> &mut (dyn StdError + Send + Sync + 'static) {
-        self
-    }
-
-    #[doc(hidden)]
-    fn into_error(self: Box<Self>) -> Box<dyn StdError + Send + Sync + 'static> {
-        self
-    }
-
-    fn kind(&self) -> ErrorKind {
-        match self.code {
-            SQLITE_CONSTRAINT_UNIQUE | SQLITE_CONSTRAINT_PRIMARYKEY => ErrorKind::UniqueViolation,
-            SQLITE_CONSTRAINT_FOREIGNKEY => ErrorKind::ForeignKeyViolation,
-            SQLITE_CONSTRAINT_NOTNULL => ErrorKind::NotNullViolation,
-            SQLITE_CONSTRAINT_CHECK => ErrorKind::CheckViolation,
-            _ => ErrorKind::Other,
-        }
-    }
-}

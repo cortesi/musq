@@ -166,7 +166,7 @@ impl EstablishParams {
         );
 
         if status != SQLITE_OK {
-            return Err(Error::Database(Box::new(SqliteError::new(db))));
+            return Err(Error::Database(SqliteError::new(db)));
         }
 
         Ok(())
@@ -193,7 +193,7 @@ impl EstablishParams {
         let handle = unsafe { ConnectionHandle::new(handle) };
 
         if status != SQLITE_OK {
-            return Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))));
+            return Err(Error::Database(SqliteError::new(handle.as_ptr())));
         }
 
         // Enable extended result codes
@@ -235,10 +235,10 @@ impl EstablishParams {
                         CString::new("Unknown error when loading extension")
                             .expect("text should be representable as a CString")
                     };
-                    return Err(Error::Database(Box::new(SqliteError::extension(
+                    return Err(Error::Database(SqliteError::extension(
                         handle.as_ptr(),
                         &err_msg,
-                    ))));
+                    )));
                 }
             } // Preempt any hypothetical security issues arising from leaving ENABLE_LOAD_EXTENSION
               // on by disabling the flag again once we've loaded all the requested modules.
@@ -256,7 +256,7 @@ impl EstablishParams {
             // configure a `regexp` function for sqlite, it does not come with one by default
             let status = crate::sqlite::regexp::register(handle.as_ptr());
             if status != SQLITE_OK {
-                return Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))));
+                return Err(Error::Database(SqliteError::new(handle.as_ptr())));
             }
         }
 
@@ -271,7 +271,7 @@ impl EstablishParams {
         status = unsafe { sqlite3_busy_timeout(handle.as_ptr(), ms) };
 
         if status != SQLITE_OK {
-            return Err(Error::Database(Box::new(SqliteError::new(handle.as_ptr()))));
+            return Err(Error::Database(SqliteError::new(handle.as_ptr())));
         }
 
         Ok(ConnectionState {
