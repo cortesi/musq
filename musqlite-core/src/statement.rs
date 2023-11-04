@@ -9,7 +9,7 @@ macro_rules! impl_statement_query {
         #[inline]
         pub fn query_with<'s, A>(&'s self, arguments: A) -> $crate::query::Query<'s, A>
         where
-            A: $crate::arguments::IntoArguments<'s>,
+            A: $crate::IntoArguments<'s>,
         {
             $crate::query::query_statement_with(self, arguments)
         }
@@ -29,7 +29,7 @@ macro_rules! impl_statement_query {
         ) -> $crate::query_as::QueryAs<'s, O, A>
         where
             O: for<'r> $crate::from_row::FromRow<'r>,
-            A: $crate::arguments::IntoArguments<'s>,
+            A: $crate::IntoArguments<'s>,
         {
             $crate::query_as::query_statement_as_with(self, arguments)
         }
@@ -49,7 +49,7 @@ macro_rules! impl_statement_query {
         ) -> $crate::query_scalar::QueryScalar<'s, O, A>
         where
             (O,): for<'r> $crate::from_row::FromRow<'r>,
-            A: $crate::arguments::IntoArguments<'s>,
+            A: $crate::IntoArguments<'s>,
         {
             $crate::query_scalar::query_statement_scalar_with(self, arguments)
         }

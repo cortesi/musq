@@ -7,9 +7,6 @@ pub mod ext;
 pub mod error;
 
 #[macro_use]
-pub mod arguments;
-
-#[macro_use]
 pub mod pool;
 
 pub mod connection;
@@ -47,23 +44,19 @@ pub mod query_as;
 pub mod query_builder;
 pub mod query_scalar;
 pub mod type_info;
-pub mod value;
 
 pub use error::{Error, Result};
 
 /// sqlx uses ahash for increased performance, at the cost of reduced DoS resistance.
 pub use ahash::AHashMap as HashMap;
+pub use bytes;
 pub use either::Either;
 pub use indexmap::IndexMap;
 pub use percent_encoding;
 pub use smallvec::SmallVec;
-pub use url::{self, Url};
-
-pub use bytes;
 
 pub use crate::{
     acquire::Acquire,
-    arguments::IntoArguments,
     column::ColumnIndex,
     describe::Describe,
     executor::{Execute, Executor},
@@ -74,8 +67,8 @@ pub use crate::{
     query_builder::QueryBuilder,
     query_scalar::{query_scalar, query_scalar_with},
     sqlite::{
-        Arguments, Column, ConnectOptions, Connection, QueryResult, Row, Statement, TypeInfo,
-        Value, ValueRef,
+        Arguments, Column, ConnectOptions, Connection, IntoArguments, QueryResult, Row, Statement,
+        TypeInfo, Value, ValueRef,
     },
     transaction::{Transaction, TransactionManager},
     types::Type,

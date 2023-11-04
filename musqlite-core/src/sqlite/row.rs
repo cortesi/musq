@@ -229,14 +229,3 @@ impl ColumnIndex<Row> for &'_ str {
             .map(|v| *v)
     }
 }
-
-// #[cfg(feature = "any")]
-// impl From<SqliteRow> for crate::sqlite::any::AnyRow {
-//     #[inline]
-//     fn from(row: SqliteRow) -> Self {
-//         crate::sqlite::any::AnyRow {
-//             columns: row.columns.iter().map(|col| col.clone().into()).collect(),
-//             kind: crate::sqlite::any::row::AnyRowKind::Sqlite(row),
-//         }
-//     }
-// }

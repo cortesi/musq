@@ -5,14 +5,13 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryStreamExt};
 
 use crate::{
-    arguments::IntoArguments,
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
     from_row::FromRow,
     query::{query, query_statement, query_statement_with, query_with, Query},
     types::Type,
-    Arguments, QueryResult, Statement,
+    Arguments, IntoArguments, QueryResult, Statement,
 };
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].

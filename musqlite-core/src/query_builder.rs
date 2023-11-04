@@ -5,8 +5,8 @@ use std::fmt::Write;
 use std::marker::PhantomData;
 
 use crate::{
-    arguments::IntoArguments, encode::Encode, from_row::FromRow, query::Query, query_as::QueryAs,
-    query_scalar::QueryScalar, types::Type, Arguments, Either,
+    encode::Encode, from_row::FromRow, query::Query, query_as::QueryAs, query_scalar::QueryScalar,
+    types::Type, Arguments, Either, IntoArguments,
 };
 
 /// A builder type for constructing queries at runtime.

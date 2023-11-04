@@ -3,12 +3,11 @@ use futures_core::stream::BoxStream;
 use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::{
-    arguments::IntoArguments,
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
     types::Type,
-    Arguments, QueryResult, Row, Statement,
+    Arguments, IntoArguments, QueryResult, Row, Statement,
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
