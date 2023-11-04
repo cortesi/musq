@@ -1,37 +1,41 @@
-use crate::common::StatementCache;
-use crate::error::Error;
-use crate::transaction::Transaction;
+use std::{
+    cmp::Ordering,
+    fmt::{self, Debug, Formatter, Write},
+    os::raw::{c_int, c_void},
+    panic::catch_unwind,
+    ptr::NonNull,
+};
+
 use futures_core::future::BoxFuture;
 use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
-use std::cmp::Ordering;
-use std::fmt::{self, Debug, Formatter};
-use std::os::raw::{c_int, c_void};
-use std::panic::catch_unwind;
-use std::ptr::NonNull;
 
-use crate::executor::Executor;
-use crate::sqlite::connection::establish::EstablishParams;
-use crate::sqlite::connection::worker::ConnectionWorker;
-use crate::sqlite::options::OptimizeOnClose;
-use crate::sqlite::statement::VirtualStatement;
-use crate::sqlite::ConnectOptions;
-use std::fmt::Write;
+use crate::{
+    acquire::Acquire,
+    common::StatementCache,
+    error::Error,
+    executor::Executor,
+    sqlite::{
+        connection::{establish::EstablishParams, worker::ConnectionWorker},
+        options::OptimizeOnClose,
+        statement::VirtualStatement,
+        ConnectOptions,
+    },
+    transaction::Transaction,
+};
 
 pub(crate) use crate::connection::*;
-
 pub(crate) use handle::{ConnectionHandle, ConnectionHandleRaw};
-
 pub(crate) mod collation;
 pub(crate) mod describe;
 pub(crate) mod establish;
 pub(crate) mod execute;
+
 mod executor;
 mod explain;
 mod handle;
 mod intmap;
-
 mod worker;
 
 /// A connection to an open [Sqlite] database.
@@ -48,6 +52,20 @@ pub struct Connection {
     optimize_on_close: OptimizeOnClose,
     pub(crate) worker: ConnectionWorker,
     pub(crate) row_channel_size: usize,
+}
+
+impl<'c> Acquire<'c> for &'c mut Connection {
+    type Connection = &'c mut Connection;
+
+    #[inline]
+    fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, Error>> {
+        Box::pin(futures_util::future::ok(self))
+    }
+
+    #[inline]
+    fn begin(self) -> futures_core::future::BoxFuture<'c, Result<Transaction<'c>, Error>> {
+        Transaction::begin(self)
+    }
 }
 
 pub struct LockedSqliteHandle<'a> {

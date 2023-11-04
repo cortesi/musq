@@ -37,30 +37,3 @@ impl<'a> Acquire<'a> for &'_ Pool {
         })
     }
 }
-
-#[macro_export]
-macro_rules! impl_acquire {
-    ($DB:ident, $C:ident) => {
-        impl<'c> $crate::acquire::Acquire<'c> for &'c mut $C {
-            type Connection = &'c mut $crate::Connection;
-
-            #[inline]
-            fn acquire(
-                self,
-            ) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, $crate::error::Error>>
-            {
-                Box::pin(futures_util::future::ok(self))
-            }
-
-            #[inline]
-            fn begin(
-                self,
-            ) -> futures_core::future::BoxFuture<
-                'c,
-                Result<$crate::transaction::Transaction<'c>, $crate::error::Error>,
-            > {
-                $crate::transaction::Transaction::begin(self)
-            }
-        }
-    };
-}
