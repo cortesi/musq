@@ -32,7 +32,7 @@ mod inner;
 mod options;
 
 pub use self::connection::PoolConnection;
-pub use self::options::{PoolConnectionMetadata, PoolOptions};
+pub use self::options::PoolOptions;
 
 #[doc(hidden)]
 pub use self::maybe::MaybePoolConnection;
@@ -193,7 +193,7 @@ impl Pool {
 
     /// Retrieves a connection and immediately begins a new transaction.
     pub async fn begin(&self) -> Result<Transaction<'static>, Error> {
-        Ok(Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await?)
+        Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.

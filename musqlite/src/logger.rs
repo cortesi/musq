@@ -102,14 +102,14 @@ impl<'q> QueryLogger<'q> {
             let log_is_enabled = log::log_enabled!(target: "query", log_level)
                 || private_tracing_dynamic_enabled!(target: "query", tracing_level);
             if log_is_enabled {
-                let mut summary = parse_query_summary(&self.sql);
+                let mut summary = parse_query_summary(self.sql);
 
                 let sql = if summary != self.sql {
                     summary.push_str(" …");
                     format!(
                         "\n\n{}\n",
                         sqlformat::format(
-                            &self.sql,
+                            self.sql,
                             &sqlformat::QueryParams::None,
                             sqlformat::FormatOptions::default()
                         )
@@ -190,14 +190,14 @@ impl<'q, O: Debug + Hash + Eq, R: Debug, P: Debug> QueryPlanLogger<'q, O, R, P> 
             let log_is_enabled = log::log_enabled!(target: "explain", log_level)
                 || private_tracing_dynamic_enabled!(target: "explain", tracing_level);
             if log_is_enabled {
-                let mut summary = parse_query_summary(&self.sql);
+                let mut summary = parse_query_summary(self.sql);
 
                 let sql = if summary != self.sql {
                     summary.push_str(" …");
                     format!(
                         "\n\n{}\n",
                         sqlformat::format(
-                            &self.sql,
+                            self.sql,
                             &sqlformat::QueryParams::None,
                             sqlformat::FormatOptions::default()
                         )

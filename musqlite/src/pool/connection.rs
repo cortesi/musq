@@ -1,12 +1,11 @@
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use crate::{error::Error, Connection};
 
 use super::inner::{DecrementSizeGuard, PoolInner};
-use crate::pool::options::PoolConnectionMetadata;
 use std::future::Future;
 
 /// A connection managed by a [`Pool`][crate::pool::Pool].
@@ -226,29 +225,11 @@ impl Floating<Live> {
     /// Return the connection to the pool.
     ///
     /// Returns `true` if the connection was successfully returned, `false` if it was closed.
-    async fn return_to_pool(mut self) -> bool {
+    async fn return_to_pool(self) -> bool {
         // Immediately close the connection.
         if self.guard.pool.is_closed() {
             self.close().await;
             return false;
-        }
-
-        if let Some(test) = &self.guard.pool.options.after_release {
-            let meta = self.metadata();
-            match (test)(&mut self.inner.raw, meta).await {
-                Ok(true) => (),
-                Ok(false) => {
-                    self.close().await;
-                    return false;
-                }
-                Err(error) => {
-                    tracing::warn!(%error, "error from `after_release`");
-                    // Connection is broken, don't try to gracefully close as
-                    // something weird might happen.
-                    self.close_hard().await;
-                    return false;
-                }
-            }
         }
         self.release();
         true
@@ -261,10 +242,6 @@ impl Floating<Live> {
         // `guard` is dropped as intended
     }
 
-    pub async fn close_hard(self) {
-        let _ = self.inner.raw.close_hard().await;
-    }
-
     pub fn detach(self) -> Connection {
         self.inner.raw
     }
@@ -273,13 +250,6 @@ impl Floating<Live> {
         Floating {
             inner: self.inner.into_idle(),
             guard: self.guard,
-        }
-    }
-
-    pub fn metadata(&self) -> PoolConnectionMetadata {
-        PoolConnectionMetadata {
-            age: self.created_at.elapsed(),
-            idle_for: Duration::ZERO,
         }
     }
 }
@@ -308,24 +278,6 @@ impl Floating<Idle> {
             tracing::debug!(%error, "error occurred while closing the pool connection");
         }
         self.guard
-    }
-
-    pub async fn close_hard(self) -> DecrementSizeGuard {
-        let _ = self.inner.live.raw.close_hard().await;
-
-        self.guard
-    }
-
-    pub fn metadata(&self) -> PoolConnectionMetadata {
-        // Use a single `now` value for consistency.
-        let now = Instant::now();
-
-        PoolConnectionMetadata {
-            // NOTE: the receiver is the later `Instant` and the arg is the earlier
-            // https://github.com/launchbadge/sqlx/issues/1912
-            age: now.saturating_duration_since(self.created_at),
-            idle_for: now.saturating_duration_since(self.idle_since),
-        }
     }
 }
 

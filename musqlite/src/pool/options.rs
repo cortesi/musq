@@ -1,12 +1,10 @@
 use crate::{
     error::Error,
     pool::{inner::PoolInner, Pool},
-    ConnectOptions, Connection,
+    ConnectOptions,
 };
 
-use futures_core::future::BoxFuture;
 use std::fmt::{self, Debug, Formatter};
-use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 /// Configuration options for [`Pool`][super::Pool].
@@ -43,30 +41,6 @@ use std::time::{Duration, Instant};
 /// so having the closure return `Pin<Box<dyn Future>` directly is the path of least resistance from
 /// the perspectives of both API designer and consumer.
 pub struct PoolOptions {
-    pub(crate) after_connect: Option<
-        Arc<
-            dyn Fn(&mut Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<(), Error>>
-                + 'static
-                + Send
-                + Sync,
-        >,
-    >,
-    pub(crate) before_acquire: Option<
-        Arc<
-            dyn Fn(&mut Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<bool, Error>>
-                + 'static
-                + Send
-                + Sync,
-        >,
-    >,
-    pub(crate) after_release: Option<
-        Arc<
-            dyn Fn(&mut Connection, PoolConnectionMetadata) -> BoxFuture<'_, Result<bool, Error>>
-                + 'static
-                + Send
-                + Sync,
-        >,
-    >,
     pub(crate) max_connections: u32,
     pub(crate) acquire_timeout: Duration,
     pub(crate) min_connections: u32,
@@ -82,9 +56,6 @@ pub struct PoolOptions {
 impl Clone for PoolOptions {
     fn clone(&self) -> Self {
         PoolOptions {
-            after_connect: self.after_connect.clone(),
-            before_acquire: self.before_acquire.clone(),
-            after_release: self.after_release.clone(),
             max_connections: self.max_connections,
             acquire_timeout: self.acquire_timeout,
             min_connections: self.min_connections,
@@ -93,22 +64,6 @@ impl Clone for PoolOptions {
             parent_pool: self.parent_pool.as_ref().map(Pool::clone),
         }
     }
-}
-
-/// Metadata for the connection being processed by a [`PoolOptions`] callback.
-#[derive(Debug)] // Don't want to commit to any other trait impls yet.
-#[non_exhaustive] // So we can safely add fields in the future.
-pub struct PoolConnectionMetadata {
-    /// The duration since the connection was first opened.
-    ///
-    /// For [`after_connect`][PoolOptions::after_connect], this is [`Duration::ZERO`].
-    pub age: Duration,
-
-    /// The duration that the connection spent in the idle queue.
-    ///
-    /// Only relevant for [`before_acquire`][PoolOptions::before_acquire].
-    /// For other callbacks, this is [`Duration::ZERO`].
-    pub idle_for: Duration,
 }
 
 impl Default for PoolOptions {
@@ -126,10 +81,6 @@ impl PoolOptions {
     /// See the source of this method for the current default values.
     pub fn new() -> Self {
         Self {
-            // User-specifiable routines
-            after_connect: None,
-            before_acquire: None,
-            after_release: None,
             // A production application will want to set a higher limit than this.
             max_connections: 10,
             min_connections: 0,
@@ -247,84 +198,6 @@ impl PoolOptions {
     /// Get the maximum idle duration for individual connections.
     pub fn get_idle_timeout(&self) -> Option<Duration> {
         self.idle_timeout
-    }
-
-    /// Perform an asynchronous action after connecting to the database.
-    ///
-    /// If the operation returns with an error then the error is logged, the connection is closed
-    /// and a new one is opened in its place and the callback is invoked again.
-    ///
-    /// This occurs in a backoff loop to avoid high CPU usage and spamming logs during a transient
-    /// error condition.
-    ///
-    /// Note that this may be called for internally opened connections, such as when maintaining
-    /// [`min_connections`][Self::min_connections], that are then immediately returned to the pool
-    /// without invoking [`after_release`][Self::after_release].
-    ///
-    /// # Example: Additional Parameters
-    /// This callback may be used to set additional configuration parameters
-    /// that are not exposed by the database's `ConnectOptions`.
-    ///
-    /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
-    pub fn after_connect<F>(mut self, callback: F) -> Self
-    where
-        // We're passing the `PoolConnectionMetadata` here mostly for future-proofing.
-        // `age` and `idle_for` are obviously not useful for fresh connections.
-        for<'c> F: Fn(&'c mut Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<(), Error>>
-            + 'static
-            + Send
-            + Sync,
-    {
-        self.after_connect = Some(Arc::new(callback));
-        self
-    }
-
-    /// Perform an asynchronous action on a previously idle connection before giving it out.
-    ///
-    /// Alongside the connection, the closure gets [`PoolConnectionMetadata`] which contains
-    /// potentially useful information such as the connection's age and the duration it was
-    /// idle.
-    ///
-    /// If the operation returns `Ok(true)`, the connection is returned to the task that called
-    /// [`Pool::acquire`].
-    ///
-    /// If the operation returns `Ok(false)` or an error, the error is logged (if applicable)
-    /// and then the connection is closed and [`Pool::acquire`] tries again with another idle
-    /// connection. If it runs out of idle connections, it opens a new connection instead.
-    ///
-    /// This is *not* invoked for new connections. Use [`after_connect`][Self::after_connect]
-    /// for those.
-    ///
-    /// For a discussion on why `Box::pin()` is required, see [the type-level docs][Self].
-    pub fn before_acquire<F>(mut self, callback: F) -> Self
-    where
-        for<'c> F: Fn(&'c mut Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
-            + 'static
-            + Send
-            + Sync,
-    {
-        self.before_acquire = Some(Arc::new(callback));
-        self
-    }
-
-    /// Perform an asynchronous action on a connection before it is returned to the pool.
-    ///
-    /// Alongside the connection, the closure gets [`PoolConnectionMetadata`] which contains
-    /// potentially useful information such as the connection's age.
-    ///
-    /// If the operation returns `Ok(true)`, the connection is returned to the pool's idle queue.
-    /// If the operation returns `Ok(false)` or an error, the error is logged (if applicable)
-    /// and the connection is closed, allowing a task waiting on [`Pool::acquire`] to
-    /// open a new one in its place.
-    pub fn after_release<F>(mut self, callback: F) -> Self
-    where
-        for<'c> F: Fn(&'c mut Connection, PoolConnectionMetadata) -> BoxFuture<'c, Result<bool, Error>>
-            + 'static
-            + Send
-            + Sync,
-    {
-        self.after_release = Some(Arc::new(callback));
-        self
     }
 
     /// Set the parent `Pool` from which the new pool will inherit its semaphore.

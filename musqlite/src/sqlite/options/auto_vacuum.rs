@@ -1,6 +1,3 @@
-use crate::sqlite::error::Error;
-use std::str::FromStr;
-
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SqliteAutoVacuum {
     None,
@@ -21,23 +18,5 @@ impl SqliteAutoVacuum {
 impl Default for SqliteAutoVacuum {
     fn default() -> Self {
         SqliteAutoVacuum::None
-    }
-}
-
-impl FromStr for SqliteAutoVacuum {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(match &*s.to_ascii_lowercase() {
-            "none" => SqliteAutoVacuum::None,
-            "full" => SqliteAutoVacuum::Full,
-            "incremental" => SqliteAutoVacuum::Incremental,
-
-            _ => {
-                return Err(Error::Configuration(
-                    format!("unknown value {:?} for `auto_vacuum`", s).into(),
-                ));
-            }
-        })
     }
 }

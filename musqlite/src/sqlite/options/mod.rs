@@ -450,16 +450,17 @@ impl ConnectOptions {
     ///
     /// The SQLite manual recommends using this for long-lived databases.
     ///
-    /// This will collect and store statistics about the layout of data in your tables to help the query planner make better decisions.
-    /// Over the connection's lifetime, the query planner will make notes about which tables could use up-to-date statistics so this
-    /// command doesn't have to scan the whole database every time. Thus, the best time to execute this is on connection close.
+    /// This will collect and store statistics about the layout of data in your tables to help the query planner make
+    /// better decisions. Over the connection's lifetime, the query planner will make notes about which tables could use
+    /// up-to-date statistics so this command doesn't have to scan the whole database every time. Thus, the best time to
+    /// execute this is on connection close.
     ///
-    /// `analysis_limit` sets a soft limit on the maximum number of rows to scan per index.
-    /// It is equivalent to setting [`Self::analysis_limit`] but only takes effect for the `PRAGMA optimize;` call
-    /// and does not affect the behavior of any `ANALYZE` statements made during the connection's lifetime.
+    /// `analysis_limit` sets a soft limit on the maximum number of rows to scan per index. It is equivalent to setting
+    /// [`Self::analysis_limit`] but only takes effect for the `PRAGMA optimize;` call and does not affect the behavior
+    /// of any `ANALYZE` statements made during the connection's lifetime.
     ///
-    /// If not `None`, the `analysis_limit` here overrides the global `analysis_limit` setting,
-    /// but only for the `PRAGMA optimize;` call.
+    /// If not `None`, the `analysis_limit` here overrides the global `analysis_limit` setting, but only for the `PRAGMA
+    /// optimize;` call.
     ///
     /// Not enabled by default.
     ///

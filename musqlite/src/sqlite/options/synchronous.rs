@@ -1,6 +1,3 @@
-use crate::sqlite::error::Error;
-use std::str::FromStr;
-
 /// Refer to [SQLite documentation] for the meaning of various synchronous settings.
 ///
 /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_synchronous
@@ -26,24 +23,5 @@ impl SqliteSynchronous {
 impl Default for SqliteSynchronous {
     fn default() -> Self {
         SqliteSynchronous::Full
-    }
-}
-
-impl FromStr for SqliteSynchronous {
-    type Err = Error;
-
-    fn from_str(s: &str) -> Result<Self, Error> {
-        Ok(match &*s.to_ascii_lowercase() {
-            "off" => SqliteSynchronous::Off,
-            "normal" => SqliteSynchronous::Normal,
-            "full" => SqliteSynchronous::Full,
-            "extra" => SqliteSynchronous::Extra,
-
-            _ => {
-                return Err(Error::Configuration(
-                    format!("unknown value {:?} for `synchronous`", s).into(),
-                ));
-            }
-        })
     }
 }

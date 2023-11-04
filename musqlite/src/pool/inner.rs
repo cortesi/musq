@@ -18,7 +18,7 @@ use futures_util::{
 use super::connection::{Floating, Idle, Live};
 use crate::{
     error::Error,
-    pool::{deadline_as_timeout, options::PoolConnectionMetadata, CloseEvent, Pool, PoolOptions},
+    pool::{deadline_as_timeout, CloseEvent, Pool, PoolOptions},
     ConnectOptions,
 };
 
@@ -330,29 +330,8 @@ impl PoolInner {
             // if this block does not return, sleep for the backoff timeout and try again
             match tokio::time::timeout(timeout, connect_options.connect()).await {
                 // successfully established connection
-                Ok(Ok(mut raw)) => {
-                    // See comment on `PoolOptions::after_connect`
-                    let meta = PoolConnectionMetadata {
-                        age: Duration::ZERO,
-                        idle_for: Duration::ZERO,
-                    };
-
-                    let res = if let Some(callback) = &self.options.after_connect {
-                        callback(&mut raw, meta).await
-                    } else {
-                        Ok(())
-                    };
-
-                    match res {
-                        Ok(()) => return Ok(Floating::new_live(raw, guard)),
-                        Err(error) => {
-                            tracing::error!(%error, "error returned from after_connect");
-                            // The connection is broken, don't try to close nicely.
-                            let _ = raw.close_hard().await;
-
-                            // Fall through to the backoff.
-                        }
-                    }
+                Ok(Ok(raw)) => {
+                    return Ok(Floating::new_live(raw, guard));
                 }
 
                 // an IO error while connecting is assumed to be the system starting up
@@ -445,31 +424,13 @@ fn is_beyond_idle_timeout(idle: &Idle, options: &PoolOptions) -> bool {
 }
 
 async fn check_idle_conn(
-    mut conn: Floating<Idle>,
+    conn: Floating<Idle>,
     options: &PoolOptions,
 ) -> Result<Floating<Live>, DecrementSizeGuard> {
     // If the connection we pulled has expired, close the connection and
     // immediately create a new connection
     if is_beyond_max_lifetime(&conn, options) {
         return Err(conn.close().await);
-    }
-
-    if let Some(test) = &options.before_acquire {
-        let meta = conn.metadata();
-        match test(&mut conn.live.raw, meta).await {
-            Ok(false) => {
-                // connection was rejected by user-defined hook, close nicely
-                return Err(conn.close().await);
-            }
-
-            Err(error) => {
-                tracing::warn!(%error, "error from `before_acquire`");
-                // connection is broken so don't try to close nicely
-                return Err(conn.close_hard().await);
-            }
-
-            Ok(true) => {}
-        }
     }
 
     // No need to re-connect; connection is alive or we don't care
