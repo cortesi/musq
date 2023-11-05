@@ -1,4 +1,7 @@
-use std::path::Path;
+use std::{borrow::Cow, time::Duration};
+use std::{path::Path, sync::Arc};
+
+use crate::{debugfn::DebugFn, sqlite::connection::LogSettings};
 
 mod auto_vacuum;
 mod connect;
@@ -7,18 +10,12 @@ mod locking_mode;
 mod parse;
 mod synchronous;
 
-use crate::sqlite::connection::LogSettings;
-
 pub use auto_vacuum::AutoVacuum;
 pub use journal_mode::JournalMode;
 pub use locking_mode::LockingMode;
-
-use std::sync::Arc;
-use std::{borrow::Cow, time::Duration};
 pub use synchronous::Synchronous;
 
-use crate::debugfn::DebugFn;
-use crate::IndexMap;
+use indexmap::IndexMap;
 
 /// Options and flags which can be used to configure a SQLite connection.
 ///
@@ -433,7 +430,7 @@ impl ConnectOptions {
     ///
     /// ```
     /// # use std::str::FromStr;
-    /// # use musqlite::{query, ConnectOptions, Connection, Row, error::Result};
+    /// # use musqlite::{query, ConnectOptions, Connection, Row, Result};
     /// # async fn run() -> Result<()> {
     /// let mut sqlite = ConnectOptions::from_str("sqlite://:memory:")?
     ///     .with_regexp()

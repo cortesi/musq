@@ -1,6 +1,6 @@
 [package]
 name = "musqlite"
-description = "Core of SQLx, the rust SQL toolkit. Not intended to be used directly."
+description = "musqlite is a SQLite3 driver for Rust focusing on performance, correctness, and flexibility."
 version.workspace = true
 license.workspace = true
 edition.workspace = true

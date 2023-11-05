@@ -53,7 +53,7 @@ impl Row {
             values.push(unsafe {
                 let raw = statement.column_value(i);
 
-                Value::new(raw, columns[i].type_info.clone())
+                Value::new(raw, columns[i].type_info)
             });
         }
 

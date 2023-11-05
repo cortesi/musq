@@ -10,12 +10,13 @@ use libsqlite3_sys::{
 };
 
 use crate::{
-    bytes::{Buf, Bytes},
     error::Error,
     sqlite::{connection::ConnectionHandle, statement::StatementHandle, SqliteError},
     ustr::UStr,
-    Column, HashMap, SmallVec,
+    Column, HashMap,
 };
+use bytes::{Buf, Bytes};
+use smallvec::SmallVec;
 
 // A virtual statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
 // on `;` to support multiple statements in one query.

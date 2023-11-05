@@ -22,7 +22,7 @@ use crate::{error::BoxDynError, ValueRef};
 /// # }
 /// #
 /// # impl std::str::FromStr for MyType {
-/// # type Err = musqlite::error::Error;
+/// # type Err = musqlite::Error;
 /// # fn from_str(s: &str) -> Result<Self, Self::Err> { todo!() }
 /// # }
 /// #
