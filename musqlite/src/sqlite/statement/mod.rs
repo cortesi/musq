@@ -1,6 +1,7 @@
 use crate::{
+    error::Error,
     from_row, query, query_as, query_scalar,
-    sqlite::{error::Error, Arguments, SqliteDataType},
+    sqlite::{Arguments, SqliteDataType},
     ustr::UStr,
     Column, ColumnIndex, Either, HashMap, IntoArguments,
 };

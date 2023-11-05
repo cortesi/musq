@@ -54,8 +54,9 @@ pub use crate::{
     query_scalar::{query_scalar, query_scalar_with},
     row::Row,
     sqlite::{
-        ArgumentBuffer, Arguments, ConnectOptions, Connection, IntoArguments, SqliteDataType,
-        Statement, Value, ValueRef,
+        error::ExtendedErrCode, error::PrimaryErrCode, ArgumentBuffer, Arguments, AutoVacuum,
+        ConnectOptions, Connection, IntoArguments, JournalMode, LockingMode, SqliteDataType,
+        SqliteError, Statement, Synchronous, Value, ValueRef,
     },
     transaction::{Transaction, TransactionManager},
     types::Type,

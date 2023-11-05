@@ -1,6 +1,7 @@
 use crate::{
     encode::{Encode, IsNull},
-    sqlite::{error::Error, statement::StatementHandle},
+    sqlite::statement::StatementHandle,
+    Error,
 };
 
 use atoi::atoi;

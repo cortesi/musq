@@ -32,7 +32,7 @@ pub enum Error {
 
     /// Error returned from the database.
     #[error("error returned from database: {0}")]
-    Database(#[source] sqlite::error::SqliteError),
+    Sqlite(#[source] sqlite::error::SqliteError),
 
     /// Error communicating with the database backend.
     #[error("error communicating with database: {0}")]
@@ -96,14 +96,14 @@ pub enum Error {
 impl Error {
     pub fn into_database_error(self) -> Option<sqlite::error::SqliteError> {
         match self {
-            Error::Database(err) => Some(err),
+            Error::Sqlite(err) => Some(err),
             _ => None,
         }
     }
 
     pub fn as_database_error(&self) -> Option<&SqliteError> {
         match self {
-            Error::Database(err) => Some(err),
+            Error::Sqlite(err) => Some(err),
             _ => None,
         }
     }
@@ -138,29 +138,11 @@ pub fn mismatched_types<T: Type>(ty: &sqlite::SqliteDataType) -> BoxDynError {
     .into()
 }
 
-/// The error kind.
-///
-/// This enum is to be used to identify frequent errors that can be handled by the program.
-/// Although it currently only supports constraint violations, the type may grow in the future.
-#[derive(Debug, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum ErrorKind {
-    /// Unique/primary key constraint violation.
-    UniqueViolation,
-    /// Foreign key constraint violation.
-    ForeignKeyViolation,
-    /// Not-null constraint violation.
-    NotNullViolation,
-    /// Check constraint violation.
-    CheckViolation,
-    /// An unmapped error.
-    Other,
-}
-
+//
 impl From<SqliteError> for Error {
     #[inline]
     fn from(error: SqliteError) -> Self {
-        Error::Database(error)
+        Error::Sqlite(error)
     }
 }
 

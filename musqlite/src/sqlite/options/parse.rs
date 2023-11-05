@@ -1,10 +1,13 @@
-use crate::sqlite::error::Error;
-use crate::sqlite::ConnectOptions;
+use std::{
+    borrow::Cow,
+    path::{Path, PathBuf},
+    str::FromStr,
+    sync::atomic::{AtomicUsize, Ordering},
+};
+
 use percent_encoding::percent_decode_str;
-use std::borrow::Cow;
-use std::path::{Path, PathBuf};
-use std::str::FromStr;
-use std::sync::atomic::{AtomicUsize, Ordering};
+
+use crate::{sqlite::ConnectOptions, Error};
 
 // https://www.sqlite.org/uri.html
 

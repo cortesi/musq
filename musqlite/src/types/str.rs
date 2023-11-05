@@ -3,7 +3,8 @@ use std::borrow::Cow;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, ValueRef},
+    error::BoxDynError,
+    sqlite::{ArgumentValue, SqliteDataType, ValueRef},
     Type,
 };
 

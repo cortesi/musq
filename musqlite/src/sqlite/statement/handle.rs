@@ -17,7 +17,7 @@ use libsqlite3_sys::{
     SQLITE_ROW, SQLITE_TRANSIENT, SQLITE_UTF8,
 };
 
-use crate::sqlite::error::BoxDynError;
+use crate::error::BoxDynError;
 use crate::sqlite::type_info::SqliteDataType;
 use crate::sqlite::SqliteError;
 

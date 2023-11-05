@@ -6,7 +6,7 @@ use libsqlite3_sys::{
     sqlite3_value_type, SQLITE_NULL,
 };
 
-use crate::sqlite::{error::BoxDynError, type_info::SqliteDataType};
+use crate::{error::BoxDynError, sqlite::type_info::SqliteDataType};
 
 enum SqliteValueData<'r> {
     Value(&'r Value),

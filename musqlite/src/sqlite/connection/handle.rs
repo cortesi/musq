@@ -1,15 +1,18 @@
-use std::ffi::CString;
-use std::ptr;
-use std::ptr::NonNull;
+use std::{
+    ffi::CString,
+    ptr::{self, NonNull},
+};
 
-use crate::sqlite::error::Error;
 use libsqlite3_sys::{
     sqlite3, sqlite3_close, sqlite3_exec, sqlite3_last_insert_rowid, SQLITE_LOCKED_SHAREDCACHE,
     SQLITE_OK,
 };
 
-use crate::err_protocol;
-use crate::sqlite::{statement::unlock_notify, SqliteError};
+use crate::{
+    err_protocol,
+    sqlite::{statement::unlock_notify, SqliteError},
+    Error,
+};
 
 /// Managed handle to the raw SQLite3 database handle.
 /// The database handle will be closed when this is dropped and no `ConnectionHandleRef`s exist.

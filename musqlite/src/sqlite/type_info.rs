@@ -4,7 +4,7 @@ use std::str::FromStr;
 
 use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT};
 
-use crate::sqlite::error::BoxDynError;
+use crate::error::BoxDynError;
 
 /// Data types supported by SQLite.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]

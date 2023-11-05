@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use musqlite::{
-    query, query_as, query_scalar, ConnectOptions, Connection, Error, Executor, Pool, PoolOptions,
-    Row,
+    query, query_as, query_scalar, ConnectOptions, Connection, Error, Executor, ExtendedErrCode,
+    Pool, PoolOptions, PrimaryErrCode, Row,
 };
 use musqlite_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
@@ -245,12 +245,11 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
 
     assert!(res.is_err());
 
-    let err = res.unwrap_err().to_string();
+    let err = res.unwrap_err().into_database_error().unwrap();
 
-    assert_eq!(
-        "error returned from database: (code: 1) near \"SEELCT\": syntax error",
-        err
-    );
+    assert_eq!(err.primary, PrimaryErrCode::Error);
+    assert_eq!(err.extended, ExtendedErrCode::Unknown(1));
+    assert_eq!(err.message, "near \"SEELCT\": syntax error");
 
     Ok(())
 }
@@ -695,7 +694,7 @@ async fn test_query_with_progress_handler() -> anyhow::Result<()> {
     });
 
     match query("SELECT 'hello' AS title").fetch_all(&mut conn).await {
-        Err(Error::Database(err)) => assert_eq!(err.message(), String::from("interrupted")),
+        Err(Error::Sqlite(err)) => assert_eq!(err.message, String::from("interrupted")),
         _ => panic!("expected an interrupt"),
     }
 
@@ -732,8 +731,8 @@ async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::
         assert_eq!(2, Arc::strong_count(&ref_counted_object));
 
         match query("SELECT 'hello' AS title").fetch_all(&mut conn).await {
-            Err(Error::Database(err)) => {
-                assert_eq!(err.message(), String::from("interrupted"))
+            Err(Error::Sqlite(err)) => {
+                assert_eq!(err.message, String::from("interrupted"))
             }
             _ => panic!("expected an interrupt"),
         }

@@ -8,9 +8,11 @@ mod parse;
 mod synchronous;
 
 use crate::sqlite::connection::LogSettings;
+
 pub use auto_vacuum::AutoVacuum;
 pub use journal_mode::JournalMode;
 pub use locking_mode::LockingMode;
+
 use std::sync::Arc;
 use std::{borrow::Cow, time::Duration};
 pub use synchronous::Synchronous;

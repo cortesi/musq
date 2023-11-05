@@ -1,18 +1,24 @@
-use crate::sqlite::connection::handle::ConnectionHandle;
-use crate::sqlite::connection::LogSettings;
-use crate::sqlite::connection::{ConnectionState, Statements};
-use crate::sqlite::error::Error;
-use crate::sqlite::{ConnectOptions, SqliteError};
+use std::{
+    ffi::CString,
+    io,
+    ptr::{null, null_mut},
+    sync::atomic::{AtomicU64, Ordering},
+    time::Duration,
+};
+
 use libsqlite3_sys::{
     sqlite3_busy_timeout, sqlite3_extended_result_codes, sqlite3_open_v2, SQLITE_OK,
     SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
-use std::ffi::CString;
-use std::io;
-use std::ptr::{null, null_mut};
-use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::Duration;
+
+use crate::{
+    sqlite::{
+        connection::{handle::ConnectionHandle, ConnectionState, LogSettings, Statements},
+        ConnectOptions, SqliteError,
+    },
+    Error,
+};
 
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
@@ -121,7 +127,7 @@ impl EstablishParams {
         let handle = unsafe { ConnectionHandle::new(handle) };
 
         if status != SQLITE_OK {
-            return Err(Error::Database(SqliteError::new(handle.as_ptr())));
+            return Err(Error::Sqlite(SqliteError::new(handle.as_ptr())));
         }
 
         // Enable extended result codes
@@ -142,7 +148,7 @@ impl EstablishParams {
         status = unsafe { sqlite3_busy_timeout(handle.as_ptr(), ms) };
 
         if status != SQLITE_OK {
-            return Err(Error::Database(SqliteError::new(handle.as_ptr())));
+            return Err(Error::Sqlite(SqliteError::new(handle.as_ptr())));
         }
 
         Ok(ConnectionState {

@@ -2,11 +2,10 @@ use crate::{
     logger::QueryLogger,
     sqlite::{
         connection::{ConnectionHandle, ConnectionState},
-        error::Error,
         statement::{StatementHandle, VirtualStatement},
         Arguments,
     },
-    Either, QueryResult, Row,
+    Either, Error, QueryResult, Row,
 };
 
 pub struct ExecuteIter<'a> {

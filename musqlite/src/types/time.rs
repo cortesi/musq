@@ -1,7 +1,8 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType},
+    error::BoxDynError,
+    sqlite::{ArgumentValue, SqliteDataType},
     Type, ValueRef,
 };
 use time::format_description::{well_known::Rfc3339, FormatItem};
