@@ -16,6 +16,14 @@
 //! | `f64`                                 | REAL                                                 |
 //! | `&str`, [`String`]                    | TEXT                                                 |
 //! | `&[u8]`, `Vec<u8>`                    | BLOB                                                 |
+//! | `time::PrimitiveDateTime`             | DATETIME                                             |
+//! | `time::OffsetDateTime`                | DATETIME                                             |
+//! | `time::Date`                          | DATE                                                 |
+//! | `time::Time`                          | TIME                                                 |
+//! | [`Json<T>`]                           | TEXT                                                 |
+//! | `serde_json::JsonValue`               | TEXT                                                 |
+//! | `&serde_json::value::RawValue`        | TEXT                                                 |
+//! | `bstr::BString`                       | BLOB                                                 |
 //!
 //! #### Note: Unsigned Integers
 //! The unsigned integer types `u8`, `u16` and `u32` are implemented by zero-extending to the
@@ -31,44 +39,23 @@
 //! and so it is not supported. Bit-casting it to `i64` or storing it as `REAL`, `BLOB` or `TEXT`
 //! would change the semantics of the value in SQL and so violates the principle of least surprise.
 //!
-//! ### [`time`](https://crates.io/crates/time)
-//!
-//! | Rust type                             | Sqlite type(s)                                       |
-//! |---------------------------------------|------------------------------------------------------|
-//! | `time::PrimitiveDateTime`             | DATETIME                                             |
-//! | `time::OffsetDateTime`                | DATETIME                                             |
-//! | `time::Date`                          | DATE                                                 |
-//! | `time::Time`                          | TIME                                                 |
-//!
-//! ### [`json`](https://crates.io/crates/serde_json)
-//!
-//! | Rust type                             | Sqlite type(s)                                       |
-//! |---------------------------------------|------------------------------------------------------|
-//! | [`Json<T>`]                           | TEXT                                                 |
-//! | `serde_json::JsonValue`               | TEXT                                                 |
-//! | `&serde_json::value::RawValue`        | TEXT                                                 |
-//!
 //! # Nullable
 //!
 //! In addition, `Option<T>` is supported where `T` implements `Type`. An `Option<T>` represents
 //! a potentially `NULL` value from SQLite.
-
 use crate::sqlite;
+
+pub mod bstr;
+pub mod time;
+pub use json::{Json, JsonRawValue, JsonValue};
 
 mod bool;
 mod bytes;
 mod float;
 mod int;
-mod str;
-pub mod time;
-mod uint;
-
-pub mod bstr;
 mod json;
-
-#[doc(no_inline)]
-pub use bit_vec::BitVec;
-pub use json::{Json, JsonRawValue, JsonValue};
+mod str;
+mod uint;
 
 /// Indicates that a SQL type is supported.
 ///
