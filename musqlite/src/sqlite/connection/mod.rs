@@ -12,9 +12,9 @@ use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
 
 use crate::{
     acquire::Acquire,
-    connect::{ConnectOptions, OptimizeOnClose},
     error::Error,
     executor::Executor,
+    musqlite::{MuSQLite, OptimizeOnClose},
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
         statement::VirtualStatement,
@@ -114,7 +114,7 @@ impl Debug for Connection {
 }
 
 impl Connection {
-    pub(crate) async fn establish(options: &ConnectOptions) -> Result<Self, Error> {
+    pub(crate) async fn establish(options: &MuSQLite) -> Result<Self, Error> {
         let params = EstablishParams::from_options(options)?;
         let worker = ConnectionWorker::establish(params).await?;
         Ok(Self {
@@ -252,7 +252,7 @@ impl Connection {
     }
 
     /// Establish a new database connection with the provided options.
-    pub fn connect_with(options: &ConnectOptions) -> BoxFuture<'_, Result<Self, Error>>
+    pub fn connect_with(options: &MuSQLite) -> BoxFuture<'_, Result<Self, Error>>
     where
         Self: Sized,
     {

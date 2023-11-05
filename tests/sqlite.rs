@@ -1,6 +1,6 @@
 use futures::TryStreamExt;
 use musqlite::{
-    query, query_as, query_scalar, ConnectOptions, Connection, Error, Executor, ExtendedErrCode,
+    query, query_as, query_scalar, Connection, Error, Executor, ExtendedErrCode, MuSQLite,
     PrimaryErrCode, Row,
 };
 use musqlite_test::{connection, tdb};
@@ -190,7 +190,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool = ConnectOptions::new()
+    let pool = MuSQLite::new()
         .with_pool()
         .max_connections(2)
         .min_connections(2)
@@ -208,7 +208,7 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 async fn it_opens_in_memory() -> anyhow::Result<()> {
     // If the filename is ":memory:", then a private, temporary in-memory database
     // is created for the connection.
-    let conn = Connection::connect_with(&ConnectOptions::new()).await?;
+    let conn = Connection::connect_with(&MuSQLite::new()).await?;
     conn.close().await?;
     Ok(())
 }
@@ -499,7 +499,7 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 async fn concurrent_resets_dont_segfault() {
     use std::time::Duration;
 
-    let mut conn = ConnectOptions::new().connect().await.unwrap();
+    let mut conn = MuSQLite::new().connect().await.unwrap();
 
     query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
         .execute(&mut conn)
@@ -525,9 +525,7 @@ async fn concurrent_resets_dont_segfault() {
 // to see the panic from the worker thread, which doesn't happen after the fix
 #[tokio::test]
 async fn row_dropped_after_connection_doesnt_panic() {
-    let mut conn = Connection::connect_with(&ConnectOptions::new())
-        .await
-        .unwrap();
+    let mut conn = Connection::connect_with(&MuSQLite::new()).await.unwrap();
 
     let books = query("SELECT 'hello' AS title")
         .fetch_all(&mut conn)
@@ -552,7 +550,7 @@ async fn row_dropped_after_connection_doesnt_panic() {
 #[tokio::test]
 #[ignore]
 async fn issue_1467() -> anyhow::Result<()> {
-    let mut conn = ConnectOptions::new().filename(":memory:").connect().await?;
+    let mut conn = MuSQLite::new().filename(":memory:").connect().await?;
 
     query(
         r#"
@@ -609,7 +607,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn concurrent_read_and_write() {
-    let pool = ConnectOptions::new()
+    let pool = MuSQLite::new()
         .with_pool()
         .min_connections(2)
         .open_in_memory()

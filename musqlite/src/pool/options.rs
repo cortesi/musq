@@ -1,7 +1,7 @@
 use crate::{
     error::{Error, Result},
     pool::{inner::PoolInner, Pool},
-    ConnectOptions,
+    MuSQLite,
 };
 
 use std::{
@@ -18,7 +18,7 @@ pub struct PoolOptions {
     pub(crate) min_connections: u32,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
-    pub(crate) connect_options: ConnectOptions,
+    pub(crate) connect_options: MuSQLite,
 }
 
 impl PoolOptions {
@@ -28,7 +28,7 @@ impl PoolOptions {
     /// [`max_connections`][Self::max_connections].
     ///
     /// See the source of this method for the current default values.
-    pub(crate) fn new(connect_options: ConnectOptions) -> Self {
+    pub(crate) fn new(connect_options: MuSQLite) -> Self {
         Self {
             // A production application will want to set a higher limit than this.
             max_connections: 10,

@@ -17,7 +17,7 @@ use crate::{
         connection::{handle::ConnectionHandle, ConnectionState, LogSettings, Statements},
         SqliteError,
     },
-    ConnectOptions, Error,
+    Error, MuSQLite,
 };
 
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
@@ -33,7 +33,7 @@ pub struct EstablishParams {
 }
 
 impl EstablishParams {
-    pub fn from_options(options: &ConnectOptions) -> Result<Self, Error> {
+    pub fn from_options(options: &MuSQLite) -> Result<Self, Error> {
         let mut filename = options
             .filename
             .to_str()

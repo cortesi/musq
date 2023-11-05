@@ -8,7 +8,6 @@ pub mod async_stream;
 
 mod acquire;
 mod column;
-mod connect;
 mod connection;
 mod debugfn;
 pub mod decode;
@@ -17,6 +16,7 @@ mod error;
 mod executor;
 mod from_row;
 mod logger;
+mod musqlite;
 pub mod pool;
 pub mod query;
 mod query_as;
@@ -35,10 +35,10 @@ pub use indexmap::IndexMap;
 
 pub use crate::{
     column::{Column, ColumnIndex},
-    connect::{AutoVacuum, ConnectOptions, JournalMode, LockingMode, Synchronous},
     error::{Error, Result},
     executor::{Execute, Executor},
     from_row::FromRow,
+    musqlite::{AutoVacuum, JournalMode, LockingMode, MuSQLite, Synchronous},
     pool::{Pool, PoolOptions},
     query::{query, query_with},
     query_as::{query_as, query_as_with},

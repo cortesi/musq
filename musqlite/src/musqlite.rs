@@ -105,23 +105,9 @@ impl Synchronous {
     }
 }
 
-/// Options and flags which can be used to configure a SQLite connection.
-///
-/// A value of `ConnectOptions` can be parsed from a connection URL,
-/// as described by [SQLite](https://www.sqlite.org/uri.html).
-///
-/// This type also implements [`FromStr`][std::str::FromStr] so you can parse it from a string
-/// containing a connection URL and then further adjust options if necessary (see example below).
-///
-/// | URL | Description |
-/// | -- | -- |
-/// `sqlite::memory:` | Open an in-memory database. |
-/// `sqlite:data.db` | Open the file `data.db` in the current directory. |
-/// `sqlite://data.db` | Open the file `data.db` in the current directory. |
-/// `sqlite:///data.db` | Open the file `data.db` from the root (`/`) directory. |
-/// `sqlite://data.db?mode=ro` | Open the file `data.db` for read-only access. |
+/// Create a muSQLite connection
 #[derive(Clone, Debug)]
-pub struct ConnectOptions {
+pub struct MuSQLite {
     pub(crate) filename: PathBuf,
     pub(crate) in_memory: bool,
     pub(crate) read_only: bool,
@@ -150,13 +136,13 @@ pub enum OptimizeOnClose {
     Disabled,
 }
 
-impl Default for ConnectOptions {
+impl Default for MuSQLite {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl ConnectOptions {
+impl MuSQLite {
     /// Construct `Self` with default options.
     ///
     /// See the source of this method for the current defaults.
