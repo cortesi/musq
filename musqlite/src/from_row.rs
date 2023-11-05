@@ -7,7 +7,7 @@ use crate::Row;
 ///
 /// ## Derivable
 ///
-/// This trait can be derived by SQLx for any struct. The generated implementation
+/// This trait can be derived for any struct. The generated implementation
 /// will consist of a sequence of calls to [`Row::try_get`] using the name from each
 /// struct field.
 ///
@@ -34,7 +34,7 @@ use crate::Row;
 /// struct User {
 ///     id: i32,
 ///     name: String,
-///     #[sqlx(rename = "description")]
+///     #[musqlite(rename = "description")]
 ///     about_me: String
 /// }
 /// ```
@@ -53,7 +53,7 @@ use crate::Row;
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
-/// #[sqlx(rename_all = "camelCase")]
+/// #[musqlite(rename_all = "camelCase")]
 /// struct UserPost {
 ///     id: i32,
 ///     // remapped to "userId"
@@ -78,7 +78,7 @@ use crate::Row;
 /// struct User {
 ///     id: i32,
 ///     name: String,
-///     #[sqlx(default)]
+///     #[musqlite(default)]
 ///     location: Option<String>
 /// }
 /// ```
@@ -111,7 +111,7 @@ use crate::Row;
 /// struct User {
 ///     id: i32,
 ///     name: String,
-///     #[sqlx(flatten)]
+///     #[musqlite(flatten)]
 ///     address: Address,
 /// }
 /// ```
@@ -142,7 +142,7 @@ use crate::Row;
 /// #[derive(FromRow)]
 /// struct User {
 ///     name: String,
-///     #[sqlx(skip)]
+///     #[musqlite(skip)]
 ///     addresses: Vec<Address>,
 /// }
 /// ```
@@ -197,7 +197,7 @@ use crate::Row;
 /// struct User {
 ///     id: i32,
 ///     name: String,
-///     #[sqlx(try_from = "i64")]
+///     #[musqlite(try_from = "i64")]
 ///     bigIntInMySql: u64
 /// }
 /// ```

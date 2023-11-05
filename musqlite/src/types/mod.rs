@@ -61,7 +61,7 @@ mod uint;
 ///
 /// ## Derivable
 ///
-/// This trait can be derived by SQLx to support Rust-only wrapper types, enumerations, and structured records.
+/// This trait can be derived to support Rust-only wrapper types, enumerations, and structured records.
 /// Additionally, an implementation of [`Encode`](crate::encode::Encode) and [`Decode`](crate::decode::Decode) is
 /// generated.
 ///
@@ -72,13 +72,13 @@ mod uint;
 ///
 /// ```rust,ignore
 /// #[derive(Type)]
-/// #[sqlx(transparent)]
+/// #[musqlite(transparent)]
 /// struct UserId(i64);
 /// ```
 ///
 /// ##### Attributes
 ///
-/// * `#[sqlx(rename_all = "<strategy>")]` on struct definition: See [`derive docs in
+/// * `#[musqlite(rename_all = "<strategy>")]` on struct definition: See [`derive docs in
 ///   FromRow`](crate::from_row::FromRow#rename_all)
 ///
 /// ### Enumeration
@@ -97,7 +97,7 @@ mod uint;
 ///
 /// ```rust,ignore
 /// #[derive(Type)]
-/// #[sqlx(rename_all = "lowercase")]
+/// #[musqlite(rename_all = "lowercase")]
 /// enum Color { Red, Green, Blue }
 /// ```
 ///

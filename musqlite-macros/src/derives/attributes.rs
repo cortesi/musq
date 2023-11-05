@@ -66,13 +66,13 @@ pub fn parse_container_attributes(input: &[Attribute]) -> syn::Result<ContainerA
 
     for attr in input
         .iter()
-        .filter(|a| a.path.is_ident("sqlx") || a.path.is_ident("repr"))
+        .filter(|a| a.path.is_ident("musqlite") || a.path.is_ident("repr"))
     {
         let meta = attr
             .parse_meta()
             .map_err(|e| syn::Error::new_spanned(attr, e))?;
         match meta {
-            Meta::List(list) if list.path.is_ident("sqlx") => {
+            Meta::List(list) if list.path.is_ident("musqlite") => {
                 for value in list.nested.iter() {
                     match value {
                         NestedMeta::Meta(meta) => match meta {
@@ -150,7 +150,7 @@ pub fn parse_child_attributes(input: &[Attribute]) -> syn::Result<ChildAttribute
     let mut flatten = false;
     let mut skip: bool = false;
 
-    for attr in input.iter().filter(|a| a.path.is_ident("sqlx")) {
+    for attr in input.iter().filter(|a| a.path.is_ident("musqlite")) {
         let meta = attr
             .parse_meta()
             .map_err(|e| syn::Error::new_spanned(attr, e))?;
@@ -197,7 +197,7 @@ pub fn check_transparent_attributes(
 
     assert_attribute!(
         attributes.rename_all.is_none(),
-        "unexpected #[sqlx(rename_all = ..)]",
+        "unexpected #[musqlite(rename_all = ..)]",
         field
     );
 
@@ -205,7 +205,7 @@ pub fn check_transparent_attributes(
 
     assert_attribute!(
         ch_attributes.rename.is_none(),
-        "unexpected #[sqlx(rename = ..)]",
+        "unexpected #[musqlite(rename = ..)]",
         field
     );
 
@@ -217,7 +217,7 @@ pub fn check_enum_attributes(input: &DeriveInput) -> syn::Result<ContainerAttrib
 
     assert_attribute!(
         !attributes.transparent,
-        "unexpected #[sqlx(transparent)]",
+        "unexpected #[musqlite(transparent)]",
         input
     );
 
@@ -234,7 +234,7 @@ pub fn check_weak_enum_attributes(
 
     assert_attribute!(
         attributes.rename_all.is_none(),
-        "unexpected #[sqlx(c = ..)]",
+        "unexpected #[musqlite(c = ..)]",
         input
     );
 
@@ -243,7 +243,7 @@ pub fn check_weak_enum_attributes(
 
         assert_attribute!(
             attributes.rename.is_none(),
-            "unexpected #[sqlx(rename = ..)]",
+            "unexpected #[musqlite(rename = ..)]",
             variant
         );
     }
@@ -270,13 +270,13 @@ pub fn check_struct_attributes(
 
     assert_attribute!(
         !attributes.transparent,
-        "unexpected #[sqlx(transparent)]",
+        "unexpected #[musqlite(transparent)]",
         input
     );
 
     assert_attribute!(
         attributes.rename_all.is_none(),
-        "unexpected #[sqlx(rename_all = ..)]",
+        "unexpected #[musqlite(rename_all = ..)]",
         input
     );
 
@@ -287,7 +287,7 @@ pub fn check_struct_attributes(
 
         assert_attribute!(
             attributes.rename.is_none(),
-            "unexpected #[sqlx(rename = ..)]",
+            "unexpected #[musqlite(rename = ..)]",
             field
         );
     }

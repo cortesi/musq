@@ -2,6 +2,8 @@ mod sqlite;
 
 mod ustr;
 
+pub use musqlite_macros::*;
+
 #[macro_use]
 pub mod async_stream;
 #[macro_use]

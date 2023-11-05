@@ -8,6 +8,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
+musqlite-macros = { path = "../musqlite-macros" }
 tokio = { version = "1.15.0", features = ["full"] }
 bit-vec = "0.6.3"
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
@@ -52,4 +53,3 @@ atoi = "2.0.0"
 
 [dev-dependencies]
 musqlite-test = { path = "../musqlite-test" }
-musqlite-macros = { path = "../musqlite-macros" }
