@@ -1,8 +1,6 @@
 //! Types for working with errors produced by SQLx.
 
 use std::any::type_name;
-use std::error::Error as StdError;
-use std::fmt::Display;
 use std::io;
 
 use crate::{sqlite, sqlite::error::SqliteError, types::Type};
@@ -12,7 +10,7 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 // Convenience type alias for usage within SQLx.
 // Do not make this type public.
-pub type BoxDynError = Box<dyn StdError + 'static + Send + Sync>;
+pub type BoxDynError = Box<dyn std::error::Error + 'static + Send + Sync>;
 
 /// An unexpected `NULL` was encountered during decoding.
 ///
@@ -107,24 +105,6 @@ impl Error {
             _ => None,
         }
     }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn protocol(err: impl Display) -> Self {
-        Error::Protocol(err.to_string())
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn config(err: impl StdError + Send + Sync + 'static) -> Self {
-        Error::Configuration(err.into())
-    }
-
-    #[doc(hidden)]
-    #[inline]
-    pub fn decode(err: impl Into<Box<dyn StdError + Send + Sync + 'static>>) -> Self {
-        Error::Decode(err.into())
-    }
 }
 
 pub fn mismatched_types<T: Type>(ty: &sqlite::SqliteDataType) -> BoxDynError {
@@ -139,7 +119,6 @@ pub fn mismatched_types<T: Type>(ty: &sqlite::SqliteDataType) -> BoxDynError {
 }
 
 impl From<SqliteError> for Error {
-    #[inline]
     fn from(error: SqliteError) -> Self {
         Error::Sqlite(error)
     }

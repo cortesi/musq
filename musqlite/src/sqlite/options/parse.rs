@@ -28,7 +28,7 @@ impl ConnectOptions {
                 Path::new(
                     &*percent_decode_str(database)
                         .decode_utf8()
-                        .map_err(Error::config)?,
+                        .map_err(|e| Error::Configuration(e.into()))?,
                 )
                 .to_path_buf(),
             );

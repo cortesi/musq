@@ -2,28 +2,28 @@
 //!
 //! # Types
 //!
-//! | Rust type                             | SQLite type(s)                                       |
-//! |---------------------------------------|------------------------------------------------------|
-//! | `bool`                                | BOOLEAN                                              |
-//! | `i8`                                  | INTEGER                                              |
-//! | `i16`                                 | INTEGER                                              |
-//! | `i32`                                 | INTEGER                                              |
-//! | `i64`                                 | BIGINT, INT8                                         |
-//! | `u8`                                  | INTEGER                                              |
-//! | `u16`                                 | INTEGER                                              |
-//! | `u32`                                 | INTEGER                                              |
-//! | `f32`                                 | REAL                                                 |
-//! | `f64`                                 | REAL                                                 |
-//! | `&str`, [`String`]                    | TEXT                                                 |
-//! | `&[u8]`, `Vec<u8>`                    | BLOB                                                 |
-//! | `time::PrimitiveDateTime`             | DATETIME                                             |
-//! | `time::OffsetDateTime`                | DATETIME                                             |
-//! | `time::Date`                          | DATE                                                 |
-//! | `time::Time`                          | TIME                                                 |
-//! | [`Json<T>`]                           | TEXT                                                 |
-//! | `serde_json::JsonValue`               | TEXT                                                 |
-//! | `&serde_json::value::RawValue`        | TEXT                                                 |
-//! | `bstr::BString`                       | BLOB                                                 |
+//! | Rust type                             | SQLite type(s)      |
+//! |---------------------------------------|---------------------|
+//! | `bool`                                | BOOLEAN             |
+//! | `i8`                                  | INTEGER             |
+//! | `i16`                                 | INTEGER             |
+//! | `i32`                                 | INTEGER             |
+//! | `i64`                                 | BIGINT, INT8        |
+//! | `u8`                                  | INTEGER             |
+//! | `u16`                                 | INTEGER             |
+//! | `u32`                                 | INTEGER             |
+//! | `f32`                                 | REAL                |
+//! | `f64`                                 | REAL                |
+//! | `&str`, [`String`]                    | TEXT                |
+//! | `&[u8]`, `Vec<u8>`                    | BLOB                |
+//! | `time::PrimitiveDateTime`             | DATETIME            |
+//! | `time::OffsetDateTime`                | DATETIME            |
+//! | `time::Date`                          | DATE                |
+//! | `time::Time`                          | TIME                |
+//! | [`Json<T>`]                           | TEXT                |
+//! | `serde_json::JsonValue`               | TEXT                |
+//! | `&serde_json::value::RawValue`        | TEXT                |
+//! | `bstr::BString`                       | BLOB                |
 //!
 //! #### Note: Unsigned Integers
 //! The unsigned integer types `u8`, `u16` and `u32` are implemented by zero-extending to the

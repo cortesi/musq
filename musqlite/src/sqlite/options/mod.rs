@@ -1,21 +1,106 @@
-use std::{borrow::Cow, time::Duration};
-use std::{path::Path, sync::Arc};
+use std::{borrow::Cow, fmt::Write, path::Path, str::FromStr, sync::Arc, time::Duration};
 
-use crate::{debugfn::DebugFn, sqlite::connection::LogSettings};
+use crate::{
+    debugfn::DebugFn,
+    error::Error,
+    executor::Executor,
+    sqlite::{connection::LogSettings, Connection},
+};
 
-mod auto_vacuum;
-mod connect;
-mod journal_mode;
-mod locking_mode;
+use futures_core::future::BoxFuture;
+use log::LevelFilter;
+use url::Url;
+
 mod parse;
-mod synchronous;
-
-pub use auto_vacuum::AutoVacuum;
-pub use journal_mode::JournalMode;
-pub use locking_mode::LockingMode;
-pub use synchronous::Synchronous;
 
 use indexmap::IndexMap;
+
+/// Refer to [SQLite documentation] for the meaning of the connection locking mode.
+///
+/// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_locking_mode
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum LockingMode {
+    #[default]
+    Normal,
+    Exclusive,
+}
+
+impl LockingMode {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            LockingMode::Normal => "NORMAL",
+            LockingMode::Exclusive => "EXCLUSIVE",
+        }
+    }
+}
+
+/// Refer to [SQLite documentation] for the meaning of the database journaling mode.
+///
+/// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_journal_mode
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum JournalMode {
+    Delete,
+    Truncate,
+    Persist,
+    Memory,
+    #[default]
+    Wal,
+    Off,
+}
+
+impl JournalMode {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            JournalMode::Delete => "DELETE",
+            JournalMode::Truncate => "TRUNCATE",
+            JournalMode::Persist => "PERSIST",
+            JournalMode::Memory => "MEMORY",
+            JournalMode::Wal => "WAL",
+            JournalMode::Off => "OFF",
+        }
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum AutoVacuum {
+    #[default]
+    None,
+    Full,
+    Incremental,
+}
+
+impl AutoVacuum {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            AutoVacuum::None => "NONE",
+            AutoVacuum::Full => "FULL",
+            AutoVacuum::Incremental => "INCREMENTAL",
+        }
+    }
+}
+
+/// Refer to [SQLite documentation] for the meaning of various synchronous settings.
+///
+/// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_synchronous
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum Synchronous {
+    Off,
+    Normal,
+    #[default]
+    Full,
+    Extra,
+}
+
+impl Synchronous {
+    pub(crate) fn as_str(&self) -> &'static str {
+        match self {
+            Synchronous::Off => "OFF",
+            Synchronous::Normal => "NORMAL",
+            Synchronous::Full => "FULL",
+            Synchronous::Extra => "EXTRA",
+        }
+    }
+}
 
 /// Options and flags which can be used to configure a SQLite connection.
 ///
@@ -47,12 +132,6 @@ pub struct ConnectOptions {
 
     pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
 
-    /// Extensions are specified as a pair of <Extension Name : Optional Entry Point>, the majority
-    /// of SQLite extensions will use the default entry points specified in the docs, these should
-    /// be added to the map with a `None` value.
-    /// <https://www.sqlite.org/loadext.html#loading_an_extension>
-    pub(crate) extensions: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
-
     pub(crate) command_channel_size: usize,
     pub(crate) row_channel_size: usize,
 
@@ -60,8 +139,6 @@ pub struct ConnectOptions {
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
 
     pub(crate) optimize_on_close: OptimizeOnClose,
-
-    pub(crate) register_regexp_function: bool,
 }
 
 #[derive(Clone, Debug)]
@@ -132,13 +209,11 @@ impl ConnectOptions {
             immutable: false,
             vfs: None,
             pragmas,
-            extensions: Default::default(),
             serialized: false,
             thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
             command_channel_size: 50,
             row_channel_size: 50,
             optimize_on_close: OptimizeOnClose::Disabled,
-            register_regexp_function: false,
         }
     }
 
@@ -350,33 +425,6 @@ impl ConnectOptions {
         self
     }
 
-    /// Load an [extension](https://www.sqlite.org/loadext.html) at run-time when the database connection
-    /// is established, using the default entry point.
-    ///
-    /// Most common SQLite extensions can be loaded using this method, for extensions where you need
-    /// to specify the entry point, use [`extension_with_entrypoint`][`Self::extension_with_entrypoint`] instead.
-    ///
-    /// Multiple extensions can be loaded by calling the method repeatedly on the options struct, they
-    /// will be loaded in the order they are added.
-    pub fn extension(mut self, extension_name: impl Into<Cow<'static, str>>) -> Self {
-        self.extensions.insert(extension_name.into(), None);
-        self
-    }
-
-    /// Load an extension with a specified entry point.
-    ///
-    /// Useful when using non-standard extensions, or when developing your own, the second argument
-    /// specifies where SQLite should expect to find the extension init routine.
-    pub fn extension_with_entrypoint(
-        mut self,
-        extension_name: impl Into<Cow<'static, str>>,
-        entry_point: impl Into<Cow<'static, str>>,
-    ) -> Self {
-        self.extensions
-            .insert(extension_name.into(), Some(entry_point.into()));
-        self
-    }
-
     /// Execute `PRAGMA optimize;` on the SQLite connection before closing.
     ///
     /// The SQLite manual recommends using this for long-lived databases.
@@ -426,26 +474,49 @@ impl ConnectOptions {
         self
     }
 
-    /// Register a regexp function that allows using regular expressions in queries.
-    ///
-    /// ```
-    /// # use std::str::FromStr;
-    /// # use musqlite::{query, ConnectOptions, Connection, Row, Result};
-    /// # async fn run() -> Result<()> {
-    /// let mut sqlite = ConnectOptions::from_str("sqlite://:memory:")?
-    ///     .with_regexp()
-    ///     .connect()
-    ///     .await?;
-    /// let tables = query("SELECT name FROM sqlite_schema WHERE name REGEXP 'foo(\\d+)bar'")
-    ///     .fetch_all(&mut sqlite)
-    ///     .await?;
-    /// # Ok(())
-    /// # }
-    /// ```
-    ///
-    /// This uses the [`regex`] crate, and is only enabled when you enable the `regex` feature is enabled on sqlx
-    pub fn with_regexp(mut self) -> Self {
-        self.register_regexp_function = true;
+    pub fn from_url(url: &Url) -> Result<Self, Error> {
+        // SQLite URL parsing is handled specially;
+        // we want to treat the following URLs as equivalent:
+        //
+        // * sqlite:foo.db
+        // * sqlite://foo.db
+        //
+        // If we used `Url::path()`, the latter would return an empty string
+        // because `foo.db` gets parsed as the hostname.
+        Self::from_str(url.as_str())
+    }
+
+    pub fn connect(&self) -> BoxFuture<'_, Result<Connection, Error>> {
+        Box::pin(async move {
+            let mut conn = Connection::establish(self).await?;
+
+            // Execute PRAGMAs
+            conn.execute(&*self.pragma_string()).await?;
+
+            Ok(conn)
+        })
+    }
+
+    pub fn log_statements(mut self, level: LevelFilter) -> Self {
+        self.log_settings.log_statements(level);
         self
+    }
+
+    pub fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
+        self.log_settings.log_slow_statements(level, duration);
+        self
+    }
+
+    /// Collect all `PRAMGA` commands into a single string
+    pub(crate) fn pragma_string(&self) -> String {
+        let mut string = String::new();
+
+        for (key, opt_value) in &self.pragmas {
+            if let Some(value) = opt_value {
+                write!(string, "PRAGMA {} = {}; ", key, value).ok();
+            }
+        }
+
+        string
     }
 }
