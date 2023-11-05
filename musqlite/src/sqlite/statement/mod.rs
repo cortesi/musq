@@ -1,8 +1,8 @@
 use crate::{
-    impl_statement_query,
+    from_row, query, query_as, query_scalar,
     sqlite::{error::Error, Arguments, SqliteDataType},
     ustr::UStr,
-    Column, ColumnIndex, Either, HashMap,
+    Column, ColumnIndex, Either, HashMap, IntoArguments,
 };
 
 use std::borrow::Cow;
@@ -90,7 +90,55 @@ impl<'q> Statement<'q> {
         Ok(&self.columns()[index.index(self)?])
     }
 
-    impl_statement_query!(Arguments<'_>);
+    #[inline]
+    pub fn query(&self) -> query::Query<'_, Arguments<'_>> {
+        query::query_statement(self)
+    }
+
+    #[inline]
+    pub fn query_with<'s, A>(&'s self, arguments: A) -> query::Query<'s, A>
+    where
+        A: IntoArguments<'s>,
+    {
+        query::query_statement_with(self, arguments)
+    }
+
+    #[inline]
+    pub fn query_as<O>(&self) -> query_as::QueryAs<'_, O, Arguments<'_>>
+    where
+        O: for<'r> from_row::FromRow<'r>,
+    {
+        query_as::query_statement_as(self)
+    }
+
+    #[inline]
+    pub fn query_as_with<'s, O, A>(&'s self, arguments: A) -> query_as::QueryAs<'s, O, A>
+    where
+        O: for<'r> from_row::FromRow<'r>,
+        A: IntoArguments<'s>,
+    {
+        query_as::query_statement_as_with(self, arguments)
+    }
+
+    #[inline]
+    pub fn query_scalar<O>(&self) -> query_scalar::QueryScalar<'_, O, Arguments<'_>>
+    where
+        (O,): for<'r> from_row::FromRow<'r>,
+    {
+        query_scalar::query_statement_scalar(self)
+    }
+
+    #[inline]
+    pub fn query_scalar_with<'s, O, A>(
+        &'s self,
+        arguments: A,
+    ) -> query_scalar::QueryScalar<'s, O, A>
+    where
+        (O,): for<'r> from_row::FromRow<'r>,
+        A: IntoArguments<'s>,
+    {
+        query_scalar::query_statement_scalar_with(self, arguments)
+    }
 }
 
 impl ColumnIndex<Statement<'_>> for &'_ str {

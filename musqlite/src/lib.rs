@@ -34,9 +34,6 @@ pub mod acquire;
 #[macro_use]
 pub mod column;
 
-#[macro_use]
-pub mod statement;
-
 pub mod debugfn;
 pub mod describe;
 pub mod executor;
