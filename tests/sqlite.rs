@@ -608,15 +608,11 @@ async fn issue_1467() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn concurrent_read_and_write() {
-    let pool: Pool = PoolOptions::new()
-        .min_connections(2)
-        .connect_with(
-            ConnectOptions::new()
-                .in_memory(true)
-                .shared_cache(true)
-                .journal_mode(musqlite::JournalMode::Memory)
-                .filename("file:unique-shared-file"),
-        )
+    let pool = ConnectOptions::new()
+        .in_memory(true)
+        .shared_cache(true)
+        .filename("file:unique-shared-file")
+        .pool_with(PoolOptions::new().min_connections(2))
         .await
         .unwrap();
 

@@ -1,7 +1,8 @@
 use std::{borrow::Cow, fmt::Write, path::Path, sync::Arc, time::Duration};
 
 use crate::{
-    connection::LogSettings, debugfn::DebugFn, error::Error, executor::Executor, sqlite::Connection,
+    connection::LogSettings, debugfn::DebugFn, error::Error, executor::Executor, pool,
+    sqlite::Connection,
 };
 
 use futures_core::future::BoxFuture;
@@ -473,17 +474,6 @@ impl ConnectOptions {
         self
     }
 
-    pub fn connect(&self) -> BoxFuture<'_, Result<Connection, Error>> {
-        Box::pin(async move {
-            let mut conn = Connection::establish(self).await?;
-
-            // Execute PRAGMAs
-            conn.execute(&*self.pragma_string()).await?;
-
-            Ok(conn)
-        })
-    }
-
     pub fn log_statements(mut self, level: LevelFilter) -> Self {
         self.log_settings.log_statements(level);
         self
@@ -497,13 +487,28 @@ impl ConnectOptions {
     /// Collect all `PRAMGA` commands into a single string
     pub(crate) fn pragma_string(&self) -> String {
         let mut string = String::new();
-
         for (key, opt_value) in &self.pragmas {
             if let Some(value) = opt_value {
                 write!(string, "PRAGMA {} = {}; ", key, value).ok();
             }
         }
-
         string
+    }
+
+    pub fn connect(&self) -> BoxFuture<'_, Result<Connection, Error>> {
+        Box::pin(async move {
+            let mut conn = Connection::establish(self).await?;
+            // Execute PRAGMAs
+            conn.execute(&*self.pragma_string()).await?;
+            Ok(conn)
+        })
+    }
+
+    pub async fn pool(&self) -> Result<pool::Pool, Error> {
+        pool::Pool::connect_with(self.clone()).await
+    }
+
+    pub async fn pool_with(&self, options: pool::PoolOptions) -> Result<pool::Pool, Error> {
+        options.connect_with(self.clone()).await
     }
 }
