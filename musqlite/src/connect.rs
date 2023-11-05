@@ -1,4 +1,9 @@
-use std::{borrow::Cow, fmt::Write, path::Path, sync::Arc, time::Duration};
+use std::{
+    fmt::Write,
+    path::{Path, PathBuf},
+    sync::Arc,
+    time::Duration,
+};
 
 use crate::{
     connection::LogSettings, debugfn::DebugFn, error::Error, executor::Executor, pool,
@@ -114,7 +119,7 @@ impl Synchronous {
 /// `sqlite://data.db?mode=ro` | Open the file `data.db` for read-only access. |
 #[derive(Clone, Debug)]
 pub struct ConnectOptions {
-    pub(crate) filename: Cow<'static, Path>,
+    pub(crate) filename: PathBuf,
     pub(crate) in_memory: bool,
     pub(crate) read_only: bool,
     pub(crate) create_if_missing: bool,
@@ -123,9 +128,9 @@ pub struct ConnectOptions {
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
     pub(crate) immutable: bool,
-    pub(crate) vfs: Option<Cow<'static, str>>,
+    pub(crate) vfs: Option<String>,
 
-    pub(crate) pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>>,
+    pub(crate) pragmas: IndexMap<String, Option<String>>,
 
     pub(crate) command_channel_size: usize,
     pub(crate) row_channel_size: usize,
@@ -153,7 +158,7 @@ impl ConnectOptions {
     ///
     /// See the source of this method for the current defaults.
     pub fn new() -> Self {
-        let mut pragmas: IndexMap<Cow<'static, str>, Option<Cow<'static, str>>> = IndexMap::new();
+        let mut pragmas: IndexMap<String, Option<String>> = IndexMap::new();
 
         // Standard pragmas
         //
@@ -193,7 +198,7 @@ impl ConnectOptions {
         pragmas.insert("analysis_limit".into(), None);
 
         Self {
-            filename: Cow::Borrowed(Path::new(":memory:")),
+            filename: ":memory:".into(),
             in_memory: false,
             read_only: false,
             create_if_missing: false,
@@ -219,7 +224,7 @@ impl ConnectOptions {
 
     /// Sets the name of the database file.
     pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
-        self.filename = Cow::Owned(filename.as_ref().to_owned());
+        self.filename = filename.as_ref().to_owned();
         self
     }
 
@@ -333,15 +338,11 @@ impl ConnectOptions {
     /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
     /// However, it cannot be changed in WAL mode.
     pub fn page_size(self, page_size: u32) -> Self {
-        self.pragma("page_size", page_size.to_string())
+        self.pragma("page_size", &page_size.to_string())
     }
 
     /// Sets custom initial pragma for the database connection.
-    pub fn pragma<K, V>(mut self, key: K, value: V) -> Self
-    where
-        K: Into<Cow<'static, str>>,
-        V: Into<Cow<'static, str>>,
-    {
+    pub fn pragma(mut self, key: &str, value: &str) -> Self {
         self.pragmas.insert(key.into(), Some(value.into()));
         self
     }
@@ -420,7 +421,7 @@ impl ConnectOptions {
     ///
     /// The default value is empty, and sqlite will use the default VFS object depending on the
     /// operating system.
-    pub fn vfs(mut self, vfs_name: impl Into<Cow<'static, str>>) -> Self {
+    pub fn vfs(mut self, vfs_name: &str) -> Self {
         self.vfs = Some(vfs_name.into());
         self
     }
@@ -466,9 +467,9 @@ impl ConnectOptions {
     /// The value recommended by SQLite is `400`. There is no default.
     ///
     /// See [the SQLite manual](https://www.sqlite.org/lang_analyze.html#approx) for details.
-    pub fn analysis_limit(mut self, limit: impl Into<Option<u32>>) -> Self {
-        if let Some(limit) = limit.into() {
-            return self.pragma("analysis_limit", limit.to_string());
+    pub fn analysis_limit(mut self, limit: Option<u32>) -> Self {
+        if let Some(limit) = limit {
+            return self.pragma("analysis_limit", &limit.to_string());
         }
         self.pragmas.insert("analysis_limit".into(), None);
         self

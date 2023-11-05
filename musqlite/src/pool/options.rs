@@ -4,7 +4,7 @@ use crate::{
     ConnectOptions,
 };
 
-use std::fmt::{self, Debug, Formatter};
+use std::fmt::Debug;
 use std::time::{Duration, Instant};
 
 /// Configuration options for [`Pool`][super::Pool].
@@ -40,27 +40,13 @@ use std::time::{Duration, Instant};
 /// parameter everywhere, and `Box` is in the prelude so it doesn't need to be manually imported,
 /// so having the closure return `Pin<Box<dyn Future>` directly is the path of least resistance from
 /// the perspectives of both API designer and consumer.
+#[derive(Debug, Clone)]
 pub struct PoolOptions {
     pub(crate) max_connections: u32,
     pub(crate) acquire_timeout: Duration,
     pub(crate) min_connections: u32,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
-}
-
-// Manually implement `Clone` to avoid a trait bound issue.
-//
-// See: https://github.com/launchbadge/sqlx/issues/2548
-impl Clone for PoolOptions {
-    fn clone(&self) -> Self {
-        PoolOptions {
-            max_connections: self.max_connections,
-            acquire_timeout: self.acquire_timeout,
-            min_connections: self.min_connections,
-            max_lifetime: self.max_lifetime,
-            idle_timeout: self.idle_timeout,
-        }
-    }
 }
 
 impl Default for PoolOptions {
@@ -228,17 +214,5 @@ impl PoolOptions {
     pub fn connect_lazy_with(self, options: ConnectOptions) -> Pool {
         // `min_connections` is guaranteed by the idle reaper now.
         Pool(PoolInner::new_arc(self, options))
-    }
-}
-
-impl Debug for PoolOptions {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        f.debug_struct("PoolOptions")
-            .field("max_connections", &self.max_connections)
-            .field("min_connections", &self.min_connections)
-            .field("connect_timeout", &self.acquire_timeout)
-            .field("max_lifetime", &self.max_lifetime)
-            .field("idle_timeout", &self.idle_timeout)
-            .finish()
     }
 }
