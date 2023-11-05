@@ -129,7 +129,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn prepare_with<'e, 'q: 'e>(
         self,
         sql: &'q str,
-        parameters: &'e [sqlite::TypeInfo],
+        parameters: &'e [sqlite::SqliteDataType],
     ) -> BoxFuture<'e, Result<Statement<'q>, Error>>
     where
         'c: 'e;

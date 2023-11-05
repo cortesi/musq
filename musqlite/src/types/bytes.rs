@@ -3,17 +3,17 @@ use std::borrow::Cow;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, ValueRef},
     Type,
 };
 
 impl Type for [u8] {
-    fn type_info() -> TypeInfo {
-        TypeInfo(SqliteDataType::Blob)
+    fn type_info() -> SqliteDataType {
+        SqliteDataType::Blob
     }
 
-    fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, SqliteDataType::Blob | SqliteDataType::Text)
+    fn compatible(ty: &SqliteDataType) -> bool {
+        matches!(ty, SqliteDataType::Blob | SqliteDataType::Text)
     }
 }
 
@@ -32,11 +32,11 @@ impl<'r> Decode<'r> for &'r [u8] {
 }
 
 impl Type for Vec<u8> {
-    fn type_info() -> TypeInfo {
+    fn type_info() -> SqliteDataType {
         <&[u8] as Type>::type_info()
     }
 
-    fn compatible(ty: &TypeInfo) -> bool {
+    fn compatible(ty: &SqliteDataType) -> bool {
         <&[u8] as Type>::compatible(ty)
     }
 }

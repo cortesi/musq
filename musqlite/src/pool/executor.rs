@@ -50,7 +50,7 @@ where
     fn prepare_with<'e, 'q: 'e>(
         self,
         sql: &'q str,
-        parameters: &'e [sqlite::TypeInfo],
+        parameters: &'e [sqlite::SqliteDataType],
     ) -> BoxFuture<'e, Result<Statement<'q>, Error>> {
         let pool = self.clone();
 

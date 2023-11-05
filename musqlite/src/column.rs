@@ -1,4 +1,4 @@
-use crate::{error::Error, sqlite::TypeInfo, ustr::UStr};
+use crate::{error::Error, sqlite::SqliteDataType, ustr::UStr};
 
 use std::fmt::Debug;
 
@@ -6,7 +6,7 @@ use std::fmt::Debug;
 pub struct Column {
     pub(crate) name: UStr,
     pub(crate) ordinal: usize,
-    pub(crate) type_info: TypeInfo,
+    pub(crate) type_info: SqliteDataType,
 }
 
 impl Column {
@@ -18,7 +18,7 @@ impl Column {
         &self.name
     }
 
-    pub fn type_info(&self) -> &TypeInfo {
+    pub fn type_info(&self) -> &SqliteDataType {
         &self.type_info
     }
 }

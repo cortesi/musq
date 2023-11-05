@@ -6,7 +6,7 @@ use libsqlite3_sys::{
     sqlite3_value_type, SQLITE_NULL,
 };
 
-use crate::sqlite::{error::BoxDynError, type_info::SqliteDataType, TypeInfo};
+use crate::sqlite::{error::BoxDynError, type_info::SqliteDataType};
 
 enum SqliteValueData<'r> {
     Value(&'r Value),
@@ -55,7 +55,7 @@ impl<'r> ValueRef<'r> {
         }
     }
 
-    pub fn type_info(&self) -> Cow<'_, TypeInfo> {
+    pub fn type_info(&self) -> Cow<'_, SqliteDataType> {
         match self.0 {
             SqliteValueData::Value(v) => v.type_info(),
         }
@@ -71,7 +71,7 @@ impl<'r> ValueRef<'r> {
 #[derive(Clone)]
 pub struct Value {
     pub(crate) handle: Arc<ValueHandle>,
-    pub(crate) type_info: TypeInfo,
+    pub(crate) type_info: SqliteDataType,
 }
 
 pub(crate) struct ValueHandle(NonNull<sqlite3_value>);
@@ -81,7 +81,7 @@ unsafe impl Send for ValueHandle {}
 unsafe impl Sync for ValueHandle {}
 
 impl Value {
-    pub(crate) unsafe fn new(value: *mut sqlite3_value, type_info: TypeInfo) -> Self {
+    pub(crate) unsafe fn new(value: *mut sqlite3_value, type_info: SqliteDataType) -> Self {
         debug_assert!(!value.is_null());
 
         Self {
@@ -92,13 +92,13 @@ impl Value {
         }
     }
 
-    fn type_info_opt(&self) -> Option<TypeInfo> {
+    fn type_info_opt(&self) -> Option<SqliteDataType> {
         let dt = SqliteDataType::from_code(unsafe { sqlite3_value_type(self.handle.0.as_ptr()) });
 
         if let SqliteDataType::Null = dt {
             None
         } else {
-            Some(TypeInfo(dt))
+            Some(dt)
         }
     }
 
@@ -136,7 +136,7 @@ impl Value {
         ValueRef::value(self)
     }
 
-    pub fn type_info(&self) -> Cow<'_, TypeInfo> {
+    pub fn type_info(&self) -> Cow<'_, SqliteDataType> {
         self.type_info_opt()
             .map(Cow::Owned)
             .unwrap_or(Cow::Borrowed(&self.type_info))

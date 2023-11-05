@@ -3,7 +3,7 @@ pub use connection::{Connection, LockedSqliteHandle};
 pub use error::SqliteError;
 pub use options::{AutoVacuum, ConnectOptions, JournalMode, LockingMode, Synchronous};
 pub use statement::Statement;
-pub use type_info::{SqliteDataType, TypeInfo};
+pub use type_info::SqliteDataType;
 pub use value::{Value, ValueRef};
 
 mod arguments;

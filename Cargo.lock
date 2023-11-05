@@ -721,7 +721,6 @@ dependencies = [
  "musqlite-macros",
  "musqlite-test",
  "percent-encoding",
- "regex",
  "serde",
  "serde_json",
  "smallvec",

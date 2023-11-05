@@ -11,13 +11,13 @@ use crate::{sqlite, Column};
 /// output and parameter types; and, generate an anonymous record.
 #[derive(Debug, serde::Serialize, serde::Deserialize)]
 #[serde(bound(
-    serialize = "sqlite::TypeInfo: serde::Serialize, Column: serde::Serialize",
-    deserialize = "sqlite::TypeInfo: serde::de::DeserializeOwned, Column: serde::de::DeserializeOwned",
+    serialize = "sqlite::SqliteDataType: serde::Serialize, Column: serde::Serialize",
+    deserialize = "sqlite::SqliteDataType: serde::de::DeserializeOwned, Column: serde::de::DeserializeOwned",
 ))]
 #[doc(hidden)]
 pub struct Describe {
     pub columns: Vec<Column>,
-    pub parameters: Option<Either<Vec<sqlite::TypeInfo>, usize>>,
+    pub parameters: Option<Either<Vec<sqlite::SqliteDataType>, usize>>,
     pub nullable: Vec<Option<bool>>,
 }
 
@@ -39,7 +39,7 @@ impl Describe {
     /// Some drivers may return more or less than others. As an example, **PostgreSQL** will
     /// return `Some(Either::Left(_))` with a full list of type information for each parameter.
     /// However, **MSSQL** will return `None` as there is no information available.
-    pub fn parameters(&self) -> Option<Either<&[sqlite::TypeInfo], usize>> {
+    pub fn parameters(&self) -> Option<Either<&[sqlite::SqliteDataType], usize>> {
         self.parameters.as_ref().map(|p| match p {
             Either::Left(params) => Either::Left(&**params),
             Either::Right(count) => Either::Right(*count),

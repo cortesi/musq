@@ -12,7 +12,7 @@ use crate::{
     sqlite::SqliteDataType,
     sqlite::{ArgumentBuffer, ArgumentValue},
     types::Type,
-    TypeInfo, ValueRef,
+    ValueRef,
 };
 
 /// Json for json and jsonb fields
@@ -126,11 +126,11 @@ where
 }
 
 impl<T> Type for Json<T> {
-    fn type_info() -> TypeInfo {
-        TypeInfo(SqliteDataType::Text)
+    fn type_info() -> SqliteDataType {
+        SqliteDataType::Text
     }
 
-    fn compatible(ty: &TypeInfo) -> bool {
+    fn compatible(ty: &SqliteDataType) -> bool {
         <&str as Type>::compatible(ty)
     }
 }
@@ -139,11 +139,11 @@ impl Type for JsonValue
 where
     Json<Self>: Type,
 {
-    fn type_info() -> sqlite::TypeInfo {
+    fn type_info() -> sqlite::SqliteDataType {
         <Json<Self> as Type>::type_info()
     }
 
-    fn compatible(ty: &sqlite::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::SqliteDataType) -> bool {
         <Json<Self> as Type>::compatible(ty)
     }
 }
@@ -170,11 +170,11 @@ impl Type for JsonRawValue
 where
     for<'a> Json<&'a Self>: Type,
 {
-    fn type_info() -> sqlite::TypeInfo {
+    fn type_info() -> sqlite::SqliteDataType {
         <Json<&Self> as Type>::type_info()
     }
 
-    fn compatible(ty: &sqlite::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::SqliteDataType) -> bool {
         <Json<&Self> as Type>::compatible(ty)
     }
 }

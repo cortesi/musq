@@ -1,13 +1,13 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, ValueRef},
     Type,
 };
 
 impl Type for f32 {
-    fn type_info() -> TypeInfo {
-        TypeInfo(SqliteDataType::Float)
+    fn type_info() -> SqliteDataType {
+        SqliteDataType::Float
     }
 }
 
@@ -26,8 +26,8 @@ impl<'r> Decode<'r> for f32 {
 }
 
 impl Type for f64 {
-    fn type_info() -> TypeInfo {
-        TypeInfo(SqliteDataType::Float)
+    fn type_info() -> SqliteDataType {
+        SqliteDataType::Float
     }
 }
 

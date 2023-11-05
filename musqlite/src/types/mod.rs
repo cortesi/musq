@@ -123,7 +123,7 @@ pub trait Type {
     ///
     /// A map of SQL types to Rust types is populated with this and used
     /// to determine the type that is returned from the anonymous struct type from `query!`.
-    fn type_info() -> sqlite::TypeInfo;
+    fn type_info() -> sqlite::SqliteDataType;
 
     /// Determines if this Rust type is compatible with the given SQL type.
     ///
@@ -132,29 +132,29 @@ pub trait Type {
     ///
     /// When binding arguments with `query!` or `query_as!`, this method is consulted to determine
     /// if the Rust type is acceptable.
-    fn compatible(ty: &sqlite::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::SqliteDataType) -> bool {
         *ty == Self::type_info()
     }
 }
 
 // for references, the underlying SQL type is identical
 impl<T: ?Sized + Type> Type for &'_ T {
-    fn type_info() -> sqlite::TypeInfo {
+    fn type_info() -> sqlite::SqliteDataType {
         <T as Type>::type_info()
     }
 
-    fn compatible(ty: &sqlite::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::SqliteDataType) -> bool {
         <T as Type>::compatible(ty)
     }
 }
 
 // for optionals, the underlying SQL type is identical
 impl<T: Type> Type for Option<T> {
-    fn type_info() -> sqlite::TypeInfo {
+    fn type_info() -> sqlite::SqliteDataType {
         <T as Type>::type_info()
     }
 
-    fn compatible(ty: &sqlite::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::SqliteDataType) -> bool {
         <T as Type>::compatible(ty)
     }
 }

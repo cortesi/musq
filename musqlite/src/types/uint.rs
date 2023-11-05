@@ -1,17 +1,17 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, ValueRef},
     Type,
 };
 
 impl Type for u8 {
-    fn type_info() -> TypeInfo {
-        TypeInfo(SqliteDataType::Int)
+    fn type_info() -> SqliteDataType {
+        SqliteDataType::Int
     }
 
-    fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, SqliteDataType::Int | SqliteDataType::Int64)
+    fn compatible(ty: &SqliteDataType) -> bool {
+        matches!(ty, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 
@@ -30,12 +30,12 @@ impl<'r> Decode<'r> for u8 {
 }
 
 impl Type for u16 {
-    fn type_info() -> TypeInfo {
-        TypeInfo(SqliteDataType::Int)
+    fn type_info() -> SqliteDataType {
+        SqliteDataType::Int
     }
 
-    fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, SqliteDataType::Int | SqliteDataType::Int64)
+    fn compatible(ty: &SqliteDataType) -> bool {
+        matches!(ty, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 
@@ -54,19 +54,18 @@ impl<'r> Decode<'r> for u16 {
 }
 
 impl Type for u32 {
-    fn type_info() -> TypeInfo {
-        TypeInfo(SqliteDataType::Int64)
+    fn type_info() -> SqliteDataType {
+        SqliteDataType::Int64
     }
 
-    fn compatible(ty: &TypeInfo) -> bool {
-        matches!(ty.0, SqliteDataType::Int | SqliteDataType::Int64)
+    fn compatible(ty: &SqliteDataType) -> bool {
+        matches!(ty, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 
 impl<'q> Encode<'q> for u32 {
     fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Int64(*self as i64));
-
         IsNull::No
     }
 }

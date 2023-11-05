@@ -27,23 +27,19 @@ pub enum SqliteDataType {
     Datetime,
 }
 
-/// Type information for a SQLite type.
-#[derive(Debug, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
-pub struct TypeInfo(pub(crate) SqliteDataType);
-
-impl Display for TypeInfo {
+impl Display for SqliteDataType {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(self.name())
     }
 }
 
-impl TypeInfo {
+impl SqliteDataType {
     pub fn is_null(&self) -> bool {
-        matches!(self.0, SqliteDataType::Null)
+        matches!(self, SqliteDataType::Null)
     }
 
     pub fn name(&self) -> &str {
-        match self.0 {
+        match self {
             SqliteDataType::Null => "NULL",
             SqliteDataType::Text => "TEXT",
             SqliteDataType::Float => "REAL",
@@ -58,9 +54,7 @@ impl TypeInfo {
             SqliteDataType::Datetime => "DATETIME",
         }
     }
-}
 
-impl SqliteDataType {
     pub(crate) fn from_code(code: c_int) -> Self {
         match code {
             SQLITE_INTEGER => SqliteDataType::Int,

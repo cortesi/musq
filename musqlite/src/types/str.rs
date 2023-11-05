@@ -3,13 +3,13 @@ use std::borrow::Cow;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, TypeInfo, ValueRef},
+    sqlite::{error::BoxDynError, ArgumentValue, SqliteDataType, ValueRef},
     Type,
 };
 
 impl Type for str {
-    fn type_info() -> TypeInfo {
-        TypeInfo(SqliteDataType::Text)
+    fn type_info() -> SqliteDataType {
+        SqliteDataType::Text
     }
 }
 
@@ -27,7 +27,7 @@ impl<'r> Decode<'r> for &'r str {
 }
 
 impl Type for String {
-    fn type_info() -> TypeInfo {
+    fn type_info() -> SqliteDataType {
         <&str as Type>::type_info()
     }
 }
@@ -53,11 +53,11 @@ impl<'r> Decode<'r> for String {
 }
 
 impl Type for Cow<'_, str> {
-    fn type_info() -> TypeInfo {
+    fn type_info() -> SqliteDataType {
         <&str as Type>::type_info()
     }
 
-    fn compatible(ty: &TypeInfo) -> bool {
+    fn compatible(ty: &SqliteDataType) -> bool {
         <&str as Type>::compatible(ty)
     }
 }

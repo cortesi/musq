@@ -127,7 +127,7 @@ impl Error {
     }
 }
 
-pub fn mismatched_types<T: Type>(ty: &sqlite::TypeInfo) -> BoxDynError {
+pub fn mismatched_types<T: Type>(ty: &sqlite::SqliteDataType) -> BoxDynError {
     // TODO: `#name` only produces `TINYINT` but perhaps we want to show `TINYINT(1)`
     format!(
         "mismatched types; Rust type `{}` (as SQL type `{}`) is not compatible with SQL type `{}`",

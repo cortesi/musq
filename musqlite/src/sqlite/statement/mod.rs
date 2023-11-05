@@ -1,6 +1,6 @@
 use crate::{
     impl_statement_query,
-    sqlite::{error::Error, Arguments, TypeInfo},
+    sqlite::{error::Error, Arguments, SqliteDataType},
     ustr::UStr,
     Column, ColumnIndex, Either, HashMap,
 };
@@ -58,7 +58,7 @@ impl<'q> Statement<'q> {
         &self.sql
     }
 
-    pub fn parameters(&self) -> Option<Either<&[TypeInfo], usize>> {
+    pub fn parameters(&self) -> Option<Either<&[SqliteDataType], usize>> {
         Some(Either::Right(self.parameters))
     }
 

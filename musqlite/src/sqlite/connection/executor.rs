@@ -5,7 +5,7 @@ use futures_util::{TryFutureExt, TryStreamExt};
 use crate::{
     error::Error,
     executor::{Execute, Executor},
-    sqlite::{Connection, Statement, TypeInfo},
+    sqlite::{Connection, SqliteDataType, Statement},
     Either, QueryResult, Row,
 };
 
@@ -64,7 +64,7 @@ impl<'c> Executor<'c> for &'c mut Connection {
     fn prepare_with<'e, 'q: 'e>(
         self,
         sql: &'q str,
-        _parameters: &[TypeInfo],
+        _parameters: &[SqliteDataType],
     ) -> BoxFuture<'e, Result<Statement<'q>, Error>>
     where
         'c: 'e,

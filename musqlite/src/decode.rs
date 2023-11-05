@@ -12,13 +12,13 @@ use crate::{error::BoxDynError, ValueRef};
 /// ```rust
 /// # use musqlite::decode::Decode;
 /// # use musqlite::types::Type;
-/// # use musqlite::{TypeInfo, ValueRef};
+/// # use musqlite::{SqliteDataType, ValueRef};
 /// # use std::error::Error;
 /// #
 /// struct MyType;
 ///
 /// # impl Type for MyType {
-/// # fn type_info() -> TypeInfo { todo!() }
+/// # fn type_info() -> SqliteDataType { todo!() }
 /// # }
 /// #
 /// # impl std::str::FromStr for MyType {

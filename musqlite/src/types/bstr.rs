@@ -16,11 +16,11 @@ impl Type for BString
 where
     [u8]: Type,
 {
-    fn type_info() -> sqlite::TypeInfo {
+    fn type_info() -> sqlite::SqliteDataType {
         <&[u8] as Type>::type_info()
     }
 
-    fn compatible(ty: &sqlite::TypeInfo) -> bool {
+    fn compatible(ty: &sqlite::SqliteDataType) -> bool {
         <&[u8] as Type>::compatible(ty)
     }
 }
