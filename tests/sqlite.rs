@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use musqlite::{
     query, query_as, query_scalar, ConnectOptions, Connection, Error, Executor, ExtendedErrCode,
-    PoolOptions, PrimaryErrCode, Row,
+    PrimaryErrCode, Row,
 };
 use musqlite_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
@@ -190,10 +190,11 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool = PoolOptions::new()
-        .min_connections(2)
+    let pool = ConnectOptions::new()
+        .with_pool()
         .max_connections(2)
-        .connect_with(ConnectOptions::new())
+        .min_connections(2)
+        .open_in_memory()
         .await?;
 
     let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
@@ -609,10 +610,9 @@ async fn issue_1467() -> anyhow::Result<()> {
 #[tokio::test]
 async fn concurrent_read_and_write() {
     let pool = ConnectOptions::new()
-        .in_memory(true)
-        .shared_cache(true)
-        .filename("file:unique-shared-file")
-        .pool_with(PoolOptions::new().min_connections(2))
+        .with_pool()
+        .min_connections(2)
+        .open_in_memory()
         .await
         .unwrap();
 

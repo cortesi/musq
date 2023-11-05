@@ -9,7 +9,7 @@
 //! on the database server.
 //!
 use self::inner::PoolInner;
-use crate::{error::Error, transaction::Transaction, ConnectOptions};
+use crate::{error::Error, transaction::Transaction};
 
 use event_listener::EventListener;
 use futures_core::FusedFuture;
@@ -90,30 +90,6 @@ pub struct CloseEvent {
 }
 
 impl Pool {
-    /// Create a new connection pool with a default pool configuration and
-    /// the given `ConnectOptions`, and immediately establish one connection.
-    ///
-    /// The default configuration is mainly suited for testing and light-duty applications.
-    /// For production applications, you'll likely want to make at least few tweaks.
-    ///
-    /// See [`PoolOptions::new()`] for details.
-    pub async fn connect_with(options: ConnectOptions) -> Result<Self, Error> {
-        PoolOptions::new().connect_with(options).await
-    }
-
-    /// Create a new connection pool with a default pool configuration and
-    /// the given `ConnectOptions`.
-    ///
-    /// The pool will establish connections only as needed.
-    ///
-    /// The default configuration is mainly suited for testing and light-duty applications.
-    /// For production applications, you'll likely want to make at least few tweaks.
-    ///
-    /// See [`PoolOptions::new()`] for details.
-    pub fn connect_lazy_with(options: ConnectOptions) -> Self {
-        PoolOptions::new().connect_lazy_with(options)
-    }
-
     /// Retrieves a connection from the pool.
     ///
     /// The total time this method is allowed to execute is capped by
@@ -221,28 +197,6 @@ impl Pool {
     /// tail pointers to be in a consistent state, which may never happen at high levels of churn.
     pub fn num_idle(&self) -> usize {
         self.0.num_idle()
-    }
-
-    /// Gets a clone of the connection options for this pool
-    pub fn connect_options(&self) -> Arc<ConnectOptions> {
-        self.0
-            .connect_options
-            .read()
-            .expect("write-lock holder panicked")
-            .clone()
-    }
-
-    /// Updates the connection options this pool will use when opening any future connections.  Any
-    /// existing open connection in the pool will be left as-is.
-    pub fn set_connect_options(&self, connect_options: ConnectOptions) {
-        // technically write() could also panic if the current thread already holds the lock,
-        // but because this method can't be re-entered by the same thread that shouldn't be a problem
-        let mut guard = self
-            .0
-            .connect_options
-            .write()
-            .expect("write-lock holder panicked");
-        *guard = Arc::new(connect_options);
     }
 
     /// Get the options for this pool

@@ -1,19 +1,22 @@
 use std::{
     fmt::Write,
     path::{Path, PathBuf},
+    sync::atomic::{AtomicUsize, Ordering},
     sync::Arc,
     time::Duration,
 };
 
 use crate::{
-    connection::LogSettings, debugfn::DebugFn, error::Error, executor::Executor, pool,
-    sqlite::Connection,
+    connection::LogSettings, debugfn::DebugFn, executor::Executor, pool, pool::PoolOptions,
+    sqlite::Connection, Result,
 };
 
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
 
 use indexmap::IndexMap;
+
+static IN_MEMORY_DB_SEQ: AtomicUsize = AtomicUsize::new(0);
 
 /// Refer to [SQLite documentation] for the meaning of the connection locking mode.
 ///
@@ -217,6 +220,8 @@ impl ConnectOptions {
         }
     }
 
+    /// Set the filename as in-memory. Use the `open_in_memory` method instead, unless you have a very particular use
+    /// case.
     pub fn in_memory(mut self, val: bool) -> Self {
         self.in_memory = val;
         self
@@ -496,7 +501,7 @@ impl ConnectOptions {
         string
     }
 
-    pub fn connect(&self) -> BoxFuture<'_, Result<Connection, Error>> {
+    pub fn connect(&self) -> BoxFuture<'_, Result<Connection>> {
         Box::pin(async move {
             let mut conn = Connection::establish(self).await?;
             // Execute PRAGMAs
@@ -505,11 +510,24 @@ impl ConnectOptions {
         })
     }
 
-    pub async fn pool(&self) -> Result<pool::Pool, Error> {
-        pool::Pool::connect_with(self.clone()).await
+    pub fn with_pool(&self) -> PoolOptions {
+        PoolOptions::new(self.clone())
     }
 
-    pub async fn pool_with(&self, options: pool::PoolOptions) -> Result<pool::Pool, Error> {
-        options.connect_with(self.clone()).await
+    pub(crate) fn configure_in_memory(self) -> Self {
+        let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
+        self.in_memory(true)
+            .shared_cache(true)
+            .filename(format!("file:musqlite-in-memory-{}", seqno))
+    }
+
+    /// Open a file
+    pub async fn open(self, filename: impl AsRef<Path>) -> Result<pool::Pool> {
+        self.filename(filename).with_pool().connect().await
+    }
+
+    /// Open an in-memory database
+    pub async fn open_in_memory(self) -> Result<pool::Pool> {
+        self.configure_in_memory().with_pool().connect().await
     }
 }

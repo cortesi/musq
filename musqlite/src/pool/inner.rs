@@ -3,7 +3,7 @@ use std::{
     future::Future,
     sync::{
         atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
-        Arc, RwLock,
+        Arc,
     },
     time::{Duration, Instant},
 };
@@ -15,11 +15,9 @@ use super::connection::{Floating, Idle, Live};
 use crate::{
     error::Error,
     pool::{deadline_as_timeout, CloseEvent, PoolOptions},
-    ConnectOptions,
 };
 
 pub(crate) struct PoolInner {
-    pub(super) connect_options: RwLock<Arc<ConnectOptions>>,
     pub(super) idle_conns: ArrayQueue<Idle>,
     pub(super) semaphore: tokio::sync::Semaphore,
     pub(super) size: AtomicU32,
@@ -30,12 +28,11 @@ pub(crate) struct PoolInner {
 }
 
 impl PoolInner {
-    pub(super) fn new_arc(options: PoolOptions, connect_options: ConnectOptions) -> Arc<Self> {
+    pub(super) fn new_arc(options: PoolOptions) -> Arc<Self> {
         let capacity = options.max_connections as usize;
         let semaphore_capacity = capacity;
 
         let pool = Self {
-            connect_options: RwLock::new(Arc::new(connect_options)),
             idle_conns: ArrayQueue::new(capacity),
             semaphore: tokio::sync::Semaphore::new(semaphore_capacity),
             size: AtomicU32::new(0),
@@ -245,11 +242,7 @@ impl PoolInner {
 
             // clone the connect options arc so it can be used without holding the RwLockReadGuard
             // across an async await point
-            let connect_options = self
-                .connect_options
-                .read()
-                .expect("write-lock holder panicked")
-                .clone();
+            let connect_options = self.options.connect_options.clone();
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again

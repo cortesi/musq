@@ -1,45 +1,16 @@
 use crate::{
-    error::Error,
+    error::{Error, Result},
     pool::{inner::PoolInner, Pool},
     ConnectOptions,
 };
 
-use std::fmt::Debug;
-use std::time::{Duration, Instant};
+use std::{
+    fmt::Debug,
+    path::Path,
+    time::{Duration, Instant},
+};
 
 /// Configuration options for [`Pool`][super::Pool].
-///
-/// ### Callback Functions: Why Do I Need `Box::pin()`?
-/// Essentially, because it's impossible to write generic bounds that describe a closure
-/// with a higher-ranked lifetime parameter, returning a future with that same lifetime.
-///
-/// Ideally, you could define it like this:
-/// ```rust,ignore
-/// async fn takes_foo_callback(f: impl for<'a> Fn(&'a mut Foo) -> impl Future<'a, Output = ()>)
-/// ```
-///
-/// However, the compiler does not allow using `impl Trait` in the return type of an `impl Fn`.
-///
-/// And if you try to do it like this:
-/// ```rust,ignore
-/// async fn takes_foo_callback<F, Fut>(f: F)
-/// where
-///     F: for<'a> Fn(&'a mut Foo) -> Fut,
-///     Fut: for<'a> Future<Output = ()> + 'a
-/// ```
-///
-/// There's no way to tell the compiler that those two `'a`s should be the same lifetime.
-///
-/// It's possible to make this work with a custom trait, but it's fiddly and requires naming
-///  the type of the closure parameter.
-///
-/// Having the closure return `BoxFuture` allows us to work around this, as all the type information
-/// fits into a single generic parameter.
-///
-/// We still need to `Box` the future internally to give it a concrete type to avoid leaking a type
-/// parameter everywhere, and `Box` is in the prelude so it doesn't need to be manually imported,
-/// so having the closure return `Pin<Box<dyn Future>` directly is the path of least resistance from
-/// the perspectives of both API designer and consumer.
 #[derive(Debug, Clone)]
 pub struct PoolOptions {
     pub(crate) max_connections: u32,
@@ -47,12 +18,7 @@ pub struct PoolOptions {
     pub(crate) min_connections: u32,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
-}
-
-impl Default for PoolOptions {
-    fn default() -> Self {
-        Self::new()
-    }
+    pub(crate) connect_options: ConnectOptions,
 }
 
 impl PoolOptions {
@@ -62,7 +28,7 @@ impl PoolOptions {
     /// [`max_connections`][Self::max_connections].
     ///
     /// See the source of this method for the current default values.
-    pub fn new() -> Self {
+    pub(crate) fn new(connect_options: ConnectOptions) -> Self {
         Self {
             // A production application will want to set a higher limit than this.
             max_connections: 10,
@@ -70,6 +36,7 @@ impl PoolOptions {
             acquire_timeout: Duration::from_secs(30),
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
+            connect_options,
         }
     }
 
@@ -187,32 +154,31 @@ impl PoolOptions {
     /// This ensures the configuration is correct.
     ///
     /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
-    pub async fn connect_with(self, options: ConnectOptions) -> Result<Pool, Error> {
+    pub async fn connect(self) -> Result<Pool, Error> {
         // Don't take longer than `acquire_timeout` starting from when this is called.
         let deadline = Instant::now() + self.acquire_timeout;
-
-        let inner = PoolInner::new_arc(self, options);
-
+        let inner = PoolInner::new_arc(self);
         if inner.options.min_connections > 0 {
             // If the idle reaper is spawned then this will race with the call from that task
             // and may not report any connection errors.
             inner.try_min_connections(deadline).await?;
         }
-
         // If `min_connections` is nonzero then we'll likely just pull a connection
         // from the idle queue here, but it should at least get tested first.
         let conn = inner.acquire().await?;
         inner.release(conn);
-
         Ok(Pool(inner))
     }
 
-    /// Create a new pool from this `PoolOptions`, but don't open any connections right now.
-    ///
-    /// If [`min_connections`][Self::min_connections] is set, a background task will be spawned to
-    /// optimistically establish that many connections for the pool.
-    pub fn connect_lazy_with(self, options: ConnectOptions) -> Pool {
-        // `min_connections` is guaranteed by the idle reaper now.
-        Pool(PoolInner::new_arc(self, options))
+    /// Open a file
+    pub async fn open(mut self, filename: impl AsRef<Path>) -> Result<Pool> {
+        self.connect_options = self.connect_options.filename(filename);
+        self.connect().await
+    }
+
+    /// Open an in-memory database
+    pub async fn open_in_memory(mut self) -> Result<Pool> {
+        self.connect_options = self.connect_options.configure_in_memory();
+        self.connect().await
     }
 }

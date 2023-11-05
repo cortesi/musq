@@ -1,7 +1,4 @@
-use musqlite::{
-    pool::{Pool, PoolOptions},
-    ConnectOptions, Connection,
-};
+use musqlite::{pool::Pool, ConnectOptions, Connection};
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
@@ -19,12 +16,12 @@ pub async fn connection() -> anyhow::Result<Connection> {
 // Ensure [dotenvy] and [env_logger] have been setup
 pub async fn pool() -> anyhow::Result<Pool> {
     setup_if_needed();
-    let pool = PoolOptions::new()
+    Ok(ConnectOptions::new()
+        .with_pool()
         .min_connections(0)
         .max_connections(5)
-        .connect_with(ConnectOptions::new())
-        .await?;
-    Ok(pool)
+        .open_in_memory()
+        .await?)
 }
 
 /// Return a connection to a database pre-configured with our test schema.
