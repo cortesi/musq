@@ -93,7 +93,6 @@ pub use json::{Json, JsonRawValue, JsonValue};
 ///
 /// * `#[sqlx(rename_all = "<strategy>")]` on struct definition: See [`derive docs in
 ///   FromRow`](crate::from_row::FromRow#rename_all)
-/// * `#[sqlx(no_pg_array)]`: do not emit a `PgHasArrayType` impl (see above).
 ///
 /// ### Enumeration
 ///
@@ -116,22 +115,16 @@ pub use json::{Json, JsonRawValue, JsonValue};
 /// ```
 ///
 pub trait Type {
-    /// Returns the canonical SQL type for this Rust type.
+    /// The canonical SQLite type for this Rust type.
     ///
     /// When binding arguments, this is used to tell the database what is about to be sent; which,
     /// the database then uses to guide query plans. This can be overridden by `Encode::produces`.
-    ///
-    /// A map of SQL types to Rust types is populated with this and used
-    /// to determine the type that is returned from the anonymous struct type from `query!`.
     fn type_info() -> sqlite::SqliteDataType;
 
     /// Determines if this Rust type is compatible with the given SQL type.
     ///
     /// When decoding values from a row, this method is checked to determine if we should continue
     /// or raise a runtime type mismatch error.
-    ///
-    /// When binding arguments with `query!` or `query_as!`, this method is consulted to determine
-    /// if the Rust type is acceptable.
     fn compatible(ty: &sqlite::SqliteDataType) -> bool {
         *ty == Self::type_info()
     }
