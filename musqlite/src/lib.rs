@@ -1,50 +1,32 @@
-pub mod sqlite;
+mod sqlite;
 
 mod ustr;
 
 #[macro_use]
 pub mod async_stream;
-
 #[macro_use]
 pub mod error;
 
-#[macro_use]
-pub mod pool;
-
-pub mod connection;
-
-#[macro_use]
-pub mod transaction;
-
-#[macro_use]
-pub mod encode;
-
-#[macro_use]
-pub mod decode;
-
-#[macro_use]
-pub mod types;
-
-#[macro_use]
-pub mod query;
-
-#[macro_use]
 pub mod acquire;
-
-#[macro_use]
 pub mod column;
-
+pub mod connection;
 pub mod debugfn;
+pub mod decode;
 pub mod describe;
+pub mod encode;
 pub mod executor;
 pub mod from_row;
 pub mod logger;
+pub mod pool;
+pub mod query;
 pub mod query_as;
 pub mod query_builder;
 mod query_result;
 pub mod query_scalar;
-pub mod row;
+mod row;
 pub mod statement_cache;
+pub mod transaction;
+pub mod types;
 
 pub use error::{Error, Result};
 
@@ -70,8 +52,8 @@ pub use crate::{
     query_scalar::{query_scalar, query_scalar_with},
     row::Row,
     sqlite::{
-        Arguments, ConnectOptions, Connection, IntoArguments, SqliteDataType, Statement, Value,
-        ValueRef,
+        ArgumentBuffer, Arguments, ConnectOptions, Connection, IntoArguments, SqliteDataType,
+        Statement, Value, ValueRef,
     },
     transaction::{Transaction, TransactionManager},
     types::Type,

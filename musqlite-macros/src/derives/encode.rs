@@ -81,7 +81,7 @@ fn expand_derive_encode_transparent(
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut musqlite::sqlite::ArgumentBuffer<#lifetime>,
+                buf: &mut musqlite::ArgumentBuffer<#lifetime>,
             ) -> musqlite::encode::IsNull {
                 <#ty as musqlite::encode::Encode<#lifetime>>::encode_by_ref(&self.0, buf)
             }
@@ -116,7 +116,7 @@ fn expand_derive_encode_weak_enum(
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut musqlite::sqlite::ArgumentBuffer<'q>,
+                buf: &mut musqlite::ArgumentBuffer<'q>,
             ) -> musqlite::encode::IsNull {
                 let value = match self {
                     #(#values)*
@@ -162,7 +162,7 @@ fn expand_derive_encode_strong_enum(
         {
             fn encode_by_ref(
                 &self,
-                buf: &mut musqlite::sqlite::ArgumentBuffer<'q>,
+                buf: &mut musqlite::ArgumentBuffer<'q>,
             ) -> musqlite::encode::IsNull {
                 let val = match self {
                     #(#value_arms)*
