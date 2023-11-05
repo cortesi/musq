@@ -9,8 +9,6 @@ use libsqlite3_sys::SQLITE_OK;
 use std::borrow::Cow;
 use std::fmt::{self, Write};
 
-use crate::err_protocol;
-
 #[derive(Debug, Clone)]
 pub enum ArgumentValue<'q> {
     Null,
@@ -77,13 +75,16 @@ impl Arguments<'_> {
                 } else if let Some(name) = name.strip_prefix('$') {
                     // parameter should have the form $NNN
                     atoi(name.as_bytes()).ok_or_else(|| {
-                        err_protocol!(
+                        Error::Protocol(format!(
                             "parameters with non-integer names are not currently supported: {}",
                             name
-                        )
+                        ))
                     })?
                 } else {
-                    return Err(err_protocol!("unsupported SQL parameter format: {}", name));
+                    return Err(Error::Protocol(format!(
+                        "unsupported SQL parameter format: {}",
+                        name
+                    )));
                 }
             } else {
                 arg_i += 1;

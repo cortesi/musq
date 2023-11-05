@@ -6,8 +6,6 @@ pub use musqlite_macros::*;
 
 #[macro_use]
 pub mod async_stream;
-#[macro_use]
-pub mod error;
 
 pub mod acquire;
 pub mod column;
@@ -16,6 +14,7 @@ pub mod debugfn;
 pub mod decode;
 pub mod describe;
 pub mod encode;
+pub mod error;
 pub mod executor;
 pub mod from_row;
 pub mod logger;

@@ -11,7 +11,7 @@ async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
         .await;
     let err = res.unwrap_err();
 
-    let err = err.into_database_error().unwrap();
+    let err = err.into_sqlite_error().unwrap();
 
     assert_eq!(err.primary, PrimaryErrCode::Constraint);
     assert_eq!(err.extended, ExtendedErrCode::ConstraintPrimaryKey);
@@ -30,7 +30,7 @@ async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
             .await;
     let err = res.unwrap_err();
 
-    let err = err.into_database_error().unwrap();
+    let err = err.into_sqlite_error().unwrap();
 
     assert_eq!(err.primary, PrimaryErrCode::Constraint);
     assert_eq!(err.extended, ExtendedErrCode::ConstraintForeignKey);
@@ -48,7 +48,7 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
         .await;
     let err = res.unwrap_err();
 
-    let err = err.into_database_error().unwrap();
+    let err = err.into_sqlite_error().unwrap();
 
     assert_eq!(err.primary, PrimaryErrCode::Constraint);
     assert_eq!(err.extended, ExtendedErrCode::ConstraintNotNull);
@@ -66,7 +66,7 @@ async fn it_fails_with_check_violation() -> anyhow::Result<()> {
         .await;
     let err = res.unwrap_err();
 
-    let err = err.into_database_error().unwrap();
+    let err = err.into_sqlite_error().unwrap();
 
     assert_eq!(err.primary, PrimaryErrCode::Constraint);
     assert_eq!(err.extended, ExtendedErrCode::ConstraintCheck);

@@ -11,7 +11,6 @@ use libsqlite3_sys::{
 
 use crate::{
     bytes::{Buf, Bytes},
-    err_protocol,
     error::Error,
     sqlite::{connection::ConnectionHandle, statement::StatementHandle, SqliteError},
     ustr::UStr,
@@ -57,10 +56,10 @@ impl VirtualStatement {
         query = query.trim();
 
         if query.len() > i32::max_value() as usize {
-            return Err(err_protocol!(
+            return Err(Error::Protocol(format!(
                 "query string must be smaller than {} bytes",
                 i32::MAX
-            ));
+            )));
         }
 
         Ok(Self {

@@ -94,14 +94,14 @@ pub enum Error {
 }
 
 impl Error {
-    pub fn into_database_error(self) -> Option<sqlite::error::SqliteError> {
+    pub fn into_sqlite_error(self) -> Option<sqlite::error::SqliteError> {
         match self {
             Error::Sqlite(err) => Some(err),
             _ => None,
         }
     }
 
-    pub fn as_database_error(&self) -> Option<&SqliteError> {
+    pub fn as_sqlite_error(&self) -> Option<&SqliteError> {
         match self {
             Error::Sqlite(err) => Some(err),
             _ => None,
@@ -138,22 +138,9 @@ pub fn mismatched_types<T: Type>(ty: &sqlite::SqliteDataType) -> BoxDynError {
     .into()
 }
 
-//
 impl From<SqliteError> for Error {
     #[inline]
     fn from(error: SqliteError) -> Self {
         Error::Sqlite(error)
     }
-}
-
-/// Format an error message as a `Protocol` error
-#[macro_export]
-macro_rules! err_protocol {
-    ($expr:expr) => {
-        $crate::error::Error::Protocol($expr.into())
-    };
-
-    ($fmt:expr, $($arg:tt)*) => {
-        $crate::error::Error::Protocol(format!($fmt, $($arg)*))
-    };
 }

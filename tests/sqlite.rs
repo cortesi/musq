@@ -245,7 +245,7 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
 
     assert!(res.is_err());
 
-    let err = res.unwrap_err().into_database_error().unwrap();
+    let err = res.unwrap_err().into_sqlite_error().unwrap();
 
     assert_eq!(err.primary, PrimaryErrCode::Error);
     assert_eq!(err.extended, ExtendedErrCode::Unknown(1));

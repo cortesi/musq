@@ -9,7 +9,6 @@ use libsqlite3_sys::{
 };
 
 use crate::{
-    err_protocol,
     sqlite::{statement::unlock_notify, SqliteError},
     Error,
 };
@@ -64,7 +63,8 @@ impl ConnectionHandle {
 
     pub(crate) fn exec(&mut self, query: impl Into<String>) -> Result<(), Error> {
         let query = query.into();
-        let query = CString::new(query).map_err(|_| err_protocol!("query contains nul bytes"))?;
+        let query =
+            CString::new(query).map_err(|_| Error::Protocol("query contains nul bytes".into()))?;
 
         // SAFETY: we have exclusive access to the database handle
         unsafe {
