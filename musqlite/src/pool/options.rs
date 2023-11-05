@@ -46,8 +46,6 @@ pub struct PoolOptions {
     pub(crate) min_connections: u32,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
-
-    pub(crate) parent_pool: Option<Pool>,
 }
 
 // Manually implement `Clone` to avoid a trait bound issue.
@@ -61,7 +59,6 @@ impl Clone for PoolOptions {
             min_connections: self.min_connections,
             max_lifetime: self.max_lifetime,
             idle_timeout: self.idle_timeout,
-            parent_pool: self.parent_pool.as_ref().map(Pool::clone),
         }
     }
 }
@@ -87,7 +84,6 @@ impl PoolOptions {
             acquire_timeout: Duration::from_secs(30),
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
-            parent_pool: None,
         }
     }
 
@@ -198,19 +194,6 @@ impl PoolOptions {
     /// Get the maximum idle duration for individual connections.
     pub fn get_idle_timeout(&self) -> Option<Duration> {
         self.idle_timeout
-    }
-
-    /// Set the parent `Pool` from which the new pool will inherit its semaphore.
-    ///
-    /// This is currently an internal-only API.
-    ///
-    /// ### Panics
-    /// If `self.max_connections` is greater than the setting the given pool was created with,
-    /// or `self.fair` differs from the setting the given pool was created with.
-    #[doc(hidden)]
-    pub fn parent(mut self, pool: Pool) -> Self {
-        self.parent_pool = Some(pool);
-        self
     }
 
     /// Create a new pool from this `PoolOptions` and immediately open at least one connection.

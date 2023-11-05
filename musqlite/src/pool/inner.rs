@@ -5,20 +5,16 @@ use std::{
         atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
         Arc, RwLock,
     },
-    task::Poll,
     time::{Duration, Instant},
 };
 
 use crossbeam_queue::ArrayQueue;
-use futures_util::{
-    future::{self},
-    FutureExt,
-};
+use futures_util::FutureExt;
 
 use super::connection::{Floating, Idle, Live};
 use crate::{
     error::Error,
-    pool::{deadline_as_timeout, CloseEvent, Pool, PoolOptions},
+    pool::{deadline_as_timeout, CloseEvent, PoolOptions},
     ConnectOptions,
 };
 
@@ -36,14 +32,7 @@ pub(crate) struct PoolInner {
 impl PoolInner {
     pub(super) fn new_arc(options: PoolOptions, connect_options: ConnectOptions) -> Arc<Self> {
         let capacity = options.max_connections as usize;
-
-        let semaphore_capacity = if let Some(parent) = &options.parent_pool {
-            assert!(options.max_connections <= parent.options().max_connections);
-            // The child pool must steal permits from the parent
-            0
-        } else {
-            capacity
-        };
+        let semaphore_capacity = capacity;
 
         let pool = Self {
             connect_options: RwLock::new(Arc::new(connect_options)),
@@ -118,73 +107,9 @@ impl PoolInner {
     async fn acquire_permit<'a>(
         self: &'a Arc<Self>,
     ) -> Result<tokio::sync::SemaphorePermit<'a>, Error> {
-        let parent = self
-            .parent()
-            // If we're already at the max size, we shouldn't try to steal from the parent.
-            // This is just going to cause unnecessary churn in `acquire()`.
-            .filter(|_| self.size() < self.options.max_connections);
-
         let acquire_self = self.semaphore.acquire_many(1).fuse();
         let mut close_event = self.close_event();
-
-        if let Some(parent) = parent {
-            let acquire_parent = parent.0.semaphore.acquire_many(1);
-            let parent_close_event = parent.0.close_event();
-
-            futures_util::pin_mut!(
-                acquire_parent,
-                acquire_self,
-                close_event,
-                parent_close_event
-            );
-
-            let mut poll_parent = false;
-
-            future::poll_fn(|cx| {
-                if close_event.as_mut().poll(cx).is_ready() {
-                    return Poll::Ready(Err(Error::PoolClosed));
-                }
-
-                if parent_close_event.as_mut().poll(cx).is_ready() {
-                    // Propagate the parent's close event to the child.
-                    let _ = self.close();
-                    return Poll::Ready(Err(Error::PoolClosed));
-                }
-
-                if let Poll::Ready(permit) = acquire_self.as_mut().poll(cx).map(|e| e.unwrap()) {
-                    return Poll::Ready(Ok(permit));
-                }
-
-                // Don't try the parent right away.
-                if poll_parent {
-                    acquire_parent
-                        .as_mut()
-                        .poll(cx)
-                        .map(Ok)
-                        .map(
-                            |e: std::result::Result<
-                                std::result::Result<
-                                    tokio::sync::SemaphorePermit<'_>,
-                                    tokio::sync::AcquireError,
-                                >,
-                                Error,
-                            >| e.unwrap(),
-                        )
-                        .map_err(|_| Error::PoolClosed)
-                } else {
-                    poll_parent = true;
-                    cx.waker().wake_by_ref();
-                    Poll::Pending
-                }
-            })
-            .await
-        } else {
-            close_event.do_until(acquire_self).await.map(|e| e.unwrap())
-        }
-    }
-
-    fn parent(&self) -> Option<&Pool> {
-        self.options.parent_pool.as_ref()
+        close_event.do_until(acquire_self).await.map(|e| e.unwrap())
     }
 
     #[inline]
@@ -398,14 +323,6 @@ impl PoolInner {
 impl Drop for PoolInner {
     fn drop(&mut self) {
         self.mark_closed();
-
-        if let Some(parent) = &self.options.parent_pool {
-            // Release the stolen permits.
-            parent
-                .0
-                .semaphore
-                .add_permits(self.semaphore.available_permits());
-        }
     }
 }
 
