@@ -1,6 +1,6 @@
 use musqlite::{
     pool::{Pool, PoolOptions},
-    Connection,
+    ConnectOptions, Connection,
 };
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
@@ -12,7 +12,7 @@ pub fn setup_if_needed() {
 // Make a new connection
 pub async fn connection() -> anyhow::Result<Connection> {
     setup_if_needed();
-    Ok(Connection::connect("sqlite::memory:").await?)
+    Ok(Connection::connect_with(&ConnectOptions::new()).await?)
 }
 
 // Make a new pool
@@ -22,7 +22,7 @@ pub async fn pool() -> anyhow::Result<Pool> {
     let pool = PoolOptions::new()
         .min_connections(0)
         .max_connections(5)
-        .connect("sqlite::memory:")
+        .connect_with(ConnectOptions::new())
         .await?;
     Ok(pool)
 }

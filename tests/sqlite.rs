@@ -193,7 +193,7 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
     let pool = PoolOptions::new()
         .min_connections(2)
         .max_connections(2)
-        .connect("sqlite::memory:")
+        .connect_with(ConnectOptions::new())
         .await?;
 
     let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
@@ -207,18 +207,8 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 async fn it_opens_in_memory() -> anyhow::Result<()> {
     // If the filename is ":memory:", then a private, temporary in-memory database
     // is created for the connection.
-    let conn = Connection::connect(":memory:").await?;
+    let conn = Connection::connect_with(&ConnectOptions::new()).await?;
     conn.close().await?;
-    Ok(())
-}
-
-#[tokio::test]
-async fn it_opens_temp_on_disk() -> anyhow::Result<()> {
-    // If the filename is an empty string, then a private, temporary on-disk database will
-    // be created.
-    let conn = Connection::connect("").await?;
-    conn.close().await?;
-
     Ok(())
 }
 
@@ -506,13 +496,9 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 // https://github.com/launchbadge/sqlx/issues/1300
 #[tokio::test]
 async fn concurrent_resets_dont_segfault() {
-    use std::{str::FromStr, time::Duration};
+    use std::time::Duration;
 
-    let mut conn = ConnectOptions::from_str(":memory:")
-        .unwrap()
-        .connect()
-        .await
-        .unwrap();
+    let mut conn = ConnectOptions::new().connect().await.unwrap();
 
     query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
         .execute(&mut conn)
@@ -538,7 +524,9 @@ async fn concurrent_resets_dont_segfault() {
 // to see the panic from the worker thread, which doesn't happen after the fix
 #[tokio::test]
 async fn row_dropped_after_connection_doesnt_panic() {
-    let mut conn = Connection::connect(":memory:").await.unwrap();
+    let mut conn = Connection::connect_with(&ConnectOptions::new())
+        .await
+        .unwrap();
 
     let books = query("SELECT 'hello' AS title")
         .fetch_all(&mut conn)
@@ -622,7 +610,13 @@ async fn issue_1467() -> anyhow::Result<()> {
 async fn concurrent_read_and_write() {
     let pool: Pool = PoolOptions::new()
         .min_connections(2)
-        .connect(":memory:")
+        .connect_with(
+            ConnectOptions::new()
+                .in_memory(true)
+                .shared_cache(true)
+                .journal_mode(musqlite::JournalMode::Memory)
+                .filename("file:unique-shared-file"),
+        )
         .await
         .unwrap();
 

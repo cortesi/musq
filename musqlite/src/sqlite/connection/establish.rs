@@ -15,9 +15,9 @@ use libsqlite3_sys::{
 use crate::{
     sqlite::{
         connection::{handle::ConnectionHandle, ConnectionState, LogSettings, Statements},
-        ConnectOptions, SqliteError,
+        SqliteError,
     },
-    Error,
+    ConnectOptions, Error,
 };
 
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);

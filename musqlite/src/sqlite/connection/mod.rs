@@ -12,13 +12,12 @@ use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
 
 use crate::{
     acquire::Acquire,
+    connect::{ConnectOptions, OptimizeOnClose},
     error::Error,
     executor::Executor,
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
-        options::OptimizeOnClose,
         statement::VirtualStatement,
-        ConnectOptions,
     },
     statement_cache::StatementCache,
     transaction::Transaction,
@@ -250,20 +249,6 @@ impl Connection {
                 }
             }
         })
-    }
-
-    /// Establish a new database connection.
-    ///
-    /// A value of [`Options`][Self::Options] is parsed from the provided connection string. This parsing
-    /// is database-specific.
-    #[inline]
-    pub fn connect(url: &str) -> BoxFuture<'static, Result<Self, Error>>
-    where
-        Self: Sized,
-    {
-        let options = url.parse();
-
-        Box::pin(async move { Self::connect_with(&options?).await })
     }
 
     /// Establish a new database connection with the provided options.

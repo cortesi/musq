@@ -8,6 +8,7 @@ pub mod async_stream;
 
 mod acquire;
 mod column;
+mod connect;
 mod connection;
 mod debugfn;
 pub mod decode;
@@ -34,6 +35,7 @@ pub use indexmap::IndexMap;
 
 pub use crate::{
     column::{Column, ColumnIndex},
+    connect::{AutoVacuum, ConnectOptions, JournalMode, LockingMode, Synchronous},
     error::{Error, Result},
     executor::{Execute, Executor},
     from_row::FromRow,
@@ -46,9 +48,8 @@ pub use crate::{
     row::Row,
     sqlite::{
         error::{ExtendedErrCode, PrimaryErrCode},
-        ArgumentBuffer, Arguments, AutoVacuum, ConnectOptions, Connection, IntoArguments,
-        JournalMode, LockingMode, SqliteDataType, SqliteError, Statement, Synchronous, Value,
-        ValueRef,
+        ArgumentBuffer, Arguments, Connection, IntoArguments, SqliteDataType, SqliteError,
+        Statement, Value, ValueRef,
     },
     transaction::{Transaction, TransactionManager},
     types::Type,

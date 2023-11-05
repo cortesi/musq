@@ -1,17 +1,11 @@
-use std::{borrow::Cow, fmt::Write, path::Path, str::FromStr, sync::Arc, time::Duration};
+use std::{borrow::Cow, fmt::Write, path::Path, sync::Arc, time::Duration};
 
 use crate::{
-    debugfn::DebugFn,
-    error::Error,
-    executor::Executor,
-    sqlite::{connection::LogSettings, Connection},
+    connection::LogSettings, debugfn::DebugFn, error::Error, executor::Executor, sqlite::Connection,
 };
 
 use futures_core::future::BoxFuture;
 use log::LevelFilter;
-use url::Url;
-
-mod parse;
 
 use indexmap::IndexMap;
 
@@ -215,6 +209,11 @@ impl ConnectOptions {
             row_channel_size: 50,
             optimize_on_close: OptimizeOnClose::Disabled,
         }
+    }
+
+    pub fn in_memory(mut self, val: bool) -> Self {
+        self.in_memory = val;
+        self
     }
 
     /// Sets the name of the database file.
@@ -472,18 +471,6 @@ impl ConnectOptions {
         }
         self.pragmas.insert("analysis_limit".into(), None);
         self
-    }
-
-    pub fn from_url(url: &Url) -> Result<Self, Error> {
-        // SQLite URL parsing is handled specially;
-        // we want to treat the following URLs as equivalent:
-        //
-        // * sqlite:foo.db
-        // * sqlite://foo.db
-        //
-        // If we used `Url::path()`, the latter would return an empty string
-        // because `foo.db` gets parsed as the hostname.
-        Self::from_str(url.as_str())
     }
 
     pub fn connect(&self) -> BoxFuture<'_, Result<Connection, Error>> {

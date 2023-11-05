@@ -218,19 +218,6 @@ impl PoolOptions {
     /// This ensures the configuration is correct.
     ///
     /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
-    ///
-    /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
-    ///
-    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
-    pub async fn connect(self, url: &str) -> Result<Pool, Error> {
-        self.connect_with(url.parse()?).await
-    }
-
-    /// Create a new pool from this `PoolOptions` and immediately open at least one connection.
-    ///
-    /// This ensures the configuration is correct.
-    ///
-    /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
     pub async fn connect_with(self, options: ConnectOptions) -> Result<Pool, Error> {
         // Don't take longer than `acquire_timeout` starting from when this is called.
         let deadline = Instant::now() + self.acquire_timeout;
@@ -249,18 +236,6 @@ impl PoolOptions {
         inner.release(conn);
 
         Ok(Pool(inner))
-    }
-
-    /// Create a new pool from this `PoolOptions`, but don't open any connections right now.
-    ///
-    /// If [`min_connections`][Self::min_connections] is set, a background task will be spawned to
-    /// optimistically establish that many connections for the pool.
-    ///
-    /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
-    ///
-    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
-    pub fn connect_lazy(self, url: &str) -> Result<Pool, Error> {
-        Ok(self.connect_lazy_with(url.parse()?))
     }
 
     /// Create a new pool from this `PoolOptions`, but don't open any connections right now.

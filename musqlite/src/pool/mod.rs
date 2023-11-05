@@ -91,21 +91,6 @@ pub struct CloseEvent {
 
 impl Pool {
     /// Create a new connection pool with a default pool configuration and
-    /// the given connection URL, and immediately establish one connection.
-    ///
-    /// Refer to the relevant `ConnectOptions` impl for your database for the expected URL format:
-    ///
-    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
-    ///
-    /// The default configuration is mainly suited for testing and light-duty applications.
-    /// For production applications, you'll likely want to make at least few tweaks.
-    ///
-    /// See [`PoolOptions::new()`] for details.
-    pub async fn connect(url: &str) -> Result<Self, Error> {
-        PoolOptions::new().connect(url).await
-    }
-
-    /// Create a new connection pool with a default pool configuration and
     /// the given `ConnectOptions`, and immediately establish one connection.
     ///
     /// The default configuration is mainly suited for testing and light-duty applications.
@@ -114,23 +99,6 @@ impl Pool {
     /// See [`PoolOptions::new()`] for details.
     pub async fn connect_with(options: ConnectOptions) -> Result<Self, Error> {
         PoolOptions::new().connect_with(options).await
-    }
-
-    /// Create a new connection pool with a default pool configuration and
-    /// the given connection URL.
-    ///
-    /// The pool will establish connections only as needed.
-    ///
-    /// Refer to the relevant [`ConnectOptions`] impl for your database for the expected URL format:
-    ///
-    /// * SQLite: [`SqliteConnectOptions`][crate::sqlite::SqliteConnectOptions]
-    ///
-    /// The default configuration is mainly suited for testing and light-duty applications.
-    /// For production applications, you'll likely want to make at least few tweaks.
-    ///
-    /// See [`PoolOptions::new()`] for details.
-    pub fn connect_lazy(url: &str) -> Result<Self, Error> {
-        PoolOptions::new().connect_lazy(url)
     }
 
     /// Create a new connection pool with a default pool configuration and
