@@ -7,19 +7,20 @@
 //! A connection pool is a standard technique that can manage opening and re-using connections.
 //! Normally it also enforces a maximum number of connections as these are an expensive resource
 //! on the database server.
-//!
-use self::inner::PoolInner;
-use crate::{error::Error, transaction::Transaction};
+use std::{
+    fmt,
+    future::Future,
+    pin::Pin,
+    sync::Arc,
+    task::{Context, Poll},
+};
 
 use event_listener::EventListener;
 use futures_core::FusedFuture;
 use futures_util::FutureExt;
-use std::fmt;
-use std::future::Future;
-use std::pin::Pin;
-use std::sync::Arc;
-use std::task::{Context, Poll};
-use std::time::{Duration, Instant};
+
+use self::inner::PoolInner;
+use crate::{transaction::Transaction, Error, Result};
 
 #[macro_use]
 mod executor;
@@ -113,7 +114,7 @@ impl Pool {
     ///
     /// This should eliminate any potential `.await` points between acquiring a connection and
     /// returning it.
-    pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection, Error>> + 'static {
+    pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection>> + 'static {
         let shared = self.0.clone();
         async move { shared.acquire().await.map(|conn| conn.reattach()) }
     }
@@ -127,12 +128,12 @@ impl Pool {
     }
 
     /// Retrieves a connection and immediately begins a new transaction.
-    pub async fn begin(&self) -> Result<Transaction<'static>, Error> {
+    pub async fn begin(&self) -> Result<Transaction<'static>> {
         Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.
-    pub async fn try_begin(&self) -> Result<Option<Transaction<'static>>, Error> {
+    pub async fn try_begin(&self) -> Result<Option<Transaction<'static>>> {
         match self.try_acquire() {
             Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn))
                 .await
@@ -228,7 +229,7 @@ impl CloseEvent {
     ///
     /// Cancels the future and returns `Err(PoolClosed)` if/when the pool is closed.
     /// If the pool was already closed, the future is never run.
-    pub async fn do_until<Fut: Future>(&mut self, fut: Fut) -> Result<Fut::Output, Error> {
+    pub async fn do_until<Fut: Future>(&mut self, fut: Fut) -> Result<Fut::Output> {
         // Check that the pool wasn't closed already.
         //
         // We use `poll_immediate()` as it will use the correct waker instead of
@@ -280,15 +281,6 @@ impl FusedFuture for CloseEvent {
     fn is_terminated(&self) -> bool {
         self.listener.is_none()
     }
-}
-
-/// get the time between the deadline and now and use that as our timeout
-///
-/// returns `Error::PoolTimedOut` if the deadline is in the past
-fn deadline_as_timeout(deadline: Instant) -> Result<Duration, Error> {
-    deadline
-        .checked_duration_since(Instant::now())
-        .ok_or(Error::PoolTimedOut)
 }
 
 #[test]

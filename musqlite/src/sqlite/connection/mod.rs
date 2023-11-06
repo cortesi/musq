@@ -14,6 +14,7 @@ use crate::{
     acquire::Acquire,
     error::Error,
     executor::Executor,
+    logger::LogSettings,
     musqlite::{MuSQLite, OptimizeOnClose},
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
@@ -24,7 +25,6 @@ use crate::{
     Result,
 };
 
-pub(crate) use crate::connection::*;
 pub(crate) use handle::{ConnectionHandle, ConnectionHandleRaw};
 pub(crate) mod establish;
 pub(crate) mod execute;

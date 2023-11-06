@@ -1,13 +1,12 @@
 use either::Either;
-use futures_core::future::BoxFuture;
-use futures_core::stream::BoxStream;
+
+use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::TryStreamExt;
 
 use crate::{
-    error::Error,
     executor::{Execute, Executor},
     pool::Pool,
-    sqlite, try_stream, Connection, QueryResult, Row, Statement,
+    sqlite, try_stream, Connection, QueryResult, Result, Row, Statement,
 };
 
 impl<'p> Executor<'p> for &'_ Pool
@@ -17,7 +16,7 @@ where
     fn fetch_many<'e, 'q: 'e, E: 'q>(
         self,
         query: E,
-    ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
+    ) -> BoxStream<'e, Result<Either<QueryResult, Row>>>
     where
         E: Execute<'q>,
     {
@@ -35,10 +34,7 @@ where
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<Option<Row>, Error>>
+    fn fetch_optional<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Option<Row>>>
     where
         E: Execute<'q>,
     {
@@ -51,7 +47,7 @@ where
         self,
         sql: &'q str,
         parameters: &'e [sqlite::SqliteDataType],
-    ) -> BoxFuture<'e, Result<Statement<'q>, Error>> {
+    ) -> BoxFuture<'e, Result<Statement<'q>>> {
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })

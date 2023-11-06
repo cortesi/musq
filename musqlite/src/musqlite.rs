@@ -7,7 +7,7 @@ use std::{
 };
 
 use crate::{
-    connection::LogSettings, debugfn::DebugFn, executor::Executor, pool, pool::PoolOptions,
+    debugfn::DebugFn, executor::Executor, logger::LogSettings, pool, pool::PoolOptions,
     sqlite::Connection, Result,
 };
 

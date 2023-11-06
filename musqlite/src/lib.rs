@@ -8,7 +8,6 @@ pub mod async_stream;
 
 mod acquire;
 mod column;
-mod connection;
 mod debugfn;
 pub mod decode;
 pub mod encode;

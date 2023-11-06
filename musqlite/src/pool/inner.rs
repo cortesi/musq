@@ -11,19 +11,29 @@ use std::{
 use crossbeam_queue::ArrayQueue;
 use futures_util::FutureExt;
 
-use super::connection::{Floating, Idle, Live};
 use crate::{
-    error::Error,
-    pool::{deadline_as_timeout, CloseEvent, PoolOptions},
+    pool::{CloseEvent, PoolOptions},
+    Error, Result,
 };
 
+use super::connection::{Floating, Idle, Live};
+
+/// get the time between the deadline and now and use that as our timeout
+///
+/// returns `Error::PoolTimedOut` if the deadline is in the past
+fn deadline_as_timeout(deadline: Instant) -> Result<Duration> {
+    deadline
+        .checked_duration_since(Instant::now())
+        .ok_or(Error::PoolTimedOut)
+}
+
 pub(crate) struct PoolInner {
-    pub(super) idle_conns: ArrayQueue<Idle>,
-    pub(super) semaphore: tokio::sync::Semaphore,
-    pub(super) size: AtomicU32,
-    pub(super) num_idle: AtomicUsize,
+    idle_conns: ArrayQueue<Idle>,
+    semaphore: tokio::sync::Semaphore,
+    size: AtomicU32,
+    num_idle: AtomicUsize,
     is_closed: AtomicBool,
-    pub(super) on_closed: event_listener::Event,
+    on_closed: event_listener::Event,
     pub(super) options: PoolOptions,
 }
 
@@ -101,9 +111,7 @@ impl PoolInner {
     ///
     /// If we steal a permit from the parent but *don't* open a connection,
     /// it should be returned to the parent.
-    async fn acquire_permit<'a>(
-        self: &'a Arc<Self>,
-    ) -> Result<tokio::sync::SemaphorePermit<'a>, Error> {
+    async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<tokio::sync::SemaphorePermit<'a>> {
         let acquire_self = self.semaphore.acquire_many(1).fuse();
         let mut close_event = self.close_event();
         close_event.do_until(acquire_self).await.map(|e| e.unwrap())
@@ -151,7 +159,7 @@ impl PoolInner {
     /// Try to atomically increment the pool size for a new connection.
     ///
     /// Returns `Err` if the pool is at max capacity already or is closed.
-    pub(super) fn try_increment_size<'a>(
+    fn try_increment_size<'a>(
         self: &'a Arc<Self>,
         permit: tokio::sync::SemaphorePermit<'a>,
     ) -> Result<DecrementSizeGuard, tokio::sync::SemaphorePermit<'a>> {
@@ -172,7 +180,7 @@ impl PoolInner {
         }
     }
 
-    pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<Live>, Error> {
+    pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<Live>> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
@@ -185,7 +193,6 @@ impl PoolInner {
                 loop {
                     // Handles the close-event internally
                     let permit = self.acquire_permit().await?;
-
 
                     // First attempt to pop a connection from the idle queue.
                     let guard = match self.pop_idle(permit) {
@@ -225,11 +232,11 @@ impl PoolInner {
             .map_err(|_| Error::PoolTimedOut)?
     }
 
-    pub(super) async fn connect(
+    async fn connect(
         self: &Arc<Self>,
         deadline: Instant,
         guard: DecrementSizeGuard,
-    ) -> Result<Floating<Live>, Error> {
+    ) -> Result<Floating<Live>> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
@@ -272,7 +279,7 @@ impl PoolInner {
     }
 
     /// Try to maintain `min_connections`, returning any errors (including `PoolTimedOut`).
-    pub async fn try_min_connections(self: &Arc<Self>, deadline: Instant) -> Result<(), Error> {
+    pub async fn try_min_connections(self: &Arc<Self>, deadline: Instant) -> Result<()> {
         while self.size() < self.options.min_connections {
             // Don't wait for a semaphore permit.
             //
