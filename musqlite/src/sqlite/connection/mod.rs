@@ -151,31 +151,27 @@ impl Connection {
     ///
     /// Therefore it is recommended to call `.close()` on a connection when you are done using it
     /// and to `.await` the result to ensure the termination message is sent.
-    pub fn close(mut self) -> BoxFuture<'static, Result<()>> {
-        Box::pin(async move {
-            if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
-                let mut pragma_string = String::new();
-                if let Some(limit) = analysis_limit {
-                    write!(pragma_string, "PRAGMA analysis_limit = {}; ", limit).ok();
-                }
-                pragma_string.push_str("PRAGMA optimize;");
-                self.execute(&*pragma_string).await?;
+    pub async fn close(mut self) -> Result<()> {
+        if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
+            let mut pragma_string = String::new();
+            if let Some(limit) = analysis_limit {
+                write!(pragma_string, "PRAGMA analysis_limit = {}; ", limit).ok();
             }
-            let shutdown = self.worker.shutdown();
-            // Drop the statement worker, which should
-            // cover all references to the connection handle outside of the worker thread
-            drop(self);
-            // Ensure the worker thread has terminated
-            shutdown.await
-        })
+            pragma_string.push_str("PRAGMA optimize;");
+            self.execute(&*pragma_string).await?;
+        }
+        let shutdown = self.worker.shutdown();
+        // Drop the statement worker, which should
+        // cover all references to the connection handle outside of the worker thread
+        drop(self);
+        // Ensure the worker thread has terminated
+        shutdown.await
     }
 
     /// Immediately close the connection without sending a graceful shutdown.
-    pub fn close_hard(self) -> BoxFuture<'static, Result<()>> {
-        Box::pin(async move {
-            drop(self);
-            Ok(())
-        })
+    pub async fn close_hard(self) -> Result<()> {
+        drop(self);
+        Ok(())
     }
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
@@ -195,11 +191,9 @@ impl Connection {
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
-    pub fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<()>> {
-        Box::pin(async move {
-            self.worker.clear_cache().await?;
-            Ok(())
-        })
+    pub async fn clear_cached_statements(&mut self) -> Result<()> {
+        self.worker.clear_cache().await?;
+        Ok(())
     }
 
     #[inline]
@@ -225,7 +219,7 @@ impl Connection {
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not
     /// return an error, the transaction will be committed.
-    pub fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> BoxFuture<'a, Result<R, E>>
+    pub async fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> Result<R, E>
     where
         for<'c> F:
             FnOnce(&'c mut Transaction<'_>) -> BoxFuture<'c, Result<R, E>> + 'a + Send + Sync,
@@ -233,23 +227,20 @@ impl Connection {
         R: Send,
         E: From<Error> + Send,
     {
-        Box::pin(async move {
-            let mut transaction = self.begin().await?;
-            let ret = callback(&mut transaction).await;
+        let mut transaction = self.begin().await?;
+        let ret = callback(&mut transaction).await;
 
-            match ret {
-                Ok(ret) => {
-                    transaction.commit().await?;
+        match ret {
+            Ok(ret) => {
+                transaction.commit().await?;
 
-                    Ok(ret)
-                }
-                Err(err) => {
-                    transaction.rollback().await?;
-
-                    Err(err)
-                }
+                Ok(ret)
             }
-        })
+            Err(err) => {
+                transaction.rollback().await?;
+                Err(err)
+            }
+        }
     }
 
     /// Establish a new database connection with the provided options.

@@ -1,10 +1,12 @@
-use std::borrow::Cow;
-use std::fmt::{self, Debug, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::{
+    borrow::Cow,
+    fmt::{self, Debug, Formatter},
+    ops::{Deref, DerefMut},
+};
 
 use futures_core::future::BoxFuture;
 
-use crate::{error::Error, pool::MaybePoolConnection, Connection};
+use crate::{pool::MaybePoolConnection, Connection, Result};
 
 /// An in-progress database transaction or savepoint.
 ///
@@ -29,7 +31,7 @@ pub struct Transaction<'c> {
 
 impl<'c> Transaction<'c> {
     #[doc(hidden)]
-    pub fn begin(conn: impl Into<MaybePoolConnection<'c>>) -> BoxFuture<'c, Result<Self, Error>> {
+    pub fn begin(conn: impl Into<MaybePoolConnection<'c>>) -> BoxFuture<'c, Result<Self>> {
         let mut conn = conn.into();
 
         Box::pin(async move {
@@ -43,7 +45,7 @@ impl<'c> Transaction<'c> {
     }
 
     /// Commits this transaction or savepoint.
-    pub async fn commit(mut self) -> Result<(), Error> {
+    pub async fn commit(mut self) -> Result<()> {
         TransactionManager::commit(&mut self.connection).await?;
         self.open = false;
 
@@ -51,7 +53,7 @@ impl<'c> Transaction<'c> {
     }
 
     /// Aborts this transaction or savepoint.
-    pub async fn rollback(mut self) -> Result<(), Error> {
+    pub async fn rollback(mut self) -> Result<()> {
         TransactionManager::rollback(&mut self.connection).await?;
         self.open = false;
 
@@ -96,12 +98,12 @@ impl<'c, 't> crate::acquire::Acquire<'t> for &'t mut Transaction<'c> {
     type Connection = &'t mut Connection;
 
     #[inline]
-    fn acquire(self) -> BoxFuture<'t, Result<Self::Connection, Error>> {
+    fn acquire(self) -> BoxFuture<'t, Result<Self::Connection>> {
         Box::pin(futures_util::future::ok(&mut **self))
     }
 
     #[inline]
-    fn begin(self) -> BoxFuture<'t, Result<Transaction<'t>, Error>> {
+    fn begin(self) -> BoxFuture<'t, Result<Transaction<'t>>> {
         Transaction::begin(&mut **self)
     }
 }
@@ -151,15 +153,15 @@ pub fn rollback_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
 pub struct TransactionManager;
 
 impl TransactionManager {
-    pub fn begin(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn begin(conn: &mut Connection) -> BoxFuture<'_, Result<()>> {
         Box::pin(conn.worker.begin())
     }
 
-    pub fn commit(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn commit(conn: &mut Connection) -> BoxFuture<'_, Result<()>> {
         Box::pin(conn.worker.commit())
     }
 
-    pub fn rollback(conn: &mut Connection) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn rollback(conn: &mut Connection) -> BoxFuture<'_, Result<()>> {
         Box::pin(conn.worker.rollback())
     }
 
