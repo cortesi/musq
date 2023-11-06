@@ -177,7 +177,7 @@ fn expand_derive_decode_strong_enum(
         #[automatically_derived]
         impl<'r> musqlite::decode::Decode<'r> for #ident {
             fn decode(
-                value: ::sqlite::SqliteValueRef<'r>,
+                value: ::musqlite::ValueRef<'r>,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<

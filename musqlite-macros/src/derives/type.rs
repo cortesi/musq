@@ -69,7 +69,7 @@ fn expand_derive_has_sql_type_transparent(
         let tokens = quote!(
             #[automatically_derived]
             impl #impl_generics musqlite::Type for #ident #ty_generics #where_clause {
-                fn type_info() -> sqlite::SqliteDataType {
+                fn type_info() -> musqlite::SqliteDataType {
                     <#ty as musqlite::Type>::type_info()
                 }
 
@@ -119,13 +119,13 @@ fn expand_derive_has_sql_type_strong_enum(
     let mut tts = TokenStream::new();
     tts.extend(quote!(
         #[automatically_derived]
-        impl Type for #ident {
+        impl musqlite::Type for #ident {
             fn type_info() -> musqlite::SqliteDataType {
                 <::std::primitive::str as musqlite::Type>::type_info()
             }
 
             fn compatible(ty: &musqlite::SqliteDataType) -> ::std::primitive::bool {
-                <&::std::primitive::str as ::types::Type>::compatible(ty)
+                <&::std::primitive::str as musqlite::Type>::compatible(ty)
             }
         }
     ));
