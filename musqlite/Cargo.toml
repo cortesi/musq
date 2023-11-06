@@ -10,7 +10,6 @@ repository.workspace = true
 [dependencies]
 musqlite-macros = { path = "../musqlite-macros" }
 tokio = { version = "1.15.0", features = ["full"] }
-bit-vec = "0.6.3"
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
 ahash = "0.8"
 bytes = "1.1.0"
@@ -28,14 +27,12 @@ futures-util = { version = "0.3.19", default-features = false, features = [
     "io",
 ] }
 log = { version = "0.4.14", default-features = false }
-percent-encoding = "2.1.0"
 serde = { version = "1.0.132", features = ["derive", "rc"] }
 serde_json = { version = "1.0.73", features = ["raw_value"] }
 sqlformat = "0.2.0"
 thiserror = "1.0.30"
 tracing = { version = "0.1.37", features = ["log"] }
 smallvec = "1.7.0"
-url = { version = "2.2.2", default-features = false }
 bstr = { version = "1.0", default-features = false, features = ["std"] }
 hashlink = "0.8.0"
 indexmap = "2.0"

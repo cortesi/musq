@@ -11,7 +11,6 @@ use crate::{
     sqlite::Connection, Result,
 };
 
-use futures_core::future::BoxFuture;
 use log::LevelFilter;
 
 use indexmap::IndexMap;
@@ -487,13 +486,11 @@ impl MuSQLite {
         string
     }
 
-    pub fn connect(&self) -> BoxFuture<'_, Result<Connection>> {
-        Box::pin(async move {
-            let mut conn = Connection::establish(self).await?;
-            // Execute PRAGMAs
-            conn.execute(&*self.pragma_string()).await?;
-            Ok(conn)
-        })
+    pub(crate) async fn connect(&self) -> Result<Connection> {
+        let mut conn = Connection::establish(self).await?;
+        // Execute PRAGMAs
+        conn.execute(&*self.pragma_string()).await?;
+        Ok(conn)
     }
 
     pub fn with_pool(&self) -> PoolOptions {

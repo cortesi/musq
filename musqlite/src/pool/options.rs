@@ -154,7 +154,7 @@ impl PoolOptions {
     /// This ensures the configuration is correct.
     ///
     /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
-    pub async fn connect(self) -> Result<Pool, Error> {
+    pub(crate) async fn connect(self) -> Result<Pool, Error> {
         // Don't take longer than `acquire_timeout` starting from when this is called.
         let deadline = Instant::now() + self.acquire_timeout;
         let inner = PoolInner::new_arc(self);
@@ -170,13 +170,13 @@ impl PoolOptions {
         Ok(Pool(inner))
     }
 
-    /// Open a file
+    /// Open a file.
     pub async fn open(mut self, filename: impl AsRef<Path>) -> Result<Pool> {
         self.connect_options = self.connect_options.filename(filename);
         self.connect().await
     }
 
-    /// Open an in-memory database
+    /// Open an in-memory database.
     pub async fn open_in_memory(mut self) -> Result<Pool> {
         self.connect_options = self.connect_options.configure_in_memory();
         self.connect().await

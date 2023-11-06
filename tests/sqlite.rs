@@ -499,10 +499,10 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 async fn concurrent_resets_dont_segfault() {
     use std::time::Duration;
 
-    let mut conn = MuSQLite::new().connect().await.unwrap();
+    let conn = MuSQLite::new().open_in_memory().await.unwrap();
 
     query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
-        .execute(&mut conn)
+        .execute(&conn)
         .await
         .unwrap();
 
@@ -511,7 +511,7 @@ async fn concurrent_resets_dont_segfault() {
             query("INSERT INTO stuff (name, value) VALUES (?, ?)")
                 .bind(i)
                 .bind(0)
-                .execute(&mut conn)
+                .execute(&conn)
                 .await
                 .unwrap();
         }
@@ -550,7 +550,7 @@ async fn row_dropped_after_connection_doesnt_panic() {
 #[tokio::test]
 #[ignore]
 async fn issue_1467() -> anyhow::Result<()> {
-    let mut conn = MuSQLite::new().filename(":memory:").connect().await?;
+    let conn = MuSQLite::new().open_in_memory().await?;
 
     query(
         r#"
@@ -558,7 +558,7 @@ async fn issue_1467() -> anyhow::Result<()> {
     CREATE INDEX idx_kv ON kv (v);
     "#,
     )
-    .execute(&mut conn)
+    .execute(&conn)
     .await?;
 
     // Random seed:

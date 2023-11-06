@@ -2,7 +2,7 @@
 members = ["musqlite", "musqlite-macros", "musqlite-test"]
 
 [workspace.package]
-version = "0.7.1"
+version = "0.0.1"
 license = "MIT"
 edition = "2021"
 repository = "https://github.com/cortesi/musqlite"

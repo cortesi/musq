@@ -21,6 +21,7 @@ use crate::{
     },
     statement_cache::StatementCache,
     transaction::Transaction,
+    Result,
 };
 
 pub(crate) use crate::connection::*;
@@ -52,12 +53,12 @@ impl<'c> Acquire<'c> for &'c mut Connection {
     type Connection = &'c mut Connection;
 
     #[inline]
-    fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, Error>> {
+    fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection>> {
         Box::pin(futures_util::future::ok(self))
     }
 
     #[inline]
-    fn begin(self) -> futures_core::future::BoxFuture<'c, Result<Transaction<'c>, Error>> {
+    fn begin(self) -> futures_core::future::BoxFuture<'c, Result<Transaction<'c>>> {
         Transaction::begin(self)
     }
 }
@@ -114,7 +115,7 @@ impl Debug for Connection {
 }
 
 impl Connection {
-    pub(crate) async fn establish(options: &MuSQLite) -> Result<Self, Error> {
+    pub(crate) async fn establish(options: &MuSQLite) -> Result<Self> {
         let params = EstablishParams::from_options(options)?;
         let worker = ConnectionWorker::establish(params).await?;
         Ok(Self {
@@ -128,7 +129,7 @@ impl Connection {
     /// be made safely.
     ///
     /// Returns an error if the worker thread crashed.
-    pub async fn lock_handle(&mut self) -> Result<LockedSqliteHandle<'_>, Error> {
+    pub async fn lock_handle(&mut self) -> Result<LockedSqliteHandle<'_>> {
         let guard = self.worker.unlock_db().await?;
 
         Ok(LockedSqliteHandle { guard })
@@ -150,7 +151,7 @@ impl Connection {
     ///
     /// Therefore it is recommended to call `.close()` on a connection when you are done using it
     /// and to `.await` the result to ensure the termination message is sent.
-    pub fn close(mut self) -> BoxFuture<'static, Result<(), Error>> {
+    pub fn close(mut self) -> BoxFuture<'static, Result<()>> {
         Box::pin(async move {
             if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
                 let mut pragma_string = String::new();
@@ -170,7 +171,7 @@ impl Connection {
     }
 
     /// Immediately close the connection without sending a graceful shutdown.
-    pub fn close_hard(self) -> BoxFuture<'static, Result<(), Error>> {
+    pub fn close_hard(self) -> BoxFuture<'static, Result<()>> {
         Box::pin(async move {
             drop(self);
             Ok(())
@@ -180,7 +181,7 @@ impl Connection {
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.
-    pub fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_>, Error>>
+    pub fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_>>>
     where
         Self: Sized,
     {
@@ -194,7 +195,7 @@ impl Connection {
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
-    pub fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn clear_cached_statements(&mut self) -> BoxFuture<'_, Result<()>> {
         Box::pin(async move {
             self.worker.clear_cache().await?;
             Ok(())
@@ -207,7 +208,7 @@ impl Connection {
     }
 
     #[doc(hidden)]
-    pub fn flush(&mut self) -> BoxFuture<'_, Result<(), Error>> {
+    pub fn flush(&mut self) -> BoxFuture<'_, Result<()>> {
         // For SQLite, FLUSH does effectively nothing...
         // Well, we could use this to ensure that the command channel has been cleared,
         // but it would only develop a backlog if a lot of queries are executed and then cancelled
@@ -252,11 +253,11 @@ impl Connection {
     }
 
     /// Establish a new database connection with the provided options.
-    pub fn connect_with(options: &MuSQLite) -> BoxFuture<'_, Result<Self, Error>>
+    pub async fn connect_with(options: &MuSQLite) -> Result<Self>
     where
         Self: Sized,
     {
-        options.connect()
+        options.connect().await
     }
 }
 
@@ -348,7 +349,7 @@ impl Statements {
         }
     }
 
-    fn get(&mut self, query: &str, persistent: bool) -> Result<&mut VirtualStatement, Error> {
+    fn get(&mut self, query: &str, persistent: bool) -> Result<&mut VirtualStatement> {
         if !persistent || !self.cached.is_enabled() {
             return Ok(self.temp.insert(VirtualStatement::new(query, false)?));
         }
