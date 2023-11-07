@@ -1,0 +1,5 @@
+CREATE TABLE data (
+    id INTEGER PRIMARY KEY,
+    a INTEGER,
+    b TEXT
+);

@@ -1,5 +1,5 @@
 [workspace]
-members = ["musqlite", "musqlite-macros", "musqlite-test", "musqlite-macros2"]
+members = ["musqlite", "musqlite-macros", "musqlite-test"]
 
 [workspace.package]
 version = "0.0.1"
@@ -48,3 +48,8 @@ libsqlite3-sys = { version = "0.26", features = [
     "unlock_notify",
     "bundled-sqlcipher",
 ] }
+pprof = { version = "0.13.0", features = ["flamegraph", "criterion"] }
+
+[[bench]]
+name = "benchmark"
+harness = false
