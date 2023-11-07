@@ -52,12 +52,10 @@ pub struct Connection {
 impl<'c> Acquire<'c> for &'c mut Connection {
     type Connection = &'c mut Connection;
 
-    #[inline]
     fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection>> {
         Box::pin(futures_util::future::ok(self))
     }
 
-    #[inline]
     fn begin(self) -> futures_core::future::BoxFuture<'c, Result<Transaction<'c>>> {
         Transaction::begin(self)
     }
@@ -196,7 +194,6 @@ impl Connection {
         Ok(())
     }
 
-    #[inline]
     pub fn shrink_buffers(&mut self) {
         // No-op.
     }

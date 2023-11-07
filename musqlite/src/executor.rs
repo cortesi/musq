@@ -113,7 +113,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     ///
     /// This explicit API is provided to allow access to the statement metadata available after
     /// it prepared but before the first row is returned.
-    #[inline]
+
     fn prepare<'e, 'q: 'e>(self, query: &'q str) -> BoxFuture<'e, Result<Statement<'q>, Error>>
     where
         'c: 'e,
@@ -163,44 +163,36 @@ pub trait Execute<'q>: Send + Sized {
 // NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
 //       involved to write `conn.execute(format!("SELECT {}", val))`
 impl<'q> Execute<'q> for &'q str {
-    #[inline]
     fn sql(&self) -> &'q str {
         self
     }
 
-    #[inline]
     fn statement(&self) -> Option<&Statement<'q>> {
         None
     }
 
-    #[inline]
     fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         None
     }
 
-    #[inline]
     fn persistent(&self) -> bool {
         true
     }
 }
 
 impl<'q> Execute<'q> for (&'q str, Option<Arguments<'q>>) {
-    #[inline]
     fn sql(&self) -> &'q str {
         self.0
     }
 
-    #[inline]
     fn statement(&self) -> Option<&Statement<'q>> {
         None
     }
 
-    #[inline]
     fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         self.1.take()
     }
 
-    #[inline]
     fn persistent(&self) -> bool {
         true
     }

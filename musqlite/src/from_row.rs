@@ -224,7 +224,7 @@ macro_rules! impl_from_row_for_tuple {
             usize: crate::column::ColumnIndex<Row>,
             $($T: crate::decode::Decode<'r> + crate::types::Type,)+
         {
-            #[inline]
+
             fn from_row(row: &'r Row) -> Result<Self, Error> {
                 Ok(($(row.try_get($idx as usize)?,)+))
             }

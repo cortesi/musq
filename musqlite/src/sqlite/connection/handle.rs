@@ -37,12 +37,10 @@ unsafe impl Send for ConnectionHandle {}
 unsafe impl Send for ConnectionHandleRaw {}
 
 impl ConnectionHandle {
-    #[inline]
     pub(super) unsafe fn new(ptr: *mut sqlite3) -> Self {
         Self(NonNull::new_unchecked(ptr))
     }
 
-    #[inline]
     pub(crate) fn as_ptr(&self) -> *mut sqlite3 {
         self.0.as_ptr()
     }
@@ -51,7 +49,6 @@ impl ConnectionHandle {
         self.0
     }
 
-    #[inline]
     pub(crate) fn to_raw(&self) -> ConnectionHandleRaw {
         ConnectionHandleRaw(self.0)
     }

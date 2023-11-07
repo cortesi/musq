@@ -46,7 +46,6 @@ pub trait ColumnIndex<T: ?Sized>: Debug {
 }
 
 impl<T: ?Sized, I: ColumnIndex<T> + ?Sized> ColumnIndex<T> for &'_ I {
-    #[inline]
     fn index(&self, row: &T) -> Result<usize, Error> {
         (**self).index(row)
     }

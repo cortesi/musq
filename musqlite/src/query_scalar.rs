@@ -23,7 +23,6 @@ impl<'q, O: Send, A: Send> Execute<'q> for QueryScalar<'q, O, A>
 where
     A: 'q + IntoArguments<'q>,
 {
-    #[inline]
     fn sql(&self) -> &'q str {
         self.inner.sql()
     }
@@ -32,12 +31,10 @@ where
         self.inner.statement()
     }
 
-    #[inline]
     fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         self.inner.take_arguments()
     }
 
-    #[inline]
     fn persistent(&self) -> bool {
         self.inner.persistent()
     }
@@ -77,7 +74,7 @@ where
     (O,): Send + Unpin + for<'r> FromRow<'r>,
 {
     /// Execute the query and return the generated results as a stream.
-    #[inline]
+
     pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
     where
         'q: 'e,
@@ -90,7 +87,7 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    #[inline]
+
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
@@ -108,7 +105,7 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    #[inline]
+
     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
         'q: 'e,
@@ -124,7 +121,7 @@ where
     }
 
     /// Execute the query and returns exactly one row.
-    #[inline]
+
     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
         'q: 'e,
@@ -136,7 +133,7 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    #[inline]
+
     pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
     where
         'q: 'e,
@@ -150,7 +147,7 @@ where
 
 /// Make a SQL query that is mapped to a single concrete type
 /// using [`FromRow`].
-#[inline]
+
 pub fn query_scalar<'q, O>(sql: &'q str) -> QueryScalar<'q, O, Arguments<'q>>
 where
     (O,): for<'r> FromRow<'r>,
@@ -162,7 +159,7 @@ where
 
 /// Make a SQL query, with the given arguments, that is mapped to a single concrete type
 /// using [`FromRow`].
-#[inline]
+
 pub fn query_scalar_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryScalar<'q, O, A>
 where
     A: IntoArguments<'q>,

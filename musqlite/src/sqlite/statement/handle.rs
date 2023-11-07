@@ -38,25 +38,21 @@ impl StatementHandle {
         Self(ptr)
     }
 
-    #[inline]
     pub(super) unsafe fn db_handle(&self) -> *mut sqlite3 {
         // O(c) access to the connection handle for this statement handle
         // https://sqlite.org/c3ref/db_handle.html
         sqlite3_db_handle(self.0.as_ptr())
     }
 
-    #[inline]
     pub(crate) fn last_error(&self) -> SqliteError {
         SqliteError::new(unsafe { self.db_handle() })
     }
 
-    #[inline]
     pub(crate) fn column_count(&self) -> usize {
         // https://sqlite.org/c3ref/column_count.html
         unsafe { sqlite3_column_count(self.0.as_ptr()) as usize }
     }
 
-    #[inline]
     pub(crate) fn changes(&self) -> u64 {
         // returns the number of changes of the *last* statement; not
         // necessarily this statement.
@@ -64,7 +60,6 @@ impl StatementHandle {
         unsafe { sqlite3_changes(self.db_handle()) as u64 }
     }
 
-    #[inline]
     pub(crate) fn column_name(&self, index: usize) -> &str {
         // https://sqlite.org/c3ref/column_name.html
         unsafe {
@@ -79,7 +74,6 @@ impl StatementHandle {
         SqliteDataType::from_code(self.column_type(index))
     }
 
-    #[inline]
     pub(crate) fn column_decltype(&self, index: usize) -> Option<SqliteDataType> {
         unsafe {
             let decl = sqlite3_column_decltype(self.0.as_ptr(), index as c_int);
@@ -97,7 +91,7 @@ impl StatementHandle {
     }
 
     // Number Of SQL Parameters
-    #[inline]
+
     pub(crate) fn bind_parameter_count(&self) -> usize {
         // https://www.sqlite.org/c3ref/bind_parameter_count.html
         unsafe { sqlite3_bind_parameter_count(self.0.as_ptr()) as usize }
@@ -105,7 +99,7 @@ impl StatementHandle {
 
     // Name Of A Host Parameter
     // NOTE: The first host parameter has an index of 1, not 0.
-    #[inline]
+
     pub(crate) fn bind_parameter_name(&self, index: usize) -> Option<&str> {
         unsafe {
             // https://www.sqlite.org/c3ref/bind_parameter_name.html
@@ -121,7 +115,6 @@ impl StatementHandle {
     // Binding Values To Prepared Statements
     // https://www.sqlite.org/c3ref/bind_blob.html
 
-    #[inline]
     pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> c_int {
         unsafe {
             sqlite3_bind_blob64(
@@ -134,7 +127,6 @@ impl StatementHandle {
         }
     }
 
-    #[inline]
     pub(crate) fn bind_text(&self, index: usize, v: &str) -> c_int {
         unsafe {
             sqlite3_bind_text64(
@@ -148,22 +140,18 @@ impl StatementHandle {
         }
     }
 
-    #[inline]
     pub(crate) fn bind_int(&self, index: usize, v: i32) -> c_int {
         unsafe { sqlite3_bind_int(self.0.as_ptr(), index as c_int, v as c_int) }
     }
 
-    #[inline]
     pub(crate) fn bind_int64(&self, index: usize, v: i64) -> c_int {
         unsafe { sqlite3_bind_int64(self.0.as_ptr(), index as c_int, v) }
     }
 
-    #[inline]
     pub(crate) fn bind_double(&self, index: usize, v: f64) -> c_int {
         unsafe { sqlite3_bind_double(self.0.as_ptr(), index as c_int, v) }
     }
 
-    #[inline]
     pub(crate) fn bind_null(&self, index: usize) -> c_int {
         unsafe { sqlite3_bind_null(self.0.as_ptr(), index as c_int) }
     }
@@ -171,27 +159,22 @@ impl StatementHandle {
     // result values from the query
     // https://www.sqlite.org/c3ref/column_blob.html
 
-    #[inline]
     pub(crate) fn column_type(&self, index: usize) -> c_int {
         unsafe { sqlite3_column_type(self.0.as_ptr(), index as c_int) }
     }
 
-    #[inline]
     pub(crate) fn column_int(&self, index: usize) -> i32 {
         unsafe { sqlite3_column_int(self.0.as_ptr(), index as c_int) as i32 }
     }
 
-    #[inline]
     pub(crate) fn column_int64(&self, index: usize) -> i64 {
         unsafe { sqlite3_column_int64(self.0.as_ptr(), index as c_int) as i64 }
     }
 
-    #[inline]
     pub(crate) fn column_double(&self, index: usize) -> f64 {
         unsafe { sqlite3_column_double(self.0.as_ptr(), index as c_int) }
     }
 
-    #[inline]
     pub(crate) fn column_value(&self, index: usize) -> *mut sqlite3_value {
         unsafe { sqlite3_column_value(self.0.as_ptr(), index as c_int) }
     }

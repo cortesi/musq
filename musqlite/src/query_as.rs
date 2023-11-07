@@ -26,22 +26,18 @@ impl<'q, O: Send, A: Send> Execute<'q> for QueryAs<'q, O, A>
 where
     A: 'q + IntoArguments<'q>,
 {
-    #[inline]
     fn sql(&self) -> &'q str {
         self.inner.sql()
     }
 
-    #[inline]
     fn statement(&self) -> Option<&Statement<'q>> {
         self.inner.statement()
     }
 
-    #[inline]
     fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         self.inner.take_arguments()
     }
 
-    #[inline]
     fn persistent(&self) -> bool {
         self.inner.persistent()
     }
@@ -115,7 +111,7 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    #[inline]
+
     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
         'q: 'e,
@@ -158,7 +154,7 @@ where
 
 /// Make a SQL query that is mapped to a concrete type
 /// using [`FromRow`].
-#[inline]
+
 pub fn query_as<'q, O>(sql: &'q str) -> QueryAs<'q, O, Arguments<'q>>
 where
     O: for<'r> FromRow<'r>,
@@ -171,7 +167,7 @@ where
 
 /// Make a SQL query, with the given arguments, that is mapped to a concrete type
 /// using [`FromRow`].
-#[inline]
+
 pub fn query_as_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryAs<'q, O, A>
 where
     A: IntoArguments<'q>,

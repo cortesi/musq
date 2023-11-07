@@ -61,7 +61,6 @@ impl<'args> QueryBuilder<'args> {
         }
     }
 
-    #[inline]
     fn sanity_check(&self) {
         assert!(
             self.arguments.is_some(),

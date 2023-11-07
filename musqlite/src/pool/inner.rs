@@ -117,7 +117,6 @@ impl PoolInner {
         close_event.do_until(acquire_self).await.map(|e| e.unwrap())
     }
 
-    #[inline]
     pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating<Idle>> {
         if self.is_closed() {
             return None;

@@ -91,12 +91,10 @@ impl<'q> Statement<'q> {
         Ok(&self.columns()[index.index(self)?])
     }
 
-    #[inline]
     pub fn query(&self) -> query::Query<'_, Arguments<'_>> {
         query::query_statement(self)
     }
 
-    #[inline]
     pub fn query_with<'s, A>(&'s self, arguments: A) -> query::Query<'s, A>
     where
         A: IntoArguments<'s>,
@@ -104,7 +102,6 @@ impl<'q> Statement<'q> {
         query::query_statement_with(self, arguments)
     }
 
-    #[inline]
     pub fn query_as<O>(&self) -> query_as::QueryAs<'_, O, Arguments<'_>>
     where
         O: for<'r> from_row::FromRow<'r>,
@@ -112,7 +109,6 @@ impl<'q> Statement<'q> {
         query_as::query_statement_as(self)
     }
 
-    #[inline]
     pub fn query_as_with<'s, O, A>(&'s self, arguments: A) -> query_as::QueryAs<'s, O, A>
     where
         O: for<'r> from_row::FromRow<'r>,
@@ -121,7 +117,6 @@ impl<'q> Statement<'q> {
         query_as::query_statement_as_with(self, arguments)
     }
 
-    #[inline]
     pub fn query_scalar<O>(&self) -> query_scalar::QueryScalar<'_, O, Arguments<'_>>
     where
         (O,): for<'r> from_row::FromRow<'r>,
@@ -129,7 +124,6 @@ impl<'q> Statement<'q> {
         query_scalar::query_statement_scalar(self)
     }
 
-    #[inline]
     pub fn query_scalar_with<'s, O, A>(
         &'s self,
         arguments: A,
@@ -154,7 +148,7 @@ impl ColumnIndex<Statement<'_>> for &'_ str {
 
 // #[cfg(feature = "any")]
 // impl<'q> From<SqliteStatement<'q>> for crate::sqlite::any::AnyStatement<'q> {
-//     #[inline]
+//
 //     fn from(statement: SqliteStatement<'q>) -> Self {
 //         crate::sqlite::any::AnyStatement::<'q> {
 //             columns: statement

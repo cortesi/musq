@@ -36,12 +36,10 @@ impl<'q, T> Encode<'q> for &'_ T
 where
     T: Encode<'q>,
 {
-    #[inline]
     fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         <T as Encode>::encode_by_ref(self, buf)
     }
 
-    #[inline]
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         <&T as Encode>::encode(self, buf)
     }
@@ -51,7 +49,6 @@ impl<'q, T> Encode<'q> for Option<T>
 where
     T: Encode<'q> + Type + 'q,
 {
-    #[inline]
     fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         if let Some(v) = self {
             v.encode(buf)
@@ -60,7 +57,6 @@ where
         }
     }
 
-    #[inline]
     fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         if let Some(v) = self {
             v.encode_by_ref(buf)

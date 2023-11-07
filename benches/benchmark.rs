@@ -8,10 +8,10 @@ use musqlite;
 const BENCH_SCHEMA: &str = include_str!("benchschema.sql");
 
 /// How many concurrent read or write requests should we make?
-const CONCURRENCY: usize = 5;
+const CONCURRENCY: usize = 20;
 
 /// Set min and max pool connections to the same value
-const CONNECTIONS: u32 = 1;
+const CONNECTIONS: u32 = 5;
 
 #[derive(Debug, musqlite::FromRow)]
 pub struct Data {

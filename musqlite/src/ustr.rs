@@ -16,7 +16,6 @@ pub enum UStr {
 impl Deref for UStr {
     type Target = str;
 
-    #[inline]
     fn deref(&self) -> &str {
         match self {
             UStr::Static(s) => s,
@@ -26,7 +25,6 @@ impl Deref for UStr {
 }
 
 impl Hash for UStr {
-    #[inline]
     fn hash<H: Hasher>(&self, state: &mut H) {
         // Forward the hash to the string representation of this
         // A derive(Hash) encodes the enum discriminant
@@ -35,7 +33,6 @@ impl Hash for UStr {
 }
 
 impl Borrow<str> for UStr {
-    #[inline]
     fn borrow(&self) -> &str {
         self
     }
@@ -48,28 +45,24 @@ impl PartialEq<UStr> for UStr {
 }
 
 impl From<&'static str> for UStr {
-    #[inline]
     fn from(s: &'static str) -> Self {
         UStr::Static(s)
     }
 }
 
 impl From<String> for UStr {
-    #[inline]
     fn from(s: String) -> Self {
         UStr::Shared(s.into())
     }
 }
 
 impl Debug for UStr {
-    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(self)
     }
 }
 
 impl Display for UStr {
-    #[inline]
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.pad(self)
     }

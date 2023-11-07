@@ -71,14 +71,12 @@ impl<'c> Debug for Transaction<'c> {
 impl<'c> Deref for Transaction<'c> {
     type Target = Connection;
 
-    #[inline]
     fn deref(&self) -> &Self::Target {
         &self.connection
     }
 }
 
 impl<'c> DerefMut for Transaction<'c> {
-    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.connection
     }
@@ -97,12 +95,10 @@ impl<'c> AsMut<Connection> for Transaction<'c> {
 impl<'c, 't> crate::acquire::Acquire<'t> for &'t mut Transaction<'c> {
     type Connection = &'t mut Connection;
 
-    #[inline]
     fn acquire(self) -> BoxFuture<'t, Result<Self::Connection>> {
         Box::pin(futures_util::future::ok(&mut **self))
     }
 
-    #[inline]
     fn begin(self) -> BoxFuture<'t, Result<Transaction<'t>>> {
         Transaction::begin(&mut **self)
     }

@@ -11,7 +11,6 @@ pub enum MaybePoolConnection<'c> {
 impl<'c> Deref for MaybePoolConnection<'c> {
     type Target = Connection;
 
-    #[inline]
     fn deref(&self) -> &Self::Target {
         match self {
             MaybePoolConnection::Connection(v) => v,
@@ -21,7 +20,6 @@ impl<'c> Deref for MaybePoolConnection<'c> {
 }
 
 impl<'c> DerefMut for MaybePoolConnection<'c> {
-    #[inline]
     fn deref_mut(&mut self) -> &mut Self::Target {
         match self {
             MaybePoolConnection::Connection(v) => v,

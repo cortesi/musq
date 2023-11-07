@@ -37,7 +37,6 @@ impl<'q, A> Execute<'q> for Query<'q, A>
 where
     A: Send + IntoArguments<'q>,
 {
-    #[inline]
     fn sql(&self) -> &'q str {
         match self.statement {
             Either::Right(statement) => statement.sql(),
@@ -52,12 +51,10 @@ where
         }
     }
 
-    #[inline]
     fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         self.arguments.take().map(IntoArguments::into_arguments)
     }
 
-    #[inline]
     fn persistent(&self) -> bool {
         self.persistent
     }
@@ -106,7 +103,7 @@ where
     ///
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
+
     pub fn map<F, O>(self, mut f: F) -> Map<'q, impl FnMut(Row) -> Result<O, Error> + Send, A>
     where
         F: FnMut(Row) -> O + Send,
@@ -119,7 +116,7 @@ where
     ///
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
+
     pub fn try_map<F, O>(self, f: F) -> Map<'q, F, A>
     where
         F: FnMut(Row) -> Result<O, Error> + Send,
@@ -132,7 +129,7 @@ where
     }
 
     /// Execute the query and return the total number of rows affected.
-    #[inline]
+
     pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<QueryResult, Error>
     where
         'q: 'e,
@@ -143,7 +140,7 @@ where
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    #[inline]
+
     pub async fn execute_many<'e, 'c: 'e, E>(
         self,
         executor: E,
@@ -157,7 +154,7 @@ where
     }
 
     /// Execute the query and return the generated results as a stream.
-    #[inline]
+
     pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<Row, Error>>
     where
         'q: 'e,
@@ -169,7 +166,7 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    #[inline]
+
     pub fn fetch_many<'e, 'c: 'e, E>(
         self,
         executor: E,
@@ -183,7 +180,7 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    #[inline]
+
     pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<Row>, Error>
     where
         'q: 'e,
@@ -194,7 +191,7 @@ where
     }
 
     /// Execute the query and returns exactly one row.
-    #[inline]
+
     pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<Row, Error>
     where
         'q: 'e,
@@ -205,7 +202,7 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    #[inline]
+
     pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<Row>, Error>
     where
         'q: 'e,
@@ -220,22 +217,18 @@ impl<'q, F: Send, A: Send> Execute<'q> for Map<'q, F, A>
 where
     A: IntoArguments<'q>,
 {
-    #[inline]
     fn sql(&self) -> &'q str {
         self.inner.sql()
     }
 
-    #[inline]
     fn statement(&self) -> Option<&Statement<'q>> {
         self.inner.statement()
     }
 
-    #[inline]
     fn take_arguments(&mut self) -> Option<Arguments<'q>> {
         self.inner.take_arguments()
     }
 
-    #[inline]
     fn persistent(&self) -> bool {
         self.inner.arguments.is_some()
     }
@@ -253,7 +246,7 @@ where
     ///
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
+
     pub fn map<G, P>(self, mut g: G) -> Map<'q, impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> P + Send,
@@ -266,7 +259,7 @@ where
     ///
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
-    #[inline]
+
     pub fn try_map<G, P>(self, mut g: G) -> Map<'q, impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> Result<P, Error> + Send,

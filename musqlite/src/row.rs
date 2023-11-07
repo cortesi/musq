@@ -77,13 +77,13 @@ impl Row {
     }
 
     /// Returns `true` if this row has no columns.
-    #[inline]
+
     pub fn is_empty(&self) -> bool {
         self.len() == 0
     }
 
     /// Returns the number of columns in this row.
-    #[inline]
+
     pub fn len(&self) -> usize {
         self.columns().len()
     }
@@ -122,7 +122,7 @@ impl Row {
     /// Panics if the column does not exist or its value cannot be decoded into the requested type.
     /// See [`try_get`](Self::try_get) for a non-panicking version.
     ///
-    #[inline]
+
     pub fn get<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
@@ -142,7 +142,7 @@ impl Row {
     /// Panics if the column does not exist or its value cannot be decoded into the requested type.
     /// See [`try_get_unchecked`](Self::try_get_unchecked) for a non-panicking version.
     ///
-    #[inline]
+
     pub fn get_unchecked<'r, T, I>(&'r self, index: I) -> T
     where
         I: ColumnIndex<Self>,
@@ -206,7 +206,7 @@ impl Row {
     /// [`ColumnNotFound`]: Error::ColumnNotFound
     /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
     ///
-    #[inline]
+
     pub fn try_get_unchecked<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
         I: ColumnIndex<Self>,
