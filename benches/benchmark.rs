@@ -6,7 +6,12 @@ use tokio::runtime::{Handle, Runtime};
 use musqlite;
 
 const BENCH_SCHEMA: &str = include_str!("benchschema.sql");
-const CONC: usize = 5;
+
+/// How many concurrent read or write requests should we make?
+const CONCURRENCY: usize = 5;
+
+/// Set min and max pool connections to the same value
+const CONNECTIONS: u32 = 1;
 
 #[derive(Debug, musqlite::FromRow)]
 pub struct Data {
@@ -17,8 +22,8 @@ pub struct Data {
 async fn pool() -> musqlite::Pool {
     let pool = musqlite::MuSQLite::new()
         .with_pool()
-        .max_connections(1)
-        .min_connections(1)
+        .max_connections(CONNECTIONS)
+        .min_connections(CONNECTIONS)
         .open_in_memory()
         .await
         .unwrap();
@@ -43,7 +48,7 @@ fn setup() -> musqlite::Pool {
 
 async fn writes(pool: musqlite::Pool) {
     let mut futs = vec![];
-    for _ in 0..CONC {
+    for _ in 0..CONCURRENCY {
         futs.push(
             musqlite::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
                 .bind(1)
@@ -56,7 +61,7 @@ async fn writes(pool: musqlite::Pool) {
 
 async fn reads(pool: musqlite::Pool) {
     let mut futs = vec![];
-    for _ in 0..CONC {
+    for _ in 0..CONCURRENCY {
         let f = musqlite::query_as::<Data>("SELECT * from DATA").fetch_one(&pool);
         futs.push(f)
     }
