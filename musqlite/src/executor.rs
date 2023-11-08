@@ -160,8 +160,24 @@ pub trait Execute<'q>: Send + Sized {
     fn persistent(&self) -> bool;
 }
 
-// NOTE: `Execute` is explicitly not implemented for String and &String to make it slightly more
-//       involved to write `conn.execute(format!("SELECT {}", val))`
+impl<'q> Execute<'q> for &'q String {
+    fn sql(&self) -> &'q str {
+        &self
+    }
+
+    fn statement(&self) -> Option<&Statement<'q>> {
+        None
+    }
+
+    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
+        None
+    }
+
+    fn persistent(&self) -> bool {
+        true
+    }
+}
+
 impl<'q> Execute<'q> for &'q str {
     fn sql(&self) -> &'q str {
         self

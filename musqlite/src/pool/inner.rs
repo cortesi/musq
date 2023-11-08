@@ -1,6 +1,5 @@
 use std::{
     cmp,
-    future::Future,
     sync::{
         atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
         Arc,
@@ -81,23 +80,21 @@ impl PoolInner {
         self.on_closed.notify(usize::MAX);
     }
 
-    pub(super) fn close<'a>(self: &'a Arc<Self>) -> impl Future<Output = ()> + 'a {
+    pub(super) async fn close<'a>(self: &'a Arc<Self>) {
         self.mark_closed();
 
-        async move {
-            for permits in 1..=self.options.max_connections {
-                // Close any currently idle connections in the pool.
-                while let Some(idle) = self.idle_conns.pop() {
-                    let _ = idle.live.float((*self).clone()).close().await;
-                }
-
-                if self.size() == 0 {
-                    break;
-                }
-
-                // Wait for all permits to be released.
-                let _permits = self.semaphore.acquire_many(permits).await.unwrap();
+        for permits in 1..=self.options.max_connections {
+            // Close any currently idle connections in the pool.
+            while let Some(idle) = self.idle_conns.pop() {
+                let _ = idle.live.float((*self).clone()).close().await;
             }
+
+            if self.size() == 0 {
+                break;
+            }
+
+            // Wait for all permits to be released.
+            let _permits = self.semaphore.acquire_many(permits).await.unwrap();
         }
     }
 
@@ -140,8 +137,6 @@ impl PoolInner {
     }
 
     pub(super) fn release(&self, floating: Floating<Live>) {
-        // `options.after_release` is invoked by `PoolConnection::release_to_pool()`.
-
         let Floating { inner: idle, guard } = floating.into_idle();
 
         if self.idle_conns.push(idle).is_err() {
@@ -293,8 +288,6 @@ impl PoolInner {
                 return Ok(());
             };
 
-            // We skip `after_release` since the connection was never provided to user code
-            // besides `after_connect`, if they set it.
             self.release(self.connect(deadline, guard).await?);
         }
 
