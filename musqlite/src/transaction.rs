@@ -35,7 +35,7 @@ impl<'c> Transaction<'c> {
         let mut conn = conn.into();
 
         Box::pin(async move {
-            TransactionManager::begin(&mut conn).await?;
+            Box::pin(conn.worker.begin()).await?;
 
             Ok(Self {
                 connection: conn,
@@ -46,17 +46,15 @@ impl<'c> Transaction<'c> {
 
     /// Commits this transaction or savepoint.
     pub async fn commit(mut self) -> Result<()> {
-        TransactionManager::commit(&mut self.connection).await?;
+        Box::pin(self.connection.worker.commit()).await?;
         self.open = false;
-
         Ok(())
     }
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(mut self) -> Result<()> {
-        TransactionManager::rollback(&mut self.connection).await?;
+        Box::pin(self.connection.worker.rollback()).await?;
         self.open = false;
-
         Ok(())
     }
 }
@@ -113,7 +111,7 @@ impl<'c> Drop for Transaction<'c> {
             // operation that will happen on the next asynchronous invocation of the underlying
             // connection (including if the connection is returned to a pool)
 
-            TransactionManager::start_rollback(&mut self.connection);
+            self.connection.worker.start_rollback().ok();
         }
     }
 }
@@ -142,26 +140,5 @@ pub fn rollback_ansi_transaction_sql(depth: usize) -> Cow<'static, str> {
             "ROLLBACK TO SAVEPOINT _sqlx_savepoint_{}",
             depth - 1
         ))
-    }
-}
-
-/// Implementation of [`TransactionManager`] for SQLite.
-pub struct TransactionManager;
-
-impl TransactionManager {
-    pub fn begin(conn: &mut Connection) -> BoxFuture<'_, Result<()>> {
-        Box::pin(conn.worker.begin())
-    }
-
-    pub fn commit(conn: &mut Connection) -> BoxFuture<'_, Result<()>> {
-        Box::pin(conn.worker.commit())
-    }
-
-    pub fn rollback(conn: &mut Connection) -> BoxFuture<'_, Result<()>> {
-        Box::pin(conn.worker.rollback())
-    }
-
-    pub fn start_rollback(conn: &mut Connection) {
-        conn.worker.start_rollback().ok();
     }
 }

@@ -53,12 +53,12 @@ impl ConnectionHandle {
         ConnectionHandleRaw(self.0)
     }
 
-    pub(crate) fn last_insert_rowid(&mut self) -> i64 {
+    pub(crate) fn last_insert_rowid(&self) -> i64 {
         // SAFETY: we have exclusive access to the database handle
         unsafe { sqlite3_last_insert_rowid(self.as_ptr()) }
     }
 
-    pub(crate) fn exec(&mut self, query: impl Into<String>) -> Result<(), Error> {
+    pub(crate) fn exec(&self, query: impl Into<String>) -> Result<(), Error> {
         let query = query.into();
         let query =
             CString::new(query).map_err(|_| Error::Protocol("query contains nul bytes".into()))?;

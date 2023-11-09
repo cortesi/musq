@@ -48,6 +48,6 @@ pub use crate::{
         ArgumentBuffer, Arguments, Connection, IntoArguments, SqliteDataType, SqliteError,
         Statement, Value, ValueRef,
     },
-    transaction::{Transaction, TransactionManager},
+    transaction::Transaction,
     types::Type,
 };

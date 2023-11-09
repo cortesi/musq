@@ -145,20 +145,3 @@ impl ColumnIndex<Statement<'_>> for &'_ str {
             .map(|v| *v)
     }
 }
-
-// #[cfg(feature = "any")]
-// impl<'q> From<SqliteStatement<'q>> for crate::sqlite::any::AnyStatement<'q> {
-//
-//     fn from(statement: SqliteStatement<'q>) -> Self {
-//         crate::sqlite::any::AnyStatement::<'q> {
-//             columns: statement
-//                 .columns
-//                 .iter()
-//                 .map(|col| col.clone().into())
-//                 .collect(),
-//             column_names: statement.column_names,
-//             parameters: Some(Either::Right(statement.parameters)),
-//             sql: statement.sql,
-//         }
-//     }
-// }
