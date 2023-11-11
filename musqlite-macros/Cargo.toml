@@ -1,24 +1,19 @@
 [package]
 name = "musqlite-macros"
-description = "Macros for musqlite. Not intended to be used directly."
 version.workspace = true
 license.workspace = true
 edition.workspace = true
-authors.workspace = true
 repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
 
 [lib]
 proc-macro = true
 
 [dependencies]
-heck = { version = "0.4", features = ["unicode"] }
-proc-macro2 = { version = "1.0.36", default-features = false }
-syn = { version = "1.0.84", default-features = false, features = [
-    "proc-macro",
-    "full",
-    "derive",
-    "parsing",
-    "printing",
-    "clone-impls",
-] }
-quote = { version = "1.0.14", default-features = false }
+darling = "0.20.3"
+heck = "0.4.1"
+proc-macro2 = "1.0.69"
+quote = "1.0.33"
+syn = "2.0.39"

@@ -2,7 +2,7 @@ use musqlite_macros::Type;
 use musqlite_test::test_type;
 
 #[derive(Debug, PartialEq, Type)]
-#[repr(u32)]
+#[musqlite(repr = "u32")]
 enum Origin {
     Foo = 1,
     Bar = 2,

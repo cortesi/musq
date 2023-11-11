@@ -1,5 +1,5 @@
 [workspace]
-members = ["musqlite", "musqlite-macros", "musqlite-test", "musqlite-macros2"]
+members = ["musqlite", "musqlite-macros", "musqlite-test"]
 
 [workspace.package]
 version = "0.0.1"
