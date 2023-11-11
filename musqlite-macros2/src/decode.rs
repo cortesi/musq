@@ -9,8 +9,8 @@ pub fn expand_derive_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
 }
 
 fn expand_struct(
-    container: &core::ContainerAttributes,
-    field: &core::FieldAttributes,
+    container: &core::TypeContainer,
+    field: &core::TypeField,
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ty = &field.ty;
@@ -51,8 +51,8 @@ fn expand_struct(
 }
 
 fn expand_repr_enum(
-    container: &core::ContainerAttributes,
-    variants: &Vec<core::Variant>,
+    container: &core::TypeContainer,
+    variants: &Vec<core::TypeVariant>,
     repr: &Type,
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
@@ -96,8 +96,8 @@ fn expand_repr_enum(
 }
 
 fn expand_enum(
-    container: &core::ContainerAttributes,
-    variants: &Vec<core::Variant>,
+    container: &core::TypeContainer,
+    variants: &Vec<core::TypeVariant>,
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ident_s = ident.to_string();

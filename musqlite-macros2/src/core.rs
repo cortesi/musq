@@ -1,4 +1,4 @@
-use darling::{ast, FromDeriveInput, FromField, FromMeta};
+use darling::{ast, util, FromDeriveInput, FromField, FromMeta};
 use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
 use proc_macro2::TokenStream;
 use syn::{DeriveInput, Type};
@@ -42,32 +42,17 @@ pub enum RenameAll {
 
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(musqlite))]
-pub struct ContainerAttributes {
+#[darling(supports(struct_named, struct_tuple))]
+pub struct RowContainer {
     pub ident: syn::Ident,
     pub generics: syn::Generics,
-    #[darling(default)]
-    pub transparent: bool,
     pub rename_all: Option<RenameAll>,
-    pub repr: Option<Type>,
-    pub data: ast::Data<Variant, FieldAttributes>,
-}
-
-#[derive(darling::FromVariant, Debug)]
-pub struct Variant {
-    pub ident: syn::Ident,
-    pub fields: darling::ast::Fields<FieldAttributes>,
-    pub rename: Option<String>,
+    pub data: ast::Data<util::Ignored, RowField>,
 }
 
 #[derive(Debug, FromField)]
 #[darling(attributes(musqlite))]
-pub struct VariantAttributes {
-    pub ty: Type,
-}
-
-#[derive(Debug, FromField)]
-#[darling(attributes(musqlite))]
-pub struct FieldAttributes {
+pub struct RowField {
     pub ident: Option<syn::Ident>,
     pub ty: Type,
     pub rename: Option<String>,
@@ -80,14 +65,41 @@ pub struct FieldAttributes {
     pub skip: bool,
 }
 
-pub(crate) fn check_enum_attrs(attrs: &ContainerAttributes) -> syn::Result<()> {
+#[derive(Debug, FromDeriveInput)]
+#[darling(attributes(musqlite))]
+pub struct TypeContainer {
+    pub ident: syn::Ident,
+    pub generics: syn::Generics,
+    #[darling(default)]
+    pub transparent: bool,
+    pub rename_all: Option<RenameAll>,
+    pub repr: Option<Type>,
+    pub data: ast::Data<TypeVariant, TypeField>,
+}
+
+#[derive(darling::FromVariant, Debug)]
+pub struct TypeVariant {
+    pub ident: syn::Ident,
+    pub fields: darling::ast::Fields<TypeField>,
+    pub rename: Option<String>,
+}
+
+#[derive(Debug, FromField)]
+#[darling(attributes(musqlite))]
+pub struct TypeField {
+    pub ident: Option<syn::Ident>,
+    pub ty: Type,
+    pub rename: Option<String>,
+}
+
+pub(crate) fn check_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
     if attrs.transparent {
         span_err!(&attrs.ident, "transparent is not supported for enums")?;
     }
     Ok(())
 }
 
-pub(crate) fn check_repr_enum_attrs(attrs: &ContainerAttributes) -> syn::Result<()> {
+pub(crate) fn check_repr_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
     check_enum_attrs(attrs)?;
     if attrs.rename_all.is_some() {
         span_err!(
@@ -101,7 +113,7 @@ pub(crate) fn check_repr_enum_attrs(attrs: &ContainerAttributes) -> syn::Result<
     Ok(())
 }
 
-pub(crate) fn check_transparent_attrs(attrs: &ContainerAttributes) -> syn::Result<()> {
+pub(crate) fn check_transparent_attrs(attrs: &TypeContainer) -> syn::Result<()> {
     if !attrs.transparent {
         span_err!(&attrs.ident, "transparent is required")?;
     }
@@ -128,15 +140,11 @@ pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
 
 pub(crate) fn expand_type_derive(
     input: &DeriveInput,
-    expand_struct: &dyn Fn(&ContainerAttributes, &FieldAttributes) -> syn::Result<TokenStream>,
-    expand_repr_enum: &dyn Fn(
-        &ContainerAttributes,
-        &Vec<Variant>,
-        &Type,
-    ) -> syn::Result<TokenStream>,
-    expand_enum: &dyn Fn(&ContainerAttributes, &Vec<Variant>) -> syn::Result<TokenStream>,
+    expand_struct: &dyn Fn(&TypeContainer, &TypeField) -> syn::Result<TokenStream>,
+    expand_repr_enum: &dyn Fn(&TypeContainer, &Vec<TypeVariant>, &Type) -> syn::Result<TokenStream>,
+    expand_enum: &dyn Fn(&TypeContainer, &Vec<TypeVariant>) -> syn::Result<TokenStream>,
 ) -> syn::Result<TokenStream> {
-    let attrs = ContainerAttributes::from_derive_input(input).unwrap();
+    let attrs = TypeContainer::from_derive_input(input)?;
     Ok(match &attrs.data {
         ast::Data::Struct(fields) => {
             if fields.is_empty() {
@@ -172,17 +180,16 @@ mod tests {
     use super::*;
 
     #[test]
-    fn it_parses_attrs() {
+    fn it_parses_type_attrs() {
         let good_input = r#"
             #[musqlite(rename_all = "snake_case")]
             pub struct Foo {
-                #[musqlite(skip)]
+                #[rename(bar)]
                 bar: bool,
-
                 baz: i64,
-                }
+            }
         "#;
         let parsed = syn::parse_str(good_input).unwrap();
-        assert!(ContainerAttributes::from_derive_input(&parsed).is_ok());
+        assert!(TypeContainer::from_derive_input(&parsed).is_ok());
     }
 }

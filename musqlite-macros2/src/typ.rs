@@ -10,8 +10,8 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
 
 /// An enum with a repr attribute defining the underlying type.
 fn expand_repr_enum(
-    container: &core::ContainerAttributes,
-    _: &Vec<core::Variant>,
+    container: &core::TypeContainer,
+    _: &Vec<core::TypeVariant>,
     repr: &Type,
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
@@ -34,8 +34,8 @@ fn expand_repr_enum(
 
 /// A plain enum, without a repr attribute. The underlying type is `str`.
 fn expand_enum(
-    container: &core::ContainerAttributes,
-    _: &Vec<core::Variant>,
+    container: &core::TypeContainer,
+    _: &Vec<core::TypeVariant>,
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     Ok(quote!(
@@ -53,8 +53,8 @@ fn expand_enum(
 }
 
 fn expand_struct(
-    container: &core::ContainerAttributes,
-    field: &core::FieldAttributes,
+    container: &core::TypeContainer,
+    field: &core::TypeField,
 ) -> syn::Result<TokenStream> {
     let (_, ty_generics, _) = container.generics.split_for_impl();
 
