@@ -34,7 +34,7 @@ use crate::Row;
 /// struct User {
 ///     id: i32,
 ///     name: String,
-///     #[musqlite(rename = "description")]
+///     #[musq(rename = "description")]
 ///     about_me: String
 /// }
 /// ```
@@ -53,7 +53,7 @@ use crate::Row;
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
-/// #[musqlite(rename_all = "camelCase")]
+/// #[musq(rename_all = "camelCase")]
 /// struct UserPost {
 ///     id: i32,
 ///     // remapped to "userId"
@@ -78,7 +78,7 @@ use crate::Row;
 /// struct User {
 ///     id: i32,
 ///     name: String,
-///     #[musqlite(default)]
+///     #[musq(default)]
 ///     location: Option<String>
 /// }
 /// ```
@@ -111,7 +111,7 @@ use crate::Row;
 /// struct User {
 ///     id: i32,
 ///     name: String,
-///     #[musqlite(flatten)]
+///     #[musq(flatten)]
 ///     address: Address,
 /// }
 /// ```
@@ -142,7 +142,7 @@ use crate::Row;
 /// #[derive(FromRow)]
 /// struct User {
 ///     name: String,
-///     #[musqlite(skip)]
+///     #[musq(skip)]
 ///     addresses: Vec<Address>,
 /// }
 /// ```
@@ -197,7 +197,7 @@ use crate::Row;
 /// struct User {
 ///     id: i32,
 ///     name: String,
-///     #[musqlite(try_from = "i64")]
+///     #[musq(try_from = "i64")]
 ///     bigIntInMySql: u64
 /// }
 /// ```

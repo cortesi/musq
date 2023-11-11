@@ -3,7 +3,7 @@ use futures;
 use pprof::criterion::PProfProfiler;
 use tokio::runtime::{Handle, Runtime};
 
-use musqlite;
+use musq;
 
 const BENCH_SCHEMA: &str = include_str!("benchschema.sql");
 
@@ -13,29 +13,29 @@ const CONCURRENCY: usize = 20;
 /// Set min and max pool connections to the same value
 const CONNECTIONS: u32 = 5;
 
-#[derive(Debug, musqlite::FromRow)]
+#[derive(Debug, musq::FromRow)]
 pub struct Data {
     pub a: i32,
     pub b: String,
 }
 
-async fn pool() -> musqlite::Pool {
-    let pool = musqlite::MuSQLite::new()
+async fn pool() -> musq::Pool {
+    let pool = musq::Musq::new()
         .with_pool()
         .max_connections(CONNECTIONS)
         .min_connections(CONNECTIONS)
         .open_in_memory()
         .await
         .unwrap();
-    musqlite::query(BENCH_SCHEMA).execute(&pool).await.unwrap();
+    musq::query(BENCH_SCHEMA).execute(&pool).await.unwrap();
     pool
 }
 
-fn setup() -> musqlite::Pool {
+fn setup() -> musq::Pool {
     let (tx, rx) = std::sync::mpsc::channel();
     Handle::current().spawn(async move {
         let p = pool().await;
-        musqlite::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
+        musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
             .bind(1)
             .bind("two")
             .execute(&p)
@@ -46,11 +46,11 @@ fn setup() -> musqlite::Pool {
     rx.recv().unwrap()
 }
 
-async fn writes(pool: musqlite::Pool) {
+async fn writes(pool: musq::Pool) {
     let mut futs = vec![];
     for _ in 0..CONCURRENCY {
         futs.push(
-            musqlite::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
+            musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
                 .bind(1)
                 .bind("two")
                 .execute(&pool),
@@ -59,10 +59,10 @@ async fn writes(pool: musqlite::Pool) {
     futures::future::join_all(futs).await;
 }
 
-async fn reads(pool: musqlite::Pool) {
+async fn reads(pool: musq::Pool) {
     let mut futs = vec![];
     for _ in 0..CONCURRENCY {
-        let f = musqlite::query_as::<Data>("SELECT * from DATA").fetch_one(&pool);
+        let f = musq::query_as::<Data>("SELECT * from DATA").fetch_one(&pool);
         futs.push(f)
     }
     futures::future::join_all(futs).await;

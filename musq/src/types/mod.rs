@@ -72,13 +72,13 @@ mod uint;
 ///
 /// ```rust,ignore
 /// #[derive(Type)]
-/// #[musqlite(transparent)]
+/// #[musq(transparent)]
 /// struct UserId(i64);
 /// ```
 ///
 /// ##### Attributes
 ///
-/// * `#[musqlite(rename_all = "<strategy>")]` on struct definition: See [`derive docs in
+/// * `#[musq(rename_all = "<strategy>")]` on struct definition: See [`derive docs in
 ///   FromRow`](crate::from_row::FromRow#rename_all)
 ///
 /// ### Enumeration
@@ -97,7 +97,7 @@ mod uint;
 ///
 /// ```rust,ignore
 /// #[derive(Type)]
-/// #[musqlite(rename_all = "lowercase")]
+/// #[musq(rename_all = "lowercase")]
 /// enum Color { Red, Green, Blue }
 /// ```
 ///

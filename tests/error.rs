@@ -1,5 +1,5 @@
-use musqlite::{query, Error, ExtendedErrCode, PrimaryErrCode};
-use musqlite_test::tdb;
+use musq::{query, Error, ExtendedErrCode, PrimaryErrCode};
+use musq_test::tdb;
 
 #[tokio::test]
 async fn it_fails_with_unique_violation() -> anyhow::Result<()> {

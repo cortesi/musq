@@ -1,8 +1,8 @@
 extern crate time_ as time;
 
-use musqlite::Row;
-use musqlite_test::connection;
-use musqlite_test::test_type;
+use musq::Row;
+use musq_test::connection;
+use musq_test::test_type;
 
 test_type!(null<Option<i32>>(
     "NULL" == None::<i32>
@@ -37,8 +37,8 @@ test_type!(bytes<Vec<u8>>(
 
 mod json_tests {
     use super::*;
-    use musqlite::types;
-    use musqlite_test::test_type;
+    use musq::types;
+    use musq_test::test_type;
     use serde_json::{json, Value as JsonValue};
 
     test_type!(json<JsonValue>(
@@ -74,12 +74,11 @@ mod json_tests {
     async fn it_json_extracts() -> anyhow::Result<()> {
         let mut conn = connection().await?;
 
-        let value =
-            musqlite::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
-                .bind(42_i32)
-                .try_map(|row: Row| row.try_get::<bool, _>(0))
-                .fetch_one(&mut conn)
-                .await?;
+        let value = musq::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
+            .bind(42_i32)
+            .try_map(|row: Row| row.try_get::<bool, _>(0))
+            .fetch_one(&mut conn)
+            .await?;
 
         assert_eq!(true, value);
 
@@ -89,7 +88,7 @@ mod json_tests {
 
 mod time_tests {
     use super::*;
-    use musqlite::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+    use musq::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
     use time::macros::{date, datetime, time};
 
     test_type!(time_offset_date_time<OffsetDateTime>(
@@ -132,7 +131,7 @@ mod time_tests {
 
 mod bstr {
     use super::*;
-    use musqlite::types::bstr::BString;
+    use musq::types::bstr::BString;
 
     test_type!(bstring<BString>(
         "cast('abc123' as blob)" == BString::from(&b"abc123"[..]),

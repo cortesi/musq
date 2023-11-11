@@ -1,8 +1,8 @@
-use musqlite_macros::Type;
-use musqlite_test::test_type;
+use musq_macros::Type;
+use musq_test::test_type;
 
 #[derive(Debug, PartialEq, Type)]
-#[musqlite(repr = "u32")]
+#[musq(repr = "u32")]
 enum Origin {
     Foo = 1,
     Bar = 2,

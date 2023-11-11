@@ -1,7 +1,7 @@
 mod sqlite;
 mod ustr;
 
-pub use musqlite_macros::*;
+pub use musq_macros::*;
 
 #[macro_use]
 pub mod async_stream;
@@ -15,7 +15,7 @@ mod error;
 mod executor;
 mod from_row;
 mod logger;
-mod musqlite;
+mod musq;
 pub mod pool;
 pub mod query;
 mod query_as;
@@ -36,7 +36,7 @@ pub use crate::{
     error::{Error, Result},
     executor::{Execute, Executor},
     from_row::FromRow,
-    musqlite::{AutoVacuum, JournalMode, LockingMode, MuSQLite, Synchronous},
+    musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::{Pool, PoolOptions},
     query::{query, query_with},
     query_as::{query_as, query_as_with},

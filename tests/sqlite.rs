@@ -1,9 +1,9 @@
 use futures::TryStreamExt;
-use musqlite::{
-    query, query_as, query_scalar, Connection, Error, Executor, ExtendedErrCode, MuSQLite,
+use musq::{
+    query, query_as, query_scalar, Connection, Error, Executor, ExtendedErrCode, Musq,
     PrimaryErrCode, Row,
 };
-use musqlite_test::{connection, tdb};
+use musq_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
 use std::sync::Arc;
@@ -99,7 +99,7 @@ async fn it_maths() -> anyhow::Result<()> {
 async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    let values: Vec<i32> = musqlite::query_scalar::<i32>("select ?; select ?")
+    let values: Vec<i32> = musq::query_scalar::<i32>("select ?; select ?")
         .bind(5_i32)
         .bind(15_i32)
         .fetch_all(&mut conn)
@@ -116,7 +116,7 @@ async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
 async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    let values: Vec<i32> = musqlite::query_scalar::<i32>("select ?1; select ?1")
+    let values: Vec<i32> = musq::query_scalar::<i32>("select ?1; select ?1")
         .bind(25_i32)
         .fetch_all(&mut conn)
         .await?;
@@ -130,7 +130,7 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
-    use musqlite::decode::Decode;
+    use musq::decode::Decode;
 
     let mut conn = tdb().await?;
     let defaults = query("pragma table_info (tweet)")
@@ -138,7 +138,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
             let val = row.try_get_raw("dflt_value")?;
             let ty = val.type_info().clone().into_owned();
 
-            let val: Option<i32> = Decode::decode(val).map_err(musqlite::Error::Decode)?;
+            let val: Option<i32> = Decode::decode(val).map_err(musq::Error::Decode)?;
 
             if val.is_some() {
                 assert_eq!(ty.name(), "TEXT");
@@ -159,7 +159,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
 async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    let row: (i32, i32, i32, i32) = musqlite::query_as("select ?1, ?1, ?3, ?2")
+    let row: (i32, i32, i32, i32) = musq::query_as("select ?1, ?1, ?3, ?2")
         .bind(5_i32)
         .bind(500_i32)
         .bind(1020_i32)
@@ -190,7 +190,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool = MuSQLite::new()
+    let pool = Musq::new()
         .with_pool()
         .max_connections(2)
         .min_connections(2)
@@ -208,7 +208,7 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
 async fn it_opens_in_memory() -> anyhow::Result<()> {
     // If the filename is ":memory:", then a private, temporary in-memory database
     // is created for the connection.
-    let conn = Connection::connect_with(&MuSQLite::new()).await?;
+    let conn = Connection::connect_with(&Musq::new()).await?;
     conn.close().await?;
     Ok(())
 }
@@ -347,16 +347,16 @@ async fn it_interleaves_reads_and_writes() -> anyhow::Result<()> {
 
     let mut cursor = conn.fetch(
         "
-CREATE TABLE IF NOT EXISTS _musqlite_test (
+CREATE TABLE IF NOT EXISTS _musq_test (
     id INT PRIMARY KEY,
     text TEXT NOT NULL
 );
 
 SELECT 'Hello World' as _1;
 
-INSERT INTO _musqlite_test (text) VALUES ('this is a test');
+INSERT INTO _musq_test (text) VALUES ('this is a test');
 
-SELECT id, text FROM _musqlite_test;
+SELECT id, text FROM _musq_test;
     ",
     );
 
@@ -499,7 +499,7 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 async fn concurrent_resets_dont_segfault() {
     use std::time::Duration;
 
-    let conn = MuSQLite::new().open_in_memory().await.unwrap();
+    let conn = Musq::new().open_in_memory().await.unwrap();
 
     query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
         .execute(&conn)
@@ -525,7 +525,7 @@ async fn concurrent_resets_dont_segfault() {
 // to see the panic from the worker thread, which doesn't happen after the fix
 #[tokio::test]
 async fn row_dropped_after_connection_doesnt_panic() {
-    let mut conn = Connection::connect_with(&MuSQLite::new()).await.unwrap();
+    let mut conn = Connection::connect_with(&Musq::new()).await.unwrap();
 
     let books = query("SELECT 'hello' AS title")
         .fetch_all(&mut conn)
@@ -550,7 +550,7 @@ async fn row_dropped_after_connection_doesnt_panic() {
 #[tokio::test]
 #[ignore]
 async fn issue_1467() -> anyhow::Result<()> {
-    let conn = MuSQLite::new().open_in_memory().await?;
+    let conn = Musq::new().open_in_memory().await?;
 
     query(
         r#"
@@ -607,7 +607,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn concurrent_read_and_write() {
-    let pool = MuSQLite::new()
+    let pool = Musq::new()
         .with_pool()
         .min_connections(2)
         .open_in_memory()

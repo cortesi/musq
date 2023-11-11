@@ -1,6 +1,6 @@
 [package]
-name = "musqlite"
-description = "musqlite is a SQLite3 driver for Rust focusing on performance, correctness, and flexibility."
+name = "musq"
+description = "musq is a SQLite3 driver for Rust focusing on performance, correctness, and flexibility."
 version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -8,7 +8,7 @@ authors.workspace = true
 repository.workspace = true
 
 [dependencies]
-musqlite-macros = { path = "../musqlite-macros" }
+musq-macros = { path = "../musq-macros" }
 tokio = { version = "1.15.0", features = ["full"] }
 time = { version = "0.3.14", features = ["formatting", "parsing", "macros"] }
 ahash = "0.8"
@@ -49,4 +49,4 @@ futures-intrusive = "0.5.0"
 atoi = "2.0.0"
 
 [dev-dependencies]
-musqlite-test = { path = "../musqlite-test" }
+musq-test = { path = "../musq-test" }

@@ -1,5 +1,5 @@
-use musqlite::types;
-use musqlite_macros::*;
+use musq::types;
+use musq_macros::*;
 use serde::Deserialize;
 use std::collections::HashMap;
 

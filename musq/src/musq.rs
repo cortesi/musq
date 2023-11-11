@@ -104,9 +104,9 @@ impl Synchronous {
     }
 }
 
-/// Create a muSQLite connection
+/// Create a Musq connection
 #[derive(Clone, Debug)]
-pub struct MuSQLite {
+pub struct Musq {
     pub(crate) filename: PathBuf,
     pub(crate) in_memory: bool,
     pub(crate) read_only: bool,
@@ -135,13 +135,13 @@ pub enum OptimizeOnClose {
     Disabled,
 }
 
-impl Default for MuSQLite {
+impl Default for Musq {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl MuSQLite {
+impl Musq {
     /// Construct `Self` with default options.
     ///
     /// See the source of this method for the current defaults.
@@ -501,7 +501,7 @@ impl MuSQLite {
         let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
         self.in_memory(true)
             .shared_cache(true)
-            .filename(format!("file:musqlite-in-memory-{}", seqno))
+            .filename(format!("file:musq-in-memory-{}", seqno))
     }
 
     /// Open a file

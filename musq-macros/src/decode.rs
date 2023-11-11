@@ -21,28 +21,26 @@ fn expand_struct(
 
     // add db type for impl generics & where clause
     let mut generics = generics.clone();
-    generics
-        .params
-        .insert(0, parse_quote!(DB: musqlite::Database));
+    generics.params.insert(0, parse_quote!(DB: musq::Database));
     generics.params.insert(0, parse_quote!('r));
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: musqlite::decode::Decode<'r>));
+        .push(parse_quote!(#ty: musq::decode::Decode<'r>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let tts = quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite::decode::Decode<'r> for #ident #ty_generics #where_clause {
+        impl #impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
             fn decode(
-                value: musqlite::ValueRef<'r>,
+                value: musq::ValueRef<'r>,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                <#ty as musqlite::decode::Decode<'r>>::decode(value).map(Self)
+                <#ty as musq::decode::Decode<'r>>::decode(value).map(Self)
             }
         }
     );
@@ -70,23 +68,23 @@ fn expand_repr_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'r> musqlite::decode::Decode<'r> for #ident
+        impl<'r> musq::decode::Decode<'r> for #ident
         where
-            #repr: musqlite::decode::Decode<'r>,
+            #repr: musq::decode::Decode<'r>,
         {
             fn decode(
-                value: musqlite::ValueRef<'r>,
+                value: musq::ValueRef<'r>,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
                     dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
                 >,
             > {
-                let value = <#repr as musqlite::decode::Decode<'r>>::decode(value)?;
+                let value = <#repr as musq::decode::Decode<'r>>::decode(value)?;
 
                 match value {
                     #(#arms)*
-                    _ => ::std::result::Result::Err(::std::boxed::Box::new(musqlite::Error::Decode(
+                    _ => ::std::result::Result::Err(::std::boxed::Box::new(musq::Error::Decode(
                         ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into(),
                     )))
                 }
@@ -127,9 +125,9 @@ fn expand_enum(
 
     tts.extend(quote!(
         #[automatically_derived]
-        impl<'r> musqlite::decode::Decode<'r> for #ident {
+        impl<'r> musq::decode::Decode<'r> for #ident {
             fn decode(
-                value: ::musqlite::ValueRef<'r>,
+                value: ::musq::ValueRef<'r>,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
@@ -139,7 +137,7 @@ fn expand_enum(
                         + ::std::marker::Sync,
                 >,
             > {
-                let value = <&'r ::std::primitive::str as musqlite::decode::Decode<
+                let value = <&'r ::std::primitive::str as musq::decode::Decode<
                     'r,
                 >>::decode(value)?;
 
@@ -162,19 +160,19 @@ mod tests {
         expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
 
         let txt = r#"
-            #[musqlite(rename_all = "lower_case")]
+            #[musq(rename_all = "lower_case")]
             enum Foo {One, Two}
         "#;
         expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
 
         let txt = r#"
-            #[musqlite(repr = "i32")]
+            #[musq(repr = "i32")]
             enum Foo {One, Two}
         "#;
         expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
 
         let txt = r#"
-            #[musqlite(transparent)]
+            #[musq(transparent)]
             struct Foo(i32);
         "#;
         expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();

@@ -17,16 +17,16 @@ fn expand_repr_enum(
     let ident = &container.ident;
     Ok(quote!(
         #[automatically_derived]
-        impl musqlite::Type for #ident
+        impl musq::Type for #ident
         where
-            #repr: musqlite::Type,
+            #repr: musq::Type,
         {
-            fn type_info() -> musqlite::SqliteDataType {
-                <#repr as musqlite::Type>::type_info()
+            fn type_info() -> musq::SqliteDataType {
+                <#repr as musq::Type>::type_info()
             }
 
-            fn compatible(ty: &musqlite::SqliteDataType) -> bool {
-                <#repr as musqlite::Type>::compatible(ty)
+            fn compatible(ty: &musq::SqliteDataType) -> bool {
+                <#repr as musq::Type>::compatible(ty)
             }
         }
     ))
@@ -40,13 +40,13 @@ fn expand_enum(
     let ident = &container.ident;
     Ok(quote!(
         #[automatically_derived]
-        impl musqlite::Type for #ident {
-            fn type_info() -> musqlite::SqliteDataType {
-                <::std::primitive::str as musqlite::Type>::type_info()
+        impl musq::Type for #ident {
+            fn type_info() -> musq::SqliteDataType {
+                <::std::primitive::str as musq::Type>::type_info()
             }
 
-            fn compatible(ty: &musqlite::SqliteDataType) -> ::std::primitive::bool {
-                <&::std::primitive::str as musqlite::Type>::compatible(ty)
+            fn compatible(ty: &musq::SqliteDataType) -> ::std::primitive::bool {
+                <&::std::primitive::str as musq::Type>::compatible(ty)
             }
         }
     ))
@@ -64,18 +64,18 @@ fn expand_struct(
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: musqlite::Type));
+        .push(parse_quote!(#ty: musq::Type));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite::Type for #ident #ty_generics #where_clause {
-            fn type_info() -> musqlite::SqliteDataType {
-                <#ty as musqlite::Type>::type_info()
+        impl #impl_generics musq::Type for #ident #ty_generics #where_clause {
+            fn type_info() -> musq::SqliteDataType {
+                <#ty as musq::Type>::type_info()
             }
 
-            fn compatible(ty: &musqlite::SqliteDataType) -> ::std::primitive::bool {
-                <#ty as musqlite::Type>::compatible(ty)
+            fn compatible(ty: &musq::SqliteDataType) -> ::std::primitive::bool {
+                <#ty as musq::Type>::compatible(ty)
             }
         }
     ))
@@ -102,14 +102,14 @@ mod tests {
         assert_errors_with!(e, "zero fields");
 
         let txt = r#"
-            #[musqlite(rename_all = "lower_case", repr = "i32")]
+            #[musq(rename_all = "lower_case", repr = "i32")]
             enum Foo {One, Two}
         "#;
         let e = expand_derive_type(&syn::parse_str(txt).unwrap());
         assert_errors_with!(e, "not supported for enums");
 
         let txt = r#"
-            #[musqlite(transparent)]
+            #[musq(transparent)]
             enum Foo {One, Two}
         "#;
         let e = expand_derive_type(&syn::parse_str(txt).unwrap());
@@ -122,13 +122,13 @@ mod tests {
         expand_derive_type(&syn::parse_str(txt).unwrap()).unwrap();
 
         let txt = r#"
-            #[musqlite(repr = "i32")]
+            #[musq(repr = "i32")]
             enum Foo {One, Two}
         "#;
         expand_derive_type(&syn::parse_str(txt).unwrap()).unwrap();
 
         let txt = r#"
-            #[musqlite(transparent)]
+            #[musq(transparent)]
             struct Foo(i32);
         "#;
         expand_derive_type(&syn::parse_str(txt).unwrap()).unwrap();

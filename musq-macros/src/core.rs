@@ -41,7 +41,7 @@ pub enum RenameAll {
 }
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(attributes(musqlite))]
+#[darling(attributes(musq))]
 #[darling(supports(struct_named, struct_tuple))]
 pub struct RowContainer {
     pub ident: syn::Ident,
@@ -51,7 +51,7 @@ pub struct RowContainer {
 }
 
 #[derive(Debug, FromField)]
-#[darling(attributes(musqlite))]
+#[darling(attributes(musq))]
 pub struct RowField {
     pub ident: Option<syn::Ident>,
     pub ty: Type,
@@ -66,7 +66,7 @@ pub struct RowField {
 }
 
 #[derive(Debug, FromDeriveInput)]
-#[darling(attributes(musqlite))]
+#[darling(attributes(musq))]
 pub struct TypeContainer {
     pub ident: syn::Ident,
     pub generics: syn::Generics,
@@ -85,7 +85,7 @@ pub struct TypeVariant {
 }
 
 #[derive(Debug, FromField)]
-#[darling(attributes(musqlite))]
+#[darling(attributes(musq))]
 pub struct TypeField {
     pub ident: Option<syn::Ident>,
     pub ty: Type,
@@ -182,7 +182,7 @@ mod tests {
     #[test]
     fn it_parses_type_attrs() {
         let good_input = r#"
-            #[musqlite(rename_all = "snake_case")]
+            #[musq(rename_all = "snake_case")]
             pub struct Foo {
                 #[rename(bar)]
                 bar: bool,

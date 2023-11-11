@@ -818,7 +818,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "musqlite"
+name = "musq"
 version = "0.0.1"
 dependencies = [
  "ahash",
@@ -838,8 +838,8 @@ dependencies = [
  "indexmap",
  "libsqlite3-sys",
  "log",
- "musqlite-macros",
- "musqlite-test",
+ "musq-macros",
+ "musq-test",
  "serde",
  "serde_json",
  "smallvec",
@@ -851,7 +851,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "musqlite-macros"
+name = "musq-macros"
 version = "0.0.1"
 dependencies = [
  "darling",
@@ -862,12 +862,12 @@ dependencies = [
 ]
 
 [[package]]
-name = "musqlite-test"
+name = "musq-test"
 version = "0.1.0"
 dependencies = [
  "anyhow",
  "env_logger",
- "musqlite",
+ "musq",
 ]
 
 [[package]]
@@ -1483,9 +1483,9 @@ dependencies = [
  "futures",
  "hex",
  "libsqlite3-sys",
- "musqlite",
- "musqlite-macros",
- "musqlite-test",
+ "musq",
+ "musq-macros",
+ "musq-test",
  "paste",
  "pprof",
  "rand 0.8.5",

@@ -2,7 +2,7 @@ use criterion::BenchmarkId;
 use criterion::Criterion;
 use criterion::{criterion_group, criterion_main};
 
-use musqlite_test::new;
+use musq_test::new;
 use sqlite::{Sqlite, SqliteConnection};
 use {Connection, Executor};
 

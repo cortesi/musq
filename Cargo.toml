@@ -1,11 +1,11 @@
 [workspace]
-members = ["musqlite", "musqlite-macros", "musqlite-test"]
+members = ["musq", "musq-macros", "musq-test"]
 
 [workspace.package]
 version = "0.0.1"
 license = "MIT"
 edition = "2021"
-repository = "https://github.com/cortesi/musqlite"
+repository = "https://github.com/cortesi/musq"
 keywords = ["database", "async", "sqlite"]
 categories = ["database", "asynchronous"]
 authors = ["Aldo Cortesi <aldo@corte.si>"]
@@ -16,13 +16,13 @@ version.workspace = true
 edition.workspace = true
 
 [workspace.dependencies]
-musqlite = { path = "musqlite" }
-musqlite-macros-core = { path = "musqlite-macros-core" }
-musqlite-macros = { path = "musqlite-macros" }
+musq = { path = "musq" }
+musq-macros-core = { path = "musq-macros-core" }
+musq-macros = { path = "musq-macros" }
 
 [dependencies]
-musqlite = { workspace = true }
-musqlite-macros = { workspace = true }
+musq = { workspace = true }
+musq-macros = { workspace = true }
 
 [dev-dependencies]
 anyhow = "1.0.52"
@@ -31,7 +31,7 @@ futures = "0.3.19"
 env_logger = "0.10.0"
 tokio = { version = "1.15.0", features = ["full"] }
 trybuild = "1.0.53"
-musqlite-test = { path = "./musqlite-test" }
+musq-test = { path = "./musq-test" }
 paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
 serde_json = "1.0.73"

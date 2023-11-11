@@ -1,4 +1,4 @@
-use musqlite::{pool::Pool, Connection, MuSQLite};
+use musq::{pool::Pool, Connection, Musq};
 
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
@@ -9,14 +9,14 @@ pub fn setup_if_needed() {
 // Make a new connection
 pub async fn connection() -> anyhow::Result<Connection> {
     setup_if_needed();
-    Ok(Connection::connect_with(&MuSQLite::new()).await?)
+    Ok(Connection::connect_with(&Musq::new()).await?)
 }
 
 // Make a new pool
 // Ensure [dotenvy] and [env_logger] have been setup
 pub async fn pool() -> anyhow::Result<Pool> {
     setup_if_needed();
-    Ok(MuSQLite::new()
+    Ok(Musq::new()
         .with_pool()
         .min_connections(0)
         .max_connections(5)
@@ -27,9 +27,7 @@ pub async fn pool() -> anyhow::Result<Pool> {
 /// Return a connection to a database pre-configured with our test schema.
 pub async fn tdb() -> anyhow::Result<Connection> {
     let mut conn = connection().await?;
-    musqlite::query::query(TEST_SCHEMA)
-        .execute(&mut conn)
-        .await?;
+    musq::query::query(TEST_SCHEMA).execute(&mut conn).await?;
     Ok(conn)
 }
 
@@ -91,10 +89,10 @@ macro_rules! test_unprepared_type {
         paste::item! {
             #[tokio::test]
             async fn [< test_unprepared_type_ $name >] () -> anyhow::Result<()> {
-                use musqlite::*;
+                use musq::*;
                 use futures::TryStreamExt;
 
-                let mut conn = musqlite_test::connection().await?;
+                let mut conn = musq_test::connection().await?;
 
                 $(
                     let query = format!("SELECT {}", $text);
@@ -122,7 +120,7 @@ macro_rules! __test_prepared_decode_type {
             async fn [< test_prepared_decode_type_ $name >] () -> anyhow::Result<()> {
                 use Row;
 
-                let mut conn = musqlite_test::new().await?;
+                let mut conn = musq_test::new().await?;
 
                 $(
                     let query = format!("SELECT {}", $text);
@@ -149,15 +147,15 @@ macro_rules! __test_prepared_type {
         paste::item! {
             #[tokio::test]
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
-                use musqlite::Row;
+                use musq::Row;
 
-                let mut conn = musqlite_test::connection().await?;
+                let mut conn = musq_test::connection().await?;
 
                 $(
                     let query = format!($sql, $text);
                     println!("{query}");
 
-                    let row = musqlite::query(&query)
+                    let row = musq::query(&query)
                         .bind($value)
                         .bind($value)
                         .fetch_one(&mut conn)

@@ -44,8 +44,7 @@ fn expand_struct(
     }
 
     let predicates = &mut generics.make_where_clause().predicates;
-    predicates
-        .push(parse_quote!(&#lifetime ::std::primitive::str: musqlite::ColumnIndex<musqlite::Row>));
+    predicates.push(parse_quote!(&#lifetime ::std::primitive::str: musq::ColumnIndex<musq::Row>));
 
     let reads: Vec<Stmt> = fields
             .iter()
@@ -61,13 +60,13 @@ fn expand_struct(
 
                 let expr: Expr = match (field.flatten, &field.try_from) {
                     (true, None) => {
-                        predicates.push(parse_quote!(#ty: musqlite::FromRow<#lifetime>));
-                        parse_quote!(<#ty as musqlite::FromRow<#lifetime>>::from_row(row))
+                        predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
+                        parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row(row))
                     }
                     (false, None) => {
                         predicates
-                            .push(parse_quote!(#ty: musqlite::decode::Decode<#lifetime>));
-                        predicates.push(parse_quote!(#ty: musqlite::types::Type));
+                            .push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
+                        predicates.push(parse_quote!(#ty: musq::types::Type));
 
                         let id_s = field
                             .rename.clone()
@@ -80,13 +79,13 @@ fn expand_struct(
                         parse_quote!(row.try_get(#id_s))
                     }
                     (true,Some(try_from)) => {
-                        predicates.push(parse_quote!(#try_from: musqlite::FromRow<#lifetime>));
-                        parse_quote!(<#try_from as musqlite::FromRow<#lifetime>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musqlite::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                        predicates.push(parse_quote!(#try_from: musq::FromRow<#lifetime>));
+                        parse_quote!(<#try_from as musq::FromRow<#lifetime>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                     }
                     (false,Some(try_from)) => {
                         predicates
-                            .push(parse_quote!(#try_from: musqlite::decode::Decode<#lifetime>));
-                        predicates.push(parse_quote!(#try_from: musqlite::types::Type));
+                            .push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
+                        predicates.push(parse_quote!(#try_from: musq::types::Type));
 
                         let id_s = field
                             .rename.clone()
@@ -96,13 +95,13 @@ fn expand_struct(
                                 None => s,
                             })
                             .unwrap();
-                        parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musqlite::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                        parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                     }
                 };
 
                 if field.default {
                     Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
-                    musqlite::Error::ColumnNotFound(_) => {
+                    musq::Error::ColumnNotFound(_) => {
                         ::std::result::Result::Ok(Default::default())
                     },
                     e => ::std::result::Result::Err(e)
@@ -120,8 +119,8 @@ fn expand_struct(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime musqlite::Row) -> musqlite::Result<Self> {
+        impl #impl_generics musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
+            fn from_row(row: &#lifetime musq::Row) -> musq::Result<Self> {
                 #(#reads)*
 
                 ::std::result::Result::Ok(#ident {
@@ -148,7 +147,7 @@ fn expand_tuple_struct(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(R: musqlite::Row));
+    generics.params.insert(0, parse_quote!(R: musq::Row));
 
     if provided {
         generics.params.insert(0, parse_quote!(#lifetime));
@@ -157,14 +156,14 @@ fn expand_tuple_struct(
     let predicates = &mut generics.make_where_clause().predicates;
 
     predicates.push(parse_quote!(
-        ::std::primitive::usize: musqlite::ColumnIndex<musqlite::Row>
+        ::std::primitive::usize: musq::ColumnIndex<musq::Row>
     ));
 
     for field in fields.iter() {
         let ty = &field.ty;
 
-        predicates.push(parse_quote!(#ty: musqlite::decode::Decode<#lifetime>));
-        predicates.push(parse_quote!(#ty: musqlite::types::Type));
+        predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
+        predicates.push(parse_quote!(#ty: musq::types::Type));
     }
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -176,8 +175,8 @@ fn expand_tuple_struct(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musqlite::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime musqlite::Row) -> musqlite::Result<Self> {
+        impl #impl_generics musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
+            fn from_row(row: &#lifetime musq::Row) -> musq::Result<Self> {
                 ::std::result::Result::Ok(#ident (
                     #(#gets),*
                 ))

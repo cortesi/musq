@@ -15,7 +15,7 @@ use crate::{
     error::Error,
     executor::Executor,
     logger::LogSettings,
-    musqlite::{MuSQLite, OptimizeOnClose},
+    musq::{Musq, OptimizeOnClose},
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
         statement::VirtualStatement,
@@ -113,7 +113,7 @@ impl Debug for Connection {
 }
 
 impl Connection {
-    pub(crate) async fn establish(options: &MuSQLite) -> Result<Self> {
+    pub(crate) async fn establish(options: &Musq) -> Result<Self> {
         let params = EstablishParams::from_options(options)?;
         let worker = ConnectionWorker::establish(params).await?;
         Ok(Self {
@@ -241,7 +241,7 @@ impl Connection {
     }
 
     /// Establish a new database connection with the provided options.
-    pub async fn connect_with(options: &MuSQLite) -> Result<Self>
+    pub async fn connect_with(options: &Musq) -> Result<Self>
     where
         Self: Sized,
     {
