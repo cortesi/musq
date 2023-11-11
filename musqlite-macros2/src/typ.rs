@@ -4,22 +4,22 @@ use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_quote, DeriveInput, Type};
 
-use super::attrs;
+use super::core;
 
 pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
-    let attrs = attrs::ContainerAttributes::from_derive_input(input).unwrap();
+    let attrs = core::ContainerAttributes::from_derive_input(input).unwrap();
     Ok(match &attrs.data {
         Data::Struct(fields) => {
             if fields.is_empty() {
-                return attrs::span_err!(input, "structs with zero fields are not supported");
+                return core::span_err!(input, "structs with zero fields are not supported");
             }
             let unnamed = fields.iter().filter(|f| f.ident.is_none()).count();
             let named = fields.iter().filter(|f| f.ident.is_some()).count();
             if named > 1 {
-                return attrs::span_err!(input, "structs with named fields are not supported");
+                return core::span_err!(input, "structs with named fields are not supported");
             }
             if unnamed != 1 {
-                return attrs::span_err!(input, "structs must have exactly one unnamed field");
+                return core::span_err!(input, "structs must have exactly one unnamed field");
             }
             expand_struct(&attrs, fields.iter().next().unwrap())?
         }
@@ -32,10 +32,10 @@ pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
 
 /// An enum with a repr attribute defining the underlying type.
 fn expand_repr_enum(
-    container: &attrs::ContainerAttributes,
+    container: &core::ContainerAttributes,
     repr: &Type,
 ) -> syn::Result<TokenStream> {
-    attrs::check_repr_enum_attrs(container)?;
+    core::check_repr_enum_attrs(container)?;
     let ident = &container.ident;
     Ok(quote!(
         #[automatically_derived]
@@ -55,8 +55,8 @@ fn expand_repr_enum(
 }
 
 /// A plain enum, without a repr attribute. The underlying type is `str`.
-fn expand_enum(container: &attrs::ContainerAttributes) -> syn::Result<TokenStream> {
-    attrs::check_enum_attrs(container)?;
+fn expand_enum(container: &core::ContainerAttributes) -> syn::Result<TokenStream> {
+    core::check_enum_attrs(container)?;
     let ident = &container.ident;
     Ok(quote!(
         #[automatically_derived]
@@ -73,10 +73,10 @@ fn expand_enum(container: &attrs::ContainerAttributes) -> syn::Result<TokenStrea
 }
 
 fn expand_struct(
-    container: &attrs::ContainerAttributes,
-    field: &attrs::FieldAttributes,
+    container: &core::ContainerAttributes,
+    field: &core::FieldAttributes,
 ) -> syn::Result<TokenStream> {
-    attrs::check_transparent_attrs(container)?;
+    core::check_transparent_attrs(container)?;
 
     let (_, ty_generics, _) = container.generics.split_for_impl();
 
@@ -106,20 +106,8 @@ fn expand_struct(
 #[cfg(test)]
 
 mod tests {
+    use super::core::assert_errors_with;
     use super::*;
-
-    macro_rules! assert_errors_with {
-        ($e:expr, $m:expr) => {
-            assert!(&$e.is_err());
-            let e = $e.unwrap_err();
-            assert!(
-                format!("{}", e).contains($m),
-                "expected error containing \"{}\" got \"{}\"",
-                $m,
-                e
-            );
-        };
-    }
 
     #[test]
     fn it_errors_on_invalid() {

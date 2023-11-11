@@ -1,6 +1,7 @@
 use proc_macro::TokenStream;
 
-mod attrs;
+mod core;
+mod encode;
 mod typ;
 
 #[proc_macro_derive(Type, attributes(musqlite))]

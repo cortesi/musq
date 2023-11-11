@@ -1,4 +1,5 @@
 use darling::{ast, FromDeriveInput, FromField, FromMeta};
+use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
 use syn::Type;
 
 macro_rules! span_err {
@@ -8,6 +9,21 @@ macro_rules! span_err {
 }
 
 pub(crate) use span_err;
+
+macro_rules! assert_errors_with {
+    ($e:expr, $m:expr) => {
+        assert!(&$e.is_err());
+        let e = $e.unwrap_err();
+        assert!(
+            format!("{}", e).contains($m),
+            "expected error containing \"{}\" got \"{}\"",
+            $m,
+            e
+        );
+    };
+}
+
+pub(crate) use assert_errors_with;
 
 #[derive(Debug, Copy, Clone, FromMeta)]
 pub enum RenameAll {
@@ -36,6 +52,7 @@ pub struct ContainerAttributes {
 pub struct Variant {
     pub ident: syn::Ident,
     pub fields: darling::ast::Fields<FieldAttributes>,
+    pub rename: Option<String>,
 }
 
 #[derive(Debug, FromField)]
@@ -60,9 +77,6 @@ pub struct FieldAttributes {
 }
 
 pub(crate) fn check_enum_attrs(attrs: &ContainerAttributes) -> syn::Result<()> {
-    if attrs.rename_all.is_some() {
-        span_err!(&attrs.ident, "rename_all is not supported for enums")?;
-    }
     if attrs.transparent {
         span_err!(&attrs.ident, "transparent is not supported for enums")?;
     }
@@ -71,6 +85,12 @@ pub(crate) fn check_enum_attrs(attrs: &ContainerAttributes) -> syn::Result<()> {
 
 pub(crate) fn check_repr_enum_attrs(attrs: &ContainerAttributes) -> syn::Result<()> {
     check_enum_attrs(attrs)?;
+    if attrs.rename_all.is_some() {
+        span_err!(
+            &attrs.ident,
+            "rename_all is not supported for enums with repr"
+        )?;
+    }
     if attrs.repr.is_none() {
         span_err!(&attrs.ident, "repr attribute is required")?;
     }
@@ -88,6 +108,18 @@ pub(crate) fn check_transparent_attrs(attrs: &ContainerAttributes) -> syn::Resul
         )?;
     }
     Ok(())
+}
+
+pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
+    match pattern {
+        RenameAll::LowerCase => s.to_lowercase(),
+        RenameAll::SnakeCase => s.to_snake_case(),
+        RenameAll::UpperCase => s.to_uppercase(),
+        RenameAll::ScreamingSnakeCase => s.to_shouty_snake_case(),
+        RenameAll::KebabCase => s.to_kebab_case(),
+        RenameAll::CamelCase => s.to_lower_camel_case(),
+        RenameAll::PascalCase => s.to_upper_camel_case(),
+    }
 }
 
 #[cfg(test)]
