@@ -1,5 +1,3 @@
-use darling::ast::Data;
-use darling::FromDeriveInput;
 use proc_macro2::TokenStream;
 use quote::quote;
 use syn::{parse_quote, DeriveInput, Type};
@@ -7,35 +5,15 @@ use syn::{parse_quote, DeriveInput, Type};
 use super::core;
 
 pub fn expand_derive_type(input: &DeriveInput) -> syn::Result<TokenStream> {
-    let attrs = core::ContainerAttributes::from_derive_input(input).unwrap();
-    Ok(match &attrs.data {
-        Data::Struct(fields) => {
-            if fields.is_empty() {
-                return core::span_err!(input, "structs with zero fields are not supported");
-            }
-            let unnamed = fields.iter().filter(|f| f.ident.is_none()).count();
-            let named = fields.iter().filter(|f| f.ident.is_some()).count();
-            if named > 1 {
-                return core::span_err!(input, "structs with named fields are not supported");
-            }
-            if unnamed != 1 {
-                return core::span_err!(input, "structs must have exactly one unnamed field");
-            }
-            expand_struct(&attrs, fields.iter().next().unwrap())?
-        }
-        Data::Enum(_) => match &attrs.repr {
-            Some(t) => expand_repr_enum(&attrs, &t)?,
-            None => expand_enum(&attrs)?,
-        },
-    })
+    core::expand_type_derive(input, &expand_struct, &expand_repr_enum, &expand_enum)
 }
 
 /// An enum with a repr attribute defining the underlying type.
 fn expand_repr_enum(
     container: &core::ContainerAttributes,
+    _: &Vec<core::Variant>,
     repr: &Type,
 ) -> syn::Result<TokenStream> {
-    core::check_repr_enum_attrs(container)?;
     let ident = &container.ident;
     Ok(quote!(
         #[automatically_derived]
@@ -55,8 +33,10 @@ fn expand_repr_enum(
 }
 
 /// A plain enum, without a repr attribute. The underlying type is `str`.
-fn expand_enum(container: &core::ContainerAttributes) -> syn::Result<TokenStream> {
-    core::check_enum_attrs(container)?;
+fn expand_enum(
+    container: &core::ContainerAttributes,
+    _: &Vec<core::Variant>,
+) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     Ok(quote!(
         #[automatically_derived]
@@ -76,8 +56,6 @@ fn expand_struct(
     container: &core::ContainerAttributes,
     field: &core::FieldAttributes,
 ) -> syn::Result<TokenStream> {
-    core::check_transparent_attrs(container)?;
-
     let (_, ty_generics, _) = container.generics.split_for_impl();
 
     let ty = &field.ty;

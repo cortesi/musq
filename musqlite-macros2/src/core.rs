@@ -1,6 +1,7 @@
 use darling::{ast, FromDeriveInput, FromField, FromMeta};
 use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
-use syn::Type;
+use proc_macro2::TokenStream;
+use syn::{DeriveInput, Type};
 
 macro_rules! span_err {
     ($t:expr, $err:expr) => {
@@ -8,8 +9,10 @@ macro_rules! span_err {
     };
 }
 
+#[allow(unused)]
 pub(crate) use span_err;
 
+#[allow(unused)]
 macro_rules! assert_errors_with {
     ($e:expr, $m:expr) => {
         assert!(&$e.is_err());
@@ -23,6 +26,7 @@ macro_rules! assert_errors_with {
     };
 }
 
+#[allow(unused)]
 pub(crate) use assert_errors_with;
 
 #[derive(Debug, Copy, Clone, FromMeta)]
@@ -120,6 +124,46 @@ pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
         RenameAll::CamelCase => s.to_lower_camel_case(),
         RenameAll::PascalCase => s.to_upper_camel_case(),
     }
+}
+
+pub(crate) fn expand_type_derive(
+    input: &DeriveInput,
+    expand_struct: &dyn Fn(&ContainerAttributes, &FieldAttributes) -> syn::Result<TokenStream>,
+    expand_repr_enum: &dyn Fn(
+        &ContainerAttributes,
+        &Vec<Variant>,
+        &Type,
+    ) -> syn::Result<TokenStream>,
+    expand_enum: &dyn Fn(&ContainerAttributes, &Vec<Variant>) -> syn::Result<TokenStream>,
+) -> syn::Result<TokenStream> {
+    let attrs = ContainerAttributes::from_derive_input(input).unwrap();
+    Ok(match &attrs.data {
+        ast::Data::Struct(fields) => {
+            if fields.is_empty() {
+                return span_err!(input, "structs with zero fields are not supported");
+            }
+            let unnamed = fields.iter().filter(|f| f.ident.is_none()).count();
+            let named = fields.iter().filter(|f| f.ident.is_some()).count();
+            if named > 1 {
+                return span_err!(input, "structs with named fields are not supported");
+            }
+            if unnamed != 1 {
+                return span_err!(input, "structs must have exactly one unnamed field");
+            }
+            check_transparent_attrs(&attrs)?;
+            expand_struct(&attrs, fields.iter().next().unwrap())?
+        }
+        ast::Data::Enum(v) => match &attrs.repr {
+            Some(t) => {
+                check_repr_enum_attrs(&attrs)?;
+                expand_repr_enum(&attrs, v, &t)?
+            }
+            None => {
+                check_enum_attrs(&attrs)?;
+                expand_enum(&attrs, v)?
+            }
+        },
+    })
 }
 
 #[cfg(test)]

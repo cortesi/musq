@@ -1,5 +1,3 @@
-use darling::ast::Data;
-use darling::FromDeriveInput;
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
 use syn::{parse_quote, DeriveInput, Lifetime, LifetimeParam, Type};
@@ -7,35 +5,13 @@ use syn::{parse_quote, DeriveInput, Lifetime, LifetimeParam, Type};
 use super::core;
 
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
-    let attrs = core::ContainerAttributes::from_derive_input(input).unwrap();
-
-    Ok(match &attrs.data {
-        Data::Struct(fields) => {
-            if fields.is_empty() {
-                return core::span_err!(input, "structs with zero fields are not supported");
-            }
-            let unnamed = fields.iter().filter(|f| f.ident.is_none()).count();
-            let named = fields.iter().filter(|f| f.ident.is_some()).count();
-            if named > 1 {
-                return core::span_err!(input, "structs with named fields are not supported");
-            }
-            if unnamed != 1 {
-                return core::span_err!(input, "structs must have exactly one unnamed field");
-            }
-            expand_struct(&attrs, fields.iter().next().unwrap())?
-        }
-        Data::Enum(v) => match &attrs.repr {
-            Some(t) => expand_repr_enum(&attrs, v, &t)?,
-            None => expand_enum(&attrs, v)?,
-        },
-    })
+    core::expand_type_derive(input, &expand_struct, &expand_repr_enum, &expand_enum)
 }
 
 fn expand_enum(
     container: &core::ContainerAttributes,
     variants: &Vec<core::Variant>,
 ) -> syn::Result<TokenStream> {
-    core::check_enum_attrs(container)?;
     let ident = &container.ident;
     let mut value_arms = Vec::new();
 
@@ -77,7 +53,6 @@ fn expand_repr_enum(
     variants: &Vec<core::Variant>,
     repr: &Type,
 ) -> syn::Result<TokenStream> {
-    core::check_repr_enum_attrs(container)?;
     let ident = &container.ident;
 
     let mut values = Vec::new();
@@ -110,8 +85,6 @@ fn expand_struct(
     container: &core::ContainerAttributes,
     field: &core::FieldAttributes,
 ) -> syn::Result<TokenStream> {
-    core::check_transparent_attrs(container)?;
-
     let ident = &container.ident;
     let ty = &field.ty;
 
@@ -154,7 +127,6 @@ fn expand_struct(
 #[cfg(test)]
 
 mod tests {
-    use super::core::assert_errors_with;
     use super::*;
 
     #[test]
