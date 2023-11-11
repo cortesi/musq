@@ -1,3 +1,5 @@
+<b>Hello curious person - musq is not yet ready for use! Please check back later.</b>
+
 <h1 align="center">Musq</h1>
 
 Musq is an async SQLite crate library for Rust.
@@ -6,7 +8,44 @@ Musq is an async SQLite crate library for Rust.
 
 # Derives
 
-## Type
+## Types
+
+Types are values that can be stored in a column in database. The following built-in types are supported:
+
+| Rust type                             | SQLite type(s)      |
+|---------------------------------------|---------------------|
+| `bool`                                | BOOLEAN             |
+| `i8`                                  | INTEGER             |
+| `i16`                                 | INTEGER             |
+| `i32`                                 | INTEGER             |
+| `i64`                                 | BIGINT, INT8        |
+| `u8`                                  | INTEGER             |
+| `u16`                                 | INTEGER             |
+| `u32`                                 | INTEGER             |
+| `f32`                                 | REAL                |
+| `f64`                                 | REAL                |
+ | `&str`, [`String`]                    | TEXT                |
+| `&[u8]`, `Vec<u8>`                    | BLOB                |
+| `time::PrimitiveDateTime`             | DATETIME            |
+| `time::OffsetDateTime`                | DATETIME            |
+| `time::Date`                          | DATE                |
+| `time::Time`                          | TIME                |
+| [`Json<T>`]                           | TEXT                |
+| `serde_json::JsonValue`               | TEXT                |
+| `&serde_json::value::RawValue`        | TEXT                |
+| `bstr::BString`                       | BLOB                |
+
+
+You can also derive custom types.
+
+
+<table>
+<tr>
+<td>
+</td>
+</tr
+
+</table>
 
 <table>
 <tr>
@@ -17,7 +56,7 @@ Musq is an async SQLite crate library for Rust.
 enum Foo {One, Two}
 ```
 
-Maps to underlying string: "One", "Two".
+Enum stored as a string: "One", "Two".
 
 </td>
 
@@ -29,9 +68,13 @@ Maps to underlying string: "One", "Two".
 enum Foo {One, Two}
 ```
 
-Maps to underlying string: "one", "two".
+Enum stored as a string: "one", "two".
 
 </td>
+
+</tr>
+
+<tr>
 
 <td>
 
@@ -41,9 +84,21 @@ Maps to underlying string: "one", "two".
 enum Foo {One, Two}
 ```
 
-Maps to underlying *i32*: 0, 1.
+Enum stored as an **i32**: 0, 1.
 
 </td>
+
+<td>
+
+```rust
+#[derive(musq::Type)]
+struct Foo(i32)
+```
+
+A struct stored as an **i32**.
+
+</td>
+
 </tr>
 </table>
 

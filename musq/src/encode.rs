@@ -1,5 +1,4 @@
 //! Provides [`Encode`] for encoding values for the database.
-
 use crate::{sqlite::ArgumentBuffer, Type};
 
 /// The return type of [Encode::encode].
