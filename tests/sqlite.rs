@@ -27,7 +27,7 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
         let mut s = conn.fetch("SELECT 15 UNION SELECT 51 UNION SELECT 39");
 
         while let Some(row) = s.try_next().await? {
-            let v1 = row.get::<i32, _>(0);
+            let v1 = row.try_get::<i32, _>(0).unwrap();
             assert_eq!(expected[i], v1);
             i += 1;
         }
@@ -41,9 +41,9 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(rows.len(), 3);
-    assert_eq!(rows[0].get::<i32, _>(0), 15);
-    assert_eq!(rows[1].get::<i32, _>(0), 39);
-    assert_eq!(rows[2].get::<i32, _>(0), 51);
+    assert_eq!(rows[0].try_get::<i32, _>(0).unwrap(), 15);
+    assert_eq!(rows[1].try_get::<i32, _>(0).unwrap(), 39);
+    assert_eq!(rows[2].try_get::<i32, _>(0).unwrap(), 51);
 
     // same query but fetch the first row a few times from a non-persistent query
     // these rows should be immediately inflated
@@ -52,14 +52,14 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
         .fetch_one("SELECT 15 UNION SELECT 51 UNION SELECT 39")
         .await?;
 
-    assert_eq!(row1.get::<i32, _>(0), 15);
+    assert_eq!(row1.try_get::<i32, _>(0).unwrap(), 15);
 
     let row2 = conn
         .fetch_one("SELECT 15 UNION SELECT 51 UNION SELECT 39")
         .await?;
 
-    assert_eq!(row1.get::<i32, _>(0), 15);
-    assert_eq!(row2.get::<i32, _>(0), 15);
+    assert_eq!(row1.try_get::<i32, _>(0).unwrap(), 15);
+    assert_eq!(row2.try_get::<i32, _>(0).unwrap(), 15);
 
     // same query (again) but make it persistent
     // and fetch the first row a few times
@@ -68,14 +68,14 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
         .fetch_one(query("SELECT 15 UNION SELECT 51 UNION SELECT 39"))
         .await?;
 
-    assert_eq!(row1.get::<i32, _>(0), 15);
+    assert_eq!(row1.try_get::<i32, _>(0).unwrap(), 15);
 
     let row2 = conn
         .fetch_one(query("SELECT 15 UNION SELECT 51 UNION SELECT 39"))
         .await?;
 
-    assert_eq!(row1.get::<i32, _>(0), 15);
-    assert_eq!(row2.get::<i32, _>(0), 15);
+    assert_eq!(row1.try_get::<i32, _>(0).unwrap(), 15);
+    assert_eq!(row2.try_get::<i32, _>(0).unwrap(), 15);
 
     Ok(())
 }
@@ -385,7 +385,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
     // `&str` queries are not persistent.
     let row = conn.fetch_one("SELECT 100 AS val").await?;
-    let val: i32 = row.get("val");
+    let val: i32 = row.try_get("val").unwrap();
     assert_eq!(val, 100);
     assert_eq!(0, conn.cached_statements_size());
 
@@ -397,7 +397,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
             .fetch_one(&mut conn)
             .await?;
 
-        let val: i32 = row.get("val");
+        let val: i32 = row.try_get("val").unwrap();
 
         assert_eq!(i, val);
     }
@@ -417,7 +417,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
             .fetch_one(&mut conn)
             .await?;
 
-        let val: i32 = row.get("val");
+        let val: i32 = row.try_get("val").unwrap();
 
         assert_eq!(i, val);
     }
@@ -534,7 +534,7 @@ async fn row_dropped_after_connection_doesnt_panic() {
 
     for book in &books {
         // force the row to be inflated
-        let _title: String = book.get("title");
+        let _title: String = book.try_get("title").unwrap();
     }
 
     // hold `books` past the lifetime of `conn`

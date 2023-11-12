@@ -68,14 +68,6 @@ impl Row {
         &self.columns
     }
 
-    pub fn try_get_raw<I>(&self, index: I) -> Result<ValueRef<'_>, Error>
-    where
-        I: ColumnIndex<Self>,
-    {
-        let index = index.index(self)?;
-        Ok(ValueRef::value(&self.values[index]))
-    }
-
     /// Returns `true` if this row has no columns.
 
     pub fn is_empty(&self) -> bool {
@@ -88,22 +80,6 @@ impl Row {
         self.columns().len()
     }
 
-    /// Gets the column information at `index`.
-    ///
-    /// A string index can be used to access a column by name and a `usize` index
-    /// can be used to access a column by position.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is out of bounds.
-    /// See [`try_column`](Self::try_column) for a non-panicking version.
-    pub fn column<I>(&self, index: I) -> &Column
-    where
-        I: ColumnIndex<Self>,
-    {
-        self.try_column(index).unwrap()
-    }
-
     /// Gets the column information at `index` or `None` if out of bounds.
     pub fn try_column<I>(&self, index: I) -> Result<&Column, Error>
     where
@@ -112,43 +88,12 @@ impl Row {
         Ok(&self.columns()[index.index(self)?])
     }
 
-    /// Index into the database row and decode a single value.
-    ///
-    /// A string index can be used to access a column by name and a `usize` index
-    /// can be used to access a column by position.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the column does not exist or its value cannot be decoded into the requested type.
-    /// See [`try_get`](Self::try_get) for a non-panicking version.
-    ///
-
-    pub fn get<'r, T, I>(&'r self, index: I) -> T
+    pub fn try_get_raw<I>(&self, index: I) -> Result<ValueRef<'_>, Error>
     where
         I: ColumnIndex<Self>,
-        T: Decode<'r> + Type,
     {
-        self.try_get::<T, I>(index).unwrap()
-    }
-
-    /// Index into the database row and decode a single value.
-    ///
-    /// Unlike [`get`](Self::get), this method does not check that the type
-    /// being returned from the database is compatible with the Rust type and blindly tries
-    /// to decode the value.
-    ///
-    /// # Panics
-    ///
-    /// Panics if the column does not exist or its value cannot be decoded into the requested type.
-    /// See [`try_get_unchecked`](Self::try_get_unchecked) for a non-panicking version.
-    ///
-
-    pub fn get_unchecked<'r, T, I>(&'r self, index: I) -> T
-    where
-        I: ColumnIndex<Self>,
-        T: Decode<'r>,
-    {
-        self.try_get_unchecked::<T, I>(index).unwrap()
+        let index = index.index(self)?;
+        Ok(ValueRef::value(&self.values[index]))
     }
 
     /// Index into the database row and decode a single value.
@@ -183,36 +128,6 @@ impl Row {
                 });
             }
         }
-
-        T::decode(value).map_err(|source| Error::ColumnDecode {
-            index: format!("{:?}", index),
-            source,
-        })
-    }
-
-    /// Index into the database row and decode a single value.
-    ///
-    /// Unlike [`try_get`](Self::try_get), this method does not check that the type
-    /// being returned from the database is compatible with the Rust type and blindly tries
-    /// to decode the value.
-    ///
-    /// # Errors
-    ///
-    ///  * [`ColumnNotFound`] if the column by the given name was not found.
-    ///  * [`ColumnIndexOutOfBounds`] if the `usize` index was greater than the number of columns in the row.
-    ///  * [`ColumnDecode`] if the value could not be decoded into the requested type.
-    ///
-    /// [`ColumnDecode`]: Error::ColumnDecode
-    /// [`ColumnNotFound`]: Error::ColumnNotFound
-    /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
-    ///
-
-    pub fn try_get_unchecked<'r, T, I>(&'r self, index: I) -> Result<T, Error>
-    where
-        I: ColumnIndex<Self>,
-        T: Decode<'r>,
-    {
-        let value = self.try_get_raw(&index)?;
 
         T::decode(value).map_err(|source| Error::ColumnDecode {
             index: format!("{:?}", index),
