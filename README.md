@@ -10,42 +10,28 @@ Musq is an async SQLite crate library for Rust.
 
 ## Types
 
-Types are values that can be stored in a column in database. The following built-in types are supported:
+Types are discrete values that can be stored in a table column or appear in SQL expressions. The following built-in
+types are supported:
 
 | Rust type                             | SQLite type(s)      |
 |---------------------------------------|---------------------|
 | `bool`                                | BOOLEAN             |
-| `i8`                                  | INTEGER             |
-| `i16`                                 | INTEGER             |
-| `i32`                                 | INTEGER             |
-| `i64`                                 | BIGINT, INT8        |
-| `u8`                                  | INTEGER             |
-| `u16`                                 | INTEGER             |
-| `u32`                                 | INTEGER             |
-| `f32`                                 | REAL                |
-| `f64`                                 | REAL                |
- | `&str`, [`String`]                    | TEXT                |
+| `i8`, `i16`, `i32`, `i64`             | INTEGER             |
+| `u8`, `u16`, `u32`                    | INTEGER             |
+| `f32`, `f64`                          | REAL                |
+| `&str`, `String`                      | TEXT               |
 | `&[u8]`, `Vec<u8>`                    | BLOB                |
 | `time::PrimitiveDateTime`             | DATETIME            |
 | `time::OffsetDateTime`                | DATETIME            |
 | `time::Date`                          | DATE                |
 | `time::Time`                          | TIME                |
-| [`Json<T>`]                           | TEXT                |
+| `Json<T>`                             | TEXT                |
 | `serde_json::JsonValue`               | TEXT                |
 | `&serde_json::value::RawValue`        | TEXT                |
 | `bstr::BString`                       | BLOB                |
 
 
 You can also derive custom types.
-
-
-<table>
-<tr>
-<td>
-</td>
-</tr
-
-</table>
 
 <table>
 <tr>
@@ -95,7 +81,7 @@ Enum stored as an **i32**: 0, 1.
 struct Foo(i32)
 ```
 
-A struct stored as an **i32**.
+A ["newtype"](https://doc.rust-lang.org/rust-by-example/generics/new_types.html) struct stored as an **i32**.
 
 </td>
 
