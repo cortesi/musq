@@ -439,15 +439,15 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
 
-    assert_eq!(statement.column(0).name(), "id");
-    assert_eq!(statement.column(1).name(), "text");
-    assert_eq!(statement.column(2).name(), "is_sent");
-    assert_eq!(statement.column(3).name(), "owner_id");
+    assert_eq!(statement.columns[0].name(), "id");
+    assert_eq!(statement.columns[1].name(), "text");
+    assert_eq!(statement.columns[2].name(), "is_sent");
+    assert_eq!(statement.columns[3].name(), "owner_id");
 
-    assert_eq!(statement.column(0).type_info().name(), "INTEGER");
-    assert_eq!(statement.column(1).type_info().name(), "TEXT");
-    assert_eq!(statement.column(2).type_info().name(), "BOOLEAN");
-    assert_eq!(statement.column(3).type_info().name(), "INTEGER");
+    assert_eq!(statement.columns[0].type_info().name(), "INTEGER");
+    assert_eq!(statement.columns[1].type_info().name(), "TEXT");
+    assert_eq!(statement.columns[2].type_info().name(), "BOOLEAN");
+    assert_eq!(statement.columns[3].type_info().name(), "INTEGER");
 
     let row = statement.query().bind(tweet_id).fetch_one(&mut *tx).await?;
     let tweet_text: &str = row.try_get("text")?;

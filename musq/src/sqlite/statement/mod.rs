@@ -1,9 +1,6 @@
 use crate::{
-    error::Error,
-    from_row, query, query_as, query_scalar,
-    sqlite::{Arguments, SqliteDataType},
-    ustr::UStr,
-    Column, ColumnIndex, Either, HashMap, IntoArguments,
+    from_row, query, query_as, query_scalar, sqlite::Arguments, ustr::UStr, Column, HashMap,
+    IntoArguments,
 };
 
 use std::borrow::Cow;
@@ -29,20 +26,8 @@ pub(crate) use r#virtual::VirtualStatement;
 pub struct Statement<'q> {
     pub(crate) sql: Cow<'q, str>,
     pub(crate) parameters: usize,
-    pub(crate) columns: Arc<Vec<Column>>,
+    pub columns: Arc<Vec<Column>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
-}
-
-impl ColumnIndex<Statement<'_>> for usize {
-    fn index(&self, statement: &Statement<'_>) -> Result<usize, Error> {
-        let len = Statement::columns(statement).len();
-
-        if *self >= len {
-            return Err(Error::ColumnIndexOutOfBounds { len, index: *self });
-        }
-
-        Ok(*self)
-    }
 }
 
 impl<'q> Statement<'q> {
@@ -59,36 +44,8 @@ impl<'q> Statement<'q> {
         &self.sql
     }
 
-    pub fn parameters(&self) -> Option<Either<&[SqliteDataType], usize>> {
-        Some(Either::Right(self.parameters))
-    }
-
     pub fn columns(&self) -> &[Column] {
         &self.columns
-    }
-
-    /// Gets the column information at `index`.
-    ///
-    /// A string index can be used to access a column by name and a `usize` index
-    /// can be used to access a column by position.
-    ///
-    /// # Panics
-    ///
-    /// Panics if `index` is out of bounds.
-    /// See [`try_column`](Self::try_column) for a non-panicking version.
-    pub fn column<I>(&self, index: I) -> &Column
-    where
-        I: ColumnIndex<Self>,
-    {
-        self.try_column(index).unwrap()
-    }
-
-    /// Gets the column information at `index` or `None` if out of bounds.
-    pub fn try_column<I>(&self, index: I) -> Result<&Column, Error>
-    where
-        I: ColumnIndex<Self>,
-    {
-        Ok(&self.columns()[index.index(self)?])
     }
 
     pub fn query(&self) -> query::Query<'_, Arguments<'_>> {
@@ -133,15 +90,5 @@ impl<'q> Statement<'q> {
         A: IntoArguments<'s>,
     {
         query_scalar::query_statement_scalar_with(self, arguments)
-    }
-}
-
-impl ColumnIndex<Statement<'_>> for &'_ str {
-    fn index(&self, statement: &Statement<'_>) -> Result<usize, Error> {
-        statement
-            .column_names
-            .get(*self)
-            .ok_or_else(|| Error::ColumnNotFound((*self).into()))
-            .map(|v| *v)
     }
 }
