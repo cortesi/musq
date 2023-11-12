@@ -3,21 +3,18 @@ use std::ffi::CStr;
 
 use std::os::raw::{c_char, c_int};
 use std::ptr::NonNull;
-use std::slice::from_raw_parts;
-use std::str::{from_utf8, from_utf8_unchecked};
+use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
     sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
     sqlite3_bind_null, sqlite3_bind_parameter_count, sqlite3_bind_parameter_name,
-    sqlite3_bind_text64, sqlite3_changes, sqlite3_clear_bindings, sqlite3_column_blob,
-    sqlite3_column_bytes, sqlite3_column_count, sqlite3_column_decltype, sqlite3_column_double,
-    sqlite3_column_int, sqlite3_column_int64, sqlite3_column_name, sqlite3_column_type,
-    sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_reset, sqlite3_step,
-    sqlite3_stmt, sqlite3_value, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK,
-    SQLITE_ROW, SQLITE_TRANSIENT, SQLITE_UTF8,
+    sqlite3_bind_text64, sqlite3_changes, sqlite3_clear_bindings, sqlite3_column_count,
+    sqlite3_column_decltype, sqlite3_column_name, sqlite3_column_type, sqlite3_column_value,
+    sqlite3_db_handle, sqlite3_finalize, sqlite3_reset, sqlite3_step, sqlite3_stmt, sqlite3_value,
+    SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK, SQLITE_ROW, SQLITE_TRANSIENT,
+    SQLITE_UTF8,
 };
 
-use crate::error::BoxDynError;
 use crate::sqlite::type_info::SqliteDataType;
 use crate::sqlite::SqliteError;
 
@@ -163,39 +160,8 @@ impl StatementHandle {
         unsafe { sqlite3_column_type(self.0.as_ptr(), index as c_int) }
     }
 
-    pub(crate) fn column_int(&self, index: usize) -> i32 {
-        unsafe { sqlite3_column_int(self.0.as_ptr(), index as c_int) as i32 }
-    }
-
-    pub(crate) fn column_int64(&self, index: usize) -> i64 {
-        unsafe { sqlite3_column_int64(self.0.as_ptr(), index as c_int) as i64 }
-    }
-
-    pub(crate) fn column_double(&self, index: usize) -> f64 {
-        unsafe { sqlite3_column_double(self.0.as_ptr(), index as c_int) }
-    }
-
     pub(crate) fn column_value(&self, index: usize) -> *mut sqlite3_value {
         unsafe { sqlite3_column_value(self.0.as_ptr(), index as c_int) }
-    }
-
-    pub(crate) fn column_blob(&self, index: usize) -> &[u8] {
-        let index = index as c_int;
-        let len = unsafe { sqlite3_column_bytes(self.0.as_ptr(), index) } as usize;
-
-        if len == 0 {
-            // empty blobs are NULL so just return an empty slice
-            return &[];
-        }
-
-        let ptr = unsafe { sqlite3_column_blob(self.0.as_ptr(), index) } as *const u8;
-        debug_assert!(!ptr.is_null());
-
-        unsafe { from_raw_parts(ptr, len) }
-    }
-
-    pub(crate) fn column_text(&self, index: usize) -> Result<&str, BoxDynError> {
-        Ok(from_utf8(self.column_blob(index))?)
     }
 
     pub(crate) fn clear_bindings(&self) {
