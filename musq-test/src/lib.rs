@@ -98,7 +98,7 @@ macro_rules! test_unprepared_type {
                     let query = format!("SELECT {}", $text);
                     let mut s = conn.fetch(&*query);
                     let row = s.try_next().await?.unwrap();
-                    let rec = row.try_get::<$ty, _>(0)?;
+                    let rec = row.get_value::<$ty, _>(0)?;
 
                     assert_eq!($value, rec);
 
@@ -129,7 +129,7 @@ macro_rules! __test_prepared_decode_type {
                         .fetch_one(&mut conn)
                         .await?;
 
-                    let rec: $ty = row.try_get(0)?;
+                    let rec: $ty = row.get_value(0)?;
 
                     assert_eq!($value, rec);
                 )+
@@ -161,9 +161,9 @@ macro_rules! __test_prepared_type {
                         .fetch_one(&mut conn)
                         .await?;
 
-                    let matches: i32 = row.try_get(0)?;
-                    let returned: $ty = row.try_get(1)?;
-                    let round_trip: $ty = row.try_get(2)?;
+                    let matches: i32 = row.get_value(0)?;
+                    let returned: $ty = row.get_value(1)?;
+                    let round_trip: $ty = row.get_value(2)?;
 
                     assert!(matches != 0,
                             "[1] DB value mismatch; given value: {:?}\n\

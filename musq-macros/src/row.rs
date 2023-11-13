@@ -76,7 +76,7 @@ fn expand_struct(
                                 None => s,
                             })
                             .unwrap();
-                        parse_quote!(row.try_get(#id_s))
+                        parse_quote!(row.get_value(#id_s))
                     }
                     (true,Some(try_from)) => {
                         predicates.push(parse_quote!(#try_from: musq::FromRow<#lifetime>));
@@ -95,7 +95,7 @@ fn expand_struct(
                                 None => s,
                             })
                             .unwrap();
-                        parse_quote!(row.try_get(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
+                        parse_quote!(row.get_value(#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                     }
                 };
 
@@ -171,7 +171,7 @@ fn expand_tuple_struct(
     let gets = fields
         .iter()
         .enumerate()
-        .map(|(idx, _)| quote!(row.try_get(#idx)?));
+        .map(|(idx, _)| quote!(row.get_value(#idx)?));
 
     Ok(quote!(
         #[automatically_derived]

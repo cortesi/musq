@@ -81,14 +81,14 @@ impl Row {
     }
 
     /// Gets the column information at `index` or `None` if out of bounds.
-    pub fn try_column<I>(&self, index: I) -> Result<&Column, Error>
+    pub fn get_column<I>(&self, index: I) -> Result<&Column, Error>
     where
         I: ColumnIndex<Self>,
     {
         Ok(&self.columns()[index.index(self)?])
     }
 
-    pub fn try_get_raw<I>(&self, index: I) -> Result<ValueRef<'_>, Error>
+    pub fn get_value_raw<I>(&self, index: I) -> Result<ValueRef<'_>, Error>
     where
         I: ColumnIndex<Self>,
     {
@@ -111,12 +111,12 @@ impl Row {
     /// [`ColumnNotFound`]: Error::ColumnNotFound
     /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
     ///
-    pub fn try_get<'r, T, I>(&'r self, index: I) -> Result<T, Error>
+    pub fn get_value<'r, T, I>(&'r self, index: I) -> Result<T, Error>
     where
         I: ColumnIndex<Self>,
         T: Decode<'r> + Type,
     {
-        let value = self.try_get_raw(&index)?;
+        let value = self.get_value_raw(&index)?;
 
         if !value.is_null() {
             let ty = value.type_info();

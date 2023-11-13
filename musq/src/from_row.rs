@@ -8,7 +8,7 @@ use crate::Row;
 /// ## Derivable
 ///
 /// This trait can be derived for any struct. The generated implementation
-/// will consist of a sequence of calls to [`Row::try_get`] using the name from each
+/// will consist of a sequence of calls to [`Row::get_value`] using the name from each
 /// struct field.
 ///
 /// ```rust,ignore
@@ -178,7 +178,7 @@ use crate::Row;
 ///     fn from_row(row: &Row) -> Result<Self> {
 ///         Ok(Self {
 ///             bar: MyCustomType {
-///                 custom: row.try_get("custom")?
+///                 custom: row.get_value("custom")?
 ///             }
 ///         })
 ///     }
@@ -226,7 +226,7 @@ macro_rules! impl_from_row_for_tuple {
         {
 
             fn from_row(row: &'r Row) -> Result<Self, Error> {
-                Ok(($(row.try_get($idx as usize)?,)+))
+                Ok(($(row.get_value($idx as usize)?,)+))
             }
         }
     };

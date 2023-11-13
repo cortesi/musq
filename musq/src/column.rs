@@ -25,17 +25,11 @@ impl Column {
 
 /// A type that can be used to index into a [`Row`] or [`Statement`].
 ///
-/// The [`get`] and [`try_get`] methods of [`Row`] accept any type that implements `ColumnIndex`.
-/// This trait is implemented for strings which are used to look up a column by name, and for
-/// `usize` which is used as a positional index into the row.
+/// The [`get_column`] and [`get_value`] methods of [`Row`] accept any type that implements `ColumnIndex`. This trait is
+/// implemented for strings which are used to look up a column by name, and for `usize` which is used as a positional
+/// index into the row.
 ///
 /// This trait is sealed and cannot be implemented for types outside of SQLx.
-///
-/// [`Row`]: crate::row::Row
-/// [`Statement`]: crate::statement::Statement
-/// [`get`]: crate::row::Row::get
-/// [`try_get`]: crate::row::Row::try_get
-///
 pub trait ColumnIndex<T: ?Sized>: Debug {
     /// Returns a valid positional index into the row or statement, [`ColumnIndexOutOfBounds`], or,
     /// [`ColumnNotFound`].
