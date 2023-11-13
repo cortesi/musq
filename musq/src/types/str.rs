@@ -4,7 +4,7 @@ use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
-    sqlite::{ArgumentValue, SqliteDataType, ValueRef},
+    sqlite::{ArgumentValue, SqliteDataType, Value},
     Type,
 };
 
@@ -22,7 +22,7 @@ impl<'q> Encode<'q> for &'q str {
 }
 
 impl<'r> Decode<'r> for &'r str {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         value.text()
     }
 }
@@ -48,7 +48,7 @@ impl<'q> Encode<'q> for String {
 }
 
 impl<'r> Decode<'r> for String {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         value.text().map(ToOwned::to_owned)
     }
 }
@@ -78,7 +78,7 @@ impl<'q> Encode<'q> for Cow<'q, str> {
 }
 
 impl<'r> Decode<'r> for Cow<'r, str> {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         value.text().map(Cow::Borrowed)
     }
 }

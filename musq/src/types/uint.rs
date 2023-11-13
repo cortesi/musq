@@ -2,7 +2,7 @@ use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
-    sqlite::{ArgumentValue, SqliteDataType, ValueRef},
+    sqlite::{ArgumentValue, SqliteDataType, Value},
     Type,
 };
 
@@ -25,7 +25,7 @@ impl<'q> Encode<'q> for u8 {
 }
 
 impl<'r> Decode<'r> for u8 {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         Ok(value.int().try_into()?)
     }
 }
@@ -49,7 +49,7 @@ impl<'q> Encode<'q> for u16 {
 }
 
 impl<'r> Decode<'r> for u16 {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         Ok(value.int().try_into()?)
     }
 }
@@ -72,7 +72,7 @@ impl<'q> Encode<'q> for u32 {
 }
 
 impl<'r> Decode<'r> for u32 {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         Ok(value.int64().try_into()?)
     }
 }

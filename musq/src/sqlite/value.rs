@@ -8,46 +8,6 @@ use libsqlite3_sys::{
 
 use crate::{error::BoxDynError, sqlite::type_info::SqliteDataType};
 
-pub struct ValueRef<'r>(&'r Value);
-
-impl<'r> ValueRef<'r> {
-    pub fn value(value: &'r Value) -> Self {
-        Self(value)
-    }
-
-    pub fn int(&self) -> i32 {
-        self.0.int()
-    }
-
-    pub fn int64(&self) -> i64 {
-        self.0.int64()
-    }
-
-    pub fn double(&self) -> f64 {
-        self.0.double()
-    }
-
-    pub fn blob(&self) -> &'r [u8] {
-        self.0.blob()
-    }
-
-    pub fn text(&self) -> Result<&'r str, BoxDynError> {
-        self.0.text()
-    }
-
-    pub fn to_owned(&self) -> Value {
-        self.0.clone()
-    }
-
-    pub fn type_info(&self) -> Cow<'_, SqliteDataType> {
-        self.0.type_info()
-    }
-
-    pub fn is_null(&self) -> bool {
-        self.0.is_null()
-    }
-}
-
 #[derive(Clone)]
 pub struct Value {
     pub(crate) handle: Arc<ValueHandle>,
@@ -82,19 +42,19 @@ impl Value {
         }
     }
 
-    fn int(&self) -> i32 {
+    pub fn int(&self) -> i32 {
         unsafe { sqlite3_value_int(self.handle.0.as_ptr()) }
     }
 
-    fn int64(&self) -> i64 {
+    pub fn int64(&self) -> i64 {
         unsafe { sqlite3_value_int64(self.handle.0.as_ptr()) }
     }
 
-    fn double(&self) -> f64 {
+    pub fn double(&self) -> f64 {
         unsafe { sqlite3_value_double(self.handle.0.as_ptr()) }
     }
 
-    fn blob(&self) -> &[u8] {
+    pub fn blob(&self) -> &[u8] {
         let len = unsafe { sqlite3_value_bytes(self.handle.0.as_ptr()) } as usize;
 
         if len == 0 {
@@ -108,12 +68,8 @@ impl Value {
         unsafe { from_raw_parts(ptr, len) }
     }
 
-    fn text(&self) -> Result<&str, BoxDynError> {
+    pub fn text(&self) -> Result<&str, BoxDynError> {
         Ok(from_utf8(self.blob())?)
-    }
-
-    pub fn as_ref(&self) -> ValueRef<'_> {
-        ValueRef::value(self)
     }
 
     pub fn type_info(&self) -> Cow<'_, SqliteDataType> {

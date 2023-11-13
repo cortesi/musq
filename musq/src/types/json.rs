@@ -12,7 +12,7 @@ use crate::{
     sqlite::SqliteDataType,
     sqlite::{ArgumentBuffer, ArgumentValue},
     types::Type,
-    ValueRef,
+    Value,
 };
 
 /// Json for json and jsonb fields
@@ -161,7 +161,7 @@ impl<'r> Decode<'r> for JsonValue
 where
     Json<Self>: Decode<'r>,
 {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode>::decode(value).map(|item| item.0)
     }
 }
@@ -185,7 +185,7 @@ impl<'r> Decode<'r> for &'r JsonRawValue
 where
     Json<Self>: Decode<'r>,
 {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         <Json<Self> as Decode>::decode(value).map(|item| item.0)
     }
 }
@@ -203,7 +203,7 @@ impl<'r, T> Decode<'r> for Json<T>
 where
     T: 'r + Deserialize<'r>,
 {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         Self::decode_from_string(Decode::decode(value)?)
     }
 }

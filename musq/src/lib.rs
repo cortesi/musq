@@ -46,7 +46,7 @@ pub use crate::{
     sqlite::{
         error::{ExtendedErrCode, PrimaryErrCode},
         ArgumentBuffer, Arguments, Connection, IntoArguments, SqliteDataType, SqliteError,
-        Statement, Value, ValueRef,
+        Statement, Value,
     },
     transaction::Transaction,
     types::Type,

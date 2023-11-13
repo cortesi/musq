@@ -6,7 +6,7 @@ use crate::{
     sqlite,
     sqlite::ArgumentBuffer,
     types::Type,
-    ValueRef,
+    Value,
 };
 
 #[doc(no_inline)]
@@ -29,7 +29,7 @@ impl<'r> Decode<'r> for BString
 where
     Vec<u8>: Decode<'r>,
 {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         <Vec<u8> as Decode>::decode(value).map(BString::from)
     }
 }

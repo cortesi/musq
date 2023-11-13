@@ -6,7 +6,7 @@ use crate::{
     column::ColumnIndex,
     decode::Decode,
     error::{mismatched_types, Error},
-    sqlite::{statement::StatementHandle, Value, ValueRef},
+    sqlite::{statement::StatementHandle, Value},
     types::Type,
     ustr::UStr,
     Column, HashMap,
@@ -88,12 +88,12 @@ impl Row {
         Ok(&self.columns()[index.index(self)?])
     }
 
-    pub fn get_value_raw<I>(&self, index: I) -> Result<ValueRef<'_>, Error>
+    pub fn get_value_raw<I>(&self, index: I) -> Result<&Value, Error>
     where
         I: ColumnIndex<Self>,
     {
         let index = index.index(self)?;
-        Ok(ValueRef::value(&self.values[index]))
+        Ok(&self.values[index])
     }
 
     /// Index into the database row and decode a single value.

@@ -4,7 +4,7 @@ use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
     error::BoxDynError,
-    sqlite::{ArgumentValue, SqliteDataType, ValueRef},
+    sqlite::{ArgumentValue, SqliteDataType, Value},
     Type,
 };
 
@@ -27,7 +27,7 @@ impl<'q> Encode<'q> for &'q [u8] {
 }
 
 impl<'r> Decode<'r> for &'r [u8] {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         Ok(value.blob())
     }
 }
@@ -57,7 +57,7 @@ impl<'q> Encode<'q> for Vec<u8> {
 }
 
 impl<'r> Decode<'r> for Vec<u8> {
-    fn decode(value: ValueRef<'r>) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
         Ok(value.blob().to_owned())
     }
 }

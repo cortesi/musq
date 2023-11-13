@@ -33,7 +33,7 @@ fn expand_struct(
         #[automatically_derived]
         impl #impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
             fn decode(
-                value: musq::ValueRef<'r>,
+                value: &'r musq::Value,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
@@ -73,7 +73,7 @@ fn expand_repr_enum(
             #repr: musq::decode::Decode<'r>,
         {
             fn decode(
-                value: musq::ValueRef<'r>,
+                value: &'r musq::Value,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
@@ -127,7 +127,7 @@ fn expand_enum(
         #[automatically_derived]
         impl<'r> musq::decode::Decode<'r> for #ident {
             fn decode(
-                value: ::musq::ValueRef<'r>,
+                value: ::musq::&'r Value,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<
