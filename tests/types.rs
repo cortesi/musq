@@ -76,7 +76,7 @@ mod json_tests {
 
         let value = musq::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
             .bind(42_i32)
-            .try_map(|row: Row| row.get_value::<bool, _>(0))
+            .try_map(|row: Row| row.get_value_idx::<bool>(0))
             .fetch_one(&mut conn)
             .await?;
 

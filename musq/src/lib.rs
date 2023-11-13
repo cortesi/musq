@@ -32,7 +32,7 @@ pub use either::Either;
 pub use indexmap::IndexMap;
 
 pub use crate::{
-    column::{Column, ColumnIndex},
+    column::Column,
     error::{Error, Result},
     executor::{Execute, Executor},
     from_row::FromRow,

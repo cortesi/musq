@@ -221,12 +221,11 @@ macro_rules! impl_from_row_for_tuple {
     ($( ($idx:tt) -> $T:ident );+;) => {
         impl<'r, $($T,)+> FromRow<'r> for ($($T,)+)
         where
-            usize: crate::column::ColumnIndex<Row>,
             $($T: crate::decode::Decode<'r> + crate::types::Type,)+
         {
 
             fn from_row(row: &'r Row) -> Result<Self, Error> {
-                Ok(($(row.get_value($idx as usize)?,)+))
+                Ok(($(row.get_value_idx($idx as usize)?,)+))
             }
         }
     };

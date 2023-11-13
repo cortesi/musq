@@ -27,7 +27,7 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
         let mut s = conn.fetch("SELECT 15 UNION SELECT 51 UNION SELECT 39");
 
         while let Some(row) = s.try_next().await? {
-            let v1 = row.get_value::<i32, _>(0).unwrap();
+            let v1 = row.get_value_idx::<i32>(0).unwrap();
             assert_eq!(expected[i], v1);
             i += 1;
         }
@@ -41,9 +41,9 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
         .await?;
 
     assert_eq!(rows.len(), 3);
-    assert_eq!(rows[0].get_value::<i32, _>(0).unwrap(), 15);
-    assert_eq!(rows[1].get_value::<i32, _>(0).unwrap(), 39);
-    assert_eq!(rows[2].get_value::<i32, _>(0).unwrap(), 51);
+    assert_eq!(rows[0].get_value_idx::<i32>(0).unwrap(), 15);
+    assert_eq!(rows[1].get_value_idx::<i32>(0).unwrap(), 39);
+    assert_eq!(rows[2].get_value_idx::<i32>(0).unwrap(), 51);
 
     // same query but fetch the first row a few times from a non-persistent query
     // these rows should be immediately inflated
@@ -52,14 +52,14 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
         .fetch_one("SELECT 15 UNION SELECT 51 UNION SELECT 39")
         .await?;
 
-    assert_eq!(row1.get_value::<i32, _>(0).unwrap(), 15);
+    assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
 
     let row2 = conn
         .fetch_one("SELECT 15 UNION SELECT 51 UNION SELECT 39")
         .await?;
 
-    assert_eq!(row1.get_value::<i32, _>(0).unwrap(), 15);
-    assert_eq!(row2.get_value::<i32, _>(0).unwrap(), 15);
+    assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
+    assert_eq!(row2.get_value_idx::<i32>(0).unwrap(), 15);
 
     // same query (again) but make it persistent
     // and fetch the first row a few times
@@ -68,14 +68,14 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
         .fetch_one(query("SELECT 15 UNION SELECT 51 UNION SELECT 39"))
         .await?;
 
-    assert_eq!(row1.get_value::<i32, _>(0).unwrap(), 15);
+    assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
 
     let row2 = conn
         .fetch_one(query("SELECT 15 UNION SELECT 51 UNION SELECT 39"))
         .await?;
 
-    assert_eq!(row1.get_value::<i32, _>(0).unwrap(), 15);
-    assert_eq!(row2.get_value::<i32, _>(0).unwrap(), 15);
+    assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
+    assert_eq!(row2.get_value_idx::<i32>(0).unwrap(), 15);
 
     Ok(())
 }
@@ -86,7 +86,7 @@ async fn it_maths() -> anyhow::Result<()> {
 
     let value = query("select 1 + ?1")
         .bind(5_i32)
-        .try_map(|row: Row| row.get_value::<i32, _>(0))
+        .try_map(|row: Row| row.get_value_idx::<i32>(0))
         .fetch_one(&mut conn)
         .await?;
 
@@ -350,7 +350,7 @@ SELECT id, text FROM _musq_test;
 
     let row = cursor.try_next().await?.unwrap();
 
-    assert!("Hello World" == row.get_value::<&str, _>("_1")?);
+    assert!("Hello World" == row.get_value::<&str>("_1")?);
 
     let row = cursor.try_next().await?.unwrap();
 

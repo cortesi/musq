@@ -3,32 +3,19 @@
 use std::sync::Arc;
 
 use crate::{
-    column::ColumnIndex,
     decode::Decode,
     error::{mismatched_types, Error},
     sqlite::{statement::StatementHandle, Value},
     types::Type,
     ustr::UStr,
-    Column, HashMap,
+    Column, HashMap, Result,
 };
 
 /// Implementation of [`Row`] for SQLite.
 pub struct Row {
-    pub(crate) values: Box<[Value]>,
-    pub(crate) columns: Arc<Vec<Column>>,
+    pub values: Box<[Value]>,
+    pub columns: Arc<Vec<Column>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
-}
-
-impl ColumnIndex<Row> for usize {
-    fn index(&self, row: &Row) -> Result<usize, Error> {
-        let len = Row::len(row);
-
-        if *self >= len {
-            return Err(Error::ColumnIndexOutOfBounds { len, index: *self });
-        }
-
-        Ok(*self)
-    }
 }
 
 // Accessing values from the statement object is
@@ -80,43 +67,19 @@ impl Row {
         self.columns().len()
     }
 
-    /// Gets the column information at `index` or `None` if out of bounds.
-    pub fn get_column<I>(&self, index: I) -> Result<&Column, Error>
+    /// Get a single value from the row by column index.
+    pub fn get_value_idx<'r, T>(&'r self, index: usize) -> Result<T>
     where
-        I: ColumnIndex<Self>,
-    {
-        Ok(&self.columns()[index.index(self)?])
-    }
-
-    pub fn get_value_raw<I>(&self, index: I) -> Result<&Value, Error>
-    where
-        I: ColumnIndex<Self>,
-    {
-        let index = index.index(self)?;
-        Ok(&self.values[index])
-    }
-
-    /// Index into the database row and decode a single value.
-    ///
-    /// A string index can be used to access a column by name and a `usize` index
-    /// can be used to access a column by position.
-    ///
-    /// # Errors
-    ///
-    ///  * [`ColumnNotFound`] if the column by the given name was not found.
-    ///  * [`ColumnIndexOutOfBounds`] if the `usize` index was greater than the number of columns in the row.
-    ///  * [`ColumnDecode`] if the value could not be decoded into the requested type.
-    ///
-    /// [`ColumnDecode`]: Error::ColumnDecode
-    /// [`ColumnNotFound`]: Error::ColumnNotFound
-    /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
-    ///
-    pub fn get_value<'r, T, I>(&'r self, index: I) -> Result<T, Error>
-    where
-        I: ColumnIndex<Self>,
         T: Decode<'r> + Type,
     {
-        let value = self.get_value_raw(&index)?;
+        let value = if let Some(v) = self.values.get(index) {
+            v
+        } else {
+            return Err(Error::ColumnIndexOutOfBounds {
+                index,
+                len: self.values.len(),
+            });
+        };
 
         if !value.is_null() {
             let ty = value.type_info();
@@ -134,13 +97,17 @@ impl Row {
             source,
         })
     }
-}
 
-impl ColumnIndex<Row> for &'_ str {
-    fn index(&self, row: &Row) -> Result<usize, Error> {
-        row.column_names
-            .get(*self)
-            .ok_or_else(|| Error::ColumnNotFound((*self).into()))
-            .map(|v| *v)
+    /// Get a single value from the row by column name.
+    pub fn get_value<'r, T>(&'r self, column: &str) -> Result<T>
+    where
+        T: Decode<'r> + Type,
+    {
+        self.get_value_idx(
+            *self
+                .column_names
+                .get(column)
+                .ok_or_else(|| Error::ColumnNotFound(column.into()))?,
+        )
     }
 }

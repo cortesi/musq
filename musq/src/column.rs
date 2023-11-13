@@ -1,4 +1,4 @@
-use crate::{error::Error, sqlite::SqliteDataType, ustr::UStr};
+use crate::{sqlite::SqliteDataType, ustr::UStr};
 
 use std::fmt::Debug;
 
@@ -20,27 +20,5 @@ impl Column {
 
     pub fn type_info(&self) -> &SqliteDataType {
         &self.type_info
-    }
-}
-
-/// A type that can be used to index into a [`Row`] or [`Statement`].
-///
-/// The [`get_column`] and [`get_value`] methods of [`Row`] accept any type that implements `ColumnIndex`. This trait is
-/// implemented for strings which are used to look up a column by name, and for `usize` which is used as a positional
-/// index into the row.
-///
-/// This trait is sealed and cannot be implemented for types outside of SQLx.
-pub trait ColumnIndex<T: ?Sized>: Debug {
-    /// Returns a valid positional index into the row or statement, [`ColumnIndexOutOfBounds`], or,
-    /// [`ColumnNotFound`].
-    ///
-    /// [`ColumnNotFound`]: Error::ColumnNotFound
-    /// [`ColumnIndexOutOfBounds`]: Error::ColumnIndexOutOfBounds
-    fn index(&self, container: &T) -> Result<usize, Error>;
-}
-
-impl<T: ?Sized, I: ColumnIndex<T> + ?Sized> ColumnIndex<T> for &'_ I {
-    fn index(&self, row: &T) -> Result<usize, Error> {
-        (**self).index(row)
     }
 }
