@@ -8,63 +8,43 @@ use libsqlite3_sys::{
 
 use crate::{error::BoxDynError, sqlite::type_info::SqliteDataType};
 
-enum SqliteValueData<'r> {
-    Value(&'r Value),
-}
-
-pub struct ValueRef<'r>(SqliteValueData<'r>);
+pub struct ValueRef<'r>(&'r Value);
 
 impl<'r> ValueRef<'r> {
     pub fn value(value: &'r Value) -> Self {
-        Self(SqliteValueData::Value(value))
+        Self(value)
     }
 
     pub fn int(&self) -> i32 {
-        match self.0 {
-            SqliteValueData::Value(v) => v.int(),
-        }
+        self.0.int()
     }
 
     pub fn int64(&self) -> i64 {
-        match self.0 {
-            SqliteValueData::Value(v) => v.int64(),
-        }
+        self.0.int64()
     }
 
     pub fn double(&self) -> f64 {
-        match self.0 {
-            SqliteValueData::Value(v) => v.double(),
-        }
+        self.0.double()
     }
 
     pub fn blob(&self) -> &'r [u8] {
-        match self.0 {
-            SqliteValueData::Value(v) => v.blob(),
-        }
+        self.0.blob()
     }
 
     pub fn text(&self) -> Result<&'r str, BoxDynError> {
-        match self.0 {
-            SqliteValueData::Value(v) => v.text(),
-        }
+        self.0.text()
     }
 
     pub fn to_owned(&self) -> Value {
-        match self.0 {
-            SqliteValueData::Value(v) => v.clone(),
-        }
+        self.0.clone()
     }
 
     pub fn type_info(&self) -> Cow<'_, SqliteDataType> {
-        match self.0 {
-            SqliteValueData::Value(v) => v.type_info(),
-        }
+        self.0.type_info()
     }
 
     pub fn is_null(&self) -> bool {
-        match self.0 {
-            SqliteValueData::Value(v) => v.is_null(),
-        }
+        self.0.is_null()
     }
 }
 

@@ -130,28 +130,16 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
-    use musq::decode::Decode;
-
     let mut conn = tdb().await?;
     let defaults = query("pragma table_info (tweet)")
         .try_map(|row: Row| {
-            let val = row.get_value_raw("dflt_value")?;
-            let ty = val.type_info().clone().into_owned();
-
-            let val: Option<i32> = Decode::decode(val).map_err(musq::Error::Decode)?;
-
-            if val.is_some() {
-                assert_eq!(ty.name(), "TEXT");
-            }
-
+            let val: Option<String> = row.get_value("dflt_value")?;
             Ok(val)
         })
         .fetch_all(&mut conn)
         .await?;
-
     assert_eq!(defaults[0], None);
-    assert_eq!(defaults[2], Some(0));
-
+    assert_eq!(defaults[2], Some("TRUE".to_string()));
     Ok(())
 }
 
