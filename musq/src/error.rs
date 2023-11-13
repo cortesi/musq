@@ -1,9 +1,8 @@
 //! Types for working with errors produced by SQLx.
 
-use std::any::type_name;
 use std::io;
 
-use crate::{sqlite, sqlite::error::SqliteError, types::Type};
+use crate::{sqlite, sqlite::error::SqliteError};
 
 /// A specialized `Result` type for SQLx.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
@@ -11,14 +10,6 @@ pub type Result<T, E = Error> = std::result::Result<T, E>;
 // Convenience type alias for usage within SQLx.
 // Do not make this type public.
 pub type BoxDynError = Box<dyn std::error::Error + 'static + Send + Sync>;
-
-/// An unexpected `NULL` was encountered during decoding.
-///
-/// Returned from [`Row::get`](crate::row::Row::get) if the value from the database is `NULL`,
-/// and you are not decoding into an `Option`.
-#[derive(thiserror::Error, Debug)]
-#[error("unexpected null; try decoding as an `Option`")]
-pub struct UnexpectedNullError;
 
 /// Represents all the ways a method can fail within SQLx.
 #[derive(Debug, thiserror::Error)]
@@ -98,24 +89,6 @@ impl Error {
             _ => None,
         }
     }
-
-    pub fn as_sqlite_error(&self) -> Option<&SqliteError> {
-        match self {
-            Error::Sqlite(err) => Some(err),
-            _ => None,
-        }
-    }
-}
-
-pub fn mismatched_types<T: Type>(ty: &sqlite::SqliteDataType) -> BoxDynError {
-    // TODO: `#name` only produces `TINYINT` but perhaps we want to show `TINYINT(1)`
-    format!(
-        "mismatched types; Rust type `{}` (as SQL type `{}`) is not compatible with SQL type `{}`",
-        type_name::<T>(),
-        T::type_info().name(),
-        ty.name()
-    )
-    .into()
 }
 
 impl From<SqliteError> for Error {
