@@ -37,11 +37,8 @@ impl Row {
         let mut values = Vec::with_capacity(size);
 
         for i in 0..size {
-            values.push(unsafe {
-                let raw = statement.column_value(i);
-
-                Value::new(raw, columns[i].type_info)
-            });
+            let raw = statement.column_value(i);
+            values.push(unsafe { Value::new(raw, columns[i].type_info) });
         }
 
         Self {
@@ -51,20 +48,9 @@ impl Row {
         }
     }
 
-    pub fn columns(&self) -> &[Column] {
-        &self.columns
-    }
-
     /// Returns `true` if this row has no columns.
-
     pub fn is_empty(&self) -> bool {
-        self.len() == 0
-    }
-
-    /// Returns the number of columns in this row.
-
-    pub fn len(&self) -> usize {
-        self.columns().len()
+        self.columns.len() == 0
     }
 
     /// Get a single value from the row by column index.

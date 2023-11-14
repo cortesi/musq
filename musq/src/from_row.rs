@@ -7,9 +7,8 @@ use crate::Row;
 ///
 /// ## Derivable
 ///
-/// This trait can be derived for any struct. The generated implementation
-/// will consist of a sequence of calls to [`Row::get_value`] using the name from each
-/// struct field.
+/// This trait can be derived for structs. The generated implementation will consist of a sequence of calls to
+/// [`Row::get_value`] using the name from each struct field.
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
@@ -25,9 +24,8 @@ use crate::Row;
 ///
 /// #### `rename`
 ///
-/// When the name of a field in Rust does not match the name of its corresponding column,
-/// you can use the `rename` attribute to specify the name that the field has in the row.
-/// For example:
+/// When the name of a field in Rust does not match the name of its corresponding column, you can use the `rename`
+/// attribute to specify the name that the field has in the row. For example:
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
@@ -62,16 +60,14 @@ use crate::Row;
 /// }
 /// ```
 ///
-/// The supported values are `snake_case` (available if you have non-snake-case field names for some
-/// reason), `lowercase`, `UPPERCASE`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`.
-/// The styling of each option is intended to be an example of its behavior.
+/// The supported values are `snake_case` (available if you have non-snake-case field names for some reason),
+/// `lowercase`, `UPPERCASE`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`. The styling of each
+/// option is intended to be an example of its behavior.
 ///
 /// #### `default`
 ///
-/// When your struct contains a field that is not present in your query,
-/// if the field type has an implementation for [`Default`],
-/// you can use the `default` attribute to assign the default value to said field.
-/// For example:
+/// When your struct contains a field that is not present in your query, if the field type has an implementation for
+/// [`Default`], you can use the `default` attribute to assign the default value to said field. For example:
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
@@ -89,15 +85,12 @@ use crate::Row;
 /// SELECT id, name FROM users;
 /// ```
 ///
-/// will set the value of the field `location` to the default value of `Option<String>`,
-/// which is `None`.
+/// will set the value of the field `location` to the default value of `Option<String>`, which is `None`.
 ///
 /// ### `flatten`
 ///
-/// If you want to handle a field that implements [`FromRow`],
-/// you can use the `flatten` attribute to specify that you want
-/// it to use [`FromRow`] for parsing rather than the usual method.
-/// For example:
+/// If you want to handle a field that implements [`FromRow`], you can use the `flatten` attribute to specify that you
+/// want it to use [`FromRow`] for parsing rather than the usual method. For example:
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
@@ -125,11 +118,9 @@ use crate::Row;
 ///
 /// #### `skip`
 ///
-/// This is a variant of the `default` attribute which instead always takes the value from
-/// the `Default` implementation for this field type ignoring any results in your query.
-/// This can be useful, if some field does not satifisfy the trait bounds (i.e.
-/// `decode::Decode`, `type::Type`), in particular in case of nested structures.
-/// For example:
+/// This is a variant of the `default` attribute which instead always takes the value from the `Default` implementation
+/// for this field type ignoring any results in your query. This can be useful, if some field does not satifisfy the
+/// trait bounds (i.e. `decode::Decode`, `type::Type`), in particular in case of nested structures. For example:
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
@@ -160,8 +151,8 @@ use crate::Row;
 ///
 /// ## Manual implementation
 ///
-/// You can also implement the [`FromRow`] trait by hand. This can be useful if you
-/// have a struct with a field that needs manual decoding:
+/// You can also implement the [`FromRow`] trait by hand. This can be useful if you have a struct with a field that
+/// needs manual decoding:
 ///
 ///
 /// ```rust,ignore
@@ -187,10 +178,9 @@ use crate::Row;
 ///
 /// #### `try_from`
 ///
-/// When your struct contains a field whose type is not matched with the database type,
-/// if the field type has an implementation [`TryFrom`] for the database type,
-/// you can use the `try_from` attribute to convert the database type to the field type.
-/// For example:
+/// When your struct contains a field whose type is not matched with the database type, if the field type has an
+/// implementation [`TryFrom`] for the database type, you can use the `try_from` attribute to convert the database type
+/// to the field type. For example:
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
