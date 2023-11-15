@@ -28,8 +28,6 @@ pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
 
 unsafe impl Send for StatementHandle {}
 
-// might use some of this later
-#[allow(dead_code)]
 impl StatementHandle {
     pub(super) fn new(ptr: NonNull<sqlite3_stmt>) -> Self {
         Self(ptr)

@@ -7,7 +7,6 @@ use crate::{
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
 use std::borrow::Cow;
-use std::fmt::{self, Write};
 
 #[derive(Debug, Clone)]
 pub enum ArgumentValue<'q> {
@@ -48,14 +47,6 @@ impl<'q> Arguments<'q> {
                 .map(ArgumentValue::into_static)
                 .collect(),
         }
-    }
-
-    pub fn reserve(&mut self, len: usize, _size_hint: usize) {
-        self.values.reserve(len);
-    }
-
-    pub fn format_placeholder<W: Write>(&self, writer: &mut W) -> fmt::Result {
-        writer.write_str("?")
     }
 }
 
@@ -141,15 +132,6 @@ impl ArgumentValue<'_> {
 
 pub trait IntoArguments<'q>: Sized + Send {
     fn into_arguments(self) -> Arguments<'q>;
-}
-
-/// used by the query macros to prevent supernumerary `.bind()` calls
-pub struct ImmutableArguments<'q>(pub Arguments<'q>);
-
-impl<'q> IntoArguments<'q> for ImmutableArguments<'q> {
-    fn into_arguments(self) -> Arguments<'q> {
-        self.0
-    }
 }
 
 pub type ArgumentBuffer<'q> = Vec<ArgumentValue<'q>>;
