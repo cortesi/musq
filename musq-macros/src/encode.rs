@@ -19,11 +19,8 @@ fn expand_enum(
         let id = &v.ident;
         if let Some(rename) = &v.rename {
             value_arms.push(quote!(#ident :: #id => #rename,));
-        } else if let Some(pattern) = container.rename_all {
-            let name = core::rename_all(&id.to_string(), pattern);
-            value_arms.push(quote!(#ident :: #id => #name,));
         } else {
-            let name = id.to_string();
+            let name = container.rename_all.rename(&id.to_string());
             value_arms.push(quote!(#ident :: #id => #name,));
         }
     }

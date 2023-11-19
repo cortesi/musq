@@ -39,10 +39,10 @@ You can also derive custom types.
 
 ```rust
 #[derive(musq::Type)]
-enum Foo {One, Two}
+enum Foo {OneTwo, ThreeFour}
 ```
 
-Enum stored as a string: "One", "Two".
+Enum stored as a string in snake case (the default): "one_two", "three_four".
 
 </td>
 
@@ -51,10 +51,10 @@ Enum stored as a string: "One", "Two".
 ```rust
 #[derive(musq::Type)]
 #[musq(rename_all = "lower_case")]
-enum Foo {One, Two}
+enum Foo {OneTwo, ThreeFour}
 ```
 
-Enum stored as a string: "one", "two".
+Enum stored as a lowercase string: "onetwo", "threefour".
 
 </td>
 

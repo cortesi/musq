@@ -102,13 +102,6 @@ mod tests {
         assert_errors_with!(e, "zero fields");
 
         let txt = r#"
-            #[musq(rename_all = "lower_case", repr = "i32")]
-            enum Foo {One, Two}
-        "#;
-        let e = expand_derive_type(&syn::parse_str(txt).unwrap());
-        assert_errors_with!(e, "not supported for enums");
-
-        let txt = r#"
             #[musq(transparent)]
             enum Foo {One, Two}
         "#;

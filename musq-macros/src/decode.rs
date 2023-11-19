@@ -104,12 +104,9 @@ fn expand_enum(
         let id = &v.ident;
         if let Some(rename) = &v.rename {
             parse_quote!(#rename => ::std::result::Result::Ok(#ident :: #id),)
-        } else if let Some(pattern) = container.rename_all {
-            let name = core::rename_all(&id.to_string(), pattern);
-
-            parse_quote!(#name => ::std::result::Result::Ok(#ident :: #id),)
         } else {
-            let name = id.to_string();
+            let name = container.rename_all.rename(&id.to_string());
+
             parse_quote!(#name => ::std::result::Result::Ok(#ident :: #id),)
         }
     });
@@ -127,7 +124,7 @@ fn expand_enum(
         #[automatically_derived]
         impl<'r> musq::decode::Decode<'r> for #ident {
             fn decode(
-                value: ::musq::&'r Value,
+                value: &'r ::musq::Value,
             ) -> ::std::result::Result<
                 Self,
                 ::std::boxed::Box<

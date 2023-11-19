@@ -29,15 +29,32 @@ macro_rules! assert_errors_with {
 #[allow(unused)]
 pub(crate) use assert_errors_with;
 
-#[derive(Debug, Copy, Clone, FromMeta)]
+#[derive(Default, Debug, Copy, Clone, FromMeta)]
 pub enum RenameAll {
-    LowerCase,
+    #[default]
     SnakeCase,
+    LowerCase,
     UpperCase,
     ScreamingSnakeCase,
     KebabCase,
     CamelCase,
     PascalCase,
+    Verbatim,
+}
+
+impl RenameAll {
+    pub(crate) fn rename(self, s: &str) -> String {
+        match self {
+            RenameAll::LowerCase => s.to_lowercase(),
+            RenameAll::SnakeCase => s.to_snake_case(),
+            RenameAll::UpperCase => s.to_uppercase(),
+            RenameAll::ScreamingSnakeCase => s.to_shouty_snake_case(),
+            RenameAll::KebabCase => s.to_kebab_case(),
+            RenameAll::CamelCase => s.to_lower_camel_case(),
+            RenameAll::PascalCase => s.to_upper_camel_case(),
+            RenameAll::Verbatim => s.to_owned(),
+        }
+    }
 }
 
 #[derive(Debug, FromDeriveInput)]
@@ -46,7 +63,8 @@ pub enum RenameAll {
 pub struct RowContainer {
     pub ident: syn::Ident,
     pub generics: syn::Generics,
-    pub rename_all: Option<RenameAll>,
+    #[darling(default)]
+    pub rename_all: RenameAll,
     pub data: ast::Data<util::Ignored, RowField>,
 }
 
@@ -72,7 +90,8 @@ pub struct TypeContainer {
     pub generics: syn::Generics,
     #[darling(default)]
     pub transparent: bool,
-    pub rename_all: Option<RenameAll>,
+    #[darling(default)]
+    pub rename_all: RenameAll,
     pub repr: Option<Type>,
     pub data: ast::Data<TypeVariant, TypeField>,
 }
@@ -101,12 +120,6 @@ pub(crate) fn check_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
 
 pub(crate) fn check_repr_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
     check_enum_attrs(attrs)?;
-    if attrs.rename_all.is_some() {
-        span_err!(
-            &attrs.ident,
-            "rename_all is not supported for enums with repr"
-        )?;
-    }
     if attrs.repr.is_none() {
         span_err!(&attrs.ident, "repr attribute is required")?;
     }
@@ -117,25 +130,7 @@ pub(crate) fn check_transparent_attrs(attrs: &TypeContainer) -> syn::Result<()> 
     if !attrs.transparent {
         span_err!(&attrs.ident, "transparent is required")?;
     }
-    if attrs.rename_all.is_some() {
-        span_err!(
-            &attrs.ident,
-            "rename_all is not supported for transparent structs"
-        )?;
-    }
     Ok(())
-}
-
-pub(crate) fn rename_all(s: &str, pattern: RenameAll) -> String {
-    match pattern {
-        RenameAll::LowerCase => s.to_lowercase(),
-        RenameAll::SnakeCase => s.to_snake_case(),
-        RenameAll::UpperCase => s.to_uppercase(),
-        RenameAll::ScreamingSnakeCase => s.to_shouty_snake_case(),
-        RenameAll::KebabCase => s.to_kebab_case(),
-        RenameAll::CamelCase => s.to_lower_camel_case(),
-        RenameAll::PascalCase => s.to_upper_camel_case(),
-    }
 }
 
 pub(crate) fn expand_type_derive(

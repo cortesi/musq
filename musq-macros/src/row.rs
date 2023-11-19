@@ -70,10 +70,7 @@ fn expand_struct(
                         let id_s = field
                             .rename.clone()
                             .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                            .map(|s| match container.rename_all {
-                                Some(pattern) => core::rename_all(&s, pattern),
-                                None => s,
-                            })
+                            .map(|s| container.rename_all.rename(&s))
                             .unwrap();
                         parse_quote!(row.get_value(&#id_s))
                     }
@@ -89,10 +86,7 @@ fn expand_struct(
                         let id_s = field
                             .rename.clone()
                             .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                            .map(|s| match container.rename_all {
-                                Some(pattern) => core::rename_all(&s, pattern),
-                                None => s,
-                            })
+                            .map(|s| container.rename_all.rename(&s))
                             .unwrap();
                         parse_quote!(row.get_value(&#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
                     }
