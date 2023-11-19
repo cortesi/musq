@@ -89,8 +89,6 @@ pub struct TypeContainer {
     pub ident: syn::Ident,
     pub generics: syn::Generics,
     #[darling(default)]
-    pub transparent: bool,
-    #[darling(default)]
     pub rename_all: RenameAll,
     pub repr: Option<Type>,
     pub data: ast::Data<TypeVariant, TypeField>,
@@ -111,15 +109,7 @@ pub struct TypeField {
     pub rename: Option<String>,
 }
 
-pub(crate) fn check_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
-    if attrs.transparent {
-        span_err!(&attrs.ident, "transparent is not supported for enums")?;
-    }
-    Ok(())
-}
-
 pub(crate) fn check_repr_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
-    check_enum_attrs(attrs)?;
     if attrs.repr.is_none() {
         span_err!(&attrs.ident, "repr attribute is required")?;
     }
@@ -153,10 +143,7 @@ pub(crate) fn expand_type_derive(
                 check_repr_enum_attrs(&attrs)?;
                 expand_repr_enum(&attrs, v, &t)?
             }
-            None => {
-                check_enum_attrs(&attrs)?;
-                expand_enum(&attrs, v)?
-            }
+            None => expand_enum(&attrs, v)?,
         },
     })
 }

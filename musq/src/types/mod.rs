@@ -64,17 +64,6 @@ mod uint;
 /// Additionally, an implementation of [`Encode`](crate::encode::Encode) and [`Decode`](crate::decode::Decode) is
 /// generated.
 ///
-/// ### Transparent
-///
-/// Rust-only domain wrappers around SQL types. The generated implementations directly delegate to the implementation of
-/// the inner type.
-///
-/// ```rust,ignore
-/// #[derive(Type)]
-/// #[musq(transparent)]
-/// struct UserId(i64);
-/// ```
-///
 /// ##### Attributes
 ///
 /// * `#[musq(rename_all = "<strategy>")]` on struct definition: See [`derive docs in

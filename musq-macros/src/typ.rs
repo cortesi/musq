@@ -100,13 +100,6 @@ mod tests {
         let txt = r#"struct Unit;"#;
         let e = expand_derive_type(&syn::parse_str(txt).unwrap());
         assert_errors_with!(e, "zero fields");
-
-        let txt = r#"
-            #[musq(transparent)]
-            enum Foo {One, Two}
-        "#;
-        let e = expand_derive_type(&syn::parse_str(txt).unwrap());
-        assert_errors_with!(e, "not supported for enums");
     }
 
     #[test]
@@ -121,7 +114,6 @@ mod tests {
         expand_derive_type(&syn::parse_str(txt).unwrap()).unwrap();
 
         let txt = r#"
-            #[musq(transparent)]
             struct Foo(i32);
         "#;
         expand_derive_type(&syn::parse_str(txt).unwrap()).unwrap();

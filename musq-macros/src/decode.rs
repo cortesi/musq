@@ -168,7 +168,6 @@ mod tests {
         expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
 
         let txt = r#"
-            #[musq(transparent)]
             struct Foo(i32);
         "#;
         expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
