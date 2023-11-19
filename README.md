@@ -19,7 +19,7 @@ types are supported:
 | `i8`, `i16`, `i32`, `i64`             | INTEGER             |
 | `u8`, `u16`, `u32`                    | INTEGER             |
 | `f32`, `f64`                          | REAL                |
-| `&str`, `String`                      | TEXT               |
+| `&str`, `String`                      | TEXT                |
 | `&[u8]`, `Vec<u8>`                    | BLOB                |
 | `time::PrimitiveDateTime`             | DATETIME            |
 | `time::OffsetDateTime`                | DATETIME            |
