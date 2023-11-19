@@ -113,10 +113,6 @@ fn expand_struct(
             ) -> musq::encode::IsNull {
                 <#ty as musq::encode::Encode<#lifetime>>::encode_by_ref(&self.0, buf)
             }
-
-            fn produces(&self) -> Option<musq::SqliteDataType> {
-                <#ty as musq::encode::Encode<#lifetime>>::produces(&self.0)
-            }
         }
     ))
 }

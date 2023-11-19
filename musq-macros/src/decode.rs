@@ -21,7 +21,6 @@ fn expand_struct(
 
     // add db type for impl generics & where clause
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(DB: musq::Database));
     generics.params.insert(0, parse_quote!('r));
     generics
         .make_where_clause()

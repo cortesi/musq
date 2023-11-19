@@ -126,13 +126,6 @@ pub(crate) fn check_repr_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
     Ok(())
 }
 
-pub(crate) fn check_transparent_attrs(attrs: &TypeContainer) -> syn::Result<()> {
-    if !attrs.transparent {
-        span_err!(&attrs.ident, "transparent is required")?;
-    }
-    Ok(())
-}
-
 pub(crate) fn expand_type_derive(
     input: &DeriveInput,
     expand_struct: &dyn Fn(&TypeContainer, &TypeField) -> syn::Result<TokenStream>,
@@ -153,7 +146,6 @@ pub(crate) fn expand_type_derive(
             if unnamed != 1 {
                 return span_err!(input, "structs must have exactly one unnamed field");
             }
-            check_transparent_attrs(&attrs)?;
             expand_struct(&attrs, fields.iter().next().unwrap())?
         }
         ast::Data::Enum(v) => match &attrs.repr {

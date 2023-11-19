@@ -28,6 +28,9 @@ enum ReprEnum {
     Bar = 2,
 }
 
+#[derive(Debug, PartialEq, Type)]
+struct NewtypeStruct(i32);
+
 test_type!(plain_enum<PlainEnum>(
     "\"foo\"" == PlainEnum::Foo,
     "\"foo_bar\"" == PlainEnum::FooBar,
@@ -46,4 +49,8 @@ test_type!(lowercase_enum<LowerCaseEnum>(
 test_type!(origin_enum<ReprEnum>(
     "1" == ReprEnum::Foo,
     "2" == ReprEnum::Bar,
+));
+
+test_type!(newtype_struct<NewtypeStruct>(
+    "1" == NewtypeStruct(1),
 ));
