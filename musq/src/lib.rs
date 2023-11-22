@@ -33,7 +33,7 @@ pub use indexmap::IndexMap;
 
 pub use crate::{
     column::Column,
-    error::{Error, Result},
+    error::{DecodeError, Error, Result},
     executor::{Execute, Executor},
     from_row::FromRow,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},

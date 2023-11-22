@@ -1,7 +1,7 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    error::BoxDynError,
+    error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType, Value},
     Type,
 };
@@ -28,7 +28,7 @@ impl<'q> Encode<'q> for bool {
 }
 
 impl<'r> Decode<'r> for bool {
-    fn decode(value: &'r Value) -> Result<bool, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<bool, DecodeError> {
         Ok(value.int() != 0)
     }
 }

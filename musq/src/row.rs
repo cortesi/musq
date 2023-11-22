@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use crate::{
     decode::Decode,
+    error::DecodeError,
     error::Error,
     sqlite::{statement::StatementHandle, Value},
     types::Type,
@@ -73,13 +74,13 @@ impl Row {
             if !ty.is_null() && !T::compatible(&ty) {
                 return Err(Error::ColumnDecode {
                     index: format!("{:?}", index),
-                    source: format!(
+                    source: DecodeError(format!(
                         "mismatched types; Rust type `{}` (as SQLite type `{}`) is not compatible with SQLite type `{}`",
                         ty.name(),
                         T::type_info().name(),
                         ty.name()
                     )
-                    .into()
+                    .into())
                 });
             }
         }

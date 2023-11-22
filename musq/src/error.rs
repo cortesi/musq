@@ -1,24 +1,33 @@
 //! Types for working with errors produced by SQLx.
 
 use std::io;
+use std::num::TryFromIntError;
 
 use crate::{sqlite, sqlite::error::SqliteError};
 
 /// A specialized `Result` type for SQLx.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
-// Convenience type alias for usage within SQLx.
-// Do not make this type public.
-pub type BoxDynError = Box<dyn std::error::Error + 'static + Send + Sync>;
+#[derive(thiserror::Error, Debug)]
+#[error("decoding error")]
+pub struct DecodeError(pub String);
+
+impl From<TryFromIntError> for DecodeError {
+    fn from(err: TryFromIntError) -> Self {
+        Self(err.to_string())
+    }
+}
+
+impl From<String> for DecodeError {
+    fn from(err: String) -> Self {
+        Self(err)
+    }
+}
 
 /// Represents all the ways a method can fail within SQLx.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
-    /// Error occurred while parsing a connection string.
-    #[error("error with configuration: {0}")]
-    Configuration(#[source] BoxDynError),
-
     /// Error returned from the database.
     #[error("error returned from database: {0}")]
     Sqlite(#[source] sqlite::error::SqliteError),
@@ -56,12 +65,12 @@ pub enum Error {
         index: String,
 
         #[source]
-        source: BoxDynError,
+        source: DecodeError,
     },
 
     /// Error occurred while decoding a value.
     #[error("error occurred while decoding: {0}")]
-    Decode(#[source] BoxDynError),
+    Decode(#[source] DecodeError),
 
     /// A [`Pool::acquire`] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.

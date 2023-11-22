@@ -2,11 +2,11 @@
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    error::BoxDynError,
+    error::DecodeError,
     sqlite,
     sqlite::ArgumentBuffer,
     types::Type,
-    Value,
+    Result, Value,
 };
 
 #[doc(no_inline)]
@@ -29,7 +29,7 @@ impl<'r> Decode<'r> for BString
 where
     Vec<u8>: Decode<'r>,
 {
-    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         <Vec<u8> as Decode>::decode(value).map(BString::from)
     }
 }

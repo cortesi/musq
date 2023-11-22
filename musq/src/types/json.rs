@@ -7,12 +7,12 @@ pub use serde_json::Value as JsonValue;
 use crate::{
     decode::Decode,
     encode::{Encode, IsNull},
-    error::BoxDynError,
+    error::DecodeError,
     sqlite,
     sqlite::SqliteDataType,
     sqlite::{ArgumentBuffer, ArgumentValue},
     types::Type,
-    Value,
+    Result, Value,
 };
 
 /// Json for json and jsonb fields
@@ -116,12 +116,12 @@ impl<'a, T: 'a> Json<T>
 where
     T: Deserialize<'a>,
 {
-    pub fn decode_from_string(s: &'a str) -> Result<Self, BoxDynError> {
-        serde_json::from_str(s).map_err(Into::into)
+    pub fn decode_from_string(s: &'a str) -> Result<Self, DecodeError> {
+        serde_json::from_str(s).map_err(|x| DecodeError(x.to_string().into()))
     }
 
-    pub fn decode_from_bytes(bytes: &'a [u8]) -> Result<Self, BoxDynError> {
-        serde_json::from_slice(bytes).map_err(Into::into)
+    pub fn decode_from_bytes(bytes: &'a [u8]) -> Result<Self, DecodeError> {
+        serde_json::from_slice(bytes).map_err(|x| DecodeError(x.to_string().into()))
     }
 }
 
@@ -161,7 +161,7 @@ impl<'r> Decode<'r> for JsonValue
 where
     Json<Self>: Decode<'r>,
 {
-    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         <Json<Self> as Decode>::decode(value).map(|item| item.0)
     }
 }
@@ -185,7 +185,7 @@ impl<'r> Decode<'r> for &'r JsonRawValue
 where
     Json<Self>: Decode<'r>,
 {
-    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         <Json<Self> as Decode>::decode(value).map(|item| item.0)
     }
 }
@@ -203,7 +203,7 @@ impl<'r, T> Decode<'r> for Json<T>
 where
     T: 'r + Deserialize<'r>,
 {
-    fn decode(value: &'r Value) -> Result<Self, BoxDynError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         Self::decode_from_string(Decode::decode(value)?)
     }
 }

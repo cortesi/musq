@@ -4,8 +4,6 @@ use std::str::FromStr;
 
 use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT};
 
-use crate::error::BoxDynError;
-
 /// Data types supported by SQLite.
 #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
 pub enum SqliteDataType {
@@ -73,7 +71,7 @@ impl SqliteDataType {
 //       what Rust type maps to what *declared* SQL type
 // <https://www.sqlite.org/datatype3.html#affname>
 impl FromStr for SqliteDataType {
-    type Err = BoxDynError;
+    type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let s = s.to_ascii_lowercase();
@@ -99,14 +97,14 @@ impl FromStr for SqliteDataType {
             }
 
             _ => {
-                return Err(format!("unknown type: `{}`", s).into());
+                panic!("unknown type");
             }
         })
     }
 }
 
 #[test]
-fn test_data_type_from_str() -> Result<(), BoxDynError> {
+fn test_data_type_from_str() -> Result<(), crate::Error> {
     assert_eq!(SqliteDataType::Int, "INT4".parse()?);
 
     assert_eq!(SqliteDataType::Int64, "INT".parse()?);

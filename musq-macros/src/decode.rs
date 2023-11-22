@@ -35,9 +35,7 @@ fn expand_struct(
                 value: &'r musq::Value,
             ) -> ::std::result::Result<
                 Self,
-                ::std::boxed::Box<
-                    dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
-                >,
+                musq::DecodeError,
             > {
                 <#ty as musq::decode::Decode<'r>>::decode(value).map(Self)
             }
@@ -75,17 +73,14 @@ fn expand_repr_enum(
                 value: &'r musq::Value,
             ) -> ::std::result::Result<
                 Self,
-                ::std::boxed::Box<
-                    dyn ::std::error::Error + 'static + ::std::marker::Send + ::std::marker::Sync,
-                >,
+                musq::DecodeError,
             > {
                 let value = <#repr as musq::decode::Decode<'r>>::decode(value)?;
-
                 match value {
                     #(#arms)*
-                    _ => ::std::result::Result::Err(::std::boxed::Box::new(musq::Error::Decode(
+                    _ => Err(musq::DecodeError(
                         ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into(),
-                    )))
+                    ))
                 }
             }
         }
@@ -126,12 +121,7 @@ fn expand_enum(
                 value: &'r ::musq::Value,
             ) -> ::std::result::Result<
                 Self,
-                ::std::boxed::Box<
-                    dyn ::std::error::Error
-                        + 'static
-                        + ::std::marker::Send
-                        + ::std::marker::Sync,
-                >,
+                musq::DecodeError,
             > {
                 let value = <&'r ::std::primitive::str as musq::decode::Decode<
                     'r,

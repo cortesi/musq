@@ -6,7 +6,7 @@ use libsqlite3_sys::{
     sqlite3_value_type, SQLITE_NULL,
 };
 
-use crate::{error::BoxDynError, sqlite::type_info::SqliteDataType};
+use crate::{error::DecodeError, sqlite::type_info::SqliteDataType};
 
 #[derive(Clone)]
 pub struct Value {
@@ -68,8 +68,8 @@ impl Value {
         unsafe { from_raw_parts(ptr, len) }
     }
 
-    pub fn text(&self) -> Result<&str, BoxDynError> {
-        Ok(from_utf8(self.blob())?)
+    pub fn text(&self) -> Result<&str, DecodeError> {
+        Ok(from_utf8(self.blob()).map_err(|e| DecodeError(e.to_string()))?)
     }
 
     pub fn type_info(&self) -> Cow<'_, SqliteDataType> {
