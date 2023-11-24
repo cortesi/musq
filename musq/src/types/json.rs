@@ -152,8 +152,8 @@ impl<'q> Encode<'q> for JsonValue
 where
     for<'a> Json<&'a Self>: Encode<'q>,
 {
-    fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
-        <Json<&Self> as Encode<'q>>::encode(Json(self), buf)
+    fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
+        <Json<&Self> as Encode<'q>>::encode(Json(&self), buf)
     }
 }
 
@@ -194,7 +194,7 @@ impl<T> Encode<'_> for Json<T>
 where
     T: Serialize,
 {
-    fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
+    fn encode(self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
         Encode::encode(self.encode_to_string(), buf)
     }
 }

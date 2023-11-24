@@ -31,8 +31,8 @@ fn expand_enum(
         where
             &'q ::std::primitive::str: musq::encode::Encode<'q>,
         {
-            fn encode_by_ref(
-                &self,
+            fn encode(
+                self,
                 buf: &mut musq::ArgumentBuffer<'q>,
             ) -> musq::encode::IsNull {
                 let val = match self {
@@ -64,15 +64,15 @@ fn expand_repr_enum(
         where
             #repr: musq::encode::Encode<'q>,
         {
-            fn encode_by_ref(
-                &self,
+            fn encode(
+                self,
                 buf: &mut musq::ArgumentBuffer<'q>,
             ) -> musq::encode::IsNull {
                 let value = match self {
                     #(#values)*
                 };
 
-                <#repr as musq::encode::Encode>::encode_by_ref(&value, buf)
+                <#repr as musq::encode::Encode>::encode(value, buf)
             }
         }
     ))
@@ -107,11 +107,11 @@ fn expand_struct(
         impl #impl_generics musq::encode::Encode<#lifetime> for #ident #ty_generics
         #where_clause
         {
-            fn encode_by_ref(
-                &self,
+            fn encode(
+                self,
                 buf: &mut musq::ArgumentBuffer<#lifetime>,
             ) -> musq::encode::IsNull {
-                <#ty as musq::encode::Encode<#lifetime>>::encode_by_ref(&self.0, buf)
+                <#ty as musq::encode::Encode<#lifetime>>::encode(self.0, buf)
             }
         }
     ))

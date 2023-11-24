@@ -63,12 +63,8 @@ where
 impl<'q> Query<'q, Arguments<'q>> {
     /// Bind a value for use with this SQL query.
     ///
-    /// If the number of times this is called does not match the number of bind parameters that
-    /// appear in the query (`?` for most SQL flavors, `$1 .. $N` for Postgres) then an error
-    /// will be returned when this query is executed.
-    ///
-    /// There is no validation that the value is of the type expected by the query. Most SQL
-    /// flavors will perform type coercion (Postgres will return a database error).
+    /// If the number of times this is called does not match the number of bind parameters that appear in the query then
+    /// an error will be returned when this query is executed.
     pub fn bind<T: 'q + Send + Encode<'q> + Type>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value);

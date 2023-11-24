@@ -56,27 +56,27 @@ impl Type for Time {
 }
 
 impl Encode<'_> for OffsetDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
+    fn encode(self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
         Encode::encode(self.format(&Rfc3339).unwrap(), buf)
     }
 }
 
 impl Encode<'_> for PrimitiveDateTime {
-    fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
+    fn encode(self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
         Encode::encode(self.format(&format).unwrap(), buf)
     }
 }
 
 impl Encode<'_> for Date {
-    fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
+    fn encode(self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
         let format = fd!("[year]-[month]-[day]");
         Encode::encode(self.format(&format).unwrap(), buf)
     }
 }
 
 impl Encode<'_> for Time {
-    fn encode_by_ref(&self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
+    fn encode(self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
         Encode::encode(self.format(&format).unwrap(), buf)
     }

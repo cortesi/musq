@@ -38,7 +38,7 @@ impl<'q> Encode<'q> for &'q BStr
 where
     &'q [u8]: Encode<'q>,
 {
-    fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
+    fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         <&[u8] as Encode>::encode(self.as_bytes(), buf)
     }
 }
@@ -47,7 +47,7 @@ impl<'q> Encode<'q> for BString
 where
     Vec<u8>: Encode<'q>,
 {
-    fn encode_by_ref(&self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
+    fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
         <Vec<u8> as Encode>::encode(self.as_bytes().to_vec(), buf)
     }
 }

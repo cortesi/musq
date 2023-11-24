@@ -15,8 +15,8 @@ impl Type for str {
 }
 
 impl<'q> Encode<'q> for &'q str {
-    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Text(Cow::Borrowed(*self)));
+    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Text(Cow::Borrowed(&self)));
         IsNull::No
     }
 }
@@ -36,12 +36,6 @@ impl Type for String {
 impl<'q> Encode<'q> for String {
     fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Text(Cow::Owned(self)));
-
-        IsNull::No
-    }
-
-    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Text(Cow::Owned(self.clone())));
 
         IsNull::No
     }
@@ -66,12 +60,6 @@ impl Type for Cow<'_, str> {
 impl<'q> Encode<'q> for Cow<'q, str> {
     fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
         args.push(ArgumentValue::Text(self));
-
-        IsNull::No
-    }
-
-    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Text(self.clone()));
 
         IsNull::No
     }

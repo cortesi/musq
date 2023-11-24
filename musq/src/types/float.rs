@@ -13,8 +13,8 @@ impl Type for f32 {
 }
 
 impl<'q> Encode<'q> for f32 {
-    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Double((*self).into()));
+    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Double(self.into()));
 
         IsNull::No
     }
@@ -33,8 +33,8 @@ impl Type for f64 {
 }
 
 impl<'q> Encode<'q> for f64 {
-    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Double(*self));
+    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Double(self));
 
         IsNull::No
     }

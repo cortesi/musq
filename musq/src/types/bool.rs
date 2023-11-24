@@ -20,8 +20,8 @@ impl Type for bool {
 }
 
 impl<'q> Encode<'q> for bool {
-    fn encode_by_ref(&self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Int((*self).into()));
+    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+        args.push(ArgumentValue::Int(self.into()));
 
         IsNull::No
     }
