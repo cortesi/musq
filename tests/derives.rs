@@ -32,25 +32,46 @@ enum ReprEnum {
 struct NewtypeStruct(i32);
 
 #[derive(Debug, PartialEq, FromRow)]
+pub struct Flattened {
+    f: String,
+    g: u32,
+}
+
+#[derive(Debug, PartialEq, FromRow)]
 pub struct FromRowPlain {
     a: String,
     b: u32,
     c: NewtypeStruct,
     d: ReprEnum,
     e: LowerCaseEnum,
+    #[musq(flatten)]
+    f: Flattened,
 }
 
 #[tokio::test]
 async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    let row: FromRowPlain = musq::query_as("SELECT ? AS a, ? as b, ? as c, ? as d, ? as e")
-        .bind("one")
-        .bind(2)
-        .bind(3)
-        .bind(1)
-        .bind("foobar")
-        .fetch_one(&mut conn)
-        .await?;
+    let row: FromRowPlain = musq::query_as(
+        r"
+        SELECT
+        ? AS a,
+        ? as b,
+        ? as c,
+        ? as d,
+        ? as e,
+        ? as f,
+        ? as g
+    ",
+    )
+    .bind("one")
+    .bind(2)
+    .bind(3)
+    .bind(1)
+    .bind("foobar")
+    .bind("foo")
+    .bind(4)
+    .fetch_one(&mut conn)
+    .await?;
     assert_eq!(
         row,
         FromRowPlain {
@@ -59,6 +80,10 @@ async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
             c: NewtypeStruct(3),
             d: ReprEnum::Foo,
             e: LowerCaseEnum::FooBar,
+            f: Flattened {
+                f: "foo".into(),
+                g: 4,
+            },
         }
     );
     Ok(())
