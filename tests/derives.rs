@@ -1,5 +1,5 @@
-use musq_macros::Type;
-use musq_test::test_type;
+use musq_macros::*;
+use musq_test::{connection, test_type};
 
 #[derive(Debug, PartialEq, Type)]
 enum PlainEnum {
@@ -30,6 +30,39 @@ enum ReprEnum {
 
 #[derive(Debug, PartialEq, Type)]
 struct NewtypeStruct(i32);
+
+#[derive(Debug, PartialEq, FromRow)]
+pub struct FromRowPlain {
+    a: String,
+    b: u32,
+    c: NewtypeStruct,
+    d: ReprEnum,
+    e: LowerCaseEnum,
+}
+
+#[tokio::test]
+async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+    let row: FromRowPlain = musq::query_as("SELECT ? AS a, ? as b, ? as c, ? as d, ? as e")
+        .bind("one")
+        .bind(2)
+        .bind(3)
+        .bind(1)
+        .bind("foobar")
+        .fetch_one(&mut conn)
+        .await?;
+    assert_eq!(
+        row,
+        FromRowPlain {
+            a: "one".into(),
+            b: 2,
+            c: NewtypeStruct(3),
+            d: ReprEnum::Foo,
+            e: LowerCaseEnum::FooBar,
+        }
+    );
+    Ok(())
+}
 
 test_type!(plain_enum<PlainEnum>(
     "\"foo\"" == PlainEnum::Foo,
