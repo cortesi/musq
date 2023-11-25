@@ -12,7 +12,7 @@ pub struct ExecuteIter<'a> {
     handle: &'a mut ConnectionHandle,
     statement: &'a mut VirtualStatement,
     logger: QueryLogger<'a>,
-    args: Option<Arguments<'a>>,
+    args: Option<Arguments>,
 
     /// since a `VirtualStatement` can encompass multiple actual statements,
     /// this keeps track of the number of arguments so far
@@ -24,7 +24,7 @@ pub struct ExecuteIter<'a> {
 pub(crate) fn iter<'a>(
     conn: &'a mut ConnectionState,
     query: &'a str,
-    args: Option<Arguments<'a>>,
+    args: Option<Arguments>,
     persistent: bool,
 ) -> Result<ExecuteIter<'a>, Error> {
     // fetch the cached statement or allocate a new one
@@ -44,7 +44,7 @@ pub(crate) fn iter<'a>(
 
 fn bind(
     statement: &mut StatementHandle,
-    arguments: &Option<Arguments<'_>>,
+    arguments: &Option<Arguments>,
     offset: usize,
 ) -> Result<usize, Error> {
     let mut n = 0;

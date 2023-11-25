@@ -6,40 +6,40 @@ use crate::{
 
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
-use std::borrow::Cow;
+use std::sync::Arc;
 
 #[derive(Debug, Clone)]
-pub enum ArgumentValue<'q> {
+pub enum ArgumentValue {
     Null,
-    Text(Cow<'q, str>),
-    Blob(Cow<'q, [u8]>),
+    Text(Arc<String>),
+    Blob(Arc<Vec<u8>>),
     Double(f64),
     Int(i32),
     Int64(i64),
 }
 
 #[derive(Default, Debug, Clone)]
-pub struct Arguments<'q> {
-    pub(crate) values: Vec<ArgumentValue<'q>>,
+pub struct Arguments {
+    pub(crate) values: Vec<ArgumentValue>,
 }
 
-impl<'q> IntoArguments<'q> for Arguments<'q> {
-    fn into_arguments(self) -> Arguments<'q> {
+impl IntoArguments for Arguments {
+    fn into_arguments(self) -> Arguments {
         self
     }
 }
 
-impl<'q> Arguments<'q> {
+impl Arguments {
     pub fn add<T>(&mut self, value: T)
     where
-        T: Encode<'q>,
+        T: Encode,
     {
         if let IsNull::Yes = value.encode(&mut self.values) {
             self.values.push(ArgumentValue::Null);
         }
     }
 
-    pub(crate) fn into_static(self) -> Arguments<'static> {
+    pub(crate) fn into_static(self) -> Arguments {
         Arguments {
             values: self
                 .values
@@ -50,7 +50,7 @@ impl<'q> Arguments<'q> {
     }
 }
 
-impl Arguments<'_> {
+impl Arguments {
     pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize, Error> {
         let mut arg_i = offset;
         // for handle in &statement.handles {
@@ -96,14 +96,14 @@ impl Arguments<'_> {
     }
 }
 
-impl ArgumentValue<'_> {
-    fn into_static(self) -> ArgumentValue<'static> {
+impl ArgumentValue {
+    fn into_static(self) -> ArgumentValue {
         use ArgumentValue::*;
 
         match self {
             Null => Null,
-            Text(text) => Text(text.into_owned().into()),
-            Blob(blob) => Blob(blob.into_owned().into()),
+            Text(text) => Text(text.clone()),
+            Blob(blob) => Blob(blob.clone()),
             Int(v) => Int(v),
             Int64(v) => Int64(v),
             Double(v) => Double(v),
@@ -130,8 +130,8 @@ impl ArgumentValue<'_> {
     }
 }
 
-pub trait IntoArguments<'q>: Sized + Send {
-    fn into_arguments(self) -> Arguments<'q>;
+pub trait IntoArguments: Sized + Send {
+    fn into_arguments(self) -> Arguments;
 }
 
-pub type ArgumentBuffer<'q> = Vec<ArgumentValue<'q>>;
+pub type ArgumentBuffer = Vec<ArgumentValue>;

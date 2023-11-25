@@ -19,8 +19,8 @@ impl Type for bool {
     }
 }
 
-impl<'q> Encode<'q> for bool {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+impl Encode for bool {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
         args.push(ArgumentValue::Int(self.into()));
 
         IsNull::No

@@ -154,7 +154,7 @@ pub trait Execute<'q>: Send + Sized {
     /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
-    fn take_arguments(&mut self) -> Option<Arguments<'q>>;
+    fn take_arguments(&mut self) -> Option<Arguments>;
 
     /// Returns `true` if the statement should be cached.
     fn persistent(&self) -> bool;
@@ -169,7 +169,7 @@ impl<'q> Execute<'q> for &'q String {
         None
     }
 
-    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
+    fn take_arguments(&mut self) -> Option<Arguments> {
         None
     }
 
@@ -187,7 +187,7 @@ impl<'q> Execute<'q> for &'q str {
         None
     }
 
-    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
+    fn take_arguments(&mut self) -> Option<Arguments> {
         None
     }
 
@@ -196,7 +196,7 @@ impl<'q> Execute<'q> for &'q str {
     }
 }
 
-impl<'q> Execute<'q> for (&'q str, Option<Arguments<'q>>) {
+impl<'q> Execute<'q> for (&'q str, Option<Arguments>) {
     fn sql(&self) -> &'q str {
         self.0
     }
@@ -205,7 +205,7 @@ impl<'q> Execute<'q> for (&'q str, Option<Arguments<'q>>) {
         None
     }
 
-    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
+    fn take_arguments(&mut self) -> Option<Arguments> {
         self.1.take()
     }
 

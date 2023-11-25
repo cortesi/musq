@@ -45,7 +45,7 @@ enum Command {
     },
     Execute {
         query: Box<str>,
-        arguments: Option<Arguments<'static>>,
+        arguments: Option<Arguments>,
         persistent: bool,
         tx: flume::Sender<Result<Either<QueryResult, Row>, Error>>,
     },
@@ -260,7 +260,7 @@ impl ConnectionWorker {
     pub(crate) async fn execute(
         &mut self,
         query: &str,
-        args: Option<Arguments<'_>>,
+        args: Option<Arguments>,
         chan_size: usize,
         persistent: bool,
     ) -> Result<flume::Receiver<Result<Either<QueryResult, Row>, Error>>, Error> {

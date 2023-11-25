@@ -16,8 +16,8 @@ impl Type for i8 {
     }
 }
 
-impl<'q> Encode<'q> for i8 {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+impl Encode for i8 {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
         args.push(ArgumentValue::Int(self as i32));
 
         IsNull::No
@@ -40,8 +40,8 @@ impl Type for i16 {
     }
 }
 
-impl<'q> Encode<'q> for i16 {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+impl Encode for i16 {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
         args.push(ArgumentValue::Int(self as i32));
 
         IsNull::No
@@ -64,8 +64,8 @@ impl Type for i32 {
     }
 }
 
-impl<'q> Encode<'q> for i32 {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+impl Encode for i32 {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
         args.push(ArgumentValue::Int(self));
 
         IsNull::No
@@ -88,8 +88,8 @@ impl Type for i64 {
     }
 }
 
-impl<'q> Encode<'q> for i64 {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+impl Encode for i64 {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
         args.push(ArgumentValue::Int64(self));
 
         IsNull::No

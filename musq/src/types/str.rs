@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::sync::Arc;
 
 use crate::{
     decode::Decode,
@@ -14,9 +14,9 @@ impl Type for str {
     }
 }
 
-impl<'q> Encode<'q> for &'q str {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Text(Cow::Borrowed(&self)));
+impl<'q> Encode for &'q str {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
+        args.push(ArgumentValue::Text(Arc::new(self.to_owned())));
         IsNull::No
     }
 }
@@ -33,9 +33,9 @@ impl Type for String {
     }
 }
 
-impl<'q> Encode<'q> for String {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Text(Cow::Owned(self)));
+impl<'q> Encode for String {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
+        args.push(ArgumentValue::Text(Arc::new(self)));
 
         IsNull::No
     }
@@ -44,29 +44,5 @@ impl<'q> Encode<'q> for String {
 impl<'r> Decode<'r> for String {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         value.text().map(ToOwned::to_owned)
-    }
-}
-
-impl Type for Cow<'_, str> {
-    fn type_info() -> SqliteDataType {
-        <&str as Type>::type_info()
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        <&str as Type>::compatible(ty)
-    }
-}
-
-impl<'q> Encode<'q> for Cow<'q, str> {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Text(self));
-
-        IsNull::No
-    }
-}
-
-impl<'r> Decode<'r> for Cow<'r, str> {
-    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
-        value.text().map(Cow::Borrowed)
     }
 }

@@ -89,6 +89,7 @@ A ["newtype"](https://doc.rust-lang.org/rust-by-example/generics/new_types.html)
 </table>
 
 
+
 ### Why?
 
 Musq SQLite-focused fork of sqlx. The aims are to simplify and clean up the codebase, strip out un-needed features, add

@@ -34,20 +34,20 @@ where
     }
 }
 
-impl<'q> Encode<'q> for &'q BStr
+impl<'q> Encode for &'q BStr
 where
-    &'q [u8]: Encode<'q>,
+    &'q [u8]: Encode,
 {
-    fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
+    fn encode(self, buf: &mut ArgumentBuffer) -> IsNull {
         <&[u8] as Encode>::encode(self.as_bytes(), buf)
     }
 }
 
-impl<'q> Encode<'q> for BString
+impl Encode for BString
 where
-    Vec<u8>: Encode<'q>,
+    Vec<u8>: Encode,
 {
-    fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
+    fn encode(self, buf: &mut ArgumentBuffer) -> IsNull {
         <Vec<u8> as Encode>::encode(self.as_bytes().to_vec(), buf)
     }
 }

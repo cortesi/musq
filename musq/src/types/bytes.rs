@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::sync::Arc;
 
 use crate::{
     decode::Decode,
@@ -18,9 +18,9 @@ impl Type for [u8] {
     }
 }
 
-impl<'q> Encode<'q> for &'q [u8] {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Blob(Cow::Borrowed(self)));
+impl<'q> Encode for &'q [u8] {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
+        args.push(ArgumentValue::Blob(Arc::new(self.to_owned())));
 
         IsNull::No
     }
@@ -42,9 +42,9 @@ impl Type for Vec<u8> {
     }
 }
 
-impl<'q> Encode<'q> for Vec<u8> {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
-        args.push(ArgumentValue::Blob(Cow::Owned(self)));
+impl Encode for Vec<u8> {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
+        args.push(ArgumentValue::Blob(Arc::new(self)));
 
         IsNull::No
     }

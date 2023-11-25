@@ -1,6 +1,6 @@
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{parse_quote, DeriveInput, Lifetime, LifetimeParam, Type};
+use syn::{parse_quote, DeriveInput, Type};
 
 use super::core;
 
@@ -27,19 +27,17 @@ fn expand_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'q> musq::encode::Encode<'q> for #ident
-        where
-            &'q ::std::primitive::str: musq::encode::Encode<'q>,
+        impl musq::encode::Encode for #ident
         {
             fn encode(
                 self,
-                buf: &mut musq::ArgumentBuffer<'q>,
+                buf: &mut musq::ArgumentBuffer,
             ) -> musq::encode::IsNull {
                 let val = match self {
                     #(#value_arms)*
                 };
 
-                <&::std::primitive::str as musq::encode::Encode<'q>>::encode(val, buf)
+                <&::std::primitive::str as musq::encode::Encode>::encode(val, buf)
             }
         }
     ))
@@ -60,13 +58,13 @@ fn expand_repr_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'q> musq::encode::Encode<'q> for #ident
+        impl musq::encode::Encode for #ident
         where
-            #repr: musq::encode::Encode<'q>,
+            #repr: musq::encode::Encode,
         {
             fn encode(
                 self,
-                buf: &mut musq::ArgumentBuffer<'q>,
+                buf: &mut musq::ArgumentBuffer,
             ) -> musq::encode::IsNull {
                 let value = match self {
                     #(#values)*
@@ -90,28 +88,24 @@ fn expand_struct(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     // add db type for impl generics & where clause
-    let lifetime = Lifetime::new("'q", Span::call_site());
     let mut generics = generics.clone();
-    generics
-        .params
-        .insert(0, LifetimeParam::new(lifetime.clone()).into());
 
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: musq::encode::Encode<#lifetime>));
+        .push(parse_quote!(#ty: musq::encode::Encode));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musq::encode::Encode<#lifetime> for #ident #ty_generics
+        impl #impl_generics musq::encode::Encode for #ident #ty_generics
         #where_clause
         {
             fn encode(
                 self,
-                buf: &mut musq::ArgumentBuffer<#lifetime>,
+                buf: &mut musq::ArgumentBuffer,
             ) -> musq::encode::IsNull {
-                <#ty as musq::encode::Encode<#lifetime>>::encode(self.0, buf)
+                <#ty as musq::encode::Encode>::encode(self.0, buf)
             }
         }
     ))

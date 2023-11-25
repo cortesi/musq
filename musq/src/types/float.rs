@@ -12,8 +12,8 @@ impl Type for f32 {
     }
 }
 
-impl<'q> Encode<'q> for f32 {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+impl Encode for f32 {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
         args.push(ArgumentValue::Double(self.into()));
 
         IsNull::No
@@ -32,8 +32,8 @@ impl Type for f64 {
     }
 }
 
-impl<'q> Encode<'q> for f64 {
-    fn encode(self, args: &mut Vec<ArgumentValue<'q>>) -> IsNull {
+impl Encode for f64 {
+    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
         args.push(ArgumentValue::Double(self));
 
         IsNull::No

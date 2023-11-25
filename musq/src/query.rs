@@ -35,7 +35,7 @@ pub struct Map<'q, F, A> {
 
 impl<'q, A> Execute<'q> for Query<'q, A>
 where
-    A: Send + IntoArguments<'q>,
+    A: Send + IntoArguments,
 {
     fn sql(&self) -> &'q str {
         match self.statement {
@@ -51,7 +51,7 @@ where
         }
     }
 
-    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
+    fn take_arguments(&mut self) -> Option<Arguments> {
         self.arguments.take().map(IntoArguments::into_arguments)
     }
 
@@ -60,12 +60,12 @@ where
     }
 }
 
-impl<'q> Query<'q, Arguments<'q>> {
+impl<'q> Query<'q, Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that appear in the query then
     /// an error will be returned when this query is executed.
-    pub fn bind<T: 'q + Send + Encode<'q> + Type>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Send + Encode + Type>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value);
         }
@@ -91,7 +91,7 @@ impl<'q, A> Query<'q, A> {
 
 impl<'q, A: Send> Query<'q, A>
 where
-    A: 'q + IntoArguments<'q>,
+    A: 'q + IntoArguments,
 {
     /// Map each row in the result to another type.
     ///
@@ -211,7 +211,7 @@ where
 
 impl<'q, F: Send, A: Send> Execute<'q> for Map<'q, F, A>
 where
-    A: IntoArguments<'q>,
+    A: IntoArguments,
 {
     fn sql(&self) -> &'q str {
         self.inner.sql()
@@ -221,7 +221,7 @@ where
         self.inner.statement()
     }
 
-    fn take_arguments(&mut self) -> Option<Arguments<'q>> {
+    fn take_arguments(&mut self) -> Option<Arguments> {
         self.inner.take_arguments()
     }
 
@@ -234,7 +234,7 @@ impl<'q, F, O, A> Map<'q, F, A>
 where
     F: FnMut(Row) -> Result<O, Error> + Send,
     O: Send + Unpin,
-    A: 'q + Send + IntoArguments<'q>,
+    A: 'q + Send + IntoArguments,
 {
     /// Map each row in the result to another type.
     ///
@@ -360,7 +360,7 @@ where
 }
 
 // Make a SQL query from a statement.
-pub fn query_statement<'q>(statement: &'q Statement<'q>) -> Query<'q, Arguments<'_>> {
+pub fn query_statement<'q>(statement: &'q Statement<'q>) -> Query<'q, Arguments> {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Right(statement),
@@ -371,7 +371,7 @@ pub fn query_statement<'q>(statement: &'q Statement<'q>) -> Query<'q, Arguments<
 // Make a SQL query from a statement, with the given arguments.
 pub fn query_statement_with<'q, A>(statement: &'q Statement<'q>, arguments: A) -> Query<'q, A>
 where
-    A: IntoArguments<'q>,
+    A: IntoArguments,
 {
     Query {
         arguments: Some(arguments),
@@ -381,7 +381,7 @@ where
 }
 
 /// Make a SQL query.
-pub fn query(sql: &str) -> Query<'_, Arguments<'_>> {
+pub fn query(sql: &str) -> Query<'_, Arguments> {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Left(sql),
@@ -392,7 +392,7 @@ pub fn query(sql: &str) -> Query<'_, Arguments<'_>> {
 /// Make a SQL query, with the given arguments.
 pub fn query_with<'q, A>(sql: &'q str, arguments: A) -> Query<'q, A>
 where
-    A: IntoArguments<'q>,
+    A: IntoArguments,
 {
     Query {
         arguments: Some(arguments),

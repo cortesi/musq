@@ -148,12 +148,12 @@ where
     }
 }
 
-impl<'q> Encode<'q> for JsonValue
+impl Encode for JsonValue
 where
-    for<'a> Json<&'a Self>: Encode<'q>,
+    for<'a> Json<&'a Self>: Encode,
 {
-    fn encode(self, buf: &mut ArgumentBuffer<'q>) -> IsNull {
-        <Json<&Self> as Encode<'q>>::encode(Json(&self), buf)
+    fn encode(self, buf: &mut ArgumentBuffer) -> IsNull {
+        <Json<&Self> as Encode>::encode(Json(&self), buf)
     }
 }
 
@@ -190,11 +190,11 @@ where
     }
 }
 
-impl<T> Encode<'_> for Json<T>
+impl<T> Encode for Json<T>
 where
     T: Serialize,
 {
-    fn encode(self, buf: &mut Vec<ArgumentValue<'_>>) -> IsNull {
+    fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
         Encode::encode(self.encode_to_string(), buf)
     }
 }
