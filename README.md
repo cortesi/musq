@@ -30,7 +30,7 @@ The following built-in types are supported:
 | `bstr::BString`                       | BLOB                |
 
 
-## #[derive(JSON)]
+## #[derive(Json)]
 
 You can derive a JSON type with the `musq::Json` derive, as long as the type implements `serde::Serialize` and
 `serde::Deserialize`. JSON types are stored as TEXT.
