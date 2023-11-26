@@ -47,7 +47,7 @@ fn expand_struct(
 
 fn expand_repr_enum(
     container: &core::TypeContainer,
-    variants: &Vec<core::TypeVariant>,
+    variants: &[core::TypeVariant],
     repr: &Type,
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
@@ -89,7 +89,7 @@ fn expand_repr_enum(
 
 fn expand_enum(
     container: &core::TypeContainer,
-    variants: &Vec<core::TypeVariant>,
+    variants: &[core::TypeVariant],
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ident_s = ident.to_string();

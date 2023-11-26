@@ -162,7 +162,7 @@ pub trait Execute<'q>: Send + Sized {
 
 impl<'q> Execute<'q> for &'q String {
     fn sql(&self) -> &'q str {
-        &self
+        self
     }
 
     fn statement(&self) -> Option<&Statement<'q>> {

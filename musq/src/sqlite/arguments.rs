@@ -33,9 +33,7 @@ impl Arguments {
     {
         self.values.push(value.encode());
     }
-}
 
-impl Arguments {
     pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize, Error> {
         let mut arg_i = offset;
         // for handle in &statement.handles {
@@ -105,5 +103,3 @@ impl ArgumentValue {
 pub trait IntoArguments: Sized + Send {
     fn into_arguments(self) -> Arguments;
 }
-
-pub type ArgumentBuffer = Vec<ArgumentValue>;

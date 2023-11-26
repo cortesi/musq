@@ -68,7 +68,7 @@ impl Value {
     }
 
     pub fn text(&self) -> Result<&str, DecodeError> {
-        Ok(from_utf8(self.blob()).map_err(|e| DecodeError::Conversion(e.to_string()))?)
+        from_utf8(self.blob()).map_err(|e| DecodeError::Conversion(e.to_string()))
     }
 
     pub fn type_info(&self) -> SqliteDataType {

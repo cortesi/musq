@@ -1,4 +1,4 @@
-pub use arguments::{ArgumentBuffer, ArgumentValue, Arguments, IntoArguments};
+pub use arguments::{ArgumentValue, Arguments, IntoArguments};
 pub use connection::Connection;
 pub use error::SqliteError;
 pub use statement::Statement;

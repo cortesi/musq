@@ -10,7 +10,7 @@ pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
 
 fn expand_enum(
     container: &core::TypeContainer,
-    variants: &Vec<core::TypeVariant>,
+    variants: &[core::TypeVariant],
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let mut value_arms = Vec::new();
@@ -41,7 +41,7 @@ fn expand_enum(
 
 fn expand_repr_enum(
     container: &core::TypeContainer,
-    variants: &Vec<core::TypeVariant>,
+    variants: &[core::TypeVariant],
     repr: &Type,
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;

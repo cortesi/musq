@@ -53,8 +53,8 @@ impl<'r> Decode<'r> for PrimitiveDateTime {
 
 impl<'r> Decode<'r> for Date {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
-        Ok(Date::parse(value.text()?, &fd!("[year]-[month]-[day]"))
-            .map_err(|e| DecodeError::Conversion(e.to_string()))?)
+        Date::parse(value.text()?, &fd!("[year]-[month]-[day]"))
+            .map_err(|e| DecodeError::Conversion(e.to_string()))
     }
 }
 

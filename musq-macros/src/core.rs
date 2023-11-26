@@ -127,8 +127,8 @@ pub(crate) fn check_repr_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
 pub(crate) fn expand_type_derive(
     input: &DeriveInput,
     expand_struct: &dyn Fn(&TypeContainer, &TypeField) -> syn::Result<TokenStream>,
-    expand_repr_enum: &dyn Fn(&TypeContainer, &Vec<TypeVariant>, &Type) -> syn::Result<TokenStream>,
-    expand_enum: &dyn Fn(&TypeContainer, &Vec<TypeVariant>) -> syn::Result<TokenStream>,
+    expand_repr_enum: &dyn Fn(&TypeContainer, &[TypeVariant], &Type) -> syn::Result<TokenStream>,
+    expand_enum: &dyn Fn(&TypeContainer, &[TypeVariant]) -> syn::Result<TokenStream>,
 ) -> syn::Result<TokenStream> {
     let attrs = TypeContainer::from_derive_input(input)?;
     Ok(match &attrs.data {
@@ -149,7 +149,7 @@ pub(crate) fn expand_type_derive(
         ast::Data::Enum(v) => match &attrs.repr {
             Some(t) => {
                 check_repr_enum_attrs(&attrs)?;
-                expand_repr_enum(&attrs, v, &t)?
+                expand_repr_enum(&attrs, v, t)?
             }
             None => expand_enum(&attrs, v)?,
         },

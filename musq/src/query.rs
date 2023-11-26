@@ -388,7 +388,7 @@ pub fn query(sql: &str) -> Query<'_, Arguments> {
 }
 
 /// Make a SQL query, with the given arguments.
-pub fn query_with<'q, A>(sql: &'q str, arguments: A) -> Query<'q, A>
+pub fn query_with<A>(sql: &str, arguments: A) -> Query<'_, A>
 where
     A: IntoArguments,
 {

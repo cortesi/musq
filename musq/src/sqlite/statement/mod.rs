@@ -52,7 +52,7 @@ impl<'q> Statement<'q> {
         query::query_statement(self)
     }
 
-    pub fn query_with<'s, A>(&'s self, arguments: A) -> query::Query<'s, A>
+    pub fn query_with<A>(&self, arguments: A) -> query::Query<'_, A>
     where
         A: IntoArguments,
     {
