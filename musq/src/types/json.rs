@@ -119,10 +119,6 @@ where
     pub fn decode_from_string(s: &'a str) -> Result<Self, DecodeError> {
         serde_json::from_str(s).map_err(|x| DecodeError(x.to_string().into()))
     }
-
-    pub fn decode_from_bytes(bytes: &'a [u8]) -> Result<Self, DecodeError> {
-        serde_json::from_slice(bytes).map_err(|x| DecodeError(x.to_string().into()))
-    }
 }
 
 impl<T> Type for Json<T> {

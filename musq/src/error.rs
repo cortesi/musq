@@ -9,7 +9,7 @@ use crate::{sqlite, sqlite::error::SqliteError};
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(thiserror::Error, Debug)]
-#[error("decoding error")]
+#[error("decoding error: {0}")]
 pub struct DecodeError(pub String);
 
 impl From<TryFromIntError> for DecodeError {

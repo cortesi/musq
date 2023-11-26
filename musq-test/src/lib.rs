@@ -76,7 +76,7 @@ macro_rules! __test_prepared_type {
 
                 $(
                     let query = format!($sql, $text);
-                    println!("{query}");
+                    println!("{query} bound to {:?}", $value);
 
                     let row = musq::query(&query)
                         .bind($value)

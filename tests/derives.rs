@@ -1,6 +1,12 @@
 use musq_macros::*;
 use musq_test::{connection, test_type};
 
+#[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, Json)]
+struct JsonType {
+    a: String,
+    b: i32,
+}
+
 #[derive(Debug, PartialEq, Type)]
 enum PlainEnum {
     Foo,
@@ -111,4 +117,11 @@ test_type!(origin_enum<ReprEnum>(
 
 test_type!(newtype_struct<NewtypeStruct>(
     "1" == NewtypeStruct(1),
+));
+
+test_type!(json_type<JsonType>(
+    r#"'{"a":"1","b":1}'"# == JsonType {
+        a: "1".into(),
+        b: 1,
+    },
 ));

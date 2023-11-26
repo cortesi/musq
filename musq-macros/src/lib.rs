@@ -1,8 +1,18 @@
 mod core;
 mod decode;
 mod encode;
+mod json;
 mod row;
 mod typ;
+
+#[proc_macro_derive(Json, attributes(musq))]
+pub fn derive_json(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
+    match json::expand_json(&input) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
 
 #[proc_macro_derive(Type, attributes(musq))]
 pub fn derive_type(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {

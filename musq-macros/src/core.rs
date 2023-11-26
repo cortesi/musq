@@ -58,6 +58,14 @@ impl RenameAll {
 }
 
 #[derive(Debug, FromDeriveInput)]
+#[darling(supports(struct_named, struct_tuple))]
+pub struct JsonContainer {
+    pub ident: syn::Ident,
+    pub generics: syn::Generics,
+    pub data: ast::Data<util::Ignored, RowField>,
+}
+
+#[derive(Debug, FromDeriveInput)]
 #[darling(attributes(musq))]
 #[darling(supports(struct_named, struct_tuple))]
 pub struct RowContainer {

@@ -9,8 +9,11 @@ Musq is an async SQLite crate library for Rust.
 
 # Types
 
-Types are discrete values that can be stored in a table column or appear in SQL expressions. The following built-in
-types are supported:
+Types are discrete values that can be stored in a table column or appear in SQL expressions.
+
+## Built-in Types
+
+The following built-in types are supported:
 
 | Rust type                             | SQLite type(s)      |
 |---------------------------------------|---------------------|
@@ -30,7 +33,22 @@ types are supported:
 | `bstr::BString`                       | BLOB                |
 
 
-You can also derive custom types.
+## #[derive(JSON)]
+
+You can derive a JSON type with the `musq::Json` derive, as long as the type implements `serde::Serialize` and
+`serde::Deserialize`. JSON types are stored as TEXT.
+
+```rust
+#[derive(musq::Json, serde::Serialize, serde::Deserialize)]
+struct Foo {
+    id: i32,
+    name: String,
+}
+```
+
+## #[derive(Type)]
+
+You can derive custom types with the `musq::Type` derive.
 
 <table>
 <tr>
@@ -101,6 +119,7 @@ If `s` is a `&str` reference, Musq has to clone the value into an owned structur
 thread sharing. This is usually fine, but if `s` is large, we can avoid the copy by passing an owned `String` or an
 `Arc<String>` instead. The same idea holds for the reference `&[u8]` and its counterparts `Vec<u8>` and `Arc<Vec<u8>>`.
 
+FIXME: Add note on efficiently querying large blobs
 
 # Development
 
