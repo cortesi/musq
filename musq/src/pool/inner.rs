@@ -38,22 +38,15 @@ pub(crate) struct PoolInner {
 
 impl PoolInner {
     pub(super) fn new_arc(options: PoolOptions) -> Arc<Self> {
-        let capacity = options.max_connections as usize;
-        let semaphore_capacity = capacity;
-
-        let pool = Self {
-            idle_conns: ArrayQueue::new(capacity),
-            semaphore: tokio::sync::Semaphore::new(semaphore_capacity),
+        Arc::new(Self {
+            idle_conns: ArrayQueue::new(options.max_connections as usize),
+            semaphore: tokio::sync::Semaphore::new(options.max_connections as usize),
             size: AtomicU32::new(0),
             num_idle: AtomicUsize::new(0),
             is_closed: AtomicBool::new(false),
             on_closed: event_listener::Event::new(),
             options,
-        };
-
-        let pool = Arc::new(pool);
-
-        pool
+        })
     }
 
     pub(super) fn size(&self) -> u32 {
