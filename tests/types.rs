@@ -1,7 +1,5 @@
 extern crate time_ as time;
 
-use musq::Row;
-use musq_test::connection;
 use musq_test::test_type;
 
 test_type!(null<Option<i32>>(
@@ -34,57 +32,6 @@ test_type!(bytes<Vec<u8>>(
     "X'0000000052'"
         == vec![0_u8, 0, 0, 0, 0x52]
 ));
-
-mod json_tests {
-    use super::*;
-    use musq::types;
-    use musq_test::test_type;
-    use serde_json::{json, Value as JsonValue};
-
-    test_type!(json<JsonValue>(
-        "'\"Hello, World\"'" == json!("Hello, World"),
-        "'\"😎\"'" == json!("😎"),
-        "'\"🙋‍♀️\"'" == json!("🙋‍♀️"),
-        "'[\"Hello\",\"World!\"]'" == json!(["Hello", "World!"])
-    ));
-
-    #[derive(serde::Deserialize, serde::Serialize, Debug, PartialEq)]
-    struct Friend {
-        name: String,
-        age: u32,
-    }
-
-    test_type!(json_struct<types::Json<Friend>>(
-        "\'{\"name\":\"Joe\",\"age\":33}\'" == types::Json(Friend { name: "Joe".to_string(), age: 33 })
-    ));
-
-    // NOTE: This is testing recursive (and transparent) usage of the `Json` wrapper. You don't
-    //       need to wrap the Vec in Json<_> to make the example work.
-
-    #[derive(Debug, PartialEq, serde::Serialize, serde::Deserialize)]
-    struct Customer {
-        json_column: types::Json<Vec<i64>>,
-    }
-
-    test_type!(json_struct_json_column<types::Json<Customer>>(
-        "\'{\"json_column\":[1,2]}\'" == types::Json(Customer { json_column: types::Json(vec![1, 2]) })
-    ));
-
-    #[tokio::test]
-    async fn it_json_extracts() -> anyhow::Result<()> {
-        let mut conn = connection().await?;
-
-        let value = musq::query("select JSON_EXTRACT(JSON('{ \"number\": 42 }'), '$.number') = ?1")
-            .bind(42_i32)
-            .try_map(|row: Row| row.get_value_idx::<bool>(0))
-            .fetch_one(&mut conn)
-            .await?;
-
-        assert_eq!(true, value);
-
-        Ok(())
-    }
-}
 
 mod time_tests {
     use super::*;

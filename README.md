@@ -27,9 +27,6 @@ The following built-in types are supported:
 | `time::OffsetDateTime`                | DATETIME            |
 | `time::Date`                          | DATE                |
 | `time::Time`                          | TIME                |
-| `Json<T>`                             | TEXT                |
-| `serde_json::JsonValue`               | TEXT                |
-| `&serde_json::value::RawValue`        | TEXT                |
 | `bstr::BString`                       | BLOB                |
 
 

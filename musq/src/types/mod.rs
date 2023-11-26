@@ -20,9 +20,6 @@
 //! | `time::OffsetDateTime`                | DATETIME            |
 //! | `time::Date`                          | DATE                |
 //! | `time::Time`                          | TIME                |
-//! | [`Json<T>`]                           | TEXT                |
-//! | `serde_json::JsonValue`               | TEXT                |
-//! | `&serde_json::value::RawValue`        | TEXT                |
 //! | `bstr::BString`                       | BLOB                |
 //!
 //! #### Note: Unsigned Integers
@@ -46,13 +43,11 @@ use crate::sqlite;
 
 pub mod bstr;
 pub mod time;
-pub use json::{Json, JsonRawValue, JsonValue};
 
 mod bool;
 mod bytes;
 mod float;
 mod int;
-mod json;
 mod str;
 mod uint;
 
