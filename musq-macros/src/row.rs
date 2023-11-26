@@ -46,64 +46,62 @@ fn expand_struct(
     let predicates = &mut generics.make_where_clause().predicates;
 
     let reads: Vec<Stmt> = fields
-            .iter()
-            .filter_map(|field| -> Option<Stmt> {
-                let id = &field.ident.as_ref()?;
-                let ty = &field.ty;
+        .iter()
+        .filter_map(|field| -> Option<Stmt> {
+            let id = &field.ident.as_ref()?;
+            let ty = &field.ty;
 
-                if field.skip {
-                    return Some(parse_quote!(
-                        let #id: #ty = Default::default();
-                    ));
-                }
+            if field.skip {
+                return Some(parse_quote!(
+                    let #id: #ty = Default::default();
+                ));
+            }
 
-                let expr: Expr = match (field.flatten, &field.try_from) {
-                    (true, None) => {
-                        predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
-                        parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row(row))
-                    }
-                    (false, None) => {
-                        predicates
-                            .push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
+            let expr: Expr = if field.flatten {
+                predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
+                parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row(row))
+            } else if let Some(try_from) = &field.try_from {
+                predicates.push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
+                let id_s = field
+                    .rename
+                    .clone()
+                    .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+                    .map(|s| container.rename_all.rename(&s))
+                    .unwrap();
+                parse_quote!(
+                    row.get_value(&#id_s).and_then(
+                        |v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(
+                            |e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string())
+                        )
+                    )
+                )
+            } else {
+                predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
+                let id_s = field
+                    .rename
+                    .clone()
+                    .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+                    .map(|s| container.rename_all.rename(&s))
+                    .unwrap();
+                parse_quote!(row.get_value(&#id_s))
+            };
 
-                        let id_s = field
-                            .rename.clone()
-                            .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                            .map(|s| container.rename_all.rename(&s))
-                            .unwrap();
-                        parse_quote!(row.get_value(&#id_s))
-                    }
-                    (true,Some(try_from)) => {
-                        predicates.push(parse_quote!(#try_from: musq::FromRow<#lifetime>));
-                        parse_quote!(<#try_from as musq::FromRow<#lifetime>>::from_row(row).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
-                    }
-                    (false,Some(try_from)) => {
-                        predicates
-                            .push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
-
-                        let id_s = field
-                            .rename.clone()
-                            .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                            .map(|s| container.rename_all.rename(&s))
-                            .unwrap();
-                        parse_quote!(row.get_value(&#id_s).and_then(|v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(|e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string()))))
-                    }
-                };
-
-                if field.default {
-                    Some(parse_quote!(let #id: #ty = #expr.or_else(|e| match e {
-                    musq::Error::ColumnNotFound(_) => {
-                        ::std::result::Result::Ok(Default::default())
-                    },
-                    e => ::std::result::Result::Err(e)
-                })?;))
-                } else {
-                    Some(parse_quote!(
-                        let #id: #ty = #expr?;
-                    ))
-                }
-            })
-            .collect();
+            if field.default {
+                Some(parse_quote!(
+                   let #id: #ty = #expr.or_else(|e| match e {
+                       musq::Error::ColumnNotFound(_) => {
+                           ::std::result::Result::Ok(Default::default())
+                       },
+                       e => ::std::result::Result::Err(e)
+                   })?;
+                ))
+            } else {
+                Some(parse_quote!(
+                    let #id: #ty = #expr?;
+                ))
+            }
+        })
+        .collect();
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
     let names = fields.iter().map(|field| &field.ident);

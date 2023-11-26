@@ -3,11 +3,11 @@ use crate::Row;
 
 /// A record that can be built from a row returned by the database.
 ///
-/// In order to use [`query_as`](crate::query_as) the output type must implement `FromRow`.
+/// To use [`query_as`](crate::query_as) the output type must implement `FromRow`.
 ///
 /// ## Derivable
 ///
-/// This trait can be derived for structs. The generated implementation will consist of a sequence of calls to
+/// This trait can be derived for structs. The generated implementation will make a sequence of calls to
 /// [`Row::get_value`] using the name from each struct field.
 ///
 /// ```rust,ignore
@@ -191,15 +191,6 @@ use crate::Row;
 ///     bigIntInMySql: u64
 /// }
 /// ```
-///
-/// Given a query such as:
-///
-/// ```sql
-/// SELECT id, name, bigIntInMySql FROM users;
-/// ```
-///
-/// In MySql, `BigInt` type matches `i64`, but you can convert it to `u64` by `try_from`.
-///
 pub trait FromRow<'r>: Sized {
     fn from_row(row: &'r Row) -> Result<Self, Error>;
 }
