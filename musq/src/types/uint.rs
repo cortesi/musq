@@ -1,20 +1,10 @@
 use crate::{
+    compatible,
     decode::Decode,
     encode::{Encode, IsNull},
     error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType, Value},
-    Type,
 };
-
-impl Type for u8 {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Int
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        matches!(ty, SqliteDataType::Int | SqliteDataType::Int64)
-    }
-}
 
 impl Encode for u8 {
     fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
@@ -25,17 +15,8 @@ impl Encode for u8 {
 
 impl<'r> Decode<'r> for u8 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
+        compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
         Ok(value.int().try_into()?)
-    }
-}
-
-impl Type for u16 {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Int
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        matches!(ty, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 
@@ -49,17 +30,8 @@ impl Encode for u16 {
 
 impl<'r> Decode<'r> for u16 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
+        compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
         Ok(value.int().try_into()?)
-    }
-}
-
-impl Type for u32 {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Int64
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        matches!(ty, SqliteDataType::Int | SqliteDataType::Int64)
     }
 }
 
@@ -72,6 +44,7 @@ impl Encode for u32 {
 
 impl<'r> Decode<'r> for u32 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
+        compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
         Ok(value.int64().try_into()?)
     }
 }

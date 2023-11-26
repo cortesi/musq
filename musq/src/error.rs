@@ -3,24 +3,28 @@
 use std::io;
 use std::num::TryFromIntError;
 
-use crate::{sqlite, sqlite::error::SqliteError};
+use crate::{sqlite, sqlite::error::SqliteError, SqliteDataType};
 
 /// A specialized `Result` type for SQLx.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(thiserror::Error, Debug)]
-#[error("decoding error: {0}")]
-pub struct DecodeError(pub String);
+pub enum DecodeError {
+    #[error("incompatible source data type: {0}")]
+    DataType(SqliteDataType),
+    #[error("decoding conversion error: {0}")]
+    Conversion(String),
+}
 
 impl From<TryFromIntError> for DecodeError {
     fn from(err: TryFromIntError) -> Self {
-        Self(err.to_string())
+        DecodeError::Conversion(err.to_string())
     }
 }
 
 impl From<String> for DecodeError {
     fn from(err: String) -> Self {
-        Self(err)
+        DecodeError::Conversion(err)
     }
 }
 

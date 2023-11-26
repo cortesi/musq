@@ -4,10 +4,8 @@ use std::sync::Arc;
 
 use crate::{
     decode::Decode,
-    error::DecodeError,
     error::Error,
     sqlite::{statement::StatementHandle, Value},
-    types::Type,
     ustr::UStr,
     Column, HashMap, Result,
 };
@@ -57,7 +55,7 @@ impl Row {
     /// Get a single value from the row by column index.
     pub fn get_value_idx<'r, T>(&'r self, index: usize) -> Result<T>
     where
-        T: Decode<'r> + Type,
+        T: Decode<'r>,
     {
         let value = if let Some(v) = self.values.get(index) {
             v
@@ -68,23 +66,6 @@ impl Row {
             });
         };
 
-        if !value.is_null() {
-            let ty = value.type_info();
-
-            if !ty.is_null() && !T::compatible(&ty) {
-                return Err(Error::ColumnDecode {
-                    index: format!("{:?}", index),
-                    source: DecodeError(format!(
-                        "mismatched types; Rust type `{}` (as SQLite type `{}`) is not compatible with SQLite type `{}`",
-                        ty.name(),
-                        T::type_info().name(),
-                        ty.name()
-                    )
-                    .into())
-                });
-            }
-        }
-
         T::decode(value).map_err(|source| Error::ColumnDecode {
             index: format!("{:?}", index),
             source,
@@ -94,7 +75,7 @@ impl Row {
     /// Get a single value from the row by column name.
     pub fn get_value<'r, T>(&'r self, column: &str) -> Result<T>
     where
-        T: Decode<'r> + Type,
+        T: Decode<'r>,
     {
         self.get_value_idx(
             *self

@@ -1,59 +1,14 @@
 use crate::{
+    compatible,
     decode::Decode,
     encode::{Encode, IsNull},
     error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType},
-    Type, Value,
+    Value,
 };
 use time::format_description::{well_known::Rfc3339, FormatItem};
 use time::macros::format_description as fd;
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
-
-impl Type for OffsetDateTime {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Datetime
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        <PrimitiveDateTime as Type>::compatible(ty)
-    }
-}
-
-impl Type for PrimitiveDateTime {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Datetime
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        matches!(
-            ty,
-            SqliteDataType::Datetime
-                | SqliteDataType::Text
-                | SqliteDataType::Int64
-                | SqliteDataType::Int
-        )
-    }
-}
-
-impl Type for Date {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Date
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        matches!(ty, SqliteDataType::Date | SqliteDataType::Text)
-    }
-}
-
-impl Type for Time {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Time
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        matches!(ty, SqliteDataType::Time | SqliteDataType::Text)
-    }
-}
 
 impl Encode for OffsetDateTime {
     fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
@@ -97,7 +52,7 @@ impl<'r> Decode<'r> for PrimitiveDateTime {
 impl<'r> Decode<'r> for Date {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         Ok(Date::parse(value.text()?, &fd!("[year]-[month]-[day]"))
-            .map_err(|e| DecodeError(e.to_string()))?)
+            .map_err(|e| DecodeError::Conversion(e.to_string()))?)
     }
 }
 
@@ -122,11 +77,15 @@ impl<'r> Decode<'r> for Time {
 }
 
 fn decode_offset_datetime(value: &Value) -> Result<OffsetDateTime, DecodeError> {
-    let dt = match *value.type_info() {
+    compatible!(
+        value,
+        SqliteDataType::Text | SqliteDataType::Int64 | SqliteDataType::Int
+    );
+    let dt = match value.type_info() {
         SqliteDataType::Text => decode_offset_datetime_from_text(value.text()?),
         SqliteDataType::Int | SqliteDataType::Int64 => Some(
             OffsetDateTime::from_unix_timestamp(value.int64())
-                .map_err(|e| DecodeError(e.to_string()))?,
+                .map_err(|e| DecodeError::Conversion(e.to_string()))?,
         ),
 
         _ => None,
@@ -156,13 +115,16 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
 }
 
 fn decode_datetime(value: &Value) -> Result<PrimitiveDateTime, DecodeError> {
-    let dt = match *value.type_info() {
+    compatible!(
+        value,
+        SqliteDataType::Text | SqliteDataType::Int64 | SqliteDataType::Int
+    );
+    let dt = match value.type_info() {
         SqliteDataType::Text => decode_datetime_from_text(value.text()?),
         SqliteDataType::Int | SqliteDataType::Int64 => {
             let parsed = OffsetDateTime::from_unix_timestamp(value.int64()).unwrap();
             Some(PrimitiveDateTime::new(parsed.date(), parsed.time()))
         }
-
         _ => None,
     };
 

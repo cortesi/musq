@@ -20,17 +20,6 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
     let (decode_impl_generics, _, _) = decode_generics.split_for_impl();
 
     Ok(quote!(
-        #[automatically_derived]
-        impl #impl_generics musq::Type for #ident #ty_generics #where_clause {
-            fn type_info() -> musq::SqliteDataType {
-                musq::SqliteDataType::Text
-            }
-
-            fn compatible(ty: &musq::SqliteDataType) -> bool {
-                <&str as musq::Type>::compatible(ty)
-            }
-        }
-
         impl #impl_generics musq::encode::Encode for #ident #ty_generics #where_clause {
             fn encode(self, buf: &mut musq::ArgumentBuffer) -> musq::encode::IsNull {
                 let v = serde_json::to_string(&self).expect(
@@ -44,7 +33,7 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
 
         impl #decode_impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
             fn decode(value: &'r musq::Value) -> Result<Self, musq::DecodeError> {
-                serde_json::from_str(value.text()?).map_err(|x| musq::DecodeError(x.to_string().into()))
+                serde_json::from_str(value.text()?).map_err(|x| musq::DecodeError::Conversion(x.to_string().into()))
             }
         }
     ))

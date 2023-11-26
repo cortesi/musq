@@ -33,7 +33,6 @@ futures-util = { version = "0.3.19", default-features = false, features = [
 ] }
 log = { version = "0.4.14", default-features = false }
 serde = { version = "1.0.132", features = ["derive", "rc"] }
-serde_json = { version = "1.0.73", features = ["raw_value"] }
 sqlformat = "0.2.0"
 thiserror = "1.0.30"
 tracing = { version = "0.1.37", features = ["log"] }

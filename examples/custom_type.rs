@@ -7,14 +7,6 @@ struct Foo {
     bar: String,
 }
 
-impl Type for Foo {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Text
-    }
-    fn compatible(ty: &SqliteDataType) -> bool {
-        <&str as Type>::compatible(ty)
-    }
-}
 impl encode::Encode for Foo {
     fn encode(self, buf: &mut ArgumentBuffer) -> encode::IsNull {
         let v = serde_json::to_string(&self).expect("failed to encode");
@@ -24,7 +16,8 @@ impl encode::Encode for Foo {
 }
 impl<'r> decode::Decode<'r> for Foo {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
-        serde_json::from_str(value.text()?).map_err(|x| DecodeError(x.to_string().into()))
+        serde_json::from_str(value.text()?)
+            .map_err(|x| DecodeError::Conversion(x.to_string().into()))
     }
 }
 

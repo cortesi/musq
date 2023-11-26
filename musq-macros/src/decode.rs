@@ -78,7 +78,7 @@ fn expand_repr_enum(
                 let value = <#repr as musq::decode::Decode<'r>>::decode(value)?;
                 match value {
                     #(#arms)*
-                    _ => Err(musq::DecodeError(
+                    _ => Err(musq::DecodeError::Conversion(
                         ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into(),
                     ))
                 }

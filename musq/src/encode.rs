@@ -1,5 +1,5 @@
 //! Provides [`Encode`] for encoding values for the database.
-use crate::{sqlite::ArgumentBuffer, Type};
+use crate::sqlite::ArgumentBuffer;
 
 /// The return type of [Encode::encode].
 pub enum IsNull {
@@ -24,7 +24,7 @@ pub trait Encode {
 
 impl<T> Encode for Option<T>
 where
-    T: Encode + Type,
+    T: Encode,
 {
     fn encode(self, buf: &mut ArgumentBuffer) -> IsNull {
         if let Some(v) = self {

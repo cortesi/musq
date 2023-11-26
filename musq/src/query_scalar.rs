@@ -8,7 +8,6 @@ use crate::{
     executor::{Execute, Executor},
     from_row::FromRow,
     query_as::{query_as, query_as_with, query_statement_as, query_statement_as_with, QueryAs},
-    types::Type,
     Arguments, IntoArguments, QueryResult, Statement,
 };
 
@@ -44,7 +43,7 @@ impl<'q, O> QueryScalar<'q, O, Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](crate::query::Query::bind).
-    pub fn bind<T: 'q + Send + Encode + Type>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Send + Encode>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
     }

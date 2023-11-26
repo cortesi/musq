@@ -1,23 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
+    compatible,
     decode::Decode,
     encode::{Encode, IsNull},
     error::DecodeError,
-    sqlite::{ArgumentValue, SqliteDataType, Value},
-    Type,
+    ArgumentValue, SqliteDataType, Value,
 };
-
-// [u8]
-impl Type for [u8] {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Blob
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        matches!(ty, SqliteDataType::Blob | SqliteDataType::Text)
-    }
-}
 
 impl<'q> Encode for &'q [u8] {
     fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
@@ -29,18 +18,8 @@ impl<'q> Encode for &'q [u8] {
 
 impl<'r> Decode<'r> for &'r [u8] {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
+        compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
         Ok(value.blob())
-    }
-}
-
-// Vec<u8>
-impl Type for Vec<u8> {
-    fn type_info() -> SqliteDataType {
-        <&[u8] as Type>::type_info()
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        <&[u8] as Type>::compatible(ty)
     }
 }
 
@@ -54,18 +33,8 @@ impl Encode for Vec<u8> {
 
 impl<'r> Decode<'r> for Vec<u8> {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
+        compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
         Ok(value.blob().to_owned())
-    }
-}
-
-// Arc<Vec<u8>>
-impl Type for Arc<Vec<u8>> {
-    fn type_info() -> SqliteDataType {
-        <&[u8] as Type>::type_info()
-    }
-
-    fn compatible(ty: &SqliteDataType) -> bool {
-        <&[u8] as Type>::compatible(ty)
     }
 }
 
@@ -79,6 +48,7 @@ impl Encode for Arc<Vec<u8>> {
 
 impl<'r> Decode<'r> for Arc<Vec<u8>> {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
+        compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
         Ok(Arc::new(value.blob().to_owned()))
     }
 }

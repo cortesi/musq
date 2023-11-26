@@ -6,7 +6,6 @@ use crate::{
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
-    types::Type,
     Arguments, IntoArguments, QueryResult, Row, Statement,
 };
 
@@ -65,11 +64,10 @@ impl<'q> Query<'q, Arguments> {
     ///
     /// If the number of times this is called does not match the number of bind parameters that appear in the query then
     /// an error will be returned when this query is executed.
-    pub fn bind<T: 'q + Send + Encode + Type>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Send + Encode>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value);
         }
-
         self
     }
 }

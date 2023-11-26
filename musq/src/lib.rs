@@ -49,5 +49,4 @@ pub use crate::{
         SqliteError, Statement, Value,
     },
     transaction::Transaction,
-    types::Type,
 };

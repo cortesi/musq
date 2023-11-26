@@ -65,7 +65,6 @@ fn expand_struct(
                     (false, None) => {
                         predicates
                             .push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
-                        predicates.push(parse_quote!(#ty: musq::types::Type));
 
                         let id_s = field
                             .rename.clone()
@@ -81,7 +80,6 @@ fn expand_struct(
                     (false,Some(try_from)) => {
                         predicates
                             .push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
-                        predicates.push(parse_quote!(#try_from: musq::types::Type));
 
                         let id_s = field
                             .rename.clone()
@@ -152,7 +150,6 @@ fn expand_tuple_struct(
         let ty = &field.ty;
 
         predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
-        predicates.push(parse_quote!(#ty: musq::types::Type));
     }
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();

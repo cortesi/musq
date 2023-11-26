@@ -3,7 +3,6 @@ mod decode;
 mod encode;
 mod json;
 mod row;
-mod typ;
 
 #[proc_macro_derive(Json, attributes(musq))]
 pub fn derive_json(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -20,10 +19,8 @@ pub fn derive_type(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStr
     fn combo(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
         let encode_tts = encode::expand_derive_encode(&input)?;
         let decode_tts = decode::expand_derive_decode(&input)?;
-        let type_tts = typ::expand_derive_type(&input)?;
-        let combined = proc_macro2::TokenStream::from_iter(
-            encode_tts.into_iter().chain(decode_tts).chain(type_tts),
-        );
+        let combined =
+            proc_macro2::TokenStream::from_iter(encode_tts.into_iter().chain(decode_tts));
         Ok(combined)
     }
     match combo(&input) {

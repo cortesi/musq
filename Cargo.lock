@@ -826,7 +826,6 @@ dependencies = [
  "musq-macros",
  "musq-test",
  "serde",
- "serde_json",
  "smallvec",
  "sqlformat",
  "thiserror",

@@ -10,7 +10,6 @@ use crate::{
     executor::{Execute, Executor},
     from_row::FromRow,
     query::{query, query_statement, query_statement_with, query_with, Query},
-    types::Type,
     Arguments, IntoArguments, QueryResult, Statement,
 };
 
@@ -47,7 +46,7 @@ impl<'q, O> QueryAs<'q, O, Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](Query::bind).
-    pub fn bind<T: 'q + Send + Encode + Type>(mut self, value: T) -> Self {
+    pub fn bind<T: 'q + Send + Encode>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
     }

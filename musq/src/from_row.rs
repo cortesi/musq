@@ -211,7 +211,7 @@ macro_rules! impl_from_row_for_tuple {
     ($( ($idx:tt) -> $T:ident );+;) => {
         impl<'r, $($T,)+> FromRow<'r> for ($($T,)+)
         where
-            $($T: crate::decode::Decode<'r> + crate::types::Type,)+
+            $($T: crate::decode::Decode<'r>,)+
         {
 
             fn from_row(row: &'r Row) -> Result<Self, Error> {

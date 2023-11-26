@@ -1,16 +1,10 @@
 use crate::{
+    compatible,
     decode::Decode,
     encode::{Encode, IsNull},
     error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType, Value},
-    Type,
 };
-
-impl Type for f32 {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Float
-    }
-}
 
 impl Encode for f32 {
     fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
@@ -22,13 +16,8 @@ impl Encode for f32 {
 
 impl<'r> Decode<'r> for f32 {
     fn decode(value: &'r Value) -> Result<f32, DecodeError> {
+        compatible!(value, SqliteDataType::Float);
         Ok(value.double() as f32)
-    }
-}
-
-impl Type for f64 {
-    fn type_info() -> SqliteDataType {
-        SqliteDataType::Float
     }
 }
 
@@ -42,6 +31,7 @@ impl Encode for f64 {
 
 impl<'r> Decode<'r> for f64 {
     fn decode(value: &'r Value) -> Result<f64, DecodeError> {
+        compatible!(value, SqliteDataType::Float);
         Ok(value.double())
     }
 }

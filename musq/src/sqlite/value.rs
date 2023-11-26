@@ -1,4 +1,4 @@
-use std::{borrow::Cow, ptr::NonNull, slice::from_raw_parts, str::from_utf8, sync::Arc};
+use std::{ptr::NonNull, slice::from_raw_parts, str::from_utf8, sync::Arc};
 
 use libsqlite3_sys::{
     sqlite3_value, sqlite3_value_blob, sqlite3_value_bytes, sqlite3_value_double,
@@ -34,7 +34,6 @@ impl Value {
 
     fn type_info_opt(&self) -> Option<SqliteDataType> {
         let dt = SqliteDataType::from_code(unsafe { sqlite3_value_type(self.handle.0.as_ptr()) });
-
         if let SqliteDataType::Null = dt {
             None
         } else {
@@ -69,13 +68,11 @@ impl Value {
     }
 
     pub fn text(&self) -> Result<&str, DecodeError> {
-        Ok(from_utf8(self.blob()).map_err(|e| DecodeError(e.to_string()))?)
+        Ok(from_utf8(self.blob()).map_err(|e| DecodeError::Conversion(e.to_string()))?)
     }
 
-    pub fn type_info(&self) -> Cow<'_, SqliteDataType> {
-        self.type_info_opt()
-            .map(Cow::Owned)
-            .unwrap_or(Cow::Borrowed(&self.type_info))
+    pub fn type_info(&self) -> SqliteDataType {
+        self.type_info_opt().unwrap_or(self.type_info)
     }
 
     pub fn is_null(&self) -> bool {
