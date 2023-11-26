@@ -4,11 +4,10 @@
 
 Musq is an async SQLite crate library for Rust.
 
+# Rows
 
 
-# Derives
-
-## Types
+# Types
 
 Types are discrete values that can be stored in a table column or appear in SQL expressions. The following built-in
 types are supported:
@@ -19,8 +18,8 @@ types are supported:
 | `i8`, `i16`, `i32`, `i64`             | INTEGER             |
 | `u8`, `u16`, `u32`                    | INTEGER             |
 | `f32`, `f64`                          | REAL                |
-| `&str`, `String`                      | TEXT                |
-| `&[u8]`, `Vec<u8>`                    | BLOB                |
+| `&str`, `String`, `Arc<String>`       | TEXT                |
+| `&[u8]`, `Vec<u8>`, `Arc<Vec<u8>`     | BLOB                |
 | `time::PrimitiveDateTime`             | DATETIME            |
 | `time::OffsetDateTime`                | DATETIME            |
 | `time::Date`                          | DATE                |
@@ -89,14 +88,26 @@ A ["newtype"](https://doc.rust-lang.org/rust-by-example/generics/new_types.html)
 </table>
 
 
+# Handling large blobs
 
-### Why?
+Musq fans out inserts into a pool of workers, so it must be able to share query arguments between threads. Say we're
+trying to construct an insert as follows:
 
-Musq SQLite-focused fork of sqlx. The aims are to simplify and clean up the codebase, strip out un-needed features, add
-new features, improve testing and ergonomics, and support WASM.
+```rust
+query("INSERT INTO docs (txt) VALUES (?)").bind(s)
+```
+
+If `s` is a `&str` reference, Musq has to clone the value into an owned structure so it can control the lifetime and
+thread sharing. This is usually fine, but if `s` is large, we can avoid the copy by passing an owned `String` or an
+`Arc<String>` instead. The same idea holds for the reference `&[u8]` and its counterparts `Vec<u8>` and `Arc<Vec<u8>>`.
 
 
 # Development
+
+
+## Why?
+
+Musq is a SQLite-focused fork of sqlx. The aims are to simplify and clean up the codebase, strip out un-needed features and complexity, add new features, improve testing and ergonomics, and support WASM.
 
 
 ## Profiling

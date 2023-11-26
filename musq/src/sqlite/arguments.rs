@@ -6,9 +6,10 @@ use crate::{
 
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
+
 use std::sync::Arc;
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub enum ArgumentValue {
     Null,
     Text(Arc<String>),
@@ -18,7 +19,7 @@ pub enum ArgumentValue {
     Int64(i64),
 }
 
-#[derive(Default, Debug, Clone)]
+#[derive(Default, Debug)]
 pub struct Arguments {
     pub(crate) values: Vec<ArgumentValue>,
 }
@@ -36,16 +37,6 @@ impl Arguments {
     {
         if let IsNull::Yes = value.encode(&mut self.values) {
             self.values.push(ArgumentValue::Null);
-        }
-    }
-
-    pub(crate) fn into_static(self) -> Arguments {
-        Arguments {
-            values: self
-                .values
-                .into_iter()
-                .map(ArgumentValue::into_static)
-                .collect(),
         }
     }
 }
@@ -97,24 +88,11 @@ impl Arguments {
 }
 
 impl ArgumentValue {
-    fn into_static(self) -> ArgumentValue {
-        use ArgumentValue::*;
-
-        match self {
-            Null => Null,
-            Text(text) => Text(text.clone()),
-            Blob(blob) => Blob(blob.clone()),
-            Int(v) => Int(v),
-            Int64(v) => Int64(v),
-            Double(v) => Double(v),
-        }
-    }
-
     fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<(), Error> {
         use ArgumentValue::*;
 
         let status = match self {
-            Text(v) => handle.bind_text(i, v),
+            Text(v) => handle.bind_text(i, v.as_str()),
             Blob(v) => handle.bind_blob(i, v),
             Int(v) => handle.bind_int(i, *v),
             Int64(v) => handle.bind_int64(i, *v),

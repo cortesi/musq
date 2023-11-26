@@ -703,3 +703,21 @@ async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::
     assert_eq!(1, Arc::strong_count(&ref_counted_object));
     Ok(())
 }
+
+#[tokio::test]
+async fn it_binds_strings() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+
+    let row: (String, String, String) = musq::query_as("select ?1, ?2, ?3")
+        .bind("1")
+        .bind("2".to_string())
+        .bind(Arc::new("3".to_string()))
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(row.0, "1");
+    assert_eq!(row.1, "2");
+    assert_eq!(row.2, "3");
+
+    Ok(())
+}

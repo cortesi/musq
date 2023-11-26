@@ -269,7 +269,7 @@ impl ConnectionWorker {
         self.command_tx
             .send_async(Command::Execute {
                 query: query.into(),
-                arguments: args.map(Arguments::into_static),
+                arguments: args,
                 persistent,
                 tx,
             })
