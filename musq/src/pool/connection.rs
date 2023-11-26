@@ -1,7 +1,6 @@
 use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
-use std::time::Instant;
 
 use crate::{error::Error, Connection};
 
@@ -18,12 +17,10 @@ pub struct PoolConnection {
 
 pub(super) struct Live {
     pub(super) raw: Connection,
-    pub(super) created_at: Instant,
 }
 
 pub(super) struct Idle {
     pub(super) live: Live,
-    pub(super) idle_since: Instant,
 }
 
 /// RAII wrapper for connections being handled by functions that may drop them
@@ -166,10 +163,7 @@ impl Live {
     }
 
     pub fn into_idle(self) -> Idle {
-        Idle {
-            live: self,
-            idle_since: Instant::now(),
-        }
+        Idle { live: self }
     }
 }
 
@@ -190,10 +184,7 @@ impl DerefMut for Idle {
 impl Floating<Live> {
     pub fn new_live(conn: Connection, guard: DecrementSizeGuard) -> Self {
         Self {
-            inner: Live {
-                raw: conn,
-                created_at: Instant::now(),
-            },
+            inner: Live { raw: conn },
             guard,
         }
     }
@@ -263,13 +254,6 @@ impl Floating<Idle> {
             inner: self.inner.live,
             guard: self.guard,
         }
-    }
-
-    pub async fn close(self) -> DecrementSizeGuard {
-        if let Err(error) = self.inner.live.raw.close().await {
-            tracing::debug!(%error, "error occurred while closing the pool connection");
-        }
-        self.guard
     }
 }
 

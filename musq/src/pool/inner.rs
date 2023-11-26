@@ -53,8 +53,6 @@ impl PoolInner {
 
         let pool = Arc::new(pool);
 
-        spawn_maintenance_tasks(&pool);
-
         pool
     }
 
@@ -192,15 +190,7 @@ impl PoolInner {
                     let guard = match self.pop_idle(permit) {
 
                         // Then, check that we can use it...
-                        Ok(conn) => match check_idle_conn(conn, &self.options).await {
-
-                            // All good!
-                            Ok(live) => return Ok(live),
-
-                            // if the connection isn't usable for one reason or another,
-                            // we get the `DecrementSizeGuard` back to open a new one
-                            Err(guard) => guard,
-                        },
+                        Ok(conn) => return Ok(conn.into_live()),
                         Err(permit) => if let Ok(guard) = self.try_increment_size(permit) {
                             // we can open a new connection
                             guard
@@ -276,111 +266,6 @@ impl PoolInner {
 impl Drop for PoolInner {
     fn drop(&mut self) {
         self.mark_closed();
-    }
-}
-
-/// Returns `true` if the connection has exceeded `options.max_lifetime` if set, `false` otherwise.
-fn is_beyond_max_lifetime(live: &Live, options: &PoolOptions) -> bool {
-    options
-        .max_lifetime
-        .map_or(false, |max| live.created_at.elapsed() > max)
-}
-
-/// Returns `true` if the connection has exceeded `options.idle_timeout` if set, `false` otherwise.
-fn is_beyond_idle_timeout(idle: &Idle, options: &PoolOptions) -> bool {
-    options
-        .idle_timeout
-        .map_or(false, |timeout| idle.idle_since.elapsed() > timeout)
-}
-
-async fn check_idle_conn(
-    conn: Floating<Idle>,
-    options: &PoolOptions,
-) -> Result<Floating<Live>, DecrementSizeGuard> {
-    // If the connection we pulled has expired, close the connection and
-    // immediately create a new connection
-    if is_beyond_max_lifetime(&conn, options) {
-        return Err(conn.close().await);
-    }
-
-    // No need to re-connect; connection is alive or we don't care
-    Ok(conn.into_live())
-}
-
-fn spawn_maintenance_tasks(pool: &Arc<PoolInner>) {
-    // NOTE: use `pool_weak` for the maintenance tasks so
-    // they don't keep `PoolInner` from being dropped.
-    let pool_weak = Arc::downgrade(pool);
-
-    let period = match (pool.options.max_lifetime, pool.options.idle_timeout) {
-        (Some(it), None) | (None, Some(it)) => it,
-
-        (Some(a), Some(b)) => cmp::min(a, b),
-
-        (None, None) => {
-            return;
-        }
-    };
-
-    // Immediately cancel this task if the pool is closed.
-    let mut close_event = pool.close_event();
-
-    tokio::task::spawn(async move {
-        let _ = close_event
-            .do_until(async {
-                let mut slept = true;
-
-                // If the last handle to the pool was dropped while we were sleeping
-                while let Some(pool) = pool_weak.upgrade() {
-                    if pool.is_closed() {
-                        return;
-                    }
-
-                    // Don't run the reaper right away.
-                    if slept && !pool.idle_conns.is_empty() {
-                        do_reap(&pool).await;
-                    }
-
-                    let next_run = Instant::now() + period;
-
-                    // Don't hold a reference to the pool while sleeping.
-                    drop(pool);
-
-                    if let Some(duration) = next_run.checked_duration_since(Instant::now()) {
-                        // `async-std` doesn't have a `sleep_until()`
-                        tokio::time::sleep(duration).await;
-                    } else {
-                        // `next_run` is in the past, just yield.
-                        tokio::task::yield_now().await;
-                    }
-
-                    slept = true;
-                }
-            })
-            .await;
-    });
-}
-
-async fn do_reap(pool: &Arc<PoolInner>) {
-    // reap at most the current size minus the minimum idle
-    let max_reaped = pool.size();
-
-    // collect connections to reap
-    let (reap, keep) = (0..max_reaped)
-        // only connections waiting in the queue
-        .filter_map(|_| pool.try_acquire())
-        .partition::<Vec<_>, _>(|conn| {
-            is_beyond_idle_timeout(conn, &pool.options)
-                || is_beyond_max_lifetime(conn, &pool.options)
-        });
-
-    for conn in keep {
-        // return valid connections to the pool first
-        pool.release(conn.into_live());
-    }
-
-    for conn in reap {
-        let _ = conn.close().await;
     }
 }
 

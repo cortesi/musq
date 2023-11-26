@@ -11,8 +11,6 @@ use std::{fmt::Debug, path::Path, time::Duration};
 pub struct PoolOptions {
     pub(crate) max_connections: u32,
     pub(crate) acquire_timeout: Duration,
-    pub(crate) max_lifetime: Option<Duration>,
-    pub(crate) idle_timeout: Option<Duration>,
     pub(crate) connect_options: Musq,
 }
 
@@ -28,8 +26,6 @@ impl PoolOptions {
             // A production application will want to set a higher limit than this.
             max_connections: 10,
             acquire_timeout: Duration::from_secs(30),
-            idle_timeout: Some(Duration::from_secs(10 * 60)),
-            max_lifetime: Some(Duration::from_secs(30 * 60)),
             connect_options,
         }
     }
@@ -70,45 +66,6 @@ impl PoolOptions {
     /// Get the maximum amount of time to spend waiting for a connection in [`Pool::acquire()`].
     pub fn get_acquire_timeout(&self) -> Duration {
         self.acquire_timeout
-    }
-
-    /// Set the maximum lifetime of individual connections.
-    ///
-    /// Any connection with a lifetime greater than this will be closed.
-    ///
-    /// When set to `None`, all connections live until either reaped by [`idle_timeout`]
-    /// or explicitly disconnected.
-    ///
-    /// Infinite connections are not recommended due to the unfortunate reality of memory/resource
-    /// leaks on the database-side. It is better to retire connections periodically
-    /// (even if only once daily) to allow the database the opportunity to clean up data structures
-    /// (parse trees, query metadata caches, thread-local storage, etc.) that are associated with a
-    /// session.
-    ///
-    /// [`idle_timeout`]: Self::idle_timeout
-    pub fn max_lifetime(mut self, lifetime: impl Into<Option<Duration>>) -> Self {
-        self.max_lifetime = lifetime.into();
-        self
-    }
-
-    /// Get the maximum lifetime of individual connections.
-    pub fn get_max_lifetime(&self) -> Option<Duration> {
-        self.max_lifetime
-    }
-
-    /// Set a maximum idle duration for individual connections.
-    ///
-    /// Any connection that remains in the idle queue longer than this will be closed.
-    ///
-    /// For usage-based database server billing, this can be a cost saver.
-    pub fn idle_timeout(mut self, timeout: impl Into<Option<Duration>>) -> Self {
-        self.idle_timeout = timeout.into();
-        self
-    }
-
-    /// Get the maximum idle duration for individual connections.
-    pub fn get_idle_timeout(&self) -> Option<Duration> {
-        self.idle_timeout
     }
 
     /// Create a new pool from this `PoolOptions` and immediately open at least one connection.
