@@ -4,18 +4,13 @@ use crate::{
     Musq,
 };
 
-use std::{
-    fmt::Debug,
-    path::Path,
-    time::{Duration, Instant},
-};
+use std::{fmt::Debug, path::Path, time::Duration};
 
 /// Configuration options for [`Pool`][super::Pool].
 #[derive(Debug, Clone)]
 pub struct PoolOptions {
     pub(crate) max_connections: u32,
     pub(crate) acquire_timeout: Duration,
-    pub(crate) min_connections: u32,
     pub(crate) max_lifetime: Option<Duration>,
     pub(crate) idle_timeout: Option<Duration>,
     pub(crate) connect_options: Musq,
@@ -32,7 +27,6 @@ impl PoolOptions {
         Self {
             // A production application will want to set a higher limit than this.
             max_connections: 10,
-            min_connections: 0,
             acquire_timeout: Duration::from_secs(30),
             idle_timeout: Some(Duration::from_secs(10 * 60)),
             max_lifetime: Some(Duration::from_secs(30 * 60)),
@@ -53,38 +47,6 @@ impl PoolOptions {
     /// Get the maximum number of connections that this pool should maintain
     pub fn get_max_connections(&self) -> u32 {
         self.max_connections
-    }
-
-    /// Set the minimum number of connections to maintain at all times.
-    ///
-    /// When the pool is built, this many connections will be automatically spun up.
-    ///
-    /// If any connection is reaped by [`max_lifetime`] or [`idle_timeout`], or explicitly closed,
-    /// and it brings the connection count below this amount, a new connection will be opened to
-    /// replace it.
-    ///
-    /// This is only done on a best-effort basis, however. The routine that maintains this value
-    /// has a deadline so it doesn't wait forever if the database is being slow or returning errors.
-    ///
-    /// This value is clamped internally to not exceed [`max_connections`].
-    ///
-    /// We've chosen not to assert `min_connections <= max_connections` anywhere
-    /// because it shouldn't break anything internally if the condition doesn't hold,
-    /// and if the application allows either value to be dynamically set
-    /// then it should be checking this condition itself and returning
-    /// a nicer error than a panic anyway.
-    ///
-    /// [`max_lifetime`]: Self::max_lifetime
-    /// [`idle_timeout`]: Self::idle_timeout
-    /// [`max_connections`]: Self::max_connections
-    pub fn min_connections(mut self, min: u32) -> Self {
-        self.min_connections = min;
-        self
-    }
-
-    /// Get the minimum number of connections to maintain at all times.
-    pub fn get_min_connections(&self) -> u32 {
-        self.min_connections
     }
 
     /// Set the maximum amount of time to spend waiting for a connection in [`Pool::acquire()`].
@@ -155,16 +117,7 @@ impl PoolOptions {
     ///
     /// The total number of connections opened is <code>min(1, [min_connections][Self::min_connections])</code>.
     pub(crate) async fn connect(self) -> Result<Pool, Error> {
-        // Don't take longer than `acquire_timeout` starting from when this is called.
-        let deadline = Instant::now() + self.acquire_timeout;
         let inner = PoolInner::new_arc(self);
-        if inner.options.min_connections > 0 {
-            // If the idle reaper is spawned then this will race with the call from that task
-            // and may not report any connection errors.
-            inner.try_min_connections(deadline).await?;
-        }
-        // If `min_connections` is nonzero then we'll likely just pull a connection
-        // from the idle queue here, but it should at least get tested first.
         let conn = inner.acquire().await?;
         inner.release(conn);
         Ok(Pool(inner))

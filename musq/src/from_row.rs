@@ -192,7 +192,7 @@ use crate::Row;
 /// }
 /// ```
 pub trait FromRow<'r>: Sized {
-    fn from_row(row: &'r Row) -> Result<Self, Error>;
+    fn from_row(prefix: &str, row: &'r Row) -> Result<Self, Error>;
 }
 
 // implement FromRow for tuples of types that implement Decode
@@ -205,7 +205,7 @@ macro_rules! impl_from_row_for_tuple {
             $($T: crate::decode::Decode<'r>,)+
         {
 
-            fn from_row(row: &'r Row) -> Result<Self, Error> {
+            fn from_row(_prefix: &str, row: &'r Row) -> Result<Self, Error> {
                 Ok(($(row.get_value_idx($idx as usize)?,)+))
             }
         }

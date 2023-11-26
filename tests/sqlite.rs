@@ -181,7 +181,6 @@ async fn it_executes_with_pool() -> anyhow::Result<()> {
     let pool = Musq::new()
         .with_pool()
         .max_connections(2)
-        .min_connections(2)
         .open_in_memory()
         .await?;
 
@@ -595,12 +594,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn concurrent_read_and_write() {
-    let pool = Musq::new()
-        .with_pool()
-        .min_connections(2)
-        .open_in_memory()
-        .await
-        .unwrap();
+    let pool = Musq::new().with_pool().open_in_memory().await.unwrap();
 
     query("CREATE TABLE kv (k PRIMARY KEY, v)")
         .execute(&pool)

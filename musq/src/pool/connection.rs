@@ -121,18 +121,12 @@ impl PoolConnection {
         let floating: Option<Floating<Live>> =
             self.live.take().map(|live| live.float(self.pool.clone()));
 
-        let pool = self.pool.clone();
-
         async move {
-            let returned_to_pool = if let Some(floating) = floating {
+            if let Some(floating) = floating {
                 floating.return_to_pool().await
             } else {
                 false
             };
-
-            if !returned_to_pool {
-                pool.min_connections_maintenance(None).await;
-            }
         }
     }
 }
@@ -156,7 +150,7 @@ impl<'c> crate::acquire::Acquire<'c> for &'c mut PoolConnection {
 impl Drop for PoolConnection {
     fn drop(&mut self) {
         // We still need to spawn a task to maintain `min_connections`.
-        if self.live.is_some() || self.pool.options.min_connections > 0 {
+        if self.live.is_some() {
             tokio::task::spawn(self.return_to_pool());
         }
     }

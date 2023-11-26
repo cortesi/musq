@@ -52,6 +52,8 @@ pub struct FromRowPlain {
     e: LowerCaseEnum,
     #[musq(flatten)]
     f: Flattened,
+    #[musq(prefix = "prefix_")]
+    g: Flattened,
 }
 
 #[tokio::test]
@@ -66,7 +68,9 @@ async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
         ? as d,
         ? as e,
         ? as f,
-        ? as g
+        ? as g,
+        ? as prefix_f,
+        ? as prefix_g
     ",
     )
     .bind("one")
@@ -76,6 +80,8 @@ async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
     .bind("foobar")
     .bind("foo")
     .bind(4)
+    .bind("nest")
+    .bind(5)
     .fetch_one(&mut conn)
     .await?;
     assert_eq!(
@@ -89,6 +95,10 @@ async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
             f: Flattened {
                 f: "foo".into(),
                 g: 4,
+            },
+            g: Flattened {
+                f: "nest".into(),
+                g: 5,
             },
         }
     );

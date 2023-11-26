@@ -271,45 +271,6 @@ impl PoolInner {
             backoff = cmp::min(backoff * 2, max_backoff);
         }
     }
-
-    /// Try to maintain `min_connections`, returning any errors (including `PoolTimedOut`).
-    pub async fn try_min_connections(self: &Arc<Self>, deadline: Instant) -> Result<()> {
-        while self.size() < self.options.min_connections {
-            // Don't wait for a semaphore permit.
-            //
-            // If no extra permits are available then we shouldn't be trying to spin up
-            // connections anyway.
-            let Ok(permit) = self.semaphore.try_acquire_many(1) else {
-                return Ok(());
-            };
-
-            // We must always obey `max_connections`.
-            let Some(guard) = self.try_increment_size(permit).ok() else {
-                return Ok(());
-            };
-
-            self.release(self.connect(deadline, guard).await?);
-        }
-
-        Ok(())
-    }
-
-    /// Attempt to maintain `min_connections`, logging if unable.
-    pub async fn min_connections_maintenance(self: &Arc<Self>, deadline: Option<Instant>) {
-        let deadline = deadline.unwrap_or_else(|| {
-            // Arbitrary default deadline if the caller doesn't care.
-            Instant::now() + Duration::from_secs(300)
-        });
-
-        match self.try_min_connections(deadline).await {
-            Ok(()) => (),
-            Err(Error::PoolClosed) => (),
-            Err(Error::PoolTimedOut) => {
-                tracing::debug!("unable to complete `min_connections` maintenance before deadline")
-            }
-            Err(error) => tracing::debug!(%error, "error while maintaining min_connections"),
-        }
-    }
 }
 
 impl Drop for PoolInner {
@@ -357,14 +318,6 @@ fn spawn_maintenance_tasks(pool: &Arc<PoolInner>) {
         (Some(a), Some(b)) => cmp::min(a, b),
 
         (None, None) => {
-            if pool.options.min_connections > 0 {
-                tokio::task::spawn(async move {
-                    if let Some(pool) = pool_weak.upgrade() {
-                        pool.min_connections_maintenance(None).await;
-                    }
-                });
-            }
-
             return;
         }
     };
@@ -390,8 +343,6 @@ fn spawn_maintenance_tasks(pool: &Arc<PoolInner>) {
 
                     let next_run = Instant::now() + period;
 
-                    pool.min_connections_maintenance(Some(next_run)).await;
-
                     // Don't hold a reference to the pool while sleeping.
                     drop(pool);
 
@@ -412,7 +363,7 @@ fn spawn_maintenance_tasks(pool: &Arc<PoolInner>) {
 
 async fn do_reap(pool: &Arc<PoolInner>) {
     // reap at most the current size minus the minimum idle
-    let max_reaped = pool.size().saturating_sub(pool.options.min_connections);
+    let max_reaped = pool.size();
 
     // collect connections to reap
     let (reap, keep) = (0..max_reaped)

@@ -71,9 +71,10 @@ pub struct JsonContainer {
 pub struct RowContainer {
     pub ident: syn::Ident,
     pub generics: syn::Generics,
+    pub data: ast::Data<util::Ignored, RowField>,
+
     #[darling(default)]
     pub rename_all: RenameAll,
-    pub data: ast::Data<util::Ignored, RowField>,
 }
 
 #[derive(Debug, FromField)]
@@ -81,11 +82,14 @@ pub struct RowContainer {
 pub struct RowField {
     pub ident: Option<syn::Ident>,
     pub ty: Type,
+
     pub rename: Option<String>,
     #[darling(default)]
     pub default: bool,
     #[darling(default)]
     pub flatten: bool,
+    #[darling(default)]
+    pub prefix: String,
     pub try_from: Option<Type>,
     #[darling(default)]
     pub skip: bool,
@@ -96,16 +100,18 @@ pub struct RowField {
 pub struct TypeContainer {
     pub ident: syn::Ident,
     pub generics: syn::Generics,
+    pub data: ast::Data<TypeVariant, TypeField>,
+
     #[darling(default)]
     pub rename_all: RenameAll,
     pub repr: Option<Type>,
-    pub data: ast::Data<TypeVariant, TypeField>,
 }
 
 #[derive(darling::FromVariant, Debug)]
 pub struct TypeVariant {
     pub ident: syn::Ident,
     pub fields: darling::ast::Fields<TypeField>,
+
     pub rename: Option<String>,
 }
 
@@ -114,6 +120,7 @@ pub struct TypeVariant {
 pub struct TypeField {
     pub ident: Option<syn::Ident>,
     pub ty: Type,
+
     pub rename: Option<String>,
 }
 

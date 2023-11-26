@@ -102,7 +102,7 @@ where
         executor
             .fetch_many(self.inner)
             .map(|v| match v {
-                Ok(Either::Right(row)) => O::from_row(&row).map(Either::Right),
+                Ok(Either::Right(row)) => O::from_row("", &row).map(Either::Right),
                 Ok(Either::Left(v)) => Ok(Either::Left(v)),
                 Err(e) => Err(e),
             })
@@ -144,7 +144,7 @@ where
     {
         let row = executor.fetch_optional(self.inner).await?;
         if let Some(row) = row {
-            O::from_row(&row).map(Some)
+            O::from_row("", &row).map(Some)
         } else {
             Ok(None)
         }

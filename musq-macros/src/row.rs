@@ -48,7 +48,15 @@ fn expand_struct(
     let reads: Vec<Stmt> = fields
         .iter()
         .filter_map(|field| -> Option<Stmt> {
-            let id = &field.ident.as_ref()?;
+            let id = field.ident.as_ref()?;
+
+            let column_name = field
+                .rename
+                .clone()
+                .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+                .map(|s| container.rename_all.rename(&s))
+                .unwrap();
+
             let ty = &field.ty;
 
             if field.skip {
@@ -59,17 +67,15 @@ fn expand_struct(
 
             let expr: Expr = if field.flatten {
                 predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
-                parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row(row))
+                parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row("", row))
+            } else if !field.prefix.is_empty() {
+                predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
+                let prefix = &field.prefix;
+                parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row(#prefix, row))
             } else if let Some(try_from) = &field.try_from {
                 predicates.push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
-                let id_s = field
-                    .rename
-                    .clone()
-                    .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                    .map(|s| container.rename_all.rename(&s))
-                    .unwrap();
                 parse_quote!(
-                    row.get_value(&#id_s).and_then(
+                    row.get_value(&format!("{}{}", prefix, #column_name)).and_then(
                         |v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(
                             |e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string())
                         )
@@ -77,13 +83,7 @@ fn expand_struct(
                 )
             } else {
                 predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
-                let id_s = field
-                    .rename
-                    .clone()
-                    .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                    .map(|s| container.rename_all.rename(&s))
-                    .unwrap();
-                parse_quote!(row.get_value(&#id_s))
+                parse_quote!(row.get_value(&format!("{}{}", prefix, #column_name)))
             };
 
             if field.default {
@@ -109,7 +109,7 @@ fn expand_struct(
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime musq::Row) -> musq::Result<Self> {
+            fn from_row(prefix: &str, row: &#lifetime musq::Row) -> musq::Result<Self> {
                 #(#reads)*
 
                 ::std::result::Result::Ok(#ident {
@@ -160,7 +160,7 @@ fn expand_tuple_struct(
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(row: &#lifetime musq::Row) -> musq::Result<Self> {
+            fn from_row(prefix: &str, row: &#lifetime musq::Row) -> musq::Result<Self> {
                 ::std::result::Result::Ok(#ident (
                     #(#gets),*
                 ))
@@ -194,7 +194,10 @@ mod tests {
                 b: String
             }
         "#;
-        expand_derive_from_row(&syn::parse_str(txt).unwrap()).unwrap();
+        println!(
+            "{}",
+            expand_derive_from_row(&syn::parse_str(txt).unwrap()).unwrap()
+        );
 
         let txt = r#"
             struct Foo(i32, String);
