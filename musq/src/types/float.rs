@@ -1,16 +1,14 @@
 use crate::{
     compatible,
     decode::Decode,
-    encode::{Encode, IsNull},
+    encode::Encode,
     error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType, Value},
 };
 
 impl Encode for f32 {
-    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
-        args.push(ArgumentValue::Double(self.into()));
-
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Double(self.into())
     }
 }
 
@@ -22,10 +20,8 @@ impl<'r> Decode<'r> for f32 {
 }
 
 impl Encode for f64 {
-    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
-        args.push(ArgumentValue::Double(self));
-
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Double(self)
     }
 }
 

@@ -29,15 +29,11 @@ fn expand_enum(
         #[automatically_derived]
         impl musq::encode::Encode for #ident
         {
-            fn encode(
-                self,
-                buf: &mut musq::ArgumentBuffer,
-            ) -> musq::encode::IsNull {
+            fn encode(self) -> musq::ArgumentValue {
                 let val = match self {
                     #(#value_arms)*
                 };
-
-                <&::std::primitive::str as musq::encode::Encode>::encode(val, buf)
+                <&::std::primitive::str as musq::encode::Encode>::encode(val)
             }
         }
     ))
@@ -62,15 +58,12 @@ fn expand_repr_enum(
         where
             #repr: musq::encode::Encode,
         {
-            fn encode(
-                self,
-                buf: &mut musq::ArgumentBuffer,
-            ) -> musq::encode::IsNull {
+            fn encode(self) -> musq::ArgumentValue {
                 let value = match self {
                     #(#values)*
                 };
 
-                <#repr as musq::encode::Encode>::encode(value, buf)
+                <#repr as musq::encode::Encode>::encode(value)
             }
         }
     ))
@@ -101,11 +94,8 @@ fn expand_struct(
         impl #impl_generics musq::encode::Encode for #ident #ty_generics
         #where_clause
         {
-            fn encode(
-                self,
-                buf: &mut musq::ArgumentBuffer,
-            ) -> musq::encode::IsNull {
-                <#ty as musq::encode::Encode>::encode(self.0, buf)
+            fn encode(self) -> musq::ArgumentValue {
+                <#ty as musq::encode::Encode>::encode(self.0)
             }
         }
     ))

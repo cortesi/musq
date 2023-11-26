@@ -1,16 +1,14 @@
 use crate::{
     compatible,
     decode::Decode,
-    encode::{Encode, IsNull},
+    encode::Encode,
     error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType, Value},
 };
 
 impl Encode for i8 {
-    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
-        args.push(ArgumentValue::Int(self as i32));
-
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Int(self as i32)
     }
 }
 
@@ -22,10 +20,8 @@ impl<'r> Decode<'r> for i8 {
 }
 
 impl Encode for i16 {
-    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
-        args.push(ArgumentValue::Int(self as i32));
-
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Int(self as i32)
     }
 }
 
@@ -37,10 +33,8 @@ impl<'r> Decode<'r> for i16 {
 }
 
 impl Encode for i32 {
-    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
-        args.push(ArgumentValue::Int(self));
-
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Int(self)
     }
 }
 
@@ -52,10 +46,8 @@ impl<'r> Decode<'r> for i32 {
 }
 
 impl Encode for i64 {
-    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
-        args.push(ArgumentValue::Int64(self));
-
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Int64(self)
     }
 }
 

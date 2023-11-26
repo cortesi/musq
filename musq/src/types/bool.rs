@@ -1,16 +1,14 @@
 use crate::{
     compatible,
     decode::Decode,
-    encode::{Encode, IsNull},
+    encode::Encode,
     error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType, Value},
 };
 
 impl Encode for bool {
-    fn encode(self, args: &mut Vec<ArgumentValue>) -> IsNull {
-        args.push(ArgumentValue::Int(self.into()));
-
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Int(self.into())
     }
 }
 

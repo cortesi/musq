@@ -8,10 +8,9 @@ struct Foo {
 }
 
 impl encode::Encode for Foo {
-    fn encode(self, buf: &mut ArgumentBuffer) -> encode::IsNull {
+    fn encode(self) -> ArgumentValue {
         let v = serde_json::to_string(&self).expect("failed to encode");
-        buf.push(ArgumentValue::Text(std::sync::Arc::new(v)));
-        encode::IsNull::No
+        ArgumentValue::Text(std::sync::Arc::new(v))
     }
 }
 impl<'r> decode::Decode<'r> for Foo {

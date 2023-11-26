@@ -2,12 +2,8 @@ use std::sync::Arc;
 
 /// Conversions between `bstr` types and SQL types.
 use crate::{
-    compatible,
-    decode::Decode,
-    encode::{Encode, IsNull},
-    error::DecodeError,
-    sqlite::ArgumentBuffer,
-    ArgumentValue, Result, SqliteDataType, Value,
+    compatible, decode::Decode, encode::Encode, error::DecodeError, ArgumentValue, Result,
+    SqliteDataType, Value,
 };
 
 #[doc(no_inline)]
@@ -21,15 +17,13 @@ impl<'r> Decode<'r> for BString {
 }
 
 impl<'q> Encode for &'q BStr {
-    fn encode(self, buf: &mut ArgumentBuffer) -> IsNull {
-        buf.push(ArgumentValue::Blob(Arc::new(self.as_bytes().to_owned())));
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Blob(Arc::new(self.as_bytes().to_owned()))
     }
 }
 
 impl Encode for BString {
-    fn encode(self, buf: &mut ArgumentBuffer) -> IsNull {
-        buf.push(ArgumentValue::Blob(Arc::new(self.as_bytes().to_vec())));
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Blob(Arc::new(self.as_bytes().to_vec()))
     }
 }

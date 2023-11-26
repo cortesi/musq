@@ -1,8 +1,4 @@
-use crate::{
-    encode::{Encode, IsNull},
-    sqlite::statement::StatementHandle,
-    Error,
-};
+use crate::{encode::Encode, sqlite::statement::StatementHandle, Error};
 
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
@@ -35,9 +31,7 @@ impl Arguments {
     where
         T: Encode,
     {
-        if let IsNull::Yes = value.encode(&mut self.values) {
-            self.values.push(ArgumentValue::Null);
-        }
+        self.values.push(value.encode());
     }
 }
 

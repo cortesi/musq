@@ -3,7 +3,7 @@ use std::sync::Arc;
 use crate::{
     compatible,
     decode::Decode,
-    encode::{Encode, IsNull},
+    encode::Encode,
     error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType},
     Value,
@@ -13,36 +13,29 @@ use time::macros::format_description as fd;
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Encode for OffsetDateTime {
-    fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
-        buf.push(ArgumentValue::Text(Arc::new(
-            self.format(&Rfc3339).unwrap(),
-        )));
-        IsNull::No
+    fn encode(self) -> ArgumentValue {
+        ArgumentValue::Text(Arc::new(self.format(&Rfc3339).unwrap()))
     }
 }
 
 impl Encode for PrimitiveDateTime {
-    fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
+    fn encode(self) -> ArgumentValue {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
-
-        buf.push(ArgumentValue::Text(Arc::new(self.format(&format).unwrap())));
-        IsNull::No
+        ArgumentValue::Text(Arc::new(self.format(&format).unwrap()))
     }
 }
 
 impl Encode for Date {
-    fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
+    fn encode(self) -> ArgumentValue {
         let format = fd!("[year]-[month]-[day]");
-        buf.push(ArgumentValue::Text(Arc::new(self.format(&format).unwrap())));
-        IsNull::No
+        ArgumentValue::Text(Arc::new(self.format(&format).unwrap()))
     }
 }
 
 impl Encode for Time {
-    fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
+    fn encode(self) -> ArgumentValue {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
-        buf.push(ArgumentValue::Text(Arc::new(self.format(&format).unwrap())));
-        IsNull::No
+        ArgumentValue::Text(Arc::new(self.format(&format).unwrap()))
     }
 }
 
