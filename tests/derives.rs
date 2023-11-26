@@ -7,34 +7,34 @@ struct JsonType {
     b: i32,
 }
 
-#[derive(Debug, PartialEq, Type)]
+#[derive(Debug, PartialEq, Codec)]
 enum PlainEnum {
     Foo,
     FooBar,
 }
 
-#[derive(Debug, PartialEq, Type)]
+#[derive(Debug, PartialEq, Codec)]
 #[musq(rename_all = "verbatim")]
 enum VerbatimEnum {
     Foo,
     FooBar,
 }
 
-#[derive(Debug, PartialEq, Type)]
+#[derive(Debug, PartialEq, Codec)]
 #[musq(rename_all = "lower_case")]
 enum LowerCaseEnum {
     Foo,
     FooBar,
 }
 
-#[derive(Debug, PartialEq, Type)]
+#[derive(Debug, PartialEq, Codec)]
 #[musq(repr = "u32")]
 enum ReprEnum {
     Foo = 1,
     Bar = 2,
 }
 
-#[derive(Debug, PartialEq, Type)]
+#[derive(Debug, PartialEq, Codec)]
 struct NewtypeStruct(i32);
 
 #[derive(Debug, PartialEq, FromRow)]

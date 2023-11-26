@@ -9,11 +9,13 @@ Musq is an async SQLite crate library for Rust.
 
 # Types
 
-Types are discrete values that can be stored in a table column or appear in SQL expressions.
+Types are discrete values that can be stored in a table column or appear in SQL expressions. Supported types implement
+one or both of the `Encode` and `Decode` traits. `Encode` is used to convert a Rust value into a SQLite value, and
+`Decode` is used to convert a SQLite value into a Rust value.
 
-## Built-in Types
+## Built-in type support
 
-The following built-in types are supported:
+`Encode` and `Decode` are implemented for a set of standard types.
 
 | Rust type                             | SQLite type(s)      |
 |---------------------------------------|---------------------|
@@ -30,29 +32,17 @@ The following built-in types are supported:
 | `bstr::BString`                       | BLOB                |
 
 
-## #[derive(Json)]
+## Deriving types
 
-You can derive a JSON type with the `musq::Json` derive, as long as the type implements `serde::Serialize` and
-`serde::Deserialize`. JSON types are stored as TEXT.
-
-```rust
-#[derive(musq::Json, serde::Serialize, serde::Deserialize)]
-struct Foo {
-    id: i32,
-    name: String,
-}
-```
-
-## #[derive(Type)]
-
-You can derive custom types with the `musq::Type` derive.
+You can derive `Encode` and `Decode` for a set of common custom type formats, or derive both at once with the `Codec`
+derive.
 
 <table>
 <tr>
 <td>
 
 ```rust
-#[derive(musq::Type)]
+#[derive(musq::Codec)]
 enum Foo {OneTwo, ThreeFour}
 ```
 
@@ -63,7 +53,7 @@ Enum stored as a string in snake case (the default): "one_two", "three_four".
 <td>
 
 ```rust
-#[derive(musq::Type)]
+#[derive(musq::Codec)]
 #[musq(rename_all = "lower_case")]
 enum Foo {OneTwo, ThreeFour}
 ```
@@ -79,7 +69,7 @@ Enum stored as a lowercase string: "onetwo", "threefour".
 <td>
 
 ```rust
-#[derive(musq::Type)]
+#[derive(musq::Codec)]
 #[musq(repr = "i32")]
 enum Foo {One, Two}
 ```
@@ -91,7 +81,7 @@ Enum stored as an **i32**: 0, 1.
 <td>
 
 ```rust
-#[derive(musq::Type)]
+#[derive(musq::Codec)]
 struct Foo(i32)
 ```
 
@@ -101,6 +91,20 @@ A ["newtype"](https://doc.rust-lang.org/rust-by-example/generics/new_types.html)
 
 </tr>
 </table>
+
+
+## #[derive(Json)]
+
+The `musq::Json` derive implements `Encode` and `Decode` for any type that implements `serde::Serialize` and
+`serde::Deserialize`.
+
+```rust
+#[derive(musq::Json, serde::Serialize, serde::Deserialize)]
+struct Foo {
+    id: i32,
+    name: String,
+}
+```
 
 
 # Handling large blobs

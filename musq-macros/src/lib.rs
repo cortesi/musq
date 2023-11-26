@@ -13,8 +13,8 @@ pub fn derive_json(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStr
     }
 }
 
-#[proc_macro_derive(Type, attributes(musq))]
-pub fn derive_type(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
+#[proc_macro_derive(Codec, attributes(musq))]
+pub fn derive_codec(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
     fn combo(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
         let encode_tts = encode::expand_derive_encode(&input)?;
