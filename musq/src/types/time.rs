@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use crate::{
     compatible,
     decode::Decode,
@@ -12,28 +14,35 @@ pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Encode for OffsetDateTime {
     fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
-        Encode::encode(self.format(&Rfc3339).unwrap(), buf)
+        buf.push(ArgumentValue::Text(Arc::new(
+            self.format(&Rfc3339).unwrap(),
+        )));
+        IsNull::No
     }
 }
 
 impl Encode for PrimitiveDateTime {
     fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
-        Encode::encode(self.format(&format).unwrap(), buf)
+
+        buf.push(ArgumentValue::Text(Arc::new(self.format(&format).unwrap())));
+        IsNull::No
     }
 }
 
 impl Encode for Date {
     fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
         let format = fd!("[year]-[month]-[day]");
-        Encode::encode(self.format(&format).unwrap(), buf)
+        buf.push(ArgumentValue::Text(Arc::new(self.format(&format).unwrap())));
+        IsNull::No
     }
 }
 
 impl Encode for Time {
     fn encode(self, buf: &mut Vec<ArgumentValue>) -> IsNull {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
-        Encode::encode(self.format(&format).unwrap(), buf)
+        buf.push(ArgumentValue::Text(Arc::new(self.format(&format).unwrap())));
+        IsNull::No
     }
 }
 
