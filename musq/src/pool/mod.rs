@@ -30,58 +30,55 @@ pub mod maybe;
 
 mod connection;
 mod inner;
-mod options;
 
 pub use self::connection::PoolConnection;
-pub use self::options::PoolOptions;
 
 #[doc(hidden)]
 pub use self::maybe::MaybePoolConnection;
 
-/// An asynchronous pool of SQLx database connections.
+/// An asynchronous pool of database connections.
 ///
-/// Create a pool with [Pool::connect] or [Pool::connect_with] and then call [Pool::acquire]
-/// to get a connection from the pool; when the connection is dropped it will return to the pool
-/// so it can be reused.
+/// Create a pool with [Pool::connect] or [Pool::connect_with] and then call [Pool::acquire] to get a connection from
+/// the pool; when the connection is dropped it will return to the pool so it can be reused.
 ///
-/// You can also pass `&Pool` directly anywhere an `Executor` is required; this will automatically
-/// checkout a connection for you.
+/// You can also pass `&Pool` directly anywhere an `Executor` is required; this will automatically checkout a connection
+/// for you.
 ///
 /// See [the module documentation](crate::pool) for examples.
 ///
-/// The pool has a maximum connection limit that it will not exceed; if `acquire()` is called
-/// when at this limit and all connections are checked out, the task will be made to wait until
-/// a connection becomes available.
+/// The pool has a maximum connection limit that it will not exceed; if `acquire()` is called when at this limit and all
+/// connections are checked out, the task will be made to wait until a connection becomes available.
 ///
 /// You can configure the connection limit, and other parameters, using [PoolOptions][crate::pool::PoolOptions].
 ///
 /// Calls to `acquire()` are fair, i.e. fulfilled on a first-come, first-serve basis.
 ///
-/// `Pool` is `Send`, `Sync` and `Clone`. It is intended to be created once at the start of your
-/// application/daemon/web server/etc. and then shared with all tasks throughout the process'
-/// lifetime. How best to accomplish this depends on your program architecture.
+/// `Pool` is `Send`, `Sync` and `Clone`. It is intended to be created once at the start of your program and then shared
+/// with all tasks throughout the process' lifetime. How best to accomplish this depends on your program architecture.
 ///
-/// Cloning `Pool` is cheap as it is simply a reference-counted handle to the inner pool state.
-/// When the last remaining handle to the pool is dropped, the connections owned by the pool are
-/// immediately closed (also by dropping). `PoolConnection` returned by [Pool::acquire] and
-/// `Transaction` returned by [Pool::begin] both implicitly hold a reference to the pool for
-/// their lifetimes.
+/// Cloning `Pool` is cheap as it is simply a reference-counted handle to the inner pool state. When the last remaining
+/// handle to the pool is dropped, the connections owned by the pool are immediately closed (also by dropping).
+/// `PoolConnection` returned by [Pool::acquire] and `Transaction` returned by [Pool::begin] both implicitly hold a
+/// reference to the pool for their lifetimes.
 ///
-/// If you prefer to explicitly shutdown the pool and gracefully close its connections (which
-/// depending on the database type, may include sending a message to the database server that the
-/// connection is being closed), you can call [Pool::close] which causes all waiting and subsequent
-/// calls to [Pool::acquire] to return [Error::PoolClosed], and waits until all connections have
-/// been returned to the pool and gracefully closed.
+/// We recommend calling [`.close().await`] to gracefully close the pool and its connections when you are done using it.
+/// This will also wake any tasks that are waiting on an `.acquire()` call, so for long-lived applications it's a good
+/// idea to call `.close()` during shutdown.
 ///
-/// We recommend calling [`.close().await`] to gracefully close the pool and its connections
-/// when you are done using it. This will also wake any tasks that are waiting on an `.acquire()`
-/// call, so for long-lived applications it's a good idea to call `.close()` during shutdown.
-///
-/// If you're writing tests, consider using `#[test]` which handles the lifetime of
-/// the pool for you.
+/// If you're writing tests, consider using `#[test]` which handles the lifetime of the pool for you.
 ///
 /// [`.close().await`]: Pool::close
 pub struct Pool(pub(crate) Arc<PoolInner>);
+
+impl Pool {
+    pub(crate) async fn new(options: crate::Musq) -> Result<Pool> {
+        // Make an initial connection to validate the configuration
+        let inner = PoolInner::new_arc(options);
+        let conn = inner.acquire().await?;
+        inner.release(conn);
+        Ok(Pool(inner))
+    }
+}
 
 /// A future that resolves when the pool is closed.
 ///
@@ -201,7 +198,7 @@ impl Pool {
     }
 
     /// Get the options for this pool
-    pub fn options(&self) -> &PoolOptions {
+    pub fn options(&self) -> &crate::Musq {
         &self.0.options
     }
 }

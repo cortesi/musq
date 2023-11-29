@@ -10,10 +10,7 @@ use std::{
 use crossbeam_queue::ArrayQueue;
 use futures_util::FutureExt;
 
-use crate::{
-    pool::{CloseEvent, PoolOptions},
-    Error, Result,
-};
+use crate::{pool::CloseEvent, Error, Result};
 
 use super::connection::{Floating, Idle, Live};
 
@@ -33,14 +30,14 @@ pub(crate) struct PoolInner {
     num_idle: AtomicUsize,
     is_closed: AtomicBool,
     on_closed: event_listener::Event,
-    pub(super) options: PoolOptions,
+    pub(super) options: crate::Musq,
 }
 
 impl PoolInner {
-    pub(super) fn new_arc(options: PoolOptions) -> Arc<Self> {
+    pub(super) fn new_arc(options: crate::Musq) -> Arc<Self> {
         Arc::new(Self {
-            idle_conns: ArrayQueue::new(options.max_connections as usize),
-            semaphore: tokio::sync::Semaphore::new(options.max_connections as usize),
+            idle_conns: ArrayQueue::new(options.pool_max_connections as usize),
+            semaphore: tokio::sync::Semaphore::new(options.pool_max_connections as usize),
             size: AtomicU32::new(0),
             num_idle: AtomicUsize::new(0),
             is_closed: AtomicBool::new(false),
@@ -74,7 +71,7 @@ impl PoolInner {
     pub(super) async fn close<'a>(self: &'a Arc<Self>) {
         self.mark_closed();
 
-        for permits in 1..=self.options.max_connections {
+        for permits in 1..=self.options.pool_max_connections {
             // Close any currently idle connections in the pool.
             while let Some(idle) = self.idle_conns.pop() {
                 let _ = idle.live.float((*self).clone()).close().await;
@@ -156,7 +153,7 @@ impl PoolInner {
                 }
 
                 size.checked_add(1)
-                    .filter(|size| size <= &self.options.max_connections)
+                    .filter(|size| size <= &self.options.pool_max_connections)
             }) {
             // we successfully incremented the size
             Ok(_) => Ok(DecrementSizeGuard::from_permit((*self).clone(), permit)),
@@ -170,10 +167,10 @@ impl PoolInner {
             return Err(Error::PoolClosed);
         }
 
-        let deadline = Instant::now() + self.options.acquire_timeout;
+        let deadline = Instant::now() + self.options.pool_acquire_timeout;
 
         tokio::time::timeout(
-            self.options.acquire_timeout,
+            self.options.pool_acquire_timeout,
             async {
                 loop {
                     // Handles the close-event internally
@@ -226,11 +223,11 @@ impl PoolInner {
 
             // clone the connect options arc so it can be used without holding the RwLockReadGuard
             // across an async await point
-            let connect_options = self.options.connect_options.clone();
+            let options = self.options.clone();
 
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
-            match tokio::time::timeout(timeout, connect_options.connect()).await {
+            match tokio::time::timeout(timeout, options.connect()).await {
                 // successfully established connection
                 Ok(Ok(raw)) => {
                     return Ok(Floating::new_live(raw, guard));

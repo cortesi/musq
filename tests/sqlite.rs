@@ -172,11 +172,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_executes_with_pool() -> anyhow::Result<()> {
-    let pool = Musq::new()
-        .with_pool()
-        .max_connections(2)
-        .open_in_memory()
-        .await?;
+    let pool = Musq::new().max_connections(2).open_in_memory().await?;
 
     let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
 
@@ -584,7 +580,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn concurrent_read_and_write() {
-    let pool = Musq::new().with_pool().open_in_memory().await.unwrap();
+    let pool = Musq::new().open_in_memory().await.unwrap();
 
     query("CREATE TABLE kv (k PRIMARY KEY, v)")
         .execute(&pool)

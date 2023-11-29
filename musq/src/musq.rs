@@ -7,8 +7,7 @@ use std::{
 };
 
 use crate::{
-    debugfn::DebugFn, executor::Executor, logger::LogSettings, pool, pool::PoolOptions,
-    sqlite::Connection, Result,
+    debugfn::DebugFn, executor::Executor, logger::LogSettings, pool, sqlite::Connection, Result,
 };
 
 use log::LevelFilter;
@@ -125,6 +124,9 @@ pub struct Musq {
     pub(crate) serialized: bool,
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
 
+    pub(crate) pool_max_connections: u32,
+    pub(crate) pool_acquire_timeout: Duration,
+
     pub(crate) optimize_on_close: OptimizeOnClose,
 }
 
@@ -200,6 +202,8 @@ impl Musq {
             command_channel_size: 50,
             row_channel_size: 50,
             optimize_on_close: OptimizeOnClose::Disabled,
+            pool_acquire_timeout: Duration::from_secs(30),
+            pool_max_connections: 10,
         }
     }
 
@@ -480,8 +484,32 @@ impl Musq {
         Ok(conn)
     }
 
-    pub fn with_pool(&self) -> PoolOptions {
-        PoolOptions::new(self.clone())
+    /// Set the maximum number of connections that this pool should maintain.
+    ///
+    /// Be mindful of the connection limits for your database as well as other applications
+    /// which may want to connect to the same database (or even multiple instances of the same
+    /// application in high-availability deployments).
+    pub fn max_connections(mut self, max: u32) -> Self {
+        self.pool_max_connections = max;
+        self
+    }
+
+    /// Set the maximum amount of time to spend waiting for a connection in [`Pool::acquire()`].
+    ///
+    /// Caps the total amount of time `Pool::acquire()` can spend waiting across multiple phases:
+    ///
+    /// * First, it may need to wait for a permit from the semaphore, which grants it the privilege
+    ///   of opening a connection or popping one from the idle queue.
+    /// * If an existing idle connection is acquired, by default it will be checked for liveness
+    ///   and integrity before being returned, which may require executing a command on the
+    ///   connection. This can be disabled with [`test_before_acquire(false)`][Self::test_before_acquire].
+    ///     * If [`before_acquire`][Self::before_acquire] is set, that will also be executed.
+    /// * If a new connection needs to be opened, that will obviously require I/O, handshaking,
+    ///   and initialization commands.
+    ///     * If [`after_connect`][Self::after_connect] is set, that will also be executed.
+    pub fn acquire_timeout(mut self, timeout: Duration) -> Self {
+        self.pool_acquire_timeout = timeout;
+        self
     }
 
     pub(crate) fn configure_in_memory(self) -> Self {
@@ -493,11 +521,11 @@ impl Musq {
 
     /// Open a file
     pub async fn open(self, filename: impl AsRef<Path>) -> Result<pool::Pool> {
-        self.filename(filename).with_pool().connect().await
+        pool::Pool::new(self.filename(filename)).await
     }
 
     /// Open an in-memory database
     pub async fn open_in_memory(self) -> Result<pool::Pool> {
-        self.configure_in_memory().with_pool().connect().await
+        pool::Pool::new(self.configure_in_memory()).await
     }
 }

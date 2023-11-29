@@ -37,7 +37,7 @@ pub use crate::{
     executor::{Execute, Executor},
     from_row::FromRow,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
-    pool::{Pool, PoolOptions},
+    pool::Pool,
     query::{query, query_with},
     query_as::{query_as, query_as_with},
     query_result::QueryResult,
