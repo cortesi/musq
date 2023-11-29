@@ -14,7 +14,6 @@ use crate::{
 pub struct Query<'q, A> {
     pub(crate) statement: Either<&'q str, &'q Statement<'q>>,
     pub(crate) arguments: Option<A>,
-    pub(crate) persistent: bool,
 }
 
 /// SQL query that will map its results to owned Rust types.
@@ -53,10 +52,6 @@ where
     fn take_arguments(&mut self) -> Option<Arguments> {
         self.arguments.take().map(IntoArguments::into_arguments)
     }
-
-    fn persistent(&self) -> bool {
-        self.persistent
-    }
 }
 
 impl<'q> Query<'q, Arguments> {
@@ -72,20 +67,7 @@ impl<'q> Query<'q, Arguments> {
     }
 }
 
-impl<'q, A> Query<'q, A> {
-    /// If `true`, the statement will get prepared once and cached to the
-    /// connection's statement cache.
-    ///
-    /// If queried once with the flag set to `true`, all subsequent queries
-    /// matching the one with the flag will use the cached statement until the
-    /// cache is cleared.
-    ///
-    /// Default: `true`.
-    pub fn persist(mut self, value: bool) -> Self {
-        self.persistent = value;
-        self
-    }
-}
+impl<'q, A> Query<'q, A> {}
 
 impl<'q, A: Send> Query<'q, A>
 where
@@ -221,10 +203,6 @@ where
 
     fn take_arguments(&mut self) -> Option<Arguments> {
         self.inner.take_arguments()
-    }
-
-    fn persistent(&self) -> bool {
-        self.inner.arguments.is_some()
     }
 }
 
@@ -362,7 +340,6 @@ pub fn query_statement<'q>(statement: &'q Statement<'q>) -> Query<'q, Arguments>
     Query {
         arguments: Some(Default::default()),
         statement: Either::Right(statement),
-        persistent: true,
     }
 }
 
@@ -374,7 +351,6 @@ where
     Query {
         arguments: Some(arguments),
         statement: Either::Right(statement),
-        persistent: true,
     }
 }
 
@@ -383,7 +359,6 @@ pub fn query(sql: &str) -> Query<'_, Arguments> {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Left(sql),
-        persistent: true,
     }
 }
 
@@ -395,6 +370,5 @@ where
     Query {
         arguments: Some(arguments),
         statement: Either::Left(sql),
-        persistent: true,
     }
 }

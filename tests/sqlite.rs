@@ -45,9 +45,6 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
     assert_eq!(rows[1].get_value_idx::<i32>(0).unwrap(), 39);
     assert_eq!(rows[2].get_value_idx::<i32>(0).unwrap(), 51);
 
-    // same query but fetch the first row a few times from a non-persistent query
-    // these rows should be immediately inflated
-
     let row1 = conn
         .fetch_one("SELECT 15 UNION SELECT 51 UNION SELECT 39")
         .await?;
@@ -60,9 +57,6 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
 
     assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
     assert_eq!(row2.get_value_idx::<i32>(0).unwrap(), 15);
-
-    // same query (again) but make it persistent
-    // and fetch the first row a few times
 
     let row1 = conn
         .fetch_one(query("SELECT 15 UNION SELECT 51 UNION SELECT 39"))
@@ -366,15 +360,12 @@ SELECT id, text FROM _musq_test;
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    // Initial PRAGMAs are not cached as we are not going to execute
-    // them more than once.
-    assert_eq!(0, conn.cached_statements_size());
+    assert_eq!(1, conn.cached_statements_size());
 
-    // `&str` queries are not persistent.
     let row = conn.fetch_one("SELECT 100 AS val").await?;
     let val: i32 = row.get_value("val").unwrap();
     assert_eq!(val, 100);
-    assert_eq!(0, conn.cached_statements_size());
+    assert_eq!(2, conn.cached_statements_size());
 
     // `Query` is persistent by default.
     let mut conn = connection().await?;
@@ -388,7 +379,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
         assert_eq!(i, val);
     }
-    assert_eq!(1, conn.cached_statements_size());
+    assert_eq!(2, conn.cached_statements_size());
 
     // Cache can be cleared.
     conn.clear_cached_statements().await?;
@@ -400,7 +391,6 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     for i in 0..2 {
         let row = query("SELECT ? AS val")
             .bind(i)
-            .persist(false)
             .fetch_one(&mut conn)
             .await?;
 
@@ -408,7 +398,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
         assert_eq!(i, val);
     }
-    assert_eq!(0, conn.cached_statements_size());
+    assert_eq!(2, conn.cached_statements_size());
 
     Ok(())
 }

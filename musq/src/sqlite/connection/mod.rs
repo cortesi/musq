@@ -97,10 +97,7 @@ impl ConnectionState {
 }
 
 pub(crate) struct Statements {
-    // cache of semi-persistent statements
-    cached: StatementCache<CompoundStatement>,
-    // most recent non-persistent statement
-    temp: Option<CompoundStatement>,
+    cache: StatementCache,
 }
 
 impl Debug for Connection {
@@ -332,39 +329,29 @@ impl Drop for ConnectionState {
 impl Statements {
     fn new(capacity: usize) -> Self {
         Statements {
-            cached: StatementCache::new(capacity),
-            temp: None,
+            cache: StatementCache::new(capacity),
         }
     }
 
-    fn get(&mut self, query: &str, persistent: bool) -> Result<&mut CompoundStatement> {
-        if !persistent || !self.cached.is_enabled() {
-            return Ok(self.temp.insert(CompoundStatement::new(query, false)?));
-        }
-
-        let exists = self.cached.contains_key(query);
-
+    fn get(&mut self, query: &str) -> Result<&mut CompoundStatement> {
+        let exists = self.cache.contains_key(query);
         if !exists {
-            let statement = CompoundStatement::new(query, true)?;
-            self.cached.insert(query, statement);
+            let statement = CompoundStatement::new(query)?;
+            self.cache.insert(query, statement);
         }
-
-        let statement = self.cached.get_mut(query).unwrap();
-
+        let statement = self.cache.get_mut(query).unwrap();
         if exists {
             // as this statement has been executed before, we reset before continuing
             statement.reset()?;
         }
-
         Ok(statement)
     }
 
     fn len(&self) -> usize {
-        self.cached.len()
+        self.cache.len()
     }
 
     fn clear(&mut self) {
-        self.cached.clear();
-        self.temp = None;
+        self.cache.clear();
     }
 }

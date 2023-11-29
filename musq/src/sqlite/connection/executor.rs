@@ -20,11 +20,10 @@ impl<'c> Executor<'c> for &'c mut Connection {
     {
         let sql = query.sql();
         let arguments = query.take_arguments();
-        let persistent = query.persistent() && arguments.is_some();
 
         Box::pin(
             self.worker
-                .execute(sql, arguments, self.row_channel_size, persistent)
+                .execute(sql, arguments, self.row_channel_size)
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream(),
         )
@@ -40,12 +39,11 @@ impl<'c> Executor<'c> for &'c mut Connection {
     {
         let sql = query.sql();
         let arguments = query.take_arguments();
-        let persistent = query.persistent() && arguments.is_some();
 
         Box::pin(async move {
             let stream = self
                 .worker
-                .execute(sql, arguments, self.row_channel_size, persistent)
+                .execute(sql, arguments, self.row_channel_size)
                 .map_ok(flume::Receiver::into_stream)
                 .try_flatten_stream();
 

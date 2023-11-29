@@ -46,7 +46,6 @@ enum Command {
     Execute {
         query: Box<str>,
         arguments: Option<Arguments>,
-        persistent: bool,
         tx: flume::Sender<Result<Either<QueryResult, Row>, Error>>,
     },
     Begin {
@@ -124,10 +123,9 @@ impl ConnectionWorker {
                         Command::Execute {
                             query,
                             arguments,
-                            persistent,
                             tx,
                         } => {
-                            let iter = match execute::iter(&mut conn, &query, arguments, persistent)
+                            let iter = match execute::iter(&mut conn, &query, arguments)
                             {
                                 Ok(iter) => iter,
                                 Err(e) => {
@@ -262,7 +260,6 @@ impl ConnectionWorker {
         query: &str,
         args: Option<Arguments>,
         chan_size: usize,
-        persistent: bool,
     ) -> Result<flume::Receiver<Result<Either<QueryResult, Row>, Error>>, Error> {
         let (tx, rx) = flume::bounded(chan_size);
 
@@ -270,7 +267,6 @@ impl ConnectionWorker {
             .send_async(Command::Execute {
                 query: query.into(),
                 arguments: args,
-                persistent,
                 tx,
             })
             .await
@@ -367,7 +363,7 @@ impl ConnectionWorker {
 
 fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement<'static>, Error> {
     // prepare statement object (or checkout from cache)
-    let statement = conn.statements.get(query, true)?;
+    let statement = conn.statements.get(query)?;
 
     let mut parameters = 0;
     let mut columns = None;

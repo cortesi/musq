@@ -33,10 +33,6 @@ where
     fn take_arguments(&mut self) -> Option<Arguments> {
         self.inner.take_arguments()
     }
-
-    fn persistent(&self) -> bool {
-        self.inner.persistent()
-    }
 }
 
 impl<'q, O> QueryScalar<'q, O, Arguments> {
@@ -45,21 +41,6 @@ impl<'q, O> QueryScalar<'q, O, Arguments> {
     /// See [`Query::bind`](crate::query::Query::bind).
     pub fn bind<T: 'q + Send + Encode>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
-        self
-    }
-}
-
-impl<'q, O, A> QueryScalar<'q, O, A> {
-    /// If `true`, the statement will get prepared once and cached to the
-    /// connection's statement cache.
-    ///
-    /// If queried once with the flag set to `true`, all subsequent queries
-    /// matching the one with the flag will use the cached statement until the
-    /// cache is cleared.
-    ///
-    /// Default: `true`.
-    pub fn persist(mut self, value: bool) -> Self {
-        self.inner = self.inner.persist(value);
         self
     }
 }

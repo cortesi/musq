@@ -25,10 +25,9 @@ pub(crate) fn iter<'a>(
     conn: &'a mut ConnectionState,
     query: &'a str,
     args: Option<Arguments>,
-    persistent: bool,
 ) -> Result<ExecuteIter<'a>, Error> {
     // fetch the cached statement or allocate a new one
-    let statement = conn.statements.get(query, persistent)?;
+    let statement = conn.statements.get(query)?;
 
     let logger = QueryLogger::new(query, conn.log_settings.clone());
 

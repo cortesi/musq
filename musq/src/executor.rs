@@ -155,9 +155,6 @@ pub trait Execute<'q>: Send + Sized {
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
     fn take_arguments(&mut self) -> Option<Arguments>;
-
-    /// Returns `true` if the statement should be cached.
-    fn persistent(&self) -> bool;
 }
 
 impl<'q> Execute<'q> for &'q String {
@@ -171,10 +168,6 @@ impl<'q> Execute<'q> for &'q String {
 
     fn take_arguments(&mut self) -> Option<Arguments> {
         None
-    }
-
-    fn persistent(&self) -> bool {
-        true
     }
 }
 
@@ -190,10 +183,6 @@ impl<'q> Execute<'q> for &'q str {
     fn take_arguments(&mut self) -> Option<Arguments> {
         None
     }
-
-    fn persistent(&self) -> bool {
-        true
-    }
 }
 
 impl<'q> Execute<'q> for (&'q str, Option<Arguments>) {
@@ -207,9 +196,5 @@ impl<'q> Execute<'q> for (&'q str, Option<Arguments>) {
 
     fn take_arguments(&mut self) -> Option<Arguments> {
         self.1.take()
-    }
-
-    fn persistent(&self) -> bool {
-        true
     }
 }

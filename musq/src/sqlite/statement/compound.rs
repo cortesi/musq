@@ -23,8 +23,6 @@ use smallvec::SmallVec;
 
 #[derive(Debug)]
 pub struct CompoundStatement {
-    persistent: bool,
-
     /// the current index of the actual statement that is executing
     /// if `None`, no statement is executing and `prepare()` must be called;
     /// if `Some(self.handles.len())` and `self.tail.is_empty()`,
@@ -37,7 +35,7 @@ pub struct CompoundStatement {
     /// underlying sqlite handles for each inner statement
     /// a SQL query string in SQLite is broken up into N statements
     /// we use a [`SmallVec`] to optimize for the most likely case of a single statement
-    pub(crate) handles: SmallVec<[StatementHandle; 1]>,
+    handles: SmallVec<[StatementHandle; 1]>,
 
     // each set of columns
     columns: SmallVec<[Arc<Vec<Column>>; 1]>,
@@ -53,7 +51,7 @@ pub struct PreparedStatement<'a> {
 }
 
 impl CompoundStatement {
-    pub(crate) fn new(mut query: &str, persistent: bool) -> Result<Self, Error> {
+    pub(crate) fn new(mut query: &str) -> Result<Self, Error> {
         query = query.trim();
 
         if query.len() > i32::max_value() as usize {
@@ -64,7 +62,6 @@ impl CompoundStatement {
         }
 
         Ok(Self {
-            persistent,
             tail: Bytes::from(String::from(query)),
             handles: SmallVec::with_capacity(1),
             index: None,
@@ -88,7 +85,7 @@ impl CompoundStatement {
                 return Ok(None);
             }
 
-            if let Some(statement) = prepare(conn.as_ptr(), &mut self.tail, self.persistent)? {
+            if let Some(statement) = prepare_all(conn.as_ptr(), &mut self.tail)? {
                 let num = statement.column_count();
 
                 let mut columns = Vec::with_capacity(num);
@@ -140,20 +137,9 @@ impl CompoundStatement {
     }
 }
 
-fn prepare(
-    conn: *mut sqlite3,
-    query: &mut Bytes,
-    persistent: bool,
-) -> Result<Option<StatementHandle>, Error> {
-    let mut flags = 0;
-
-    if persistent {
-        // SQLITE_PREPARE_PERSISTENT
-        //  The SQLITE_PREPARE_PERSISTENT flag is a hint to the query
-        //  planner that the prepared statement will be retained for a long time
-        //  and probably reused many times.
-        flags |= SQLITE_PREPARE_PERSISTENT;
-    }
+/// Prepare all statements in the given query.
+fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<StatementHandle>, Error> {
+    let flags = SQLITE_PREPARE_PERSISTENT;
 
     while !query.is_empty() {
         let mut statement_handle: *mut sqlite3_stmt = null_mut();
