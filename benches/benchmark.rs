@@ -21,7 +21,6 @@ pub struct Data {
 
 async fn pool() -> musq::Pool {
     let pool = musq::Musq::new()
-        .with_pool()
         .max_connections(CONNECTIONS)
         .open_in_memory()
         .await

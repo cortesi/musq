@@ -1,10 +1,8 @@
-use crate::{
-    from_row, query, query_as, query_scalar, sqlite::Arguments, ustr::UStr, Column, HashMap,
-    IntoArguments,
-};
+use std::{borrow::Cow, collections::HashMap, sync::Arc};
 
-use std::borrow::Cow;
-use std::sync::Arc;
+use crate::{
+    from_row, query, query_as, query_scalar, sqlite::Arguments, ustr::UStr, Column, IntoArguments,
+};
 
 mod compound;
 mod handle;

@@ -3,7 +3,6 @@ use crate::{pool::PoolConnection, Connection};
 use std::ops::{Deref, DerefMut};
 
 pub enum MaybePoolConnection<'c> {
-    #[allow(dead_code)]
     Connection(&'c mut Connection),
     PoolConnection(PoolConnection),
 }

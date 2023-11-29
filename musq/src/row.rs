@@ -1,13 +1,11 @@
-#![allow(clippy::rc_buffer)]
-
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     decode::Decode,
     error::Error,
     sqlite::{statement::StatementHandle, Value},
     ustr::UStr,
-    Column, HashMap, Result,
+    Column, Result,
 };
 
 /// Implementation of [`Row`] for SQLite.

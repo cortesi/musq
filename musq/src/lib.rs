@@ -26,8 +26,6 @@ mod statement_cache;
 mod transaction;
 pub mod types;
 
-/// sqlx uses ahash for increased performance, at the cost of reduced DoS resistance.
-use ahash::AHashMap as HashMap;
 pub use either::Either;
 pub use indexmap::IndexMap;
 

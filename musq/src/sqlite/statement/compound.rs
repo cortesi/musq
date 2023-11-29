@@ -1,22 +1,24 @@
-#![allow(clippy::rc_buffer)]
+use std::{
+    cmp,
+    collections::HashMap,
+    i32,
+    os::raw::c_char,
+    ptr::{null, null_mut, NonNull},
+    sync::Arc,
+};
 
-use std::os::raw::c_char;
-use std::ptr::{null, null_mut, NonNull};
-use std::sync::Arc;
-use std::{cmp, i32};
-
+use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
     sqlite3, sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
 };
+use smallvec::SmallVec;
 
 use crate::{
     error::Error,
     sqlite::{connection::ConnectionHandle, statement::StatementHandle, SqliteError},
     ustr::UStr,
-    Column, HashMap,
+    Column,
 };
-use bytes::{Buf, Bytes};
-use smallvec::SmallVec;
 
 // A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
 // on `;` to support multiple statements in one query.

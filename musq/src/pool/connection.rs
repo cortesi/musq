@@ -12,11 +12,11 @@ use std::future::Future;
 /// Will be returned to the pool on-drop.
 pub struct PoolConnection {
     live: Option<Live>,
-    pub(crate) pool: Arc<PoolInner>,
+    pool: Arc<PoolInner>,
 }
 
 pub(super) struct Live {
-    pub(super) raw: Connection,
+    raw: Connection,
 }
 
 pub(super) struct Idle {
