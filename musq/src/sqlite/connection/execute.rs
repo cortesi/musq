@@ -2,7 +2,7 @@ use crate::{
     logger::QueryLogger,
     sqlite::{
         connection::{ConnectionHandle, ConnectionState},
-        statement::{StatementHandle, VirtualStatement},
+        statement::{CompoundStatement, StatementHandle},
         Arguments,
     },
     Either, Error, QueryResult, Row,
@@ -10,7 +10,7 @@ use crate::{
 
 pub struct ExecuteIter<'a> {
     handle: &'a mut ConnectionHandle,
-    statement: &'a mut VirtualStatement,
+    statement: &'a mut CompoundStatement,
     logger: QueryLogger<'a>,
     args: Option<Arguments>,
 

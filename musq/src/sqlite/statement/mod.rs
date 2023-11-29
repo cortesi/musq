@@ -6,12 +6,12 @@ use crate::{
 use std::borrow::Cow;
 use std::sync::Arc;
 
+mod compound;
 mod handle;
 pub(super) mod unlock_notify;
-mod r#virtual;
 
+pub(crate) use compound::CompoundStatement;
 pub(crate) use handle::StatementHandle;
-pub(crate) use r#virtual::VirtualStatement;
 
 /// An explicitly prepared statement.
 ///

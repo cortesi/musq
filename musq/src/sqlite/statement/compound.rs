@@ -18,11 +18,11 @@ use crate::{
 use bytes::{Buf, Bytes};
 use smallvec::SmallVec;
 
-// A virtual statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
+// A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
 // on `;` to support multiple statements in one query.
 
 #[derive(Debug)]
-pub struct VirtualStatement {
+pub struct CompoundStatement {
     persistent: bool,
 
     /// the current index of the actual statement that is executing
@@ -40,10 +40,10 @@ pub struct VirtualStatement {
     pub(crate) handles: SmallVec<[StatementHandle; 1]>,
 
     // each set of columns
-    pub(crate) columns: SmallVec<[Arc<Vec<Column>>; 1]>,
+    columns: SmallVec<[Arc<Vec<Column>>; 1]>,
 
     // each set of column names
-    pub(crate) column_names: SmallVec<[Arc<HashMap<UStr, usize>>; 1]>,
+    column_names: SmallVec<[Arc<HashMap<UStr, usize>>; 1]>,
 }
 
 pub struct PreparedStatement<'a> {
@@ -52,7 +52,7 @@ pub struct PreparedStatement<'a> {
     pub(crate) column_names: &'a Arc<HashMap<UStr, usize>>,
 }
 
-impl VirtualStatement {
+impl CompoundStatement {
     pub(crate) fn new(mut query: &str, persistent: bool) -> Result<Self, Error> {
         query = query.trim();
 

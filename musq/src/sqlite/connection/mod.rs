@@ -18,7 +18,7 @@ use crate::{
     musq::{Musq, OptimizeOnClose},
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
-        statement::VirtualStatement,
+        statement::CompoundStatement,
     },
     statement_cache::StatementCache,
     transaction::Transaction,
@@ -98,9 +98,9 @@ impl ConnectionState {
 
 pub(crate) struct Statements {
     // cache of semi-persistent statements
-    cached: StatementCache<VirtualStatement>,
+    cached: StatementCache<CompoundStatement>,
     // most recent non-persistent statement
-    temp: Option<VirtualStatement>,
+    temp: Option<CompoundStatement>,
 }
 
 impl Debug for Connection {
@@ -337,15 +337,15 @@ impl Statements {
         }
     }
 
-    fn get(&mut self, query: &str, persistent: bool) -> Result<&mut VirtualStatement> {
+    fn get(&mut self, query: &str, persistent: bool) -> Result<&mut CompoundStatement> {
         if !persistent || !self.cached.is_enabled() {
-            return Ok(self.temp.insert(VirtualStatement::new(query, false)?));
+            return Ok(self.temp.insert(CompoundStatement::new(query, false)?));
         }
 
         let exists = self.cached.contains_key(query);
 
         if !exists {
-            let statement = VirtualStatement::new(query, true)?;
+            let statement = CompoundStatement::new(query, true)?;
             self.cached.insert(query, statement);
         }
 
