@@ -1,6 +1,8 @@
 use crate::sqlite::statement::CompoundStatement;
 use hashlink::lru_cache::LruCache;
 
+const CAPACITY: usize = 1024;
+
 /// A cache for prepared statements. When full, the least recently used
 /// statement gets removed.
 #[derive(Debug)]
@@ -10,9 +12,9 @@ pub struct StatementCache {
 
 impl StatementCache {
     /// Create a new cache with the given capacity.
-    pub fn new(capacity: usize) -> Self {
+    pub fn new() -> Self {
         Self {
-            inner: LruCache::new(capacity),
+            inner: LruCache::new(CAPACITY),
         }
     }
 

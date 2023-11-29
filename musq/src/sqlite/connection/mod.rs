@@ -327,9 +327,9 @@ impl Drop for ConnectionState {
 }
 
 impl Statements {
-    fn new(capacity: usize) -> Self {
+    fn new() -> Self {
         Statements {
-            cache: StatementCache::new(capacity),
+            cache: StatementCache::new(),
         }
     }
 

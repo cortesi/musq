@@ -112,7 +112,6 @@ pub struct Musq {
     pub(crate) read_only: bool,
     pub(crate) create_if_missing: bool,
     pub(crate) shared_cache: bool,
-    pub(crate) statement_cache_capacity: usize,
     pub(crate) busy_timeout: Duration,
     pub(crate) log_settings: LogSettings,
     pub(crate) immutable: bool,
@@ -191,7 +190,6 @@ impl Musq {
             read_only: false,
             create_if_missing: false,
             shared_cache: false,
-            statement_cache_capacity: 100,
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
             immutable: false,
@@ -279,17 +277,6 @@ impl Musq {
     /// By default, a new file **will not be created** if one is not found.
     pub fn create_if_missing(mut self, create: bool) -> Self {
         self.create_if_missing = create;
-        self
-    }
-
-    /// Sets the capacity of the connection's statement cache in a number of stored
-    /// distinct statements. Caching is handled using LRU, meaning when the
-    /// amount of queries hits the defined limit, the oldest statement will get
-    /// dropped.
-    ///
-    /// The default cache capacity is 100 statements.
-    pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
-        self.statement_cache_capacity = capacity;
         self
     }
 
