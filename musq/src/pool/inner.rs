@@ -1,5 +1,4 @@
 use std::{
-    cmp,
     sync::{
         atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
         Arc,
@@ -94,8 +93,7 @@ impl PoolInner {
 
     /// Attempt to pull a permit from `self.semaphore` or steal one from the parent.
     ///
-    /// If we steal a permit from the parent but *don't* open a connection,
-    /// it should be returned to the parent.
+    /// If we steal a permit from the parent but *don't* open a connection, it should be returned to the parent.
     async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<tokio::sync::SemaphorePermit<'a>> {
         let acquire_self = self.semaphore.acquire_many(1).fuse();
         let mut close_event = self.close_event();
@@ -214,41 +212,19 @@ impl PoolInner {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
-
-        let mut backoff = Duration::from_millis(10);
-        let max_backoff = deadline_as_timeout(deadline)? / 5;
-
         loop {
             let timeout = deadline_as_timeout(deadline)?;
 
-            // clone the connect options arc so it can be used without holding the RwLockReadGuard
-            // across an async await point
-            let options = self.options.clone();
-
             // result here is `Result<Result<C, Error>, TimeoutError>`
             // if this block does not return, sleep for the backoff timeout and try again
-            match tokio::time::timeout(timeout, options.connect()).await {
-                // successfully established connection
+            match tokio::time::timeout(timeout, self.options.connect()).await {
                 Ok(Ok(raw)) => {
                     return Ok(Floating::new_live(raw, guard));
                 }
-
-                // an IO error while connecting is assumed to be the system starting up
-                Ok(Err(Error::Io(e))) if e.kind() == std::io::ErrorKind::ConnectionRefused => (),
-
-                // Any other error while connection should immediately
-                // terminate and bubble the error up
                 Ok(Err(e)) => return Err(e),
-
                 // timed out
                 Err(_) => return Err(Error::PoolTimedOut),
             }
-
-            // If the connection is refused, wait in exponentially
-            // increasing steps for the server to come up,
-            // capped by a factor of the remaining time until the deadline
-            tokio::time::sleep(backoff).await;
-            backoff = cmp::min(backoff * 2, max_backoff);
         }
     }
 }

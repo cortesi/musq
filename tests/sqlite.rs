@@ -467,6 +467,66 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[tokio::test]
+async fn it_can_transact() {
+    let conn = Musq::new().open_in_memory().await.unwrap();
+    query("CREATE TABLE foo (value INTEGER)")
+        .execute(&conn)
+        .await
+        .unwrap();
+
+    macro_rules! add {
+        ($tx: expr, $v:expr) => {
+            query("INSERT INTO foo (value) VALUES (?)")
+                .bind($v)
+                .execute(&mut *$tx)
+                .await
+                .unwrap();
+        };
+    }
+
+    macro_rules! check {
+        ($tx: expr, $v:expr) => {
+            query_as::<(i64,)>("SELECT count(*) FROM foo WHERE value = ?")
+                .bind($v)
+                .fetch_one(&mut *$tx)
+                .await
+                .unwrap()
+                .0
+        };
+    }
+
+    {
+        let mut tx0 = conn.begin().await.unwrap();
+        assert_eq!(check!(tx0, 0), 0);
+        add!(tx0, 0);
+        assert_eq!(check!(tx0, 0), 1);
+        {
+            let mut tx1 = tx0.begin().await.unwrap();
+            assert_eq!(check!(tx1, 0), 1);
+            add!(tx1, 1);
+            assert_eq!(check!(tx1, 1), 1);
+        }
+        assert_eq!(check!(tx0, 1), 0);
+        assert_eq!(check!(tx0, 0), 1);
+    }
+
+    let mut ntx = conn.begin().await.unwrap();
+    assert_eq!(check!(ntx, 0), 0);
+    ntx.rollback().await.unwrap();
+
+    {
+        let mut tx0 = conn.begin().await.unwrap();
+        add!(tx0, 0);
+        {
+            let mut tx1 = tx0.begin().await.unwrap();
+            add!(tx1, 1);
+            tx1.commit().await.unwrap();
+        }
+        assert_eq!(check!(tx0, 1), 1);
+    }
+}
+
 // https://github.com/launchbadge/sqlx/issues/1300
 #[tokio::test]
 async fn concurrent_resets_dont_segfault() {
