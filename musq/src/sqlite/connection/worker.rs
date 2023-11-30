@@ -1,4 +1,3 @@
-use std::borrow::Cow;
 use std::future::Future;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
@@ -41,7 +40,7 @@ pub(crate) struct WorkerSharedState {
 enum Command {
     Prepare {
         query: Box<str>,
-        tx: oneshot::Sender<Result<Statement<'static>, Error>>,
+        tx: oneshot::Sender<Result<Statement, Error>>,
     },
     Execute {
         query: Box<str>,
@@ -247,7 +246,7 @@ impl ConnectionWorker {
         establish_rx.await.map_err(|_| Error::WorkerCrashed)?
     }
 
-    pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement<'static>, Error> {
+    pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement, Error> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
             tx,
@@ -361,7 +360,7 @@ impl ConnectionWorker {
     }
 }
 
-fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement<'static>, Error> {
+fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement, Error> {
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query)?;
 
@@ -380,7 +379,7 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement<'static>
     }
 
     Ok(Statement {
-        sql: Cow::Owned(query.to_string()),
+        sql: query.to_string(),
         columns: columns.unwrap_or_default(),
         column_names: column_names.unwrap_or_default(),
         parameters,

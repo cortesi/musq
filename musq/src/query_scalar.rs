@@ -26,7 +26,7 @@ where
         self.inner.sql()
     }
 
-    fn statement(&self) -> Option<&Statement<'q>> {
+    fn statement(&self) -> Option<&Statement> {
         self.inner.statement()
     }
 
@@ -151,7 +151,7 @@ where
 }
 
 // Make a SQL query from a statement, that is mapped to a concrete value.
-pub fn query_statement_scalar<'q, O>(statement: &'q Statement<'q>) -> QueryScalar<'q, O, Arguments>
+pub fn query_statement_scalar<'q, O>(statement: &'q Statement) -> QueryScalar<'q, O, Arguments>
 where
     (O,): for<'r> FromRow<'r>,
 {
@@ -162,7 +162,7 @@ where
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete value.
 pub fn query_statement_scalar_with<'q, O, A>(
-    statement: &'q Statement<'q>,
+    statement: &'q Statement,
     arguments: A,
 ) -> QueryScalar<'q, O, A>
 where

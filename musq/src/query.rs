@@ -12,7 +12,7 @@ use crate::{
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
 pub struct Query<'q, A> {
-    pub(crate) statement: Either<&'q str, &'q Statement<'q>>,
+    pub(crate) statement: Either<&'q str, &'q Statement>,
     pub(crate) arguments: Option<A>,
 }
 
@@ -42,7 +42,7 @@ where
         }
     }
 
-    fn statement(&self) -> Option<&Statement<'q>> {
+    fn statement(&self) -> Option<&Statement> {
         match self.statement {
             Either::Right(statement) => Some(statement),
             Either::Left(_) => None,
@@ -66,8 +66,6 @@ impl<'q> Query<'q, Arguments> {
         self
     }
 }
-
-impl<'q, A> Query<'q, A> {}
 
 impl<'q, A: Send> Query<'q, A>
 where
@@ -197,7 +195,7 @@ where
         self.inner.sql()
     }
 
-    fn statement(&self) -> Option<&Statement<'q>> {
+    fn statement(&self) -> Option<&Statement> {
         self.inner.statement()
     }
 
@@ -336,7 +334,7 @@ where
 }
 
 // Make a SQL query from a statement.
-pub fn query_statement<'q>(statement: &'q Statement<'q>) -> Query<'q, Arguments> {
+pub fn query_statement<'q>(statement: &'q Statement) -> Query<'q, Arguments> {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Right(statement),
@@ -344,7 +342,7 @@ pub fn query_statement<'q>(statement: &'q Statement<'q>) -> Query<'q, Arguments>
 }
 
 // Make a SQL query from a statement, with the given arguments.
-pub fn query_statement_with<'q, A>(statement: &'q Statement<'q>, arguments: A) -> Query<'q, A>
+pub fn query_statement_with<'q, A>(statement: &'q Statement, arguments: A) -> Query<'q, A>
 where
     A: IntoArguments,
 {

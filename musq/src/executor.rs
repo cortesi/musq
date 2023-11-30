@@ -114,7 +114,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     /// This explicit API is provided to allow access to the statement metadata available after
     /// it prepared but before the first row is returned.
 
-    fn prepare<'e, 'q: 'e>(self, query: &'q str) -> BoxFuture<'e, Result<Statement<'q>, Error>>
+    fn prepare<'e, 'q: 'e>(self, query: &'q str) -> BoxFuture<'e, Result<Statement, Error>>
     where
         'c: 'e,
     {
@@ -130,7 +130,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
         self,
         sql: &'q str,
         parameters: &'e [sqlite::SqliteDataType],
-    ) -> BoxFuture<'e, Result<Statement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<Statement, Error>>
     where
         'c: 'e;
 }
@@ -147,7 +147,7 @@ pub trait Execute<'q>: Send + Sized {
     fn sql(&self) -> &'q str;
 
     /// Gets the previously cached statement, if available.
-    fn statement(&self) -> Option<&Statement<'q>>;
+    fn statement(&self) -> Option<&Statement>;
 
     /// Returns the arguments to be bound against the query string.
     ///
@@ -162,7 +162,7 @@ impl<'q> Execute<'q> for &'q String {
         self
     }
 
-    fn statement(&self) -> Option<&Statement<'q>> {
+    fn statement(&self) -> Option<&Statement> {
         None
     }
 
@@ -176,7 +176,7 @@ impl<'q> Execute<'q> for &'q str {
         self
     }
 
-    fn statement(&self) -> Option<&Statement<'q>> {
+    fn statement(&self) -> Option<&Statement> {
         None
     }
 
@@ -190,7 +190,7 @@ impl<'q> Execute<'q> for (&'q str, Option<Arguments>) {
         self.0
     }
 
-    fn statement(&self) -> Option<&Statement<'q>> {
+    fn statement(&self) -> Option<&Statement> {
         None
     }
 

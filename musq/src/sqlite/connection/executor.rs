@@ -63,7 +63,7 @@ impl<'c> Executor<'c> for &'c mut Connection {
         self,
         sql: &'q str,
         _parameters: &[SqliteDataType],
-    ) -> BoxFuture<'e, Result<Statement<'q>, Error>>
+    ) -> BoxFuture<'e, Result<Statement, Error>>
     where
         'c: 'e,
     {

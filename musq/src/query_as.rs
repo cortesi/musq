@@ -29,7 +29,7 @@ where
         self.inner.sql()
     }
 
-    fn statement(&self) -> Option<&Statement<'q>> {
+    fn statement(&self) -> Option<&Statement> {
         self.inner.statement()
     }
 
@@ -160,7 +160,7 @@ where
 }
 
 // Make a SQL query from a statement, that is mapped to a concrete type.
-pub fn query_statement_as<'q, O>(statement: &'q Statement<'q>) -> QueryAs<'q, O, Arguments>
+pub fn query_statement_as<'q, O>(statement: &'q Statement) -> QueryAs<'q, O, Arguments>
 where
     O: for<'r> FromRow<'r>,
 {
@@ -172,7 +172,7 @@ where
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete type.
 pub fn query_statement_as_with<'q, O, A>(
-    statement: &'q Statement<'q>,
+    statement: &'q Statement,
     arguments: A,
 ) -> QueryAs<'q, O, A>
 where

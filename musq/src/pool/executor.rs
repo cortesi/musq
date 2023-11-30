@@ -47,7 +47,7 @@ where
         self,
         sql: &'q str,
         parameters: &'e [sqlite::SqliteDataType],
-    ) -> BoxFuture<'e, Result<Statement<'q>>> {
+    ) -> BoxFuture<'e, Result<Statement>> {
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })
