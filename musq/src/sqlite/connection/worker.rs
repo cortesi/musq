@@ -364,25 +364,18 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement, Error> 
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query)?;
 
-    let mut parameters = 0;
     let mut columns = None;
-    let mut column_names = None;
 
     while let Some(statement) = statement.prepare_next(&mut conn.handle)? {
-        parameters += statement.handle.bind_parameter_count();
-
         // the first non-empty statement is chosen as the statement we pull columns from
         if !statement.columns.is_empty() && columns.is_none() {
             columns = Some(Arc::clone(statement.columns));
-            column_names = Some(Arc::clone(statement.column_names));
         }
     }
 
     Ok(Statement {
         sql: query.to_string(),
         columns: columns.unwrap_or_default(),
-        column_names: column_names.unwrap_or_default(),
-        parameters,
     })
 }
 

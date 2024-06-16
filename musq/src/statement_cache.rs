@@ -1,4 +1,4 @@
-use crate::sqlite::statement::CompoundStatement;
+use crate::{sqlite::statement::CompoundStatement, Result};
 use hashlink::lru_cache::LruCache;
 
 const CAPACITY: usize = 1024;
@@ -16,6 +16,20 @@ impl StatementCache {
         Self {
             inner: LruCache::new(CAPACITY),
         }
+    }
+
+    pub fn get(&mut self, query: &str) -> Result<&mut CompoundStatement> {
+        let exists = self.contains_key(query);
+        if !exists {
+            let statement = CompoundStatement::new(query)?;
+            self.insert(query, statement);
+        }
+        let statement = self.get_mut(query).unwrap();
+        if exists {
+            // as this statement has been executed before, we reset before continuing
+            statement.reset()?;
+        }
+        Ok(statement)
     }
 
     /// Returns a mutable reference to the value corresponding to the given key

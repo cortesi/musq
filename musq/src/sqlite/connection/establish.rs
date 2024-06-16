@@ -14,7 +14,7 @@ use libsqlite3_sys::{
 
 use crate::{
     sqlite::{
-        connection::{handle::ConnectionHandle, ConnectionState, LogSettings, Statements},
+        connection::{handle::ConnectionHandle, ConnectionState, LogSettings, StatementCache},
         SqliteError,
     },
     Error, Musq,
@@ -151,7 +151,7 @@ impl EstablishParams {
 
         Ok(ConnectionState {
             handle,
-            statements: Statements::new(),
+            statements: StatementCache::new(),
             transaction_depth: 0,
             log_settings: self.log_settings.clone(),
             progress_handler_callback: None,

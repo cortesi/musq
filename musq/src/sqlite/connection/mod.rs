@@ -16,10 +16,7 @@ use crate::{
     executor::Executor,
     logger::LogSettings,
     musq::{Musq, OptimizeOnClose},
-    sqlite::{
-        connection::{establish::EstablishParams, worker::ConnectionWorker},
-        statement::CompoundStatement,
-    },
+    sqlite::connection::{establish::EstablishParams, worker::ConnectionWorker},
     statement_cache::StatementCache,
     transaction::Transaction,
     Result,
@@ -75,7 +72,7 @@ pub(crate) struct ConnectionState {
     // transaction status
     pub(crate) transaction_depth: usize,
 
-    pub(crate) statements: Statements,
+    pub(crate) statements: StatementCache,
 
     log_settings: LogSettings,
 
@@ -94,10 +91,6 @@ impl ConnectionState {
             }
         }
     }
-}
-
-pub(crate) struct Statements {
-    cache: StatementCache,
 }
 
 impl Debug for Connection {
@@ -323,35 +316,5 @@ impl Drop for ConnectionState {
         // explicitly drop statements before the connection handle is dropped
         self.statements.clear();
         self.remove_progress_handler();
-    }
-}
-
-impl Statements {
-    fn new() -> Self {
-        Statements {
-            cache: StatementCache::new(),
-        }
-    }
-
-    fn get(&mut self, query: &str) -> Result<&mut CompoundStatement> {
-        let exists = self.cache.contains_key(query);
-        if !exists {
-            let statement = CompoundStatement::new(query)?;
-            self.cache.insert(query, statement);
-        }
-        let statement = self.cache.get_mut(query).unwrap();
-        if exists {
-            // as this statement has been executed before, we reset before continuing
-            statement.reset()?;
-        }
-        Ok(statement)
-    }
-
-    fn len(&self) -> usize {
-        self.cache.len()
-    }
-
-    fn clear(&mut self) {
-        self.cache.clear();
     }
 }

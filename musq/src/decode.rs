@@ -7,6 +7,7 @@ pub trait Decode<'r>: Sized {
     fn decode(value: &'r Value) -> Result<Self, DecodeError>;
 }
 
+
 // implement `Decode` for Option<T> for all SQL types
 impl<'r, T> Decode<'r> for Option<T>
 where

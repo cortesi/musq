@@ -1,8 +1,6 @@
-use std::{collections::HashMap, sync::Arc};
+use std::sync::Arc;
 
-use crate::{
-    from_row, query, query_as, query_scalar, sqlite::Arguments, ustr::UStr, Column, IntoArguments,
-};
+use crate::{from_row, query, query_as, query_scalar, sqlite::Arguments, Column, IntoArguments};
 
 mod compound;
 mod handle;
@@ -23,21 +21,10 @@ pub(crate) use handle::StatementHandle;
 #[allow(clippy::rc_buffer)]
 pub struct Statement {
     pub(crate) sql: String,
-    pub(crate) parameters: usize,
     pub columns: Arc<Vec<Column>>,
-    pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
 
 impl Statement {
-    pub fn to_owned(&self) -> Statement {
-        Statement {
-            sql: self.sql.clone(),
-            parameters: self.parameters,
-            columns: Arc::clone(&self.columns),
-            column_names: Arc::clone(&self.column_names),
-        }
-    }
-
     pub fn sql(&self) -> &str {
         &self.sql
     }
