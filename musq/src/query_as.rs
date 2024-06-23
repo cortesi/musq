@@ -134,7 +134,6 @@ where
 
 /// Make a SQL query that is mapped to a concrete type
 /// using [`FromRow`].
-
 pub fn query_as<'q, O>(sql: &'q str) -> QueryAs<'q, O, Arguments>
 where
     O: for<'r> FromRow<'r>,
