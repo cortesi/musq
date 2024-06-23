@@ -84,7 +84,7 @@ impl Pool {
 ///
 /// See [`Pool::close_event()`] for details.
 pub struct CloseEvent {
-    listener: Option<Pin<Box<EventListener>>>,
+    listener: Option<EventListener>,
 }
 
 impl Pool {
