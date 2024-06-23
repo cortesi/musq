@@ -23,19 +23,19 @@ use std::fmt::Debug;
 ///
 pub trait Executor<'c>: Send + Debug + Sized {
     /// Execute the query and return the total number of rows affected.
-    fn execute<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<QueryResult, Error>>
+    fn execute<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<QueryResult, Error>>
     where
         'c: 'e,
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         self.execute_many(query).try_collect().boxed()
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    fn execute_many<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxStream<'e, Result<QueryResult, Error>>
+    fn execute_many<'e, 'q: 'e, E>(self, query: E) -> BoxStream<'e, Result<QueryResult, Error>>
     where
         'c: 'e,
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         self.fetch_many(query)
             .try_filter_map(|step| async move {
@@ -48,10 +48,10 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and return the generated results as a stream.
-    fn fetch<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxStream<'e, Result<Row, Error>>
+    fn fetch<'e, 'q: 'e, E>(self, query: E) -> BoxStream<'e, Result<Row, Error>>
     where
         'c: 'e,
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         self.fetch_many(query)
             .try_filter_map(|step| async move {
@@ -65,28 +65,28 @@ pub trait Executor<'c>: Send + Debug + Sized {
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
+    fn fetch_many<'e, 'q: 'e, E>(
         self,
         query: E,
     ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q>;
+        E: Execute<'q> + 'q;
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    fn fetch_all<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Vec<Row>, Error>>
+    fn fetch_all<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<Vec<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         self.fetch(query).try_collect().boxed()
     }
 
     /// Execute the query and returns exactly one row.
-    fn fetch_one<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Row, Error>>
+    fn fetch_one<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<Row, Error>>
     where
         'c: 'e,
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         self.fetch_optional(query)
             .and_then(|row| match row {
@@ -97,13 +97,10 @@ pub trait Executor<'c>: Send + Debug + Sized {
     }
 
     /// Execute the query and returns at most one row.
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxFuture<'e, Result<Option<Row>, Error>>
+    fn fetch_optional<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q>;
+        E: Execute<'q> + 'q;
 
     /// Prepare the SQL query to inspect the type information of its parameters
     /// and results.

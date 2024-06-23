@@ -10,13 +10,13 @@ use crate::{
 };
 
 impl<'c> Executor<'c> for &'c mut Connection {
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
+    fn fetch_many<'e, 'q: 'e, E>(
         self,
         mut query: E,
     ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         let sql = query.sql();
         let arguments = query.take_arguments();
@@ -29,13 +29,13 @@ impl<'c> Executor<'c> for &'c mut Connection {
         )
     }
 
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(
+    fn fetch_optional<'e, 'q: 'e, E>(
         self,
         mut query: E,
     ) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         let sql = query.sql();
         let arguments = query.take_arguments();

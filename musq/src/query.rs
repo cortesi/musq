@@ -334,7 +334,7 @@ where
 }
 
 // Make a SQL query from a statement.
-pub fn query_statement<'q>(statement: &'q Statement) -> Query<'q, Arguments> {
+pub fn query_statement(statement: &Statement) -> Query<Arguments> {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Right(statement),
@@ -342,7 +342,7 @@ pub fn query_statement<'q>(statement: &'q Statement) -> Query<'q, Arguments> {
 }
 
 // Make a SQL query from a statement, with the given arguments.
-pub fn query_statement_with<'q, A>(statement: &'q Statement, arguments: A) -> Query<'q, A>
+pub fn query_statement_with<A>(statement: &Statement, arguments: A) -> Query<A>
 where
     A: IntoArguments,
 {

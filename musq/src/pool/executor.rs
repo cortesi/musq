@@ -13,12 +13,9 @@ impl<'p> Executor<'p> for &'_ Pool
 where
     for<'c> &'c mut Connection: Executor<'c>,
 {
-    fn fetch_many<'e, 'q: 'e, E: 'q>(
-        self,
-        query: E,
-    ) -> BoxStream<'e, Result<Either<QueryResult, Row>>>
+    fn fetch_many<'e, 'q: 'e, E>(self, query: E) -> BoxStream<'e, Result<Either<QueryResult, Row>>>
     where
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         let pool = self.clone();
 
@@ -34,9 +31,9 @@ where
         })
     }
 
-    fn fetch_optional<'e, 'q: 'e, E: 'q>(self, query: E) -> BoxFuture<'e, Result<Option<Row>>>
+    fn fetch_optional<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<Option<Row>>>
     where
-        E: Execute<'q>,
+        E: Execute<'q> + 'q,
     {
         let pool = self.clone();
 
