@@ -6,11 +6,11 @@ use futures_core::stream::BoxStream;
 use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use std::fmt::Debug;
 
-/// A type that contains or can provide a database
-/// connection to use for executing queries against the database.
+/// A type that contains or can provide a database connection to use for executing queries against
+/// the database.
 ///
-/// No guarantees are provided that successive queries run on the same
-/// physical database connection.
+/// No guarantees are provided that successive queries run on the same physical database
+/// connection.
 ///
 /// A [`Connection`](crate::connection::Connection) is an `Executor` that guarantees that
 /// successive queries are ran on the same physical database connection.
@@ -154,20 +154,6 @@ pub trait Execute: Send + Sized {
     fn take_arguments(&mut self) -> Option<Arguments>;
 }
 
-impl Execute for &String {
-    fn sql(&self) -> &str {
-        self
-    }
-
-    fn statement(&self) -> Option<&Statement> {
-        None
-    }
-
-    fn take_arguments(&mut self) -> Option<Arguments> {
-        None
-    }
-}
-
 impl Execute for &str {
     fn sql(&self) -> &str {
         self
@@ -179,19 +165,5 @@ impl Execute for &str {
 
     fn take_arguments(&mut self) -> Option<Arguments> {
         None
-    }
-}
-
-impl Execute for (&str, Option<Arguments>) {
-    fn sql(&self) -> &str {
-        self.0
-    }
-
-    fn statement(&self) -> Option<&Statement> {
-        None
-    }
-
-    fn take_arguments(&mut self) -> Option<Arguments> {
-        self.1.take()
     }
 }

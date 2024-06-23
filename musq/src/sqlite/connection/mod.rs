@@ -146,7 +146,7 @@ impl Connection {
                 write!(pragma_string, "PRAGMA analysis_limit = {}; ", limit).ok();
             }
             pragma_string.push_str("PRAGMA optimize;");
-            self.execute(&*pragma_string).await?;
+            self.execute(crate::query(&pragma_string)).await?;
         }
         let shutdown = self.worker.shutdown();
         // Drop the statement worker, which should
