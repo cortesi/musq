@@ -16,10 +16,10 @@ impl<'c> Executor<'c> for &'c mut Connection {
     ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
-        let sql = query.sql();
         let arguments = query.take_arguments();
+        let sql = query.sql().into();
 
         Box::pin(
             self.worker
@@ -35,10 +35,10 @@ impl<'c> Executor<'c> for &'c mut Connection {
     ) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
-        let sql = query.sql();
         let arguments = query.take_arguments();
+        let sql = query.sql().to_string();
 
         Box::pin(async move {
             let stream = self

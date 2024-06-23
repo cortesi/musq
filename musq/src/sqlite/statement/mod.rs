@@ -33,25 +33,25 @@ impl Statement {
         &self.columns
     }
 
-    pub fn query(&self) -> query::Query<'_, Arguments> {
+    pub fn query(&self) -> query::Query<Arguments> {
         query::query_statement(self)
     }
 
-    pub fn query_with<A>(&self, arguments: A) -> query::Query<'_, A>
+    pub fn query_with<A>(&self, arguments: A) -> query::Query<A>
     where
         A: IntoArguments,
     {
         query::query_statement_with(self, arguments)
     }
 
-    pub fn query_as<O>(&self) -> query_as::QueryAs<'_, O, Arguments>
+    pub fn query_as<O>(&self) -> query_as::QueryAs<O, Arguments>
     where
         O: for<'r> from_row::FromRow<'r>,
     {
         query_as::query_statement_as(self)
     }
 
-    pub fn query_as_with<'s, O, A>(&'s self, arguments: A) -> query_as::QueryAs<'s, O, A>
+    pub fn query_as_with<'s, O, A>(&'s self, arguments: A) -> query_as::QueryAs<O, A>
     where
         O: for<'r> from_row::FromRow<'r>,
         A: IntoArguments,
@@ -59,17 +59,14 @@ impl Statement {
         query_as::query_statement_as_with(self, arguments)
     }
 
-    pub fn query_scalar<O>(&self) -> query_scalar::QueryScalar<'_, O, Arguments>
+    pub fn query_scalar<O>(&self) -> query_scalar::QueryScalar<O, Arguments>
     where
         (O,): for<'r> from_row::FromRow<'r>,
     {
         query_scalar::query_statement_scalar(self)
     }
 
-    pub fn query_scalar_with<'s, O, A>(
-        &'s self,
-        arguments: A,
-    ) -> query_scalar::QueryScalar<'s, O, A>
+    pub fn query_scalar_with<'s, O, A>(&'s self, arguments: A) -> query_scalar::QueryScalar<O, A>
     where
         (O,): for<'r> from_row::FromRow<'r>,
         A: IntoArguments,

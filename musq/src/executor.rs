@@ -26,7 +26,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn execute<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<QueryResult, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
         self.execute_many(query).try_collect().boxed()
     }
@@ -35,7 +35,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn execute_many<'e, 'q: 'e, E>(self, query: E) -> BoxStream<'e, Result<QueryResult, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
         self.fetch_many(query)
             .try_filter_map(|step| async move {
@@ -51,7 +51,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch<'e, 'q: 'e, E>(self, query: E) -> BoxStream<'e, Result<Row, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
         self.fetch_many(query)
             .try_filter_map(|step| async move {
@@ -71,13 +71,13 @@ pub trait Executor<'c>: Send + Debug + Sized {
     ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q;
+        E: Execute + 'q;
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
     fn fetch_all<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<Vec<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
         self.fetch(query).try_collect().boxed()
     }
@@ -86,7 +86,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch_one<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<Row, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
         self.fetch_optional(query)
             .and_then(|row| match row {
@@ -100,7 +100,7 @@ pub trait Executor<'c>: Send + Debug + Sized {
     fn fetch_optional<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<Option<Row>, Error>>
     where
         'c: 'e,
-        E: Execute<'q> + 'q;
+        E: Execute + 'q;
 
     /// Prepare the SQL query to inspect the type information of its parameters
     /// and results.
@@ -139,9 +139,9 @@ pub trait Executor<'c>: Send + Debug + Sized {
 ///  * [`&str`](std::str)
 ///  * [`Query`](super::query::Query)
 ///
-pub trait Execute<'q>: Send + Sized {
+pub trait Execute: Send + Sized {
     /// Gets the SQL that will be executed.
-    fn sql(&self) -> &'q str;
+    fn sql(&self) -> &str;
 
     /// Gets the previously cached statement, if available.
     fn statement(&self) -> Option<&Statement>;
@@ -154,8 +154,8 @@ pub trait Execute<'q>: Send + Sized {
     fn take_arguments(&mut self) -> Option<Arguments>;
 }
 
-impl<'q> Execute<'q> for &'q String {
-    fn sql(&self) -> &'q str {
+impl Execute for &String {
+    fn sql(&self) -> &str {
         self
     }
 
@@ -168,8 +168,8 @@ impl<'q> Execute<'q> for &'q String {
     }
 }
 
-impl<'q> Execute<'q> for &'q str {
-    fn sql(&self) -> &'q str {
+impl Execute for &str {
+    fn sql(&self) -> &str {
         self
     }
 
@@ -182,8 +182,8 @@ impl<'q> Execute<'q> for &'q str {
     }
 }
 
-impl<'q> Execute<'q> for (&'q str, Option<Arguments>) {
-    fn sql(&self) -> &'q str {
+impl Execute for (&str, Option<Arguments>) {
+    fn sql(&self) -> &str {
         self.0
     }
 

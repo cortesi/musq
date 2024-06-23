@@ -14,15 +14,15 @@ use crate::{
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`] on `(O,)`.
 /// Returned from [`query_scalar`].
 #[must_use = "query must be executed to affect database"]
-pub struct QueryScalar<'q, O, A> {
-    pub(crate) inner: QueryAs<'q, (O,), A>,
+pub struct QueryScalar<O, A> {
+    pub(crate) inner: QueryAs<(O,), A>,
 }
 
-impl<'q, O: Send, A: Send> Execute<'q> for QueryScalar<'q, O, A>
+impl<'q, O: Send, A: Send> Execute for QueryScalar<O, A>
 where
     A: 'q + IntoArguments,
 {
-    fn sql(&self) -> &'q str {
+    fn sql(&self) -> &str {
         self.inner.sql()
     }
 
@@ -35,7 +35,7 @@ where
     }
 }
 
-impl<'q, O> QueryScalar<'q, O, Arguments> {
+impl<'q, O> QueryScalar<O, Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](crate::query::Query::bind).
@@ -47,7 +47,7 @@ impl<'q, O> QueryScalar<'q, O, Arguments> {
 
 // FIXME: This is very close, nearly 1:1 with `Map`
 // noinspection DuplicatedCode
-impl<'q, O, A> QueryScalar<'q, O, A>
+impl<'q, O, A> QueryScalar<O, A>
 where
     O: Send + Unpin,
     A: 'q + IntoArguments,
@@ -128,7 +128,7 @@ where
 /// Make a SQL query that is mapped to a single concrete type
 /// using [`FromRow`].
 
-pub fn query_scalar<'q, O>(sql: &'q str) -> QueryScalar<'q, O, Arguments>
+pub fn query_scalar<'q, O>(sql: &'q str) -> QueryScalar<O, Arguments>
 where
     (O,): for<'r> FromRow<'r>,
 {
@@ -140,7 +140,7 @@ where
 /// Make a SQL query, with the given arguments, that is mapped to a single concrete type
 /// using [`FromRow`].
 
-pub fn query_scalar_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryScalar<'q, O, A>
+pub fn query_scalar_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryScalar<O, A>
 where
     A: IntoArguments,
     (O,): for<'r> FromRow<'r>,
@@ -151,7 +151,7 @@ where
 }
 
 // Make a SQL query from a statement, that is mapped to a concrete value.
-pub fn query_statement_scalar<'q, O>(statement: &'q Statement) -> QueryScalar<'q, O, Arguments>
+pub fn query_statement_scalar<'q, O>(statement: &'q Statement) -> QueryScalar<O, Arguments>
 where
     (O,): for<'r> FromRow<'r>,
 {
@@ -164,7 +164,7 @@ where
 pub fn query_statement_scalar_with<'q, O, A>(
     statement: &'q Statement,
     arguments: A,
-) -> QueryScalar<'q, O, A>
+) -> QueryScalar<O, A>
 where
     A: IntoArguments,
     (O,): for<'r> FromRow<'r>,

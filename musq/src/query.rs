@@ -11,8 +11,8 @@ use crate::{
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
-pub struct Query<'q, A> {
-    pub(crate) statement: Either<&'q str, &'q Statement>,
+pub struct Query<A> {
+    pub(crate) statement: Either<String, Statement>,
     pub(crate) arguments: Option<A>,
 }
 
@@ -26,24 +26,24 @@ pub struct Query<'q, A> {
 /// before `.try_map()`. This is also to prevent adding superfluous binds to the result of
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
-pub struct Map<'q, F, A> {
-    inner: Query<'q, A>,
+pub struct Map<F, A> {
+    inner: Query<A>,
     mapper: F,
 }
 
-impl<'q, A> Execute<'q> for Query<'q, A>
+impl<'q, A> Execute for Query<A>
 where
     A: Send + IntoArguments,
 {
-    fn sql(&self) -> &'q str {
-        match self.statement {
+    fn sql(&self) -> &str {
+        match &self.statement {
             Either::Right(statement) => statement.sql(),
             Either::Left(sql) => sql,
         }
     }
 
     fn statement(&self) -> Option<&Statement> {
-        match self.statement {
+        match &self.statement {
             Either::Right(statement) => Some(statement),
             Either::Left(_) => None,
         }
@@ -54,7 +54,7 @@ where
     }
 }
 
-impl<'q> Query<'q, Arguments> {
+impl<'q> Query<Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that appear in the query then
@@ -67,7 +67,7 @@ impl<'q> Query<'q, Arguments> {
     }
 }
 
-impl<'q, A: Send> Query<'q, A>
+impl<'q, A: Send> Query<A>
 where
     A: 'q + IntoArguments,
 {
@@ -78,7 +78,7 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
 
-    pub fn map<F, O>(self, mut f: F) -> Map<'q, impl FnMut(Row) -> Result<O, Error> + Send, A>
+    pub fn map<F, O>(self, mut f: F) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
     where
         F: FnMut(Row) -> O + Send,
         O: Unpin,
@@ -91,7 +91,7 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
 
-    pub fn try_map<F, O>(self, f: F) -> Map<'q, F, A>
+    pub fn try_map<F, O>(self, f: F) -> Map<F, A>
     where
         F: FnMut(Row) -> Result<O, Error> + Send,
         O: Unpin,
@@ -187,11 +187,11 @@ where
     }
 }
 
-impl<'q, F: Send, A: Send> Execute<'q> for Map<'q, F, A>
+impl<'q, F: Send, A: Send> Execute for Map<F, A>
 where
     A: IntoArguments,
 {
-    fn sql(&self) -> &'q str {
+    fn sql(&self) -> &str {
         self.inner.sql()
     }
 
@@ -204,7 +204,7 @@ where
     }
 }
 
-impl<'q, F, O, A> Map<'q, F, A>
+impl<'q, F, O, A> Map<F, A>
 where
     F: FnMut(Row) -> Result<O, Error> + Send,
     O: Send + Unpin,
@@ -217,7 +217,7 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
 
-    pub fn map<G, P>(self, mut g: G) -> Map<'q, impl FnMut(Row) -> Result<P, Error> + Send, A>
+    pub fn map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> P + Send,
         P: Unpin,
@@ -230,7 +230,7 @@ where
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
 
-    pub fn try_map<G, P>(self, mut g: G) -> Map<'q, impl FnMut(Row) -> Result<P, Error> + Send, A>
+    pub fn try_map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> Result<P, Error> + Send,
         P: Unpin,
@@ -337,7 +337,7 @@ where
 pub fn query_statement(statement: &Statement) -> Query<Arguments> {
     Query {
         arguments: Some(Default::default()),
-        statement: Either::Right(statement),
+        statement: Either::Right(statement.clone()),
     }
 }
 
@@ -348,25 +348,25 @@ where
 {
     Query {
         arguments: Some(arguments),
-        statement: Either::Right(statement),
+        statement: Either::Right(statement.clone()),
     }
 }
 
 /// Make a SQL query.
-pub fn query(sql: &str) -> Query<'_, Arguments> {
+pub fn query(sql: &str) -> Query<Arguments> {
     Query {
         arguments: Some(Default::default()),
-        statement: Either::Left(sql),
+        statement: Either::Left(sql.to_string()),
     }
 }
 
 /// Make a SQL query, with the given arguments.
-pub fn query_with<A>(sql: &str, arguments: A) -> Query<'_, A>
+pub fn query_with<A>(sql: &str, arguments: A) -> Query<A>
 where
     A: IntoArguments,
 {
     Query {
         arguments: Some(arguments),
-        statement: Either::Left(sql),
+        statement: Either::Left(sql.to_string()),
     }
 }

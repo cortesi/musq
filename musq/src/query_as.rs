@@ -16,16 +16,16 @@ use crate::{
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
 /// Returned from [`query_as`][crate::query_as::query_as].
 #[must_use = "query must be executed to affect database"]
-pub struct QueryAs<'q, O, A> {
-    pub(crate) inner: Query<'q, A>,
+pub struct QueryAs<O, A> {
+    pub(crate) inner: Query<A>,
     pub(crate) output: PhantomData<O>,
 }
 
-impl<'q, O: Send, A: Send> Execute<'q> for QueryAs<'q, O, A>
+impl<'q, O: Send, A: Send> Execute for QueryAs<O, A>
 where
     A: 'q + IntoArguments,
 {
-    fn sql(&self) -> &'q str {
+    fn sql(&self) -> &str {
         self.inner.sql()
     }
 
@@ -38,7 +38,7 @@ where
     }
 }
 
-impl<'q, O> QueryAs<'q, O, Arguments> {
+impl<'q, O> QueryAs<O, Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](Query::bind).
@@ -50,7 +50,7 @@ impl<'q, O> QueryAs<'q, O, Arguments> {
 
 // FIXME: This is very close, nearly 1:1 with `Map`
 // noinspection DuplicatedCode
-impl<'q, O, A> QueryAs<'q, O, A>
+impl<'q, O, A> QueryAs<O, A>
 where
     A: 'q + IntoArguments,
     O: Send + Unpin + for<'r> FromRow<'r>,
@@ -134,7 +134,7 @@ where
 
 /// Make a SQL query that is mapped to a concrete type
 /// using [`FromRow`].
-pub fn query_as<'q, O>(sql: &'q str) -> QueryAs<'q, O, Arguments>
+pub fn query_as<'q, O>(sql: &'q str) -> QueryAs<O, Arguments>
 where
     O: for<'r> FromRow<'r>,
 {
@@ -147,7 +147,7 @@ where
 /// Make a SQL query, with the given arguments, that is mapped to a concrete type
 /// using [`FromRow`].
 
-pub fn query_as_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryAs<'q, O, A>
+pub fn query_as_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryAs<O, A>
 where
     A: IntoArguments,
     O: for<'r> FromRow<'r>,
@@ -159,7 +159,7 @@ where
 }
 
 // Make a SQL query from a statement, that is mapped to a concrete type.
-pub fn query_statement_as<'q, O>(statement: &'q Statement) -> QueryAs<'q, O, Arguments>
+pub fn query_statement_as<'q, O>(statement: &'q Statement) -> QueryAs<O, Arguments>
 where
     O: for<'r> FromRow<'r>,
 {
@@ -170,10 +170,7 @@ where
 }
 
 // Make a SQL query from a statement, with the given arguments, that is mapped to a concrete type.
-pub fn query_statement_as_with<'q, O, A>(
-    statement: &'q Statement,
-    arguments: A,
-) -> QueryAs<'q, O, A>
+pub fn query_statement_as_with<'q, O, A>(statement: &'q Statement, arguments: A) -> QueryAs<O, A>
 where
     A: IntoArguments,
     O: for<'r> FromRow<'r>,

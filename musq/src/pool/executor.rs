@@ -15,7 +15,7 @@ where
 {
     fn fetch_many<'e, 'q: 'e, E>(self, query: E) -> BoxStream<'e, Result<Either<QueryResult, Row>>>
     where
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
         let pool = self.clone();
 
@@ -33,7 +33,7 @@ where
 
     fn fetch_optional<'e, 'q: 'e, E>(self, query: E) -> BoxFuture<'e, Result<Option<Row>>>
     where
-        E: Execute<'q> + 'q,
+        E: Execute + 'q,
     {
         let pool = self.clone();
 

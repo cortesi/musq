@@ -254,9 +254,10 @@ impl ConnectionWorker {
         .await?
     }
 
+    /// We take an owned string here - we immediatley copy it into the command anyway.
     pub(crate) async fn execute(
         &mut self,
-        query: &str,
+        query: String,
         args: Option<Arguments>,
         chan_size: usize,
     ) -> Result<flume::Receiver<Result<Either<QueryResult, Row>, Error>>, Error> {
