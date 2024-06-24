@@ -21,7 +21,7 @@ use crate::{
     Result,
 };
 
-pub(crate) use handle::{ConnectionHandle, ConnectionHandleRaw};
+pub(crate) use handle::ConnectionHandle;
 pub(crate) mod establish;
 pub(crate) mod execute;
 

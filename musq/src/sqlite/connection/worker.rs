@@ -9,7 +9,7 @@ use futures_intrusive::sync::{Mutex, MutexGuard};
 use crate::{
     error::Error,
     sqlite::{
-        connection::{establish::EstablishParams, execute, ConnectionHandleRaw, ConnectionState},
+        connection::{establish::EstablishParams, execute, ConnectionState},
         Arguments, Statement,
     },
     transaction::{
@@ -26,8 +26,6 @@ use crate::{
 
 pub(crate) struct ConnectionWorker {
     command_tx: flume::Sender<Command>,
-    /// The `sqlite3` pointer. NOTE: access is unsynchronized!
-    pub(crate) _handle_raw: ConnectionHandleRaw,
     /// Mutex for locking access to the database.
     pub(crate) shared: Arc<WorkerSharedState>,
 }
@@ -94,7 +92,6 @@ impl ConnectionWorker {
                 if establish_tx
                     .send(Ok(Self {
                         command_tx,
-                        _handle_raw: conn.handle.to_raw(),
                         shared: Arc::clone(&shared),
                     }))
                     .is_err()
