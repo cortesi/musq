@@ -6,7 +6,6 @@ pub use musq_macros::*;
 #[macro_use]
 pub mod async_stream;
 
-mod acquire;
 mod column;
 mod debugfn;
 pub mod decode;

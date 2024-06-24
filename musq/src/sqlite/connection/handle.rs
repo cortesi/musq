@@ -19,7 +19,6 @@ use crate::{
 pub(crate) struct ConnectionHandle(NonNull<sqlite3>);
 
 /// A wrapper around `ConnectionHandle` which *does not* finalize the handle on-drop.
-#[derive(Clone, Debug)]
 pub(crate) struct ConnectionHandleRaw(NonNull<sqlite3>);
 
 // A SQLite3 handle is safe to send between threads, provided not more than

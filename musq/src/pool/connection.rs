@@ -128,21 +128,6 @@ impl PoolConnection {
     }
 }
 
-impl<'c> crate::acquire::Acquire<'c> for &'c mut PoolConnection {
-    type Connection = &'c mut Connection;
-
-    fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection, Error>> {
-        Box::pin(futures_util::future::ok(&mut **self))
-    }
-
-    fn begin(
-        self,
-    ) -> futures_core::future::BoxFuture<'c, Result<crate::transaction::Transaction<'c>, Error>>
-    {
-        crate::transaction::Transaction::begin(&mut **self)
-    }
-}
-
 /// Returns the connection to the [`Pool`][crate::pool::Pool] it was checked-out from.
 impl Drop for PoolConnection {
     fn drop(&mut self) {

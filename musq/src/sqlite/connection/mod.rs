@@ -11,7 +11,6 @@ use futures_util::future;
 use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
 
 use crate::{
-    acquire::Acquire,
     error::Error,
     executor::Executor,
     logger::LogSettings,
@@ -44,18 +43,6 @@ pub struct Connection {
     optimize_on_close: OptimizeOnClose,
     pub(crate) worker: ConnectionWorker,
     pub(crate) row_channel_size: usize,
-}
-
-impl<'c> Acquire<'c> for &'c mut Connection {
-    type Connection = &'c mut Connection;
-
-    fn acquire(self) -> futures_core::future::BoxFuture<'c, Result<Self::Connection>> {
-        Box::pin(futures_util::future::ok(self))
-    }
-
-    fn begin(self) -> futures_core::future::BoxFuture<'c, Result<Transaction<'c>>> {
-        Transaction::begin(self)
-    }
 }
 
 pub struct LockedSqliteHandle<'a> {
