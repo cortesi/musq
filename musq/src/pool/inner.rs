@@ -212,19 +212,15 @@ impl PoolInner {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
-        loop {
-            let timeout = deadline_as_timeout(deadline)?;
+        let timeout = deadline_as_timeout(deadline)?;
 
-            // result here is `Result<Result<C, Error>, TimeoutError>`
-            // if this block does not return, sleep for the backoff timeout and try again
-            match tokio::time::timeout(timeout, self.options.connect()).await {
-                Ok(Ok(raw)) => {
-                    return Ok(Floating::new_live(raw, guard));
-                }
-                Ok(Err(e)) => return Err(e),
-                // timed out
-                Err(_) => return Err(Error::PoolTimedOut),
-            }
+        // result here is `Result<Result<C, Error>, TimeoutError>`
+        // if this block does not return, sleep for the backoff timeout and try again
+        match tokio::time::timeout(timeout, self.options.connect()).await {
+            Ok(Ok(raw)) => Ok(Floating::new_live(raw, guard)),
+            Ok(Err(e)) => Err(e),
+            // timed out
+            Err(_) => Err(Error::PoolTimedOut),
         }
     }
 }

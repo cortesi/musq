@@ -1,5 +1,5 @@
 [workspace]
-members = ["musq", "musq-macros", "musq-test"]
+members = [ "musq", "musq-macros", "musq-test", "examples/*" ]
 
 [workspace.package]
 version = "0.0.1"
