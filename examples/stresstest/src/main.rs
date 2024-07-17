@@ -51,17 +51,51 @@ struct Args {
 #[derive(Debug)]
 struct TimingData {
     durations: Vec<Duration>,
+    start_time: Instant,
+    last_report_time: Instant,
+    report_interval: Duration,
+    total_records: u64,
 }
 
 impl TimingData {
-    fn new(capacity: usize) -> Self {
+    fn new(total_records: u64, report_interval: Duration) -> Self {
+        let now = Instant::now();
         TimingData {
-            durations: Vec::with_capacity(capacity),
+            durations: Vec::with_capacity(total_records as usize),
+            start_time: now,
+            last_report_time: now,
+            report_interval,
+            total_records,
         }
     }
 
     fn add_duration(&mut self, duration: Duration) {
         self.durations.push(duration);
+        self.maybe_report_progress();
+    }
+
+    fn maybe_report_progress(&mut self) {
+        let now = Instant::now();
+        if now - self.last_report_time >= self.report_interval {
+            self.report_progress();
+            self.last_report_time = now;
+        }
+    }
+
+    fn report_progress(&self) {
+        let records_processed = self.durations.len() as u64;
+        let elapsed = self.start_time.elapsed();
+        let operations_per_second = records_processed as f64 / elapsed.as_secs_f64();
+        let progress_percentage = (records_processed as f64 / self.total_records as f64) * 100.0;
+
+        println!(
+            "Progress: {:.2}% ({}/{}) | Elapsed: {:.0?} | Ops/sec: {:.2}",
+            progress_percentage,
+            records_processed,
+            self.total_records,
+            elapsed,
+            operations_per_second
+        );
     }
 
     fn process(&self, bins: usize) {
@@ -228,7 +262,10 @@ async fn perform_operations(
     blob_size: usize,
 ) -> Result<TimingData, Error> {
     let start = Instant::now();
-    let timing_data = Arc::new(Mutex::new(TimingData::new(num_records as usize)));
+    let timing_data = Arc::new(Mutex::new(TimingData::new(
+        num_records,
+        Duration::from_secs(5),
+    ))); // Report every 5 seconds
     let max_id = Arc::new(Mutex::new(0u64));
 
     stream::iter(0..num_records)
@@ -290,6 +327,7 @@ async fn main() -> Result<(), Error> {
     let pool = setup_database(&args, &database_path).await?;
     create_schema(&pool).await?;
 
+    println!("Starting operations...");
     let timing_data =
         perform_operations(&pool, args.records, args.concurrency, args.blob_size).await?;
 
@@ -311,6 +349,7 @@ async fn main() -> Result<(), Error> {
         println!("Using temporary database");
     }
 
+    println!("\nFinal timing data:");
     timing_data.process(args.bins);
 
     Ok(())
