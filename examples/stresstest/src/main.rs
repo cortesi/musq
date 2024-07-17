@@ -88,103 +88,6 @@ impl TimingData {
     }
 }
 
-async fn create_schema(pool: &Pool) -> Result<(), Error> {
-    musq::query(
-        "CREATE TABLE IF NOT EXISTS records (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            value BLOB NOT NULL
-        )",
-    )
-    .execute(pool)
-    .await?;
-
-    musq::query("CREATE INDEX IF NOT EXISTS idx_records_name ON records (name)")
-        .execute(pool)
-        .await?;
-
-    Ok(())
-}
-
-fn generate_random_blob(size: usize) -> Vec<u8> {
-    let mut rng = rand::thread_rng();
-    (0..size).map(|_| rng.gen::<u8>()).collect()
-}
-
-async fn perform_operations(
-    pool: &Pool,
-    num_records: u64,
-    concurrency: usize,
-    blob_size: usize,
-) -> Result<TimingData, Error> {
-    let start = Instant::now();
-    let timing_data = Arc::new(Mutex::new(TimingData::new(num_records as usize)));
-    let max_id = Arc::new(Mutex::new(0u64));
-
-    stream::iter(0..num_records)
-        .for_each_concurrent(concurrency, |i| {
-            let timing_data = Arc::clone(&timing_data);
-            let max_id = Arc::clone(&max_id);
-            let pool = pool.clone();
-            async move {
-                let operation_start = Instant::now();
-
-                let name = format!("Record {}", i);
-                let value = generate_random_blob(blob_size);
-
-                if (insert_record(&pool, &name, &value).await).is_ok() {
-                    let mut id = max_id.lock().await;
-                    *id += 1;
-                    drop(id);
-
-                    if let Err(e) = read_random_record(&pool, *max_id.lock().await).await {
-                        eprintln!("Error reading record: {}", e);
-                    }
-                } else {
-                    eprintln!("Error inserting record");
-                }
-
-                let operation_duration = operation_start.elapsed();
-                timing_data.lock().await.add_duration(operation_duration);
-            }
-        })
-        .await;
-
-    let duration = start.elapsed();
-    println!(
-        "Performed {} write/read operations in {:?}",
-        num_records, duration
-    );
-
-    Ok(Arc::try_unwrap(timing_data).unwrap().into_inner())
-}
-
-async fn insert_record(pool: &Pool, name: &str, value: &[u8]) -> Result<(), Error> {
-    musq::query("INSERT INTO records (name, value) VALUES (?, ?)")
-        .bind(name)
-        .bind(value)
-        .execute(pool)
-        .await?;
-    Ok(())
-}
-
-async fn read_random_record(pool: &Pool, max_id: u64) -> Result<Row, Error> {
-    let random_id = rand::thread_rng().gen_range(1..=max_id) as u32;
-    let row = musq::query("SELECT * FROM records WHERE id = ?")
-        .bind(random_id)
-        .fetch_one(pool)
-        .await?;
-    Ok(row)
-}
-
-async fn count_records(pool: &Pool) -> Result<i64, Error> {
-    let row = musq::query("SELECT COUNT(*) FROM records")
-        .fetch_one(pool)
-        .await?;
-    let count: i64 = row.get_value_idx(0)?;
-    Ok(count)
-}
-
 async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool, Error> {
     let journal_mode = match args.journal_mode.to_lowercase().as_str() {
         "wal" => JournalMode::Wal,
@@ -219,6 +122,152 @@ async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool, Error> {
     musq.open(path).await
 }
 
+async fn create_schema(pool: &Pool) -> Result<(), Error> {
+    // Create table A
+    musq::query(
+        "CREATE TABLE IF NOT EXISTS a (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            data BLOB NOT NULL
+        )",
+    )
+    .execute(pool)
+    .await?;
+
+    // Create table B with a foreign key to A
+    musq::query(
+        "CREATE TABLE IF NOT EXISTS b (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            a_id INTEGER NOT NULL,
+            data BLOB NOT NULL,
+            FOREIGN KEY (a_id) REFERENCES a(id)
+        )",
+    )
+    .execute(pool)
+    .await?;
+
+    // Create index on B's foreign key
+    musq::query("CREATE INDEX IF NOT EXISTS idx_b_a_id ON b (a_id)")
+        .execute(pool)
+        .await?;
+
+    Ok(())
+}
+
+async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<(), Error> {
+    // Start a transaction
+    let mut tx = pool.begin().await?;
+
+    // Insert into A
+    musq::query("INSERT INTO a (data) VALUES (?)")
+        .bind(a_data)
+        .execute(&mut *tx)
+        .await?;
+
+    // Get the last inserted id from A
+    let a_id: i64 = musq::query("SELECT last_insert_rowid()")
+        .fetch_one(&mut *tx)
+        .await?
+        .get_value_idx(0)?;
+
+    // Insert into B
+    musq::query("INSERT INTO b (a_id, data) VALUES (?, ?)")
+        .bind(a_id)
+        .bind(b_data)
+        .execute(&mut *tx)
+        .await?;
+
+    // Commit the transaction
+    tx.commit().await?;
+
+    Ok(())
+}
+
+async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row), Error> {
+    let random_id = rand::thread_rng().gen_range(1..=max_id) as i64;
+
+    let b_row = musq::query("SELECT * FROM b WHERE id = ?")
+        .bind(random_id)
+        .fetch_one(pool)
+        .await?;
+
+    let a_id: i64 = b_row.get_value("a_id")?;
+
+    let a_row = musq::query("SELECT * FROM a WHERE id = ?")
+        .bind(a_id)
+        .fetch_one(pool)
+        .await?;
+
+    Ok((a_row, b_row))
+}
+
+async fn count_records(pool: &Pool) -> Result<(i64, i64), Error> {
+    let a_count: i64 = musq::query("SELECT COUNT(*) FROM a")
+        .fetch_one(pool)
+        .await?
+        .get_value_idx(0)?;
+
+    let b_count: i64 = musq::query("SELECT COUNT(*) FROM b")
+        .fetch_one(pool)
+        .await?
+        .get_value_idx(0)?;
+
+    Ok((a_count, b_count))
+}
+
+fn generate_random_data(size: usize) -> (Vec<u8>, Vec<u8>) {
+    let mut rng = rand::thread_rng();
+    let a_data = (0..size).map(|_| rng.gen::<u8>()).collect();
+    let b_data = (0..size).map(|_| rng.gen::<u8>()).collect();
+    (a_data, b_data)
+}
+
+async fn perform_operations(
+    pool: &Pool,
+    num_records: u64,
+    concurrency: usize,
+    blob_size: usize,
+) -> Result<TimingData, Error> {
+    let start = Instant::now();
+    let timing_data = Arc::new(Mutex::new(TimingData::new(num_records as usize)));
+    let max_id = Arc::new(Mutex::new(0u64));
+
+    stream::iter(0..num_records)
+        .for_each_concurrent(concurrency, |_| {
+            let timing_data = Arc::clone(&timing_data);
+            let max_id = Arc::clone(&max_id);
+            let pool = pool.clone();
+            async move {
+                let operation_start = Instant::now();
+
+                let (a_data, b_data) = generate_random_data(blob_size);
+
+                if (insert_record(&pool, &a_data, &b_data).await).is_ok() {
+                    let mut id = max_id.lock().await;
+                    *id += 1;
+                    drop(id);
+
+                    if let Err(e) = read_random_record(&pool, *max_id.lock().await).await {
+                        eprintln!("Error reading record: {}", e);
+                    }
+                } else {
+                    eprintln!("Error inserting record");
+                }
+
+                let operation_duration = operation_start.elapsed();
+                timing_data.lock().await.add_duration(operation_duration);
+            }
+        })
+        .await;
+
+    let duration = start.elapsed();
+    println!(
+        "Performed {} write/read operations in {:?}",
+        num_records, duration
+    );
+
+    Ok(Arc::try_unwrap(timing_data).unwrap().into_inner())
+}
+
 #[tokio::main]
 async fn main() -> Result<(), Error> {
     let args = Args::parse();
@@ -226,6 +275,10 @@ async fn main() -> Result<(), Error> {
     println!(
         "Preparing to perform {} write/read operations with blob size of {} bytes",
         args.records, args.blob_size
+    );
+    println!(
+        "Using journal mode: {}, synchronous mode: {}, max connections: {}",
+        args.journal_mode, args.synchronous, args.max_connections
     );
 
     let temp_dir = TempDir::new().expect("Failed to create temp directory");
@@ -241,16 +294,16 @@ async fn main() -> Result<(), Error> {
         perform_operations(&pool, args.records, args.concurrency, args.blob_size).await?;
 
     // Sanity check
-    let record_count = count_records(&pool).await?;
-    if record_count as u64 == args.records {
+    let (a_count, b_count) = count_records(&pool).await?;
+    if a_count as u64 == args.records && b_count as u64 == args.records {
         println!(
-            "Sanity check passed: {} records found in the database",
-            record_count
+            "Sanity check passed: {} records in table A and {} records in table B found in the database",
+            a_count, b_count
         );
     } else {
         eprintln!(
-            "Sanity check failed: Expected {} records, but found {} in the database",
-            args.records, record_count
+            "Sanity check failed: Expected {} records, but found {} records in table A and {} records in table B",
+            args.records, a_count, b_count
         );
     }
 
