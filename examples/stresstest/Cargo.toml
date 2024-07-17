@@ -1,0 +1,18 @@
+[package]
+name = "stresstest"
+version.workspace = true
+license.workspace = true
+edition.workspace = true
+repository.workspace = true
+keywords.workspace = true
+categories.workspace = true
+authors.workspace = true
+
+[dependencies]
+clap = { version = "4.5.9", features = ["derive"] }
+futures = "0.3.30"
+
+musq = { path = "../../musq" }
+rand = "0.8.5"
+tempfile = "3.10.1"
+tokio = "1.38.1"
