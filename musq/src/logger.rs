@@ -137,7 +137,7 @@ impl<'q> QueryLogger<'q> {
                         sqlformat::format(
                             self.sql,
                             &sqlformat::QueryParams::None,
-                            sqlformat::FormatOptions::default()
+                            &sqlformat::FormatOptions::default()
                         )
                     )
                 } else {
