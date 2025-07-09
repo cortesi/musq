@@ -1,22 +1,22 @@
-use std::ffi::c_void;
 use std::ffi::CStr;
+use std::ffi::c_void;
 
 use std::os::raw::{c_char, c_int};
 use std::ptr::NonNull;
 use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int, sqlite3_bind_int64,
-    sqlite3_bind_null, sqlite3_bind_parameter_count, sqlite3_bind_parameter_name,
-    sqlite3_bind_text64, sqlite3_changes, sqlite3_clear_bindings, sqlite3_column_count,
-    sqlite3_column_decltype, sqlite3_column_name, sqlite3_column_type, sqlite3_column_value,
-    sqlite3_db_handle, sqlite3_finalize, sqlite3_reset, sqlite3_step, sqlite3_stmt, sqlite3_value,
     SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK, SQLITE_ROW, SQLITE_TRANSIENT,
-    SQLITE_UTF8,
+    SQLITE_UTF8, sqlite3, sqlite3_bind_blob64, sqlite3_bind_double, sqlite3_bind_int,
+    sqlite3_bind_int64, sqlite3_bind_null, sqlite3_bind_parameter_count,
+    sqlite3_bind_parameter_name, sqlite3_bind_text64, sqlite3_changes, sqlite3_clear_bindings,
+    sqlite3_column_count, sqlite3_column_decltype, sqlite3_column_name, sqlite3_column_type,
+    sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_reset, sqlite3_step,
+    sqlite3_stmt, sqlite3_value,
 };
 
-use crate::sqlite::type_info::SqliteDataType;
 use crate::sqlite::SqliteError;
+use crate::sqlite::type_info::SqliteDataType;
 
 use super::unlock_notify;
 

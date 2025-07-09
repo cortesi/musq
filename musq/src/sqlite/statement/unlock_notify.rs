@@ -3,7 +3,7 @@ use std::os::raw::c_int;
 use std::slice;
 use std::sync::{Condvar, Mutex};
 
-use libsqlite3_sys::{sqlite3, sqlite3_unlock_notify, SQLITE_OK};
+use libsqlite3_sys::{SQLITE_OK, sqlite3, sqlite3_unlock_notify};
 
 use crate::sqlite::SqliteError;
 

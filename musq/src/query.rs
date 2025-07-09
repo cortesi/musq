@@ -1,12 +1,12 @@
 use either::Either;
 use futures_core::stream::BoxStream;
-use futures_util::{future, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{StreamExt, TryFutureExt, TryStreamExt, future};
 
 use crate::{
+    Arguments, IntoArguments, QueryResult, Row, Statement,
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
-    Arguments, IntoArguments, QueryResult, Row, Statement,
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
@@ -54,12 +54,12 @@ where
     }
 }
 
-impl<'q> Query<Arguments> {
+impl Query<Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that appear in the query then
     /// an error will be returned when this query is executed.
-    pub fn bind<T: 'q + Send + Encode>(mut self, value: T) -> Self {
+    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Self {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value);
         }
@@ -67,9 +67,9 @@ impl<'q> Query<Arguments> {
     }
 }
 
-impl<'q, A: Send> Query<A>
+impl<A: Send> Query<A>
 where
-    A: 'q + IntoArguments,
+    A: IntoArguments,
 {
     /// Map each row in the result to another type.
     ///
@@ -101,33 +101,33 @@ where
     }
 
     /// Execute the query and return the total number of rows affected.
-    pub async fn execute<'e, 'c: 'e, E>(self, executor: E) -> Result<QueryResult, Error>
+    pub async fn execute<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<QueryResult, Error>
     where
         'q: 'e,
-        A: 'e,
+        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.execute(self).await
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    pub async fn execute_many<'e, 'c: 'e, E>(
+    pub async fn execute_many<'q, 'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<'e, Result<QueryResult, Error>>
     where
         'q: 'e,
-        A: 'e,
+        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.execute_many(self)
     }
 
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<Row, Error>>
+    pub fn fetch<'q, 'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<Row, Error>>
     where
         'q: 'e,
-        A: 'e,
+        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch(self)
@@ -135,43 +135,43 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    pub fn fetch_many<'e, 'c: 'e, E>(
+    pub fn fetch_many<'q, 'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
     where
         'q: 'e,
-        A: 'e,
+        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch_many(self)
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<Row>, Error>
+    pub async fn fetch_all<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<Row>, Error>
     where
         'q: 'e,
-        A: 'e,
+        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch_all(self).await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<Row, Error>
+    pub async fn fetch_one<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Row, Error>
     where
         'q: 'e,
-        A: 'e,
+        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch_one(self).await
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<Row>, Error>
+    pub async fn fetch_optional<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Option<Row>, Error>
     where
         'q: 'e,
-        A: 'e,
+        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch_optional(self).await
@@ -195,11 +195,11 @@ where
     }
 }
 
-impl<'q, F, O, A> Map<F, A>
+impl<F, O, A> Map<F, A>
 where
     F: FnMut(Row) -> Result<O, Error> + Send,
     O: Send + Unpin,
-    A: 'q + Send + IntoArguments,
+    A: Send + IntoArguments,
 {
     /// Map each row in the result to another type.
     ///
@@ -207,7 +207,6 @@ where
     ///
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
-
     pub fn map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> P + Send,
@@ -220,7 +219,6 @@ where
     ///
     /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
     /// a [`FromRow`](super::from_row::FromRow) implementation.
-
     pub fn try_map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> Result<P, Error> + Send,
@@ -234,9 +232,10 @@ where
     }
 
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
+    pub fn fetch<'q, 'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
     where
         'q: 'e,
+        A: 'q,
         E: 'e + Executor<'c>,
         F: 'e,
         O: 'e,
@@ -253,12 +252,13 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    pub fn fetch_many<'e, 'c: 'e, E>(
+    pub fn fetch_many<'q, 'e, 'c: 'e, E>(
         mut self,
         executor: E,
     ) -> BoxStream<'e, Result<Either<QueryResult, O>, Error>>
     where
         'q: 'e,
+        A: 'q,
         E: 'e + Executor<'c>,
         F: 'e,
         O: 'e,
@@ -280,9 +280,10 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
+    pub async fn fetch_all<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
         'q: 'e,
+        A: 'q,
         E: 'e + Executor<'c>,
         F: 'e,
         O: 'e,
@@ -291,9 +292,10 @@ where
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
+    pub async fn fetch_one<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
         'q: 'e,
+        A: 'q,
         E: 'e + Executor<'c>,
         F: 'e,
         O: 'e,
@@ -307,9 +309,13 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'e, 'c: 'e, E>(mut self, executor: E) -> Result<Option<O>, Error>
+    pub async fn fetch_optional<'q, 'e, 'c: 'e, E>(
+        mut self,
+        executor: E,
+    ) -> Result<Option<O>, Error>
     where
         'q: 'e,
+        A: 'q,
         E: 'e + Executor<'c>,
         F: 'e,
         O: 'e,

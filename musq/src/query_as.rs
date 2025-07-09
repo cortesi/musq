@@ -5,12 +5,12 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryStreamExt};
 
 use crate::{
+    Arguments, IntoArguments, QueryResult, Statement,
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
     from_row::FromRow,
-    query::{query, query_statement, query_statement_with, query_with, Query},
-    Arguments, IntoArguments, QueryResult, Statement,
+    query::{Query, query, query_statement, query_statement_with, query_with},
 };
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
@@ -21,9 +21,9 @@ pub struct QueryAs<O, A> {
     pub(crate) output: PhantomData<O>,
 }
 
-impl<'q, O: Send, A: Send> Execute for QueryAs<O, A>
+impl<O: Send, A: Send> Execute for QueryAs<O, A>
 where
-    A: 'q + IntoArguments,
+    A: IntoArguments,
 {
     fn sql(&self) -> &str {
         self.inner.sql()
@@ -38,11 +38,11 @@ where
     }
 }
 
-impl<'q, O> QueryAs<O, Arguments> {
+impl<O> QueryAs<O, Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](Query::bind).
-    pub fn bind<T: 'q + Send + Encode>(mut self, value: T) -> Self {
+    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
     }
@@ -50,18 +50,18 @@ impl<'q, O> QueryAs<O, Arguments> {
 
 // FIXME: This is very close, nearly 1:1 with `Map`
 // noinspection DuplicatedCode
-impl<'q, O, A> QueryAs<O, A>
+impl<O, A> QueryAs<O, A>
 where
-    A: 'q + IntoArguments,
+    A: IntoArguments,
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
+    pub fn fetch<'q, 'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
         O: 'e,
-        A: 'e,
+        A: 'q + 'e,
     {
         self.fetch_many(executor)
             .try_filter_map(|step| async move { Ok(step.right()) })
@@ -70,7 +70,7 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    pub fn fetch_many<'e, 'c: 'e, E>(
+    pub fn fetch_many<'q, 'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<'e, Result<Either<QueryResult, O>, Error>>
@@ -78,7 +78,7 @@ where
         'q: 'e,
         E: 'e + Executor<'c>,
         O: 'e,
-        A: 'e,
+        A: 'q + 'e,
     {
         executor
             .fetch_many(self.inner)
@@ -91,24 +91,23 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-
-    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
+    pub async fn fetch_all<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
         O: 'e,
-        A: 'e,
+        A: 'q + 'e,
     {
         self.fetch(executor).try_collect().await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
+    pub async fn fetch_one<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
         O: 'e,
-        A: 'e,
+        A: 'q + 'e,
     {
         self.fetch_optional(executor)
             .await
@@ -116,12 +115,12 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
+    pub async fn fetch_optional<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
         O: 'e,
-        A: 'e,
+        A: 'q + 'e,
     {
         let row = executor.fetch_optional(self.inner).await?;
         if let Some(row) = row {
@@ -146,7 +145,6 @@ where
 
 /// Make a SQL query, with the given arguments, that is mapped to a concrete type
 /// using [`FromRow`].
-
 pub fn query_as_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryAs<O, A>
 where
     A: IntoArguments,

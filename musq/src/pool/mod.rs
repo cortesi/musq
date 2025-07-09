@@ -20,7 +20,7 @@ use futures_core::FusedFuture;
 use futures_util::FutureExt;
 
 use self::inner::PoolInner;
-use crate::{transaction::Transaction, Error, Result};
+use crate::{Error, Result, transaction::Transaction};
 
 #[macro_use]
 mod executor;

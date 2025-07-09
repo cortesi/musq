@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{parse_quote, Arm, DeriveInput, Type};
+use syn::{Arm, DeriveInput, Type, parse_quote};
 
 use super::core;
 

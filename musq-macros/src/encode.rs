@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{parse_quote, DeriveInput, Type};
+use syn::{DeriveInput, Type, parse_quote};
 
 use super::core;
 
@@ -102,7 +102,6 @@ fn expand_struct(
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
 

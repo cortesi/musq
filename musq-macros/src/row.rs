@@ -1,7 +1,7 @@
-use darling::{ast, FromDeriveInput};
+use darling::{FromDeriveInput, ast};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{parse_quote, DeriveInput, Expr, Lifetime, Stmt};
+use syn::{DeriveInput, Expr, Lifetime, Stmt, parse_quote};
 
 use super::core;
 
@@ -170,7 +170,6 @@ fn expand_tuple_struct(
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::core::assert_errors_with;
     use super::*;

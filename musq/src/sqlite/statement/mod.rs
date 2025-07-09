@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{from_row, query, query_as, query_scalar, sqlite::Arguments, Column, IntoArguments};
+use crate::{Column, IntoArguments, from_row, query, query_as, query_scalar, sqlite::Arguments};
 
 mod compound;
 mod handle;

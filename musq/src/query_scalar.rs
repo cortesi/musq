@@ -3,12 +3,12 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
 
 use crate::{
+    Arguments, IntoArguments, QueryResult, Statement,
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
     from_row::FromRow,
-    query_as::{query_as, query_as_with, query_statement_as, query_statement_as_with, QueryAs},
-    Arguments, IntoArguments, QueryResult, Statement,
+    query_as::{QueryAs, query_as, query_as_with, query_statement_as, query_statement_as_with},
 };
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`] on `(O,)`.
@@ -18,9 +18,9 @@ pub struct QueryScalar<O, A> {
     pub(crate) inner: QueryAs<(O,), A>,
 }
 
-impl<'q, O: Send, A: Send> Execute for QueryScalar<O, A>
+impl<O: Send, A: Send> Execute for QueryScalar<O, A>
 where
-    A: 'q + IntoArguments,
+    A: IntoArguments,
 {
     fn sql(&self) -> &str {
         self.inner.sql()
@@ -35,11 +35,11 @@ where
     }
 }
 
-impl<'q, O> QueryScalar<O, Arguments> {
+impl<O> QueryScalar<O, Arguments> {
     /// Bind a value for use with this SQL query.
     ///
     /// See [`Query::bind`](crate::query::Query::bind).
-    pub fn bind<T: 'q + Send + Encode>(mut self, value: T) -> Self {
+    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
     }
@@ -47,19 +47,18 @@ impl<'q, O> QueryScalar<O, Arguments> {
 
 // FIXME: This is very close, nearly 1:1 with `Map`
 // noinspection DuplicatedCode
-impl<'q, O, A> QueryScalar<O, A>
+impl<O, A> QueryScalar<O, A>
 where
     O: Send + Unpin,
-    A: 'q + IntoArguments,
+    A: IntoArguments,
     (O,): Send + Unpin + for<'r> FromRow<'r>,
 {
     /// Execute the query and return the generated results as a stream.
-
-    pub fn fetch<'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
+    pub fn fetch<'q, 'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
-        A: 'e,
+        A: 'q + 'e,
         O: 'e,
     {
         self.inner.fetch(executor).map_ok(|it| it.0).boxed()
@@ -67,15 +66,14 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-
-    pub fn fetch_many<'e, 'c: 'e, E>(
+    pub fn fetch_many<'q, 'e, 'c: 'e, E>(
         self,
         executor: E,
     ) -> BoxStream<'e, Result<Either<QueryResult, O>, Error>>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
-        A: 'e,
+        A: 'q + 'e,
         O: 'e,
     {
         self.inner
@@ -85,13 +83,12 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-
-    pub async fn fetch_all<'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
+    pub async fn fetch_all<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
         (O,): 'e,
-        A: 'e,
+        A: 'q + 'e,
     {
         self.inner
             .fetch(executor)
@@ -101,25 +98,23 @@ where
     }
 
     /// Execute the query and returns exactly one row.
-
-    pub async fn fetch_one<'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
+    pub async fn fetch_one<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
         O: 'e,
-        A: 'e,
+        A: 'q + 'e,
     {
         self.inner.fetch_one(executor).map_ok(|it| it.0).await
     }
 
     /// Execute the query and returns at most one row.
-
-    pub async fn fetch_optional<'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
+    pub async fn fetch_optional<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
     where
         'q: 'e,
         E: 'e + Executor<'c>,
         O: 'e,
-        A: 'e,
+        A: 'q + 'e,
     {
         Ok(self.inner.fetch_optional(executor).await?.map(|it| it.0))
     }
@@ -127,7 +122,6 @@ where
 
 /// Make a SQL query that is mapped to a single concrete type
 /// using [`FromRow`].
-
 pub fn query_scalar<'q, O>(sql: &'q str) -> QueryScalar<O, Arguments>
 where
     (O,): for<'r> FromRow<'r>,
@@ -139,7 +133,6 @@ where
 
 /// Make a SQL query, with the given arguments, that is mapped to a single concrete type
 /// using [`FromRow`].
-
 pub fn query_scalar_with<'q, O, A>(sql: &'q str, arguments: A) -> QueryScalar<O, A>
 where
     A: IntoArguments,

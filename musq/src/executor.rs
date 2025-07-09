@@ -1,9 +1,9 @@
-use crate::{error::Error, sqlite, Arguments, QueryResult, Row, Statement};
+use crate::{Arguments, QueryResult, Row, Statement, error::Error, sqlite};
 
 use either::Either;
 use futures_core::future::BoxFuture;
 use futures_core::stream::BoxStream;
-use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 use std::fmt::Debug;
 
 /// A type that contains or can provide a database connection to use for executing queries against
@@ -110,7 +110,6 @@ pub trait Executor<'c>: Send + Debug + Sized {
     ///
     /// This explicit API is provided to allow access to the statement metadata available after
     /// it prepared but before the first row is returned.
-
     fn prepare<'e, 'q: 'e>(self, query: &'q str) -> BoxFuture<'e, Result<Statement, Error>>
     where
         'c: 'e,

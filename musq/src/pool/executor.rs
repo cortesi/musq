@@ -4,9 +4,10 @@ use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::TryStreamExt;
 
 use crate::{
+    Connection, QueryResult, Result, Row, Statement,
     executor::{Execute, Executor},
     pool::Pool,
-    sqlite, try_stream, Connection, QueryResult, Result, Row, Statement,
+    sqlite, try_stream,
 };
 
 impl<'p> Executor<'p> for &'_ Pool

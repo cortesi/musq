@@ -1,9 +1,6 @@
-use criterion::{criterion_group, criterion_main, BatchSize, Criterion};
-use futures;
+use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
 use pprof::criterion::PProfProfiler;
 use tokio::runtime::{Handle, Runtime};
-
-use musq;
 
 const BENCH_SCHEMA: &str = include_str!("benchschema.sql");
 
@@ -78,11 +75,10 @@ pub fn criterion_benchmark(c: &mut Criterion) {
 }
 
 fn criterion() -> Criterion {
-    let criterion = Criterion::default().with_profiler(PProfProfiler::new(
+    Criterion::default().with_profiler(PProfProfiler::new(
         100,
         pprof::criterion::Output::Flamegraph(None),
-    ));
-    criterion
+    ))
 }
 
 criterion_group! {

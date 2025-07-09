@@ -1,11 +1,11 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
+    Column, Result,
     decode::Decode,
     error::Error,
-    sqlite::{statement::StatementHandle, Value},
+    sqlite::{Value, statement::StatementHandle},
     ustr::UStr,
-    Column, Result,
 };
 
 /// Implementation of [`Row`] for SQLite.
@@ -65,7 +65,7 @@ impl Row {
         };
 
         T::decode(value).map_err(|source| Error::ColumnDecode {
-            index: format!("{:?}", index),
+            index: format!("{index:?}"),
             source,
         })
     }

@@ -1,4 +1,4 @@
-use crate::{pool::PoolConnection, Connection};
+use crate::{Connection, pool::PoolConnection};
 
 use std::ops::{Deref, DerefMut};
 

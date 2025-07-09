@@ -1,9 +1,9 @@
 use std::{ptr::NonNull, slice::from_raw_parts, str::from_utf8, sync::Arc};
 
 use libsqlite3_sys::{
-    sqlite3_value, sqlite3_value_blob, sqlite3_value_bytes, sqlite3_value_double,
+    SQLITE_NULL, sqlite3_value, sqlite3_value_blob, sqlite3_value_bytes, sqlite3_value_double,
     sqlite3_value_dup, sqlite3_value_free, sqlite3_value_int, sqlite3_value_int64,
-    sqlite3_value_type, SQLITE_NULL,
+    sqlite3_value_type,
 };
 
 use crate::{error::DecodeError, sqlite::type_info::SqliteDataType};

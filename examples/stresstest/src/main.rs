@@ -115,8 +115,7 @@ impl TimingData {
             let avg_duration: Duration = chunk.iter().sum::<Duration>() / chunk.len() as u32;
 
             println!(
-                "{}-{}: min: {:?}, max: {:?}, avg: {:?}",
-                start_record, end_record, min_duration, max_duration, avg_duration
+                "{start_record}-{end_record}: min: {min_duration:?}, max: {max_duration:?}, avg: {avg_duration:?}"
             );
         }
     }
@@ -284,7 +283,7 @@ async fn perform_operations(
                     drop(id);
 
                     if let Err(e) = read_random_record(&pool, *max_id.lock().await).await {
-                        eprintln!("Error reading record: {}", e);
+                        eprintln!("Error reading record: {e}");
                     }
                 } else {
                     eprintln!("Error inserting record");
@@ -297,10 +296,7 @@ async fn perform_operations(
         .await;
 
     let duration = start.elapsed();
-    println!(
-        "Performed {} write/read operations in {:?}",
-        num_records, duration
-    );
+    println!("Performed {num_records} write/read operations in {duration:?}");
 
     Ok(Arc::try_unwrap(timing_data).unwrap().into_inner())
 }
@@ -335,8 +331,7 @@ async fn main() -> Result<(), Error> {
     let (a_count, b_count) = count_records(&pool).await?;
     if a_count as u64 == args.records && b_count as u64 == args.records {
         println!(
-            "Sanity check passed: {} records in table A and {} records in table B found in the database",
-            a_count, b_count
+            "Sanity check passed: {a_count} records in table A and {b_count} records in table B found in the database"
         );
     } else {
         eprintln!(

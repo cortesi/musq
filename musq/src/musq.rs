@@ -1,13 +1,13 @@
 use std::{
     fmt::Write,
     path::{Path, PathBuf},
-    sync::atomic::{AtomicUsize, Ordering},
     sync::Arc,
+    sync::atomic::{AtomicUsize, Ordering},
     time::Duration,
 };
 
 use crate::{
-    debugfn::DebugFn, executor::Executor, logger::LogSettings, pool, sqlite::Connection, Result,
+    Result, debugfn::DebugFn, executor::Executor, logger::LogSettings, pool, sqlite::Connection,
 };
 
 use log::LevelFilter;
@@ -198,7 +198,7 @@ impl Musq {
             vfs: None,
             pragmas,
             serialized: false,
-            thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{}", id))),
+            thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{id}"))),
             command_channel_size: 50,
             row_channel_size: 50,
             optimize_on_close: OptimizeOnClose::Disabled,
@@ -471,7 +471,7 @@ impl Musq {
         let mut string = String::new();
         for (key, opt_value) in &self.pragmas {
             if let Some(value) = opt_value {
-                write!(string, "PRAGMA {} = {}; ", key, value).ok();
+                write!(string, "PRAGMA {key} = {value}; ").ok();
             }
         }
         string
@@ -516,7 +516,7 @@ impl Musq {
         let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
         self.in_memory(true)
             .shared_cache(true)
-            .filename(format!("file:musq-in-memory-{}", seqno))
+            .filename(format!("file:musq-in-memory-{seqno}"))
     }
 
     /// Open a file

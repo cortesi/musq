@@ -39,7 +39,6 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
     #[test]

@@ -1,21 +1,21 @@
 use std::future::Future;
-use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
 use futures_channel::oneshot;
 use futures_intrusive::sync::{Mutex, MutexGuard};
 
 use crate::{
+    Either, QueryResult, Row,
     error::Error,
     sqlite::{
-        connection::{establish::EstablishParams, execute, ConnectionState},
         Arguments, Statement,
+        connection::{ConnectionState, establish::EstablishParams, execute},
     },
     transaction::{
         begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
     },
-    Either, QueryResult, Row,
 };
 
 // Each SQLite connection has a dedicated thread.
@@ -107,12 +107,11 @@ impl ConnectionWorker {
                 for cmd in command_rx {
                     match cmd {
                         Command::Prepare { query, tx } => {
-                            tx.send(prepare(&mut conn, &query).map(|prepared| {
+                            tx.send(prepare(&mut conn, &query).inspect(|_prepared| {
                                 update_cached_statements_size(
                                     &conn,
                                     &shared.cached_statements_size,
                                 );
-                                prepared
                             }))
                             .ok();
                         }

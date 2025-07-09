@@ -15,8 +15,7 @@ impl encode::Encode for Foo {
 }
 impl<'r> decode::Decode<'r> for Foo {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
-        serde_json::from_str(value.text()?)
-            .map_err(|x| DecodeError::Conversion(x.to_string()))
+        serde_json::from_str(value.text()?).map_err(|x| DecodeError::Conversion(x.to_string()))
     }
 }
 

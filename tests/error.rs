@@ -1,4 +1,4 @@
-use musq::{query, Error, ExtendedErrCode, PrimaryErrCode};
+use musq::{Error, ExtendedErrCode, PrimaryErrCode, query};
 use musq_test::tdb;
 
 #[tokio::test]

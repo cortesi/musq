@@ -1,7 +1,7 @@
 use std::{
     sync::{
-        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
         Arc,
+        atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
     },
     time::{Duration, Instant},
 };
@@ -9,7 +9,7 @@ use std::{
 use crossbeam_queue::ArrayQueue;
 use futures_util::FutureExt;
 
-use crate::{pool::CloseEvent, Error, Result};
+use crate::{Error, Result, pool::CloseEvent};
 
 use super::connection::{Floating, Idle, Live};
 
@@ -67,7 +67,7 @@ impl PoolInner {
         self.on_closed.notify(usize::MAX);
     }
 
-    pub(super) async fn close<'a>(self: &'a Arc<Self>) {
+    pub(super) async fn close(self: &Arc<Self>) {
         self.mark_closed();
 
         for permits in 1..=self.options.pool_max_connections {

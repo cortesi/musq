@@ -1,11 +1,11 @@
 use std::sync::Arc;
 
 use crate::{
-    compatible, decode::Decode, encode::Encode, error::DecodeError, ArgumentValue, SqliteDataType,
-    Value,
+    ArgumentValue, SqliteDataType, Value, compatible, decode::Decode, encode::Encode,
+    error::DecodeError,
 };
 
-impl<'q> Encode for &'q [u8] {
+impl Encode for &[u8] {
     fn encode(self) -> ArgumentValue {
         ArgumentValue::Blob(Arc::new(self.to_owned()))
     }

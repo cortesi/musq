@@ -14,6 +14,7 @@ test_type!(i64("9358295312" == 9358295312_i64));
 
 // NOTE: This behavior can be surprising. Floating-point parameters are widening to double which can
 //       result in strange rounding.
+#[allow(clippy::approx_constant)]
 test_type!(f32("3.1410000324249268" == 3.141f32 as f64 as f32));
 
 test_type!(f64("939399419.1225182" == 939399419.1225182_f64));

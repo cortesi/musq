@@ -7,17 +7,17 @@ use std::{
 };
 
 use libsqlite3_sys::{
-    sqlite3_busy_timeout, sqlite3_extended_result_codes, sqlite3_open_v2, SQLITE_OK,
-    SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
+    SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
+    sqlite3_busy_timeout, sqlite3_extended_result_codes, sqlite3_open_v2,
 };
 
 use crate::{
-    sqlite::{
-        connection::{handle::ConnectionHandle, ConnectionState, LogSettings, StatementCache},
-        SqliteError,
-    },
     Error, Musq,
+    sqlite::{
+        SqliteError,
+        connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
+    },
 };
 
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
@@ -79,7 +79,7 @@ impl EstablishParams {
         }
 
         if let Some(vfs) = &options.vfs {
-            query_params.push(format!("vfs={}", vfs))
+            query_params.push(format!("vfs={vfs}"))
         }
 
         if !query_params.is_empty() {

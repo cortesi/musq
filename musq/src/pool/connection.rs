@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use crate::{error::Error, Connection};
+use crate::{Connection, error::Error};
 
 use super::inner::{DecrementSizeGuard, PoolInner};
 use std::future::Future;

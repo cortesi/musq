@@ -1,23 +1,22 @@
 use std::{
     cmp,
     collections::HashMap,
-    i32,
     os::raw::c_char,
-    ptr::{null, null_mut, NonNull},
+    ptr::{NonNull, null, null_mut},
     sync::Arc,
 };
 
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
-    sqlite3, sqlite3_prepare_v3, sqlite3_stmt, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
+    SQLITE_OK, SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_prepare_v3, sqlite3_stmt,
 };
 use smallvec::SmallVec;
 
 use crate::{
-    error::Error,
-    sqlite::{connection::ConnectionHandle, statement::StatementHandle, SqliteError},
-    ustr::UStr,
     Column,
+    error::Error,
+    sqlite::{SqliteError, connection::ConnectionHandle, statement::StatementHandle},
+    ustr::UStr,
 };
 
 // A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
@@ -56,7 +55,7 @@ impl CompoundStatement {
     pub(crate) fn new(mut query: &str) -> Result<Self, Error> {
         query = query.trim();
 
-        if query.len() > i32::max_value() as usize {
+        if query.len() > i32::MAX as usize {
             return Err(Error::Protocol(format!(
                 "query string must be smaller than {} bytes",
                 i32::MAX

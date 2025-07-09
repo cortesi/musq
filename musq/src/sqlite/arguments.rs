@@ -1,4 +1,4 @@
-use crate::{encode::Encode, sqlite::statement::StatementHandle, Error};
+use crate::{Error, encode::Encode, sqlite::statement::StatementHandle};
 
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
@@ -50,14 +50,12 @@ impl Arguments {
                     // parameter should have the form $NNN
                     atoi(name.as_bytes()).ok_or_else(|| {
                         Error::Protocol(format!(
-                            "parameters with non-integer names are not currently supported: {}",
-                            name
+                            "parameters with non-integer names are not currently supported: {name}"
                         ))
                     })?
                 } else {
                     return Err(Error::Protocol(format!(
-                        "unsupported SQL parameter format: {}",
-                        name
+                        "unsupported SQL parameter format: {name}"
                     )));
                 }
             } else {

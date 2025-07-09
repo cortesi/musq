@@ -3,10 +3,10 @@ use futures_core::stream::BoxStream;
 use futures_util::{TryFutureExt, TryStreamExt};
 
 use crate::{
+    Either, QueryResult, Row,
     error::Error,
     executor::{Execute, Executor},
     sqlite::{Connection, SqliteDataType, Statement},
-    Either, QueryResult, Row,
 };
 
 impl<'c> Executor<'c> for &'c mut Connection {

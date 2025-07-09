@@ -41,9 +41,9 @@ pub use crate::{
     query_scalar::{query_scalar, query_scalar_with},
     row::Row,
     sqlite::{
-        error::{ExtendedErrCode, PrimaryErrCode},
         ArgumentValue, Arguments, Connection, IntoArguments, SqliteDataType, SqliteError,
         Statement, Value,
+        error::{ExtendedErrCode, PrimaryErrCode},
     },
     transaction::Transaction,
 };

@@ -4,13 +4,13 @@ use std::{
 };
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_close, sqlite3_exec, sqlite3_last_insert_rowid, SQLITE_LOCKED_SHAREDCACHE,
-    SQLITE_OK,
+    SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, sqlite3, sqlite3_close, sqlite3_exec,
+    sqlite3_last_insert_rowid,
 };
 
 use crate::{
-    sqlite::{statement::unlock_notify, SqliteError},
     Error,
+    sqlite::{SqliteError, statement::unlock_notify},
 };
 
 /// Managed handle to the raw SQLite3 database handle.

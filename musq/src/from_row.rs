@@ -1,5 +1,5 @@
-use crate::error::Error;
 use crate::Row;
+use crate::error::Error;
 
 /// A record that can be built from a row returned by the database.
 ///

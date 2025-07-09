@@ -62,7 +62,7 @@ impl SqliteDataType {
             SQLITE_TEXT => SqliteDataType::Text,
 
             // https://sqlite.org/c3ref/c_blob.html
-            _ => panic!("unknown data type code {}", code),
+            _ => panic!("unknown data type code {code}"),
         }
     }
 }

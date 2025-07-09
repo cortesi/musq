@@ -1,7 +1,7 @@
 use futures::TryStreamExt;
 use musq::{
-    query, query_as, query_scalar, Connection, Error, Executor, ExtendedErrCode, Musq,
-    PrimaryErrCode, Row,
+    Connection, Error, Executor, ExtendedErrCode, Musq, PrimaryErrCode, Row, query, query_as,
+    query_scalar,
 };
 use musq_test::{connection, tdb};
 use rand::{Rng, SeedableRng};

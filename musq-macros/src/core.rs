@@ -1,4 +1,4 @@
-use darling::{ast, util, FromDeriveInput, FromField, FromMeta};
+use darling::{FromDeriveInput, FromField, FromMeta, ast, util};
 use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
 use proc_macro2::TokenStream;
 use syn::{DeriveInput, Type};
@@ -62,6 +62,7 @@ impl RenameAll {
 pub struct JsonContainer {
     pub ident: syn::Ident,
     pub generics: syn::Generics,
+    #[allow(dead_code)]
     pub data: ast::Data<util::Ignored, RowField>,
 }
 
@@ -110,6 +111,7 @@ pub struct TypeContainer {
 #[derive(darling::FromVariant, Debug)]
 pub struct TypeVariant {
     pub ident: syn::Ident,
+    #[allow(dead_code)]
     pub fields: darling::ast::Fields<TypeField>,
 
     pub rename: Option<String>,
@@ -121,6 +123,7 @@ pub struct TypeField {
     pub ident: Option<syn::Ident>,
     pub ty: Type,
 
+    #[allow(dead_code)]
     pub rename: Option<String>,
 }
 
@@ -131,10 +134,12 @@ pub(crate) fn check_repr_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
     Ok(())
 }
 
+type ExpandReprEnumFn = dyn Fn(&TypeContainer, &[TypeVariant], &Type) -> syn::Result<TokenStream>;
+
 pub(crate) fn expand_type_derive(
     input: &DeriveInput,
     expand_struct: &dyn Fn(&TypeContainer, &TypeField) -> syn::Result<TokenStream>,
-    expand_repr_enum: &dyn Fn(&TypeContainer, &[TypeVariant], &Type) -> syn::Result<TokenStream>,
+    expand_repr_enum: &ExpandReprEnumFn,
     expand_enum: &dyn Fn(&TypeContainer, &[TypeVariant]) -> syn::Result<TokenStream>,
 ) -> syn::Result<TokenStream> {
     let attrs = TypeContainer::from_derive_input(input)?;
@@ -164,7 +169,6 @@ pub(crate) fn expand_type_derive(
 }
 
 #[cfg(test)]
-
 mod tests {
     use super::*;
 

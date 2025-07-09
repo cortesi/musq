@@ -5,7 +5,7 @@ use std::{
 
 use futures_core::future::BoxFuture;
 
-use crate::{pool::MaybePoolConnection, Connection, Result};
+use crate::{Connection, Result, pool::MaybePoolConnection};
 
 /// An in-progress database transaction or savepoint.
 ///
@@ -86,7 +86,7 @@ impl<'c> Drop for Transaction<'c> {
 
 pub fn begin_ansi_transaction_sql(depth: usize) -> String {
     // The first savepoint is equivalent to a BEGIN
-    format!("SAVEPOINT _sqlx_savepoint_{}", depth)
+    format!("SAVEPOINT _sqlx_savepoint_{depth}")
 }
 
 pub fn commit_ansi_transaction_sql(depth: usize) -> String {

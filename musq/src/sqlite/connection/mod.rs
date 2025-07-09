@@ -11,6 +11,7 @@ use futures_util::future;
 use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
 
 use crate::{
+    Result,
     error::Error,
     executor::Executor,
     logger::LogSettings,
@@ -18,7 +19,6 @@ use crate::{
     sqlite::connection::{establish::EstablishParams, worker::ConnectionWorker},
     statement_cache::StatementCache,
     transaction::Transaction,
-    Result,
 };
 
 pub(crate) use handle::ConnectionHandle;
@@ -130,7 +130,7 @@ impl Connection {
         if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
             let mut pragma_string = String::new();
             if let Some(limit) = analysis_limit {
-                write!(pragma_string, "PRAGMA analysis_limit = {}; ", limit).ok();
+                write!(pragma_string, "PRAGMA analysis_limit = {limit}; ").ok();
             }
             pragma_string.push_str("PRAGMA optimize;");
             self.execute(crate::query(&pragma_string)).await?;

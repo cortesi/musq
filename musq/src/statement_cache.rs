@@ -1,4 +1,4 @@
-use crate::{sqlite::statement::CompoundStatement, Result};
+use crate::{Result, sqlite::statement::CompoundStatement};
 use hashlink::lru_cache::LruCache;
 
 const CAPACITY: usize = 1024;

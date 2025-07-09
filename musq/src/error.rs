@@ -3,7 +3,7 @@
 use std::io;
 use std::num::TryFromIntError;
 
-use crate::{sqlite, sqlite::error::SqliteError, SqliteDataType};
+use crate::{SqliteDataType, sqlite, sqlite::error::SqliteError};
 
 /// A specialized `Result` type for SQLx.
 pub type Result<T, E = Error> = std::result::Result<T, E>;

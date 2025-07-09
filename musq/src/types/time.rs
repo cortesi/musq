@@ -1,14 +1,13 @@
 use std::sync::Arc;
 
 use crate::{
-    compatible,
+    Value, compatible,
     decode::Decode,
     encode::Encode,
     error::DecodeError,
     sqlite::{ArgumentValue, SqliteDataType},
-    Value,
 };
-use time::format_description::{well_known::Rfc3339, FormatItem};
+use time::format_description::{FormatItem, well_known::Rfc3339};
 use time::macros::format_description as fd;
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
@@ -74,7 +73,7 @@ impl<'r> Decode<'r> for Time {
             }
         }
 
-        Err(format!("invalid time: {}", value).into())
+        Err(format!("invalid time: {value}").into())
     }
 }
 
@@ -156,7 +155,7 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
 }
 
 mod formats {
-    use time::format_description::{modifier, Component::*, FormatItem, FormatItem::*};
+    use time::format_description::{Component::*, FormatItem, FormatItem::*, modifier};
 
     const YEAR: FormatItem<'_> = Component(Year({
         let mut value = modifier::Year::default();
