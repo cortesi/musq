@@ -26,9 +26,9 @@ impl Value {
 
         Self {
             type_info,
-            handle: Arc::new(ValueHandle(NonNull::new_unchecked(sqlite3_value_dup(
-                value,
-            )))),
+            handle: Arc::new(ValueHandle(unsafe {
+                NonNull::new_unchecked(sqlite3_value_dup(value))
+            })),
         }
     }
 

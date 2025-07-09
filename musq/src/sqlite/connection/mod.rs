@@ -135,10 +135,10 @@ impl Connection {
             pragma_string.push_str("PRAGMA optimize;");
             self.execute(crate::query(&pragma_string)).await?;
         }
-        let shutdown = self.worker.shutdown();
-        // Drop the statement worker, which should
-        // cover all references to the connection handle outside of the worker thread
-        drop(self);
+        // Destructure self to extract the worker and avoid partial move
+        let Connection { mut worker, .. } = self;
+        let shutdown = worker.shutdown();
+        // The rest of self is dropped here
         // Ensure the worker thread has terminated
         shutdown.await
     }

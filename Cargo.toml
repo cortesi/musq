@@ -4,7 +4,7 @@ members = [ "musq", "musq-macros", "musq-test", "examples/*" ]
 [workspace.package]
 version = "0.0.1"
 license = "MIT"
-edition = "2021"
+edition = "2024"
 repository = "https://github.com/cortesi/musq"
 keywords = ["database", "async", "sqlite"]
 categories = ["database", "asynchronous"]

@@ -36,7 +36,7 @@ impl StatementHandle {
     pub(super) unsafe fn db_handle(&self) -> *mut sqlite3 {
         // O(c) access to the connection handle for this statement handle
         // https://sqlite.org/c3ref/db_handle.html
-        sqlite3_db_handle(self.0.as_ptr())
+        unsafe { sqlite3_db_handle(self.0.as_ptr()) }
     }
 
     pub(crate) fn last_error(&self) -> SqliteError {

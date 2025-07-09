@@ -217,7 +217,7 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<(), 
 }
 
 async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row), Error> {
-    let random_id = rand::thread_rng().gen_range(1..=max_id) as i64;
+    let random_id = rand::rng().random_range(1..=max_id) as i64;
 
     let b_row = musq::query("SELECT * FROM b WHERE id = ?")
         .bind(random_id)
@@ -249,9 +249,9 @@ async fn count_records(pool: &Pool) -> Result<(i64, i64), Error> {
 }
 
 fn generate_random_data(size: usize) -> (Vec<u8>, Vec<u8>) {
-    let mut rng = rand::thread_rng();
-    let a_data = (0..size).map(|_| rng.gen::<u8>()).collect();
-    let b_data = (0..size).map(|_| rng.gen::<u8>()).collect();
+    let mut rng = rand::rng();
+    let a_data = (0..size).map(|_| rng.random::<u8>()).collect();
+    let b_data = (0..size).map(|_| rng.random::<u8>()).collect();
     (a_data, b_data)
 }
 

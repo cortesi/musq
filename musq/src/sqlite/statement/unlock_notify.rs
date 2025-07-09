@@ -11,11 +11,13 @@ use crate::sqlite::SqliteError;
 pub unsafe fn wait(conn: *mut sqlite3) -> Result<(), SqliteError> {
     let notify = Notify::new();
 
-    if sqlite3_unlock_notify(
-        conn,
-        Some(unlock_notify_cb),
-        &notify as *const Notify as *mut Notify as *mut _,
-    ) != SQLITE_OK
+    if unsafe {
+        sqlite3_unlock_notify(
+            conn,
+            Some(unlock_notify_cb),
+            &notify as *const Notify as *mut Notify as *mut _,
+        )
+    } != SQLITE_OK
     {
         return Err(SqliteError::new(conn));
     }
@@ -27,7 +29,7 @@ pub unsafe fn wait(conn: *mut sqlite3) -> Result<(), SqliteError> {
 
 unsafe extern "C" fn unlock_notify_cb(ptr: *mut *mut c_void, len: c_int) {
     let ptr = ptr as *mut &Notify;
-    let slice = slice::from_raw_parts(ptr, len as usize);
+    let slice = unsafe { slice::from_raw_parts(ptr, len as usize) };
 
     for notify in slice {
         notify.fire();

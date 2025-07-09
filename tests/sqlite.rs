@@ -596,7 +596,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
     // Random seed:
     let seed: [u8; 32] = rand::random();
-    println!("RNG seed: {}", hex::encode(&seed));
+    println!("RNG seed: {}", hex::encode(seed));
 
     // Pre-determined seed:
     // let mut seed: [u8; 32] = [0u8; 32];
@@ -610,10 +610,10 @@ async fn issue_1467() -> anyhow::Result<()> {
 
     for i in 0..1_000_000 {
         if i % 1_000 == 0 {
-            println!("{}", i);
+            println!("{i}");
         }
-        let key = rng.gen_range(0..1_000);
-        let value = rng.gen_range(0..1_000);
+        let key = rng.random_range(0..1_000);
+        let value = rng.random_range(0..1_000);
         let mut tx = conn.begin().await?;
 
         let exists = query("SELECT 1 FROM kv WHERE k = ?")
@@ -687,7 +687,7 @@ async fn test_query_with_progress_handler() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     // Using this string as a canary to ensure the callback doesn't get called with the wrong data pointer.
-    let state = format!("test");
+    let state = "test".to_string();
     conn.lock_handle().await?.set_progress_handler(1, move || {
         assert_eq!(state, "test");
         false
@@ -711,21 +711,21 @@ async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::
 
         let o = ref_counted_object.clone();
         conn.lock_handle().await?.set_progress_handler(1, move || {
-            println!("{:?}", o);
+            println!("{o:?}");
             false
         });
         assert_eq!(2, Arc::strong_count(&ref_counted_object));
 
         let o = ref_counted_object.clone();
         conn.lock_handle().await?.set_progress_handler(1, move || {
-            println!("{:?}", o);
+            println!("{o:?}");
             false
         });
         assert_eq!(2, Arc::strong_count(&ref_counted_object));
 
         let o = ref_counted_object.clone();
         conn.lock_handle().await?.set_progress_handler(1, move || {
-            println!("{:?}", o);
+            println!("{o:?}");
             false
         });
         assert_eq!(2, Arc::strong_count(&ref_counted_object));
