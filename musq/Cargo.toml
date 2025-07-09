@@ -42,7 +42,7 @@ indexmap = "2.0"
 event-listener = "5.3.1"
 flume = "0.11.0"
 futures-executor = "0.3.28"
-libsqlite3-sys = { version = "0.32", features = [
+libsqlite3-sys = { version = "0.35", features = [
     "pkg-config",
     "vcpkg",
     "bundled",
