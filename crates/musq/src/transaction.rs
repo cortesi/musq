@@ -57,8 +57,25 @@ impl<'c> Transaction<'c> {
 
 impl<'c> Debug for Transaction<'c> {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // TODO: Show the full type <..<..<..
-        f.debug_struct("Transaction").finish()
+        // Try to read the current transaction depth. If the lock is currently
+        // held elsewhere, we simply omit the value.
+        let depth = self
+            .connection
+            .worker
+            .shared
+            .conn
+            .try_lock()
+            .map(|guard| guard.transaction_depth);
+
+        let mut debug = f.debug_struct("Transaction");
+        debug.field("open", &self.open);
+
+        match depth {
+            Ok(depth) => debug.field("transaction_depth", &depth),
+            Err(_) => debug.field("transaction_depth", &"<locked>"),
+        };
+
+        debug.finish()
     }
 }
 
