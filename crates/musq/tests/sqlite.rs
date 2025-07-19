@@ -402,7 +402,8 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_respects_statement_cache_capacity() -> anyhow::Result<()> {
     let options = Musq::new().statement_cache_capacity(1);
-    let mut conn = options.open_in_memory().await?;
+    let pool = options.open_in_memory().await?;
+    let mut conn = pool.acquire().await?;
 
     // first query populates cache
     conn.fetch_one("SELECT 1 AS val").await?;
