@@ -26,6 +26,7 @@ pub(crate) struct ConnectionWorker {
     command_tx: flume::Sender<Command>,
     /// Mutex for locking access to the database.
     pub(crate) shared: Arc<WorkerSharedState>,
+    join_handle: Option<std::thread::JoinHandle<()>>,
 }
 
 pub(crate) struct WorkerSharedState {
@@ -65,7 +66,7 @@ impl ConnectionWorker {
     pub(crate) async fn establish(params: EstablishParams) -> Result<Self, Error> {
         let (establish_tx, establish_rx) = oneshot::channel();
 
-        thread::Builder::new()
+        let join_handle = thread::Builder::new()
             .name(params.thread_name.clone())
             .spawn(move || {
                 let (command_tx, command_rx) = flume::bounded(params.command_channel_size);
@@ -89,10 +90,7 @@ impl ConnectionWorker {
                 let mut conn = shared.conn.try_lock().unwrap();
 
                 if establish_tx
-                    .send(Ok(Self {
-                        command_tx,
-                        shared: Arc::clone(&shared),
-                    }))
+                    .send(Ok((command_tx, Arc::clone(&shared))))
                     .is_err()
                 {
                     return;
@@ -238,7 +236,13 @@ impl ConnectionWorker {
                 }
             })?;
 
-        establish_rx.await.map_err(|_| Error::WorkerCrashed)?
+        let (command_tx, shared) = establish_rx.await.map_err(|_| Error::WorkerCrashed)??;
+
+        Ok(Self {
+            command_tx,
+            shared,
+            join_handle: Some(join_handle),
+        })
     }
 
     pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement, Error> {
@@ -340,6 +344,7 @@ impl ConnectionWorker {
     ///
     /// A `WorkerCrashed` error may be returned if the thread has already stopped.
     pub(crate) fn shutdown(&mut self) -> impl Future<Output = Result<(), Error>> {
+        let join_handle = self.join_handle.take();
         let (tx, rx) = oneshot::channel();
 
         let send_res = self
@@ -348,10 +353,21 @@ impl ConnectionWorker {
             .map_err(|_| Error::WorkerCrashed);
 
         async move {
-            send_res?;
+            if let Err(e) = send_res {
+                if let Some(handle) = join_handle {
+                    let _ = handle.join();
+                }
+                return Err(e);
+            }
 
             // wait for the response
-            rx.await.map_err(|_| Error::WorkerCrashed)
+            rx.await.map_err(|_| Error::WorkerCrashed)?;
+
+            if let Some(handle) = join_handle {
+                handle.join().map_err(|_| Error::WorkerCrashed)?;
+            }
+
+            Ok(())
         }
     }
 }
