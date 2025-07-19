@@ -3,22 +3,34 @@ use std::os::raw::c_int;
 use std::slice;
 use std::sync::{Condvar, Mutex};
 
-use libsqlite3_sys::{SQLITE_OK, sqlite3, sqlite3_unlock_notify};
+use libsqlite3_sys::{SQLITE_LOCKED, SQLITE_OK, sqlite3, sqlite3_unlock_notify};
 
-use crate::sqlite::SqliteError;
+use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
 
 // Wait for unlock notification (https://www.sqlite.org/unlock_notify.html)
 pub unsafe fn wait(conn: *mut sqlite3) -> Result<(), SqliteError> {
     let notify = Notify::new();
 
-    if unsafe {
+    let rc = unsafe {
         sqlite3_unlock_notify(
             conn,
             Some(unlock_notify_cb),
             &notify as *const Notify as *mut Notify as *mut _,
         )
-    } != SQLITE_OK
-    {
+    };
+
+    if rc == SQLITE_LOCKED {
+        // See https://www.sqlite.org/unlock_notify.html. SQLITE_LOCKED indicates
+        // that a deadlock was detected and the unlock notification was not
+        // queued. The statement should be reset or stepped to break the
+        // deadlock before retrying.
+        return Err(SqliteError {
+            primary: PrimaryErrCode::Locked,
+            extended: ExtendedErrCode::Unknown(SQLITE_LOCKED as u32),
+            message:
+                "sqlite3_unlock_notify returned SQLITE_LOCKED (deadlock). Reset the blocking statement and retry".to_string(),
+        });
+    } else if rc != SQLITE_OK {
         return Err(SqliteError::new(conn));
     }
 
