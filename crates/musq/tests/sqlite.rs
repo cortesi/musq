@@ -255,6 +255,107 @@ async fn it_binds_dollar_parameters() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn it_binds_named_parameters() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+
+    let v: (i32, i32) = query_as("SELECT :a, @b")
+        .bind_named(":a", 10_i32)
+        .bind_named("@b", 11_i32)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(v.0, 10);
+    assert_eq!(v.1, 11);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn it_binds_duplicate_named_parameters() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+
+    let v: (i32, i32) = query_as("SELECT :x, :x")
+        .bind_named("x", 7_i32)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(v.0, 7);
+    assert_eq!(v.1, 7);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn it_uses_named_parameters_in_sql() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+
+    conn.execute("CREATE TEMP TABLE np (id INTEGER PRIMARY KEY, val TEXT);")
+        .await?;
+
+    query("INSERT INTO np (id, val) VALUES (:id, :val)")
+        .bind_named("id", 1_i32)
+        .bind_named("val", "alpha")
+        .execute(&mut conn)
+        .await?;
+
+    let (val,): (String,) = query_as("SELECT val FROM np WHERE id = :id")
+        .bind_named("id", 1_i32)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(val, "alpha");
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn it_mixes_named_and_positional_parameters() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+
+    let (sum,): (i32,) = query_as("SELECT :a + ?2 + ?3")
+        .bind_named("a", 2_i32) // :a
+        .bind(3_i32) // ?2
+        .bind(4_i32) // ?3
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(sum, 9);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn it_supports_named_only_binding() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+
+    let (a, b): (i32, i32) = query_as("SELECT :first, :second")
+        .bind_named("second", 42_i32)
+        .bind_named("first", 7_i32)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(a, 7);
+    assert_eq!(b, 42);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn it_combines_named_and_positional_binds() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+
+    let (sum,): (i32,) = query_as("SELECT :v + ?2 + :v")
+        .bind_named("v", 5_i32)
+        .bind(3_i32)
+        .fetch_one(&mut conn)
+        .await?;
+
+    assert_eq!(sum, 13);
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn it_executes_queries() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 

@@ -65,11 +65,24 @@ impl Query<Arguments> {
         }
         self
     }
+
+    /// Bind a value to a named parameter.
+    pub fn bind_named<'q, T: 'q + Send + Encode>(mut self, name: &str, value: T) -> Self {
+        if let Some(arguments) = &mut self.arguments {
+            arguments.add_named(name, value);
+        }
+        self
+    }
 }
 
 impl<F> Map<F, Arguments> {
     pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
+        self
+    }
+
+    pub fn bind_named<'q, T: 'q + Send + Encode>(mut self, name: &str, value: T) -> Self {
+        self.inner = self.inner.bind_named(name, value);
         self
     }
 }
