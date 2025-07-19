@@ -1,5 +1,5 @@
 [workspace]
-members = [ "musq", "musq-macros", "musq-test", "examples/*" ]
+members = [ "crates/*" ]
 
 [workspace.package]
 version = "0.0.1"
@@ -16,8 +16,8 @@ version.workspace = true
 edition.workspace = true
 
 [workspace.dependencies]
-musq = { path = "musq" }
-musq-macros = { path = "musq-macros" }
+musq = { path = "crates/musq" }
+musq-macros = { path = "crates/musq-macros" }
 
 [dependencies]
 musq = { workspace = true }
@@ -29,7 +29,7 @@ time_ = { version = "0.3.2", package = "time" }
 futures = "0.3.19"
 env_logger = "0.11.3"
 tokio = { version = "1.15.0", features = ["full"] }
-musq-test = { path = "./musq-test" }
+musq-test = { path = "./crates/musq-test" }
 paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
 serde_json = "1.0.73"
