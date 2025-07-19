@@ -27,6 +27,7 @@ pub struct EstablishParams {
     open_flags: i32,
     busy_timeout: Duration,
     log_settings: LogSettings,
+    statement_cache_capacity: usize,
     pub(crate) thread_name: String,
     pub(crate) command_channel_size: usize,
 }
@@ -99,6 +100,7 @@ impl EstablishParams {
             open_flags: flags,
             busy_timeout: options.busy_timeout,
             log_settings: options.log_settings.clone(),
+            statement_cache_capacity: options.statement_cache_capacity,
             thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
             command_channel_size: options.command_channel_size,
         })
@@ -151,7 +153,7 @@ impl EstablishParams {
 
         Ok(ConnectionState {
             handle,
-            statements: StatementCache::new(),
+            statements: StatementCache::new(self.statement_cache_capacity),
             transaction_depth: 0,
             log_settings: self.log_settings.clone(),
             progress_handler_callback: None,
