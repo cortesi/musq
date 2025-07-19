@@ -10,4 +10,4 @@ mod connection;
 pub mod error;
 pub mod statement;
 mod type_info;
-mod value;
+pub(crate) mod value;

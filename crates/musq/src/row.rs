@@ -30,12 +30,45 @@ impl Row {
         columns: &Arc<Vec<Column>>,
         column_names: &Arc<HashMap<UStr, usize>>,
     ) -> Self {
+        use crate::sqlite::value::ValueData;
+        use libsqlite3_sys::SQLITE_NULL;
+
         let size = statement.column_count();
         let mut values = Vec::with_capacity(size);
 
         for i in 0..size {
-            let raw = statement.column_value(i);
-            values.push(unsafe { Value::new(raw, columns[i].type_info) });
+            let code = statement.column_type(i);
+            let data = match code {
+                SQLITE_NULL => ValueData::Null,
+                libsqlite3_sys::SQLITE_INTEGER => ValueData::Integer(statement.column_int64(i)),
+                libsqlite3_sys::SQLITE_FLOAT => ValueData::Double(statement.column_double(i)),
+                libsqlite3_sys::SQLITE_TEXT => {
+                    let len = statement.column_bytes(i) as usize;
+                    let ptr = statement.column_blob(i) as *const u8;
+                    let slice = if len == 0 {
+                        &[]
+                    } else {
+                        unsafe { std::slice::from_raw_parts(ptr, len) }
+                    };
+                    ValueData::Text(slice.to_vec())
+                }
+                libsqlite3_sys::SQLITE_BLOB => {
+                    let len = statement.column_bytes(i) as usize;
+                    if len == 0 {
+                        ValueData::Blob(Vec::new())
+                    } else {
+                        let ptr = statement.column_blob(i) as *const u8;
+                        let slice = unsafe { std::slice::from_raw_parts(ptr, len) };
+                        ValueData::Blob(slice.to_vec())
+                    }
+                }
+                _ => unreachable!(),
+            };
+
+            values.push(Value {
+                data,
+                type_info: columns[i].type_info,
+            });
         }
 
         Self {

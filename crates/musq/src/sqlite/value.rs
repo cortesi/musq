@@ -1,74 +1,64 @@
-use std::{ptr::NonNull, slice::from_raw_parts, str::from_utf8, sync::Arc};
-
-use libsqlite3_sys::{
-    SQLITE_NULL, sqlite3_value, sqlite3_value_blob, sqlite3_value_bytes, sqlite3_value_double,
-    sqlite3_value_dup, sqlite3_value_free, sqlite3_value_int, sqlite3_value_int64,
-    sqlite3_value_type,
-};
+use std::str::from_utf8;
 
 use crate::{error::DecodeError, sqlite::type_info::SqliteDataType};
 
 #[derive(Clone)]
 pub struct Value {
-    pub(crate) handle: Arc<ValueHandle>,
+    pub(crate) data: ValueData,
     pub(crate) type_info: SqliteDataType,
 }
 
-pub(crate) struct ValueHandle(NonNull<sqlite3_value>);
-
-// SAFE: only protected value objects are stored in SqliteValue
-unsafe impl Send for ValueHandle {}
-unsafe impl Sync for ValueHandle {}
+#[derive(Clone)]
+pub(crate) enum ValueData {
+    Null,
+    Integer(i64),
+    Double(f64),
+    Text(Vec<u8>),
+    Blob(Vec<u8>),
+}
 
 impl Value {
-    pub(crate) unsafe fn new(value: *mut sqlite3_value, type_info: SqliteDataType) -> Self {
-        debug_assert!(!value.is_null());
+    pub fn int(&self) -> i32 {
+        self.int64() as i32
+    }
 
-        Self {
-            type_info,
-            handle: Arc::new(ValueHandle(unsafe {
-                NonNull::new_unchecked(sqlite3_value_dup(value))
-            })),
+    pub fn int64(&self) -> i64 {
+        match self.data {
+            ValueData::Integer(v) => v,
+            _ => 0,
+        }
+    }
+
+    pub fn double(&self) -> f64 {
+        match self.data {
+            ValueData::Double(v) => v,
+            ValueData::Integer(v) => v as f64,
+            _ => 0.0,
+        }
+    }
+
+    pub fn blob(&self) -> &[u8] {
+        match &self.data {
+            ValueData::Blob(v) | ValueData::Text(v) => v.as_slice(),
+            _ => &[],
+        }
+    }
+
+    pub fn text(&self) -> Result<&str, DecodeError> {
+        match &self.data {
+            ValueData::Text(v) => from_utf8(v).map_err(|e| DecodeError::Conversion(e.to_string())),
+            _ => Err(DecodeError::Conversion("not text".into())),
         }
     }
 
     fn type_info_opt(&self) -> Option<SqliteDataType> {
-        let dt = SqliteDataType::from_code(unsafe { sqlite3_value_type(self.handle.0.as_ptr()) });
-        if let SqliteDataType::Null = dt {
-            None
-        } else {
-            Some(dt)
+        match self.data {
+            ValueData::Null => None,
+            ValueData::Integer(_) => Some(SqliteDataType::Int),
+            ValueData::Double(_) => Some(SqliteDataType::Float),
+            ValueData::Text(_) => Some(SqliteDataType::Text),
+            ValueData::Blob(_) => Some(SqliteDataType::Blob),
         }
-    }
-
-    pub fn int(&self) -> i32 {
-        unsafe { sqlite3_value_int(self.handle.0.as_ptr()) }
-    }
-
-    pub fn int64(&self) -> i64 {
-        unsafe { sqlite3_value_int64(self.handle.0.as_ptr()) }
-    }
-
-    pub fn double(&self) -> f64 {
-        unsafe { sqlite3_value_double(self.handle.0.as_ptr()) }
-    }
-
-    pub fn blob(&self) -> &[u8] {
-        let len = unsafe { sqlite3_value_bytes(self.handle.0.as_ptr()) } as usize;
-
-        if len == 0 {
-            // empty blobs are NULL so just return an empty slice
-            return &[];
-        }
-
-        let ptr = unsafe { sqlite3_value_blob(self.handle.0.as_ptr()) } as *const u8;
-        debug_assert!(!ptr.is_null());
-
-        unsafe { from_raw_parts(ptr, len) }
-    }
-
-    pub fn text(&self) -> Result<&str, DecodeError> {
-        from_utf8(self.blob()).map_err(|e| DecodeError::Conversion(e.to_string()))
     }
 
     pub fn type_info(&self) -> SqliteDataType {
@@ -76,14 +66,6 @@ impl Value {
     }
 
     pub fn is_null(&self) -> bool {
-        unsafe { sqlite3_value_type(self.handle.0.as_ptr()) == SQLITE_NULL }
-    }
-}
-
-impl Drop for ValueHandle {
-    fn drop(&mut self) {
-        unsafe {
-            sqlite3_value_free(self.0.as_ptr());
-        }
+        matches!(self.data, ValueData::Null)
     }
 }
