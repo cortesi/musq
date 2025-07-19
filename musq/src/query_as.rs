@@ -1,17 +1,16 @@
 use std::marker::PhantomData;
 
-use either::Either;
-use futures_core::stream::BoxStream;
-use futures_util::{StreamExt, TryStreamExt};
-
 use crate::{
-    Arguments, IntoArguments, QueryResult, Statement,
+    Arguments, IntoArguments, QueryResult, Row, Statement,
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
     from_row::FromRow,
-    query::{Query, query, query_statement, query_statement_with, query_with},
+    mapped_query::IntoMapped,
+    query::{Map, Query, query, query_statement, query_statement_with, query_with},
 };
+use either::Either;
+use futures_core::stream::BoxStream;
 
 /// Raw SQL query with bind parameters, mapped to a concrete type using [`FromRow`].
 /// Returned from [`query_as`][crate::query_as::query_as].
@@ -48,11 +47,28 @@ impl<O> QueryAs<O, Arguments> {
     }
 }
 
-// FIXME: This is very close, nearly 1:1 with `Map`
-// noinspection DuplicatedCode
+fn from_row_map<O>(row: Row) -> Result<O, Error>
+where
+    O: for<'r> FromRow<'r>,
+{
+    O::from_row("", &row)
+}
+
+impl<O, A> IntoMapped<O, A> for QueryAs<O, A>
+where
+    A: IntoArguments + Send,
+    O: Send + Unpin + for<'r> FromRow<'r>,
+{
+    type Mapper = fn(Row) -> Result<O, Error>;
+
+    fn into_map(self) -> Map<Self::Mapper, A> {
+        self.inner.try_map(from_row_map::<O>)
+    }
+}
+
 impl<O, A> QueryAs<O, A>
 where
-    A: IntoArguments,
+    A: IntoArguments + Send,
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
     /// Execute the query and return the generated results as a stream.
@@ -63,9 +79,7 @@ where
         O: 'e,
         A: 'q + 'e,
     {
-        self.fetch_many(executor)
-            .try_filter_map(|step| async move { Ok(step.right()) })
-            .boxed()
+        self.into_map().fetch(executor)
     }
 
     /// Execute multiple queries and return the generated results as a stream
@@ -80,14 +94,7 @@ where
         O: 'e,
         A: 'q + 'e,
     {
-        executor
-            .fetch_many(self.inner)
-            .map(|v| match v {
-                Ok(Either::Right(row)) => O::from_row("", &row).map(Either::Right),
-                Ok(Either::Left(v)) => Ok(Either::Left(v)),
-                Err(e) => Err(e),
-            })
-            .boxed()
+        self.into_map().fetch_many(executor)
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
@@ -98,7 +105,7 @@ where
         O: 'e,
         A: 'q + 'e,
     {
-        self.fetch(executor).try_collect().await
+        self.into_map().fetch_all(executor).await
     }
 
     /// Execute the query and returns exactly one row.
@@ -109,9 +116,7 @@ where
         O: 'e,
         A: 'q + 'e,
     {
-        self.fetch_optional(executor)
-            .await
-            .and_then(|row| row.ok_or(Error::RowNotFound))
+        self.into_map().fetch_one(executor).await
     }
 
     /// Execute the query and returns at most one row.
@@ -122,12 +127,7 @@ where
         O: 'e,
         A: 'q + 'e,
     {
-        let row = executor.fetch_optional(self.inner).await?;
-        if let Some(row) = row {
-            O::from_row("", &row).map(Some)
-        } else {
-            Ok(None)
-        }
+        self.into_map().fetch_optional(executor).await
     }
 }
 

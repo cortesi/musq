@@ -14,6 +14,7 @@ mod error;
 mod executor;
 mod from_row;
 mod logger;
+mod mapped_query;
 mod musq;
 pub mod pool;
 pub mod query;
