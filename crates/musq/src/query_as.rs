@@ -10,6 +10,7 @@ use crate::{
     error::Error,
     executor::{Execute, Executor},
     from_row::FromRow,
+    query_common::QueryFetch,
     query::{Query, query, query_statement, query_statement_with, query_with},
 };
 
@@ -128,6 +129,24 @@ where
         } else {
             Ok(None)
         }
+    }
+}
+
+impl<O, A> QueryFetch for QueryAs<O, A>
+where
+    A: IntoArguments,
+    O: Send + Unpin + for<'r> FromRow<'r>,
+{
+    type Raw = O;
+    type Output = O;
+    type Args = A;
+
+    fn into_query(self) -> QueryAs<Self::Raw, Self::Args> {
+        self
+    }
+
+    fn map(raw: Self::Raw) -> Self::Output {
+        raw
     }
 }
 
