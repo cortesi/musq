@@ -68,11 +68,11 @@ pub unsafe fn wait(
 }
 
 unsafe extern "C" fn unlock_notify_cb(ptr: *mut *mut c_void, len: c_int) {
-    let ptr = ptr as *mut &Notify;
+    let ptr = ptr as *mut *mut Notify;
     let slice = unsafe { slice::from_raw_parts(ptr, len as usize) };
 
-    for notify in slice {
-        notify.fire();
+    for &notify_ptr in slice {
+        unsafe { (&*notify_ptr).fire() };
     }
 }
 
