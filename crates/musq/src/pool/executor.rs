@@ -7,7 +7,6 @@ use crate::{
     Connection, QueryResult, Result, Row, Statement,
     executor::{Execute, Executor},
     pool::Pool,
-    try_stream,
 };
 
 impl<'p> Executor<'p> for &'_ Pool
@@ -20,15 +19,13 @@ where
     {
         let pool = self.clone();
 
-        Box::pin(try_stream! {
+        Box::pin(async_stream::try_stream! {
             let mut conn = pool.acquire().await?;
             let mut s = conn.fetch_many(query);
 
             while let Some(v) = s.try_next().await? {
-                r#yield!(v);
+                yield v;
             }
-
-            Ok(())
         })
     }
 

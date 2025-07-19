@@ -3,9 +3,6 @@ mod ustr;
 
 pub use musq_macros::*;
 
-#[macro_use]
-pub mod async_stream;
-
 mod column;
 mod debugfn;
 pub mod decode;
