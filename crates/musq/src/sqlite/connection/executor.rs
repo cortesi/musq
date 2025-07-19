@@ -6,7 +6,7 @@ use crate::{
     Either, QueryResult, Row,
     error::Error,
     executor::{Execute, Executor},
-    sqlite::{Connection, SqliteDataType, Statement},
+    sqlite::{Connection, Statement},
 };
 
 impl<'c> Executor<'c> for &'c mut Connection {
@@ -59,11 +59,7 @@ impl<'c> Executor<'c> for &'c mut Connection {
         })
     }
 
-    fn prepare_with<'e, 'q: 'e>(
-        self,
-        sql: &'q str,
-        _parameters: &[SqliteDataType],
-    ) -> BoxFuture<'e, Result<Statement, Error>>
+    fn prepare_with<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Statement, Error>>
     where
         'c: 'e,
     {

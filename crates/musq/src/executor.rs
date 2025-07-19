@@ -1,4 +1,4 @@
-use crate::{Arguments, QueryResult, Row, Statement, error::Error, sqlite};
+use crate::{Arguments, QueryResult, Row, Statement, error::Error};
 
 use either::Either;
 use futures_core::future::BoxFuture;
@@ -114,17 +114,12 @@ pub trait Executor<'c>: Send + Debug + Sized {
     where
         'c: 'e,
     {
-        self.prepare_with(query, &[])
+        self.prepare_with(query)
     }
 
-    /// Prepare the SQL query, with parameter type information, to inspect the
-    /// type information about its parameters and results.
+    /// Prepare the SQL query to inspect the type information about its parameters and results.
     ///
-    fn prepare_with<'e, 'q: 'e>(
-        self,
-        sql: &'q str,
-        parameters: &'e [sqlite::SqliteDataType],
-    ) -> BoxFuture<'e, Result<Statement, Error>>
+    fn prepare_with<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Statement, Error>>
     where
         'c: 'e;
 }

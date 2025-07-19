@@ -382,7 +382,6 @@ fn update_cached_statements_size(conn: &ConnectionState, size: &AtomicUsize) {
 // A oneshot channel where send completes only after the receiver receives the value.
 mod rendezvous_oneshot {
     use super::oneshot;
-    use futures_executor;
 
     #[derive(Debug)]
     pub struct Canceled;

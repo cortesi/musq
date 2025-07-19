@@ -3,7 +3,6 @@ use crate::{Error, encode::Encode, sqlite::statement::StatementHandle};
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
 
-
 #[derive(Debug)]
 pub enum ArgumentValue {
     Null,

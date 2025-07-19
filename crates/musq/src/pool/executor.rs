@@ -7,7 +7,7 @@ use crate::{
     Connection, QueryResult, Result, Row, Statement,
     executor::{Execute, Executor},
     pool::Pool,
-    sqlite, try_stream,
+    try_stream,
 };
 
 impl<'p> Executor<'p> for &'_ Pool
@@ -41,13 +41,9 @@ where
         Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
     }
 
-    fn prepare_with<'e, 'q: 'e>(
-        self,
-        sql: &'q str,
-        parameters: &'e [sqlite::SqliteDataType],
-    ) -> BoxFuture<'e, Result<Statement>> {
+    fn prepare_with<'e, 'q: 'e>(self, sql: &'q str) -> BoxFuture<'e, Result<Statement>> {
         let pool = self.clone();
 
-        Box::pin(async move { pool.acquire().await?.prepare_with(sql, parameters).await })
+        Box::pin(async move { pool.acquire().await?.prepare_with(sql).await })
     }
 }
