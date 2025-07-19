@@ -9,6 +9,7 @@ use crate::{
 };
 
 /// Implementation of [`Row`] for SQLite.
+#[derive(Clone)]
 pub struct Row {
     pub values: Box<[Value]>,
     pub columns: Arc<Vec<Column>>,
@@ -104,7 +105,7 @@ impl Row {
     }
 
     /// Get a single value from the row by column name.
-    pub fn get_value<'r, T>(&'r self, column: &str) -> Result<T>
+pub fn get_value<'r, T>(&'r self, column: &str) -> Result<T>
     where
         T: Decode<'r>,
     {
@@ -114,5 +115,11 @@ impl Row {
                 .get(column)
                 .ok_or_else(|| Error::ColumnNotFound(column.into()))?,
         )
+    }
+}
+
+impl<'r> crate::from_row::FromRow<'r> for Row {
+    fn from_row(_prefix: &str, row: &'r Row) -> Result<Self, Error> {
+        Ok(row.clone())
     }
 }

@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Column, IntoArguments, from_row, query, query_as, query_scalar, sqlite::Arguments};
+use crate::{Column, IntoArguments, from_row, query, sqlite::Arguments};
 
 mod compound;
 mod handle;
@@ -44,33 +44,45 @@ impl Statement {
         query::query_statement_with(self, arguments)
     }
 
-    pub fn query_as<O>(&self) -> query_as::QueryAs<O, Arguments>
+    pub fn query_as<O>(
+        &self,
+    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send, Arguments>
     where
-        O: for<'r> from_row::FromRow<'r>,
+        O: for<'r> from_row::FromRow<'r> + Send + Unpin,
     {
-        query_as::query_statement_as(self)
+        query::query_statement_as(self)
     }
 
-    pub fn query_as_with<'s, O, A>(&'s self, arguments: A) -> query_as::QueryAs<O, A>
+    pub fn query_as_with<'s, O, A>(
+        &'s self,
+        arguments: A,
+    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send, A>
     where
-        O: for<'r> from_row::FromRow<'r>,
+        O: for<'r> from_row::FromRow<'r> + Send + Unpin,
         A: IntoArguments,
     {
-        query_as::query_statement_as_with(self, arguments)
+        query::query_statement_as_with(self, arguments)
     }
 
-    pub fn query_scalar<O>(&self) -> query_scalar::QueryScalar<O, Arguments>
+    pub fn query_scalar<O>(
+        &self,
+    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send, Arguments>
     where
         (O,): for<'r> from_row::FromRow<'r>,
+        O: Send + Unpin,
     {
-        query_scalar::query_statement_scalar(self)
+        query::query_statement_scalar(self)
     }
 
-    pub fn query_scalar_with<'s, O, A>(&'s self, arguments: A) -> query_scalar::QueryScalar<O, A>
+    pub fn query_scalar_with<'s, O, A>(
+        &'s self,
+        arguments: A,
+    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send, A>
     where
         (O,): for<'r> from_row::FromRow<'r>,
+        O: Send + Unpin,
         A: IntoArguments,
     {
-        query_scalar::query_statement_scalar_with(self, arguments)
+        query::query_statement_scalar_with(self, arguments)
     }
 }
