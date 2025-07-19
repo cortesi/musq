@@ -2,10 +2,10 @@ use std::future::Future;
 use std::pin::Pin;
 use std::task::{Context, Poll};
 
-use futures_channel::mpsc;
 use futures_core::future::BoxFuture;
 use futures_core::stream::Stream;
-use futures_util::{FutureExt, SinkExt, pin_mut};
+use futures_util::{FutureExt, pin_mut};
+use tokio::sync::mpsc;
 
 use crate::error::Error;
 
@@ -21,12 +21,13 @@ impl<'a, T> TryAsyncStream<'a, T> {
         Fut: 'a + Future<Output = Result<(), Error>> + Send,
         T: 'a + Send,
     {
-        let (mut sender, receiver) = mpsc::channel(0);
+        let (sender, receiver) = mpsc::channel(1);
+        let err_sender = sender.clone();
 
-        let future = f(sender.clone());
+        let future = f(sender);
         let future = async move {
             if let Err(error) = future.await {
-                let _ = sender.send(Err(error)).await;
+                let _ = err_sender.send(Err(error)).await;
             }
 
             Ok(())
@@ -50,21 +51,20 @@ impl<'a, T> Stream for TryAsyncStream<'a, T> {
         // the future should be polled in tandem with the stream receiver
         let _ = future.poll(cx);
 
-        let receiver = &mut self.receiver;
-        pin_mut!(receiver);
+        let mut receiver = Pin::new(&mut self.receiver);
 
         // then we check to see if we have anything to return
-        receiver.poll_next(cx)
+        receiver.poll_recv(cx)
     }
 }
 
 #[macro_export]
 macro_rules! try_stream {
     ($($block:tt)*) => {
-        $crate::async_stream::TryAsyncStream::new(move |mut sender| async move {
+        $crate::async_stream::TryAsyncStream::new(move |sender| async move {
             macro_rules! r#yield {
                 ($v:expr) => {{
-                    let _ = futures_util::sink::SinkExt::send(&mut sender, Ok($v)).await;
+                    let _ = sender.send(Ok($v)).await;
                 }}
             }
 
