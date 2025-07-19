@@ -500,13 +500,11 @@ impl Musq {
     ///
     /// * First, it may need to wait for a permit from the semaphore, which grants it the privilege
     ///   of opening a connection or popping one from the idle queue.
-    /// * If an existing idle connection is acquired, by default it will be checked for liveness
+    /// * If an existing idle connection is acquired, it will be checked for liveness
     ///   and integrity before being returned, which may require executing a command on the
-    ///   connection. This can be disabled with [`test_before_acquire(false)`][Self::test_before_acquire].
-    ///     * If [`before_acquire`][Self::before_acquire] is set, that will also be executed.
+    ///   connection.
     /// * If a new connection needs to be opened, that will obviously require I/O, handshaking,
     ///   and initialization commands.
-    ///     * If [`after_connect`][Self::after_connect] is set, that will also be executed.
     pub fn acquire_timeout(mut self, timeout: Duration) -> Self {
         self.pool_acquire_timeout = timeout;
         self

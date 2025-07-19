@@ -103,14 +103,8 @@ impl Pool {
     /// gracefully handle cancellation here.
     ///
     /// However, if your workload is sensitive to dropped connections such as using an in-memory
-    /// SQLite database with a pool size of 1, you can pretty easily ensure that a cancelled
-    /// `acquire()` call will never drop connections by tweaking your [`Musq`] options:
-    ///
-    /// * Set `test_before_acquire(false)`
-    /// * Never set `before_acquire` or `after_connect`.
-    ///
-    /// This should eliminate any potential `.await` points between acquiring a connection and
-    /// returning it.
+    /// SQLite database with a pool size of 1, care should be taken to avoid cancelling
+    /// `acquire()` calls.
     pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection>> + 'static {
         let shared = self.0.clone();
         async move { shared.acquire().await.map(|conn| conn.reattach()) }

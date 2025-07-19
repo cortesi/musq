@@ -188,7 +188,7 @@ use crate::error::Error;
 ///     id: i32,
 ///     name: String,
 ///     #[musq(try_from = "i64")]
-///     bigIntInMySql: u64
+///     score: u64
 /// }
 /// ```
 pub trait FromRow<'r>: Sized {
