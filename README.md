@@ -127,7 +127,7 @@ FIXME: Add note on efficiently querying large blobs
 
 ## Why?
 
-Musq is a SQLite-focused fork of sqlx. The aims are to simplify and clean up the codebase, strip out un-needed features and complexity, add new features, improve testing and ergonomics, and support WASM.
+Musq is a SQLite-focused fork of SQLx. The aims are to simplify and clean up the codebase, strip out un-needed features and complexity, add new features, improve testing and ergonomics, and support WASM.
 
 
 ## Profiling

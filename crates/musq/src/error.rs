@@ -1,11 +1,11 @@
-//! Types for working with errors produced by SQLx.
+//! Types for working with errors produced by Musq.
 
 use std::io;
 use std::num::TryFromIntError;
 
 use crate::{SqliteDataType, sqlite, sqlite::error::SqliteError};
 
-/// A specialized `Result` type for SQLx.
+/// A specialized `Result` type for Musq.
 pub type Result<T, E = Error> = std::result::Result<T, E>;
 
 #[derive(thiserror::Error, Debug)]
@@ -28,7 +28,7 @@ impl From<String> for DecodeError {
     }
 }
 
-/// Represents all the ways a method can fail within SQLx.
+/// Represents all the ways a method can fail within Musq.
 #[derive(Debug, thiserror::Error)]
 #[non_exhaustive]
 pub enum Error {
@@ -42,7 +42,7 @@ pub enum Error {
 
     /// Unexpected or invalid data encountered while communicating with the database.
     ///
-    /// This should indicate there is a programming error in a SQLx driver or there
+    /// This should indicate there is a programming error in Musq or there
     /// is something corrupted with the connection to the database itself.
     #[error("encountered unexpected or invalid data: {0}")]
     Protocol(String),
