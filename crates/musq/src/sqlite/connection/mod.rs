@@ -6,9 +6,9 @@ use std::{
 };
 
 use futures_core::future::BoxFuture;
-use futures_intrusive::sync::MutexGuard;
 use futures_util::future;
 use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
+use tokio::sync::MutexGuard;
 
 use crate::{
     Result,

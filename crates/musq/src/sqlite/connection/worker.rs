@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
-use futures_channel::oneshot;
-use futures_intrusive::sync::{Mutex, MutexGuard};
+use tokio::sync::oneshot;
+use tokio::sync::{Mutex, MutexGuard};
 
 use crate::{
     Either, QueryResult, Row,
@@ -80,10 +80,11 @@ impl ConnectionWorker {
 
                 let shared = Arc::new(WorkerSharedState {
                     cached_statements_size: AtomicUsize::new(0),
-                    // note: must be fair because in `Command::UnlockDb` we unlock the mutex
-                    // and then immediately try to relock it; an unfair mutex would immediately
-                    // grant us the lock even if another task is waiting.
-                    conn: Mutex::new(conn, true),
+                    // note: this mutex is used to synchronize access to the
+                    // database from both the worker thread and async tasks.
+                    // tokio's mutex is fair so we do not need any additional
+                    // configuration here.
+                    conn: Mutex::new(conn),
                 });
                 let mut conn = shared.conn.try_lock().unwrap();
 
@@ -206,12 +207,14 @@ impl ConnectionWorker {
 
                             let res_ok = res.is_ok();
 
-                            if let Some(tx) = tx && tx.blocking_send(res).is_err() && res_ok {
-                                // The ROLLBACK was processed but not acknowledged. This means
-                                // that the `Transaction` doesn't know it was rolled back and
-                                // will try to rollback again on drop. We need to ignore that
-                                // rollback.
-                                ignore_next_start_rollback = true;
+                            if let Some(tx) = tx {
+                                if tx.blocking_send(res).is_err() && res_ok {
+                                    // The ROLLBACK was processed but not acknowledged. This means
+                                    // that the `Transaction` doesn't know it was rolled back and
+                                    // will try to rollback again on drop. We need to ignore that
+                                    // rollback.
+                                    ignore_next_start_rollback = true;
+                                }
                             }
                         }
                         Command::ClearCache { tx } => {
@@ -221,7 +224,7 @@ impl ConnectionWorker {
                         }
                         Command::UnlockDb => {
                             drop(conn);
-                            conn = futures_executor::block_on(shared.conn.lock());
+                            conn = shared.conn.blocking_lock();
                         }
                         Command::Shutdown { tx } => {
                             // drop the connection references before sending confirmation
@@ -378,7 +381,11 @@ fn update_cached_statements_size(conn: &ConnectionState, size: &AtomicUsize) {
 
 // A oneshot channel where send completes only after the receiver receives the value.
 mod rendezvous_oneshot {
-    use super::oneshot::{self, Canceled};
+    use super::oneshot;
+    use futures_executor;
+
+    #[derive(Debug)]
+    pub struct Canceled;
 
     pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
         let (inner_tx, inner_rx) = oneshot::channel();
@@ -393,7 +400,8 @@ mod rendezvous_oneshot {
         pub async fn send(self, value: T) -> Result<(), Canceled> {
             let (ack_tx, ack_rx) = oneshot::channel();
             self.inner.send((value, ack_tx)).map_err(|_| Canceled)?;
-            ack_rx.await
+            ack_rx.await.map_err(|_| Canceled)?;
+            Ok(())
         }
 
         pub fn blocking_send(self, value: T) -> Result<(), Canceled> {
@@ -407,7 +415,7 @@ mod rendezvous_oneshot {
 
     impl<T> Receiver<T> {
         pub async fn recv(self) -> Result<T, Canceled> {
-            let (value, ack_tx) = self.inner.await?;
+            let (value, ack_tx) = self.inner.await.map_err(|_| Canceled)?;
             ack_tx.send(()).map_err(|_| Canceled)?;
             Ok(value)
         }
