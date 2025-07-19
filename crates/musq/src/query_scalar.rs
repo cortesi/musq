@@ -1,13 +1,11 @@
-use either::Either;
-use futures_core::stream::BoxStream;
-use futures_util::{StreamExt, TryFutureExt, TryStreamExt};
+
 
 use crate::{
-    Arguments, IntoArguments, QueryResult, Statement,
+    Arguments, IntoArguments, Statement,
     encode::Encode,
-    error::Error,
-    executor::{Execute, Executor},
+    executor::Execute,
     from_row::FromRow,
+    query_common::QueryFetch,
     query_as::{QueryAs, query_as, query_as_with, query_statement_as, query_statement_as_with},
 };
 
@@ -45,80 +43,25 @@ impl<O> QueryScalar<O, Arguments> {
     }
 }
 
-// FIXME: This is very close, nearly 1:1 with `Map`
-// noinspection DuplicatedCode
-impl<O, A> QueryScalar<O, A>
+impl<O, A> QueryFetch for QueryScalar<O, A>
 where
     O: Send + Unpin,
     A: IntoArguments,
     (O,): Send + Unpin + for<'r> FromRow<'r>,
 {
-    /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'q, 'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
-    where
-        'q: 'e,
-        E: 'e + Executor<'c>,
-        A: 'q + 'e,
-        O: 'e,
-    {
-        self.inner.fetch(executor).map_ok(|it| it.0).boxed()
-    }
+    type Raw = (O,);
+    type Output = O;
+    type Args = A;
 
-    /// Execute multiple queries and return the generated results as a stream
-    /// from each query, in a stream.
-    pub fn fetch_many<'q, 'e, 'c: 'e, E>(
-        self,
-        executor: E,
-    ) -> BoxStream<'e, Result<Either<QueryResult, O>, Error>>
-    where
-        'q: 'e,
-        E: 'e + Executor<'c>,
-        A: 'q + 'e,
-        O: 'e,
-    {
+    fn into_query(self) -> QueryAs<Self::Raw, Self::Args> {
         self.inner
-            .fetch_many(executor)
-            .map_ok(|v| v.map_right(|it| it.0))
-            .boxed()
     }
 
-    /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
-    where
-        'q: 'e,
-        E: 'e + Executor<'c>,
-        (O,): 'e,
-        A: 'q + 'e,
-    {
-        self.inner
-            .fetch(executor)
-            .map_ok(|it| it.0)
-            .try_collect()
-            .await
-    }
-
-    /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
-    where
-        'q: 'e,
-        E: 'e + Executor<'c>,
-        O: 'e,
-        A: 'q + 'e,
-    {
-        self.inner.fetch_one(executor).map_ok(|it| it.0).await
-    }
-
-    /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Option<O>, Error>
-    where
-        'q: 'e,
-        E: 'e + Executor<'c>,
-        O: 'e,
-        A: 'q + 'e,
-    {
-        Ok(self.inner.fetch_optional(executor).await?.map(|it| it.0))
+    fn map(raw: Self::Raw) -> Self::Output {
+        raw.0
     }
 }
+
 
 /// Make a SQL query that is mapped to a single concrete type
 /// using [`FromRow`].

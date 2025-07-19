@@ -18,6 +18,7 @@ mod musq;
 pub mod pool;
 pub mod query;
 mod query_as;
+mod query_common;
 mod query_result;
 mod query_scalar;
 mod row;
@@ -37,6 +38,7 @@ pub use crate::{
     pool::Pool,
     query::{query, query_with},
     query_as::{query_as, query_as_with},
+    query_common::QueryFetch,
     query_result::QueryResult,
     query_scalar::{query_scalar, query_scalar_with},
     row::Row,
