@@ -120,8 +120,6 @@ pub trait Executor<'c>: Send + Debug + Sized {
     /// Prepare the SQL query, with parameter type information, to inspect the
     /// type information about its parameters and results.
     ///
-    /// Only some database drivers (PostgreSQL, MSSQL) can take advantage of
-    /// this extra information to influence parameter type inference.
     fn prepare_with<'e, 'q: 'e>(
         self,
         sql: &'q str,
