@@ -17,7 +17,6 @@ edition.workspace = true
 
 [workspace.dependencies]
 musq = { path = "musq" }
-musq-macros-core = { path = "musq-macros-core" }
 musq-macros = { path = "musq-macros" }
 
 [dependencies]
