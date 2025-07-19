@@ -10,7 +10,6 @@ use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
     SQLITE_OK, SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_prepare_v3, sqlite3_stmt,
 };
-use smallvec::SmallVec;
 
 use crate::{
     Column,
@@ -35,14 +34,13 @@ pub struct CompoundStatement {
 
     /// underlying sqlite handles for each inner statement
     /// a SQL query string in SQLite is broken up into N statements
-    /// we use a [`SmallVec`] to optimize for the most likely case of a single statement
-    handles: SmallVec<[StatementHandle; 1]>,
+    handles: Vec<StatementHandle>,
 
     // each set of columns
-    columns: SmallVec<[Arc<Vec<Column>>; 1]>,
+    columns: Vec<Arc<Vec<Column>>>,
 
     // each set of column names
-    column_names: SmallVec<[Arc<HashMap<UStr, usize>>; 1]>,
+    column_names: Vec<Arc<HashMap<UStr, usize>>>,
 }
 
 pub struct PreparedStatement<'a> {
@@ -64,10 +62,10 @@ impl CompoundStatement {
 
         Ok(Self {
             tail: Bytes::from(String::from(query)),
-            handles: SmallVec::with_capacity(1),
+            handles: Vec::new(),
             index: None,
-            columns: SmallVec::with_capacity(1),
-            column_names: SmallVec::with_capacity(1),
+            columns: Vec::new(),
+            column_names: Vec::new(),
         })
     }
 

@@ -1122,7 +1122,6 @@ dependencies = [
  "rand_xoshiro",
  "serde",
  "serde_json",
- "smallvec",
  "sqlformat",
  "tempdir",
  "thiserror",

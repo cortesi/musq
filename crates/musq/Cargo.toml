@@ -35,7 +35,6 @@ serde = { version = "1.0.132", features = ["derive", "rc"] }
 sqlformat = "0.3.5"
 thiserror = "2.0.12"
 tracing = { version = "0.1.37", features = ["log"] }
-smallvec = "1.7.0"
 bstr = { version = "1.0", default-features = false, features = ["std"] }
 hashlink = "0.10.0"
 indexmap = "2.0"
