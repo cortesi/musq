@@ -1,8 +1,6 @@
 // Allow approximate constants in this test file - we're testing specific float representations
 #![allow(clippy::approx_constant)]
 
-extern crate time_ as time;
-
 use musq_test::test_type;
 
 test_type!(null<Option<i32>>(

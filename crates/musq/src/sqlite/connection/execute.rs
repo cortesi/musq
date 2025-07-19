@@ -32,7 +32,7 @@ pub(crate) fn iter<'a>(
     let logger: Box<dyn QueryLog + 'a> = if conn.log_settings.is_enabled() {
         Box::new(QueryLogger::new(query, conn.log_settings.clone()))
     } else {
-        Box::new(NopQueryLogger::default())
+        Box::new(NopQueryLogger)
     };
 
     Ok(ExecuteIter {

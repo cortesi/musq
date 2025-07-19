@@ -11,9 +11,8 @@ use libsqlite3_sys::{
     sqlite3_bind_int64, sqlite3_bind_null, sqlite3_bind_parameter_count,
     sqlite3_bind_parameter_name, sqlite3_bind_text64, sqlite3_changes, sqlite3_clear_bindings,
     sqlite3_column_blob, sqlite3_column_bytes, sqlite3_column_count, sqlite3_column_decltype,
-    sqlite3_column_double, sqlite3_column_int, sqlite3_column_int64, sqlite3_column_name,
-    sqlite3_column_type, sqlite3_column_value, sqlite3_db_handle, sqlite3_finalize, sqlite3_reset,
-    sqlite3_step, sqlite3_stmt, sqlite3_value,
+    sqlite3_column_double, sqlite3_column_int64, sqlite3_column_name, sqlite3_column_type,
+    sqlite3_db_handle, sqlite3_finalize, sqlite3_reset, sqlite3_step, sqlite3_stmt,
 };
 
 use crate::sqlite::SqliteError;
@@ -157,14 +156,6 @@ impl StatementHandle {
 
     pub(crate) fn column_type(&self, index: usize) -> c_int {
         unsafe { sqlite3_column_type(self.0.as_ptr(), index as c_int) }
-    }
-
-    pub(crate) fn column_value(&self, index: usize) -> *mut sqlite3_value {
-        unsafe { sqlite3_column_value(self.0.as_ptr(), index as c_int) }
-    }
-
-    pub(crate) fn column_int(&self, index: usize) -> i32 {
-        unsafe { sqlite3_column_int(self.0.as_ptr(), index as c_int) }
     }
 
     pub(crate) fn column_int64(&self, index: usize) -> i64 {
