@@ -205,6 +205,12 @@ impl StatementHandle {
                         // (https://www.sqlite.org/unlock_notify.html)
                         sqlite3_reset(self.0.as_ptr());
                     }
+                    libsqlite3_sys::SQLITE_BUSY => {
+                        // Another connection holds a lock that prevented the step from
+                        // completing. Wait for an unlock notification and retry.
+                        unlock_notify::wait(self.db_handle())?;
+                        sqlite3_reset(self.0.as_ptr());
+                    }
                     _ => return Err(SqliteError::new(self.db_handle())),
                 }
             }
