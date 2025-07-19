@@ -879,3 +879,27 @@ async fn it_binds_strings() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn it_fails_on_missing_bind() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+
+    let res = musq::query("select ?1, ?2, ?4")
+        .bind(10_i32)
+        .bind(11_i32)
+        .fetch_one(&mut conn)
+        .await;
+
+    assert!(res.is_err());
+
+    let err = res.err().unwrap();
+
+    match err {
+        Error::Protocol(msg) => {
+            assert!(msg.contains("index is 4"));
+        }
+        _ => panic!("expected protocol error, got {err:?}"),
+    }
+
+    Ok(())
+}

@@ -102,10 +102,11 @@ impl Arguments {
             };
 
             if n > self.values.len() {
-                // SQLite treats unbound variables as NULL we reproduce this here. If you are reading this and think
-                // this should be an error, open an issue and we can discuss configuring this somehow. Note that the
-                // query macros have a different way of enforcing argument arity.
-                break;
+                return Err(Error::Protocol(format!(
+                    "bind parameter index out of bounds: the len is {}, but the index is {}",
+                    self.values.len(),
+                    n
+                )));
             }
 
             self.values[n - 1].bind(handle, param_i)?;
