@@ -7,7 +7,7 @@ use crate::{
 
 impl Encode for &[u8] {
     fn encode(self) -> ArgumentValue {
-        ArgumentValue::Blob(Arc::new(self.to_owned()))
+        ArgumentValue::Blob(self.to_owned())
     }
 }
 
@@ -20,7 +20,7 @@ impl<'r> Decode<'r> for &'r [u8] {
 
 impl Encode for Vec<u8> {
     fn encode(self) -> ArgumentValue {
-        ArgumentValue::Blob(Arc::new(self))
+        ArgumentValue::Blob(self)
     }
 }
 
@@ -33,7 +33,7 @@ impl<'r> Decode<'r> for Vec<u8> {
 
 impl Encode for Arc<Vec<u8>> {
     fn encode(self) -> ArgumentValue {
-        ArgumentValue::Blob(self.clone())
+        ArgumentValue::Blob((*self).clone())
     }
 }
 

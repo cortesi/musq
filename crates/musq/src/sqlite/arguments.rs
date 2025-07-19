@@ -3,13 +3,12 @@ use crate::{Error, encode::Encode, sqlite::statement::StatementHandle};
 use atoi::atoi;
 use libsqlite3_sys::SQLITE_OK;
 
-use std::sync::Arc;
 
 #[derive(Debug)]
 pub enum ArgumentValue {
     Null,
-    Text(Arc<String>),
-    Blob(Arc<Vec<u8>>),
+    Text(String),
+    Blob(Vec<u8>),
     Double(f64),
     Int(i32),
     Int64(i64),
@@ -83,7 +82,7 @@ impl ArgumentValue {
 
         let status = match self {
             Text(v) => handle.bind_text(i, v.as_str()),
-            Blob(v) => handle.bind_blob(i, v),
+            Blob(v) => handle.bind_blob(i, v.as_slice()),
             Int(v) => handle.bind_int(i, *v),
             Int64(v) => handle.bind_int64(i, *v),
             Double(v) => handle.bind_double(i, *v),

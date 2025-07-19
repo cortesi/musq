@@ -7,7 +7,7 @@ use crate::{
 
 impl Encode for &str {
     fn encode(self) -> ArgumentValue {
-        ArgumentValue::Text(Arc::new(self.to_owned()))
+        ArgumentValue::Text(self.to_owned())
     }
 }
 
@@ -20,7 +20,7 @@ impl<'r> Decode<'r> for &'r str {
 
 impl Encode for String {
     fn encode(self) -> ArgumentValue {
-        ArgumentValue::Text(Arc::new(self))
+        ArgumentValue::Text(self)
     }
 }
 
@@ -33,7 +33,7 @@ impl<'r> Decode<'r> for String {
 
 impl Encode for Arc<String> {
     fn encode(self) -> ArgumentValue {
-        ArgumentValue::Text(self.clone())
+        ArgumentValue::Text((*self).clone())
     }
 }
 

@@ -26,7 +26,7 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
                          "failed to encode value as JSON; the most likely cause is \
                          attempting to serialize a map with a non-string key type"
                 );
-                musq::ArgumentValue::Text(std::sync::Arc::new(v))
+                musq::ArgumentValue::Text(v)
             }
         }
 

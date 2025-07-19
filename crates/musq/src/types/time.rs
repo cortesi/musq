@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use crate::{
     Value, compatible,
     decode::Decode,
@@ -13,28 +11,28 @@ pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Encode for OffsetDateTime {
     fn encode(self) -> ArgumentValue {
-        ArgumentValue::Text(Arc::new(self.format(&Rfc3339).unwrap()))
+        ArgumentValue::Text(self.format(&Rfc3339).unwrap())
     }
 }
 
 impl Encode for PrimitiveDateTime {
     fn encode(self) -> ArgumentValue {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
-        ArgumentValue::Text(Arc::new(self.format(&format).unwrap()))
+        ArgumentValue::Text(self.format(&format).unwrap())
     }
 }
 
 impl Encode for Date {
     fn encode(self) -> ArgumentValue {
         let format = fd!("[year]-[month]-[day]");
-        ArgumentValue::Text(Arc::new(self.format(&format).unwrap()))
+        ArgumentValue::Text(self.format(&format).unwrap())
     }
 }
 
 impl Encode for Time {
     fn encode(self) -> ArgumentValue {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
-        ArgumentValue::Text(Arc::new(self.format(&format).unwrap()))
+        ArgumentValue::Text(self.format(&format).unwrap())
     }
 }
 
