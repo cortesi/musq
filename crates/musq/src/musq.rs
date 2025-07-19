@@ -198,7 +198,7 @@ impl Musq {
             vfs: None,
             pragmas,
             serialized: false,
-            thread_name: Arc::new(DebugFn(|id| format!("sqlx-sqlite-worker-{id}"))),
+            thread_name: Arc::new(DebugFn(|id| format!("musq-worker-{id}"))),
             command_channel_size: 50,
             row_channel_size: 50,
             optimize_on_close: OptimizeOnClose::Disabled,
