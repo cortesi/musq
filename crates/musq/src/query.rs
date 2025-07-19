@@ -263,19 +263,17 @@ where
         F: 'e,
         O: 'e,
     {
-        Box::pin(try_stream! {
+        Box::pin(async_stream::try_stream! {
             let mut s = executor.fetch_many(self.inner);
 
             while let Some(v) = s.try_next().await? {
-                r#yield!(match v {
+                yield match v {
                     Either::Left(v) => Either::Left(v),
                     Either::Right(row) => {
                         Either::Right((self.mapper)(row)?)
                     }
-                });
+                };
             }
-
-            Ok(())
         })
     }
 
