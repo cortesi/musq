@@ -31,7 +31,7 @@ mod worker;
 
 /// A connection to an open [Sqlite] database.
 ///
-/// Because SQLite is an in-process database accessed by blocking API calls, SQLx uses a background
+/// Because SQLite is an in-process database accessed by blocking API calls, Musq uses a background
 /// thread and communicates with it via channels to allow non-blocking access to the database.
 ///
 /// Dropping this struct will signal the worker thread to quit and close the database, though
@@ -252,7 +252,7 @@ impl LockedSqliteHandle<'_> {
     /// However, we reserve the right to upgrade `libsqlite3-sys` as necessary.
     ///
     /// Thus, if you are making direct calls via `libsqlite3-sys` you should pin the version
-    /// of SQLx that you're using, and upgrade it and `libsqlite3-sys` manually as new
+    /// of Musq that you're using, and upgrade it and `libsqlite3-sys` manually as new
     /// versions are released.
     pub fn as_raw_handle(&mut self) -> NonNull<sqlite3> {
         self.guard.handle.as_non_null_ptr()

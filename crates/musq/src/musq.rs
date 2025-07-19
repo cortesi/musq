@@ -225,7 +225,7 @@ impl Musq {
 
     /// Set the enforcement of [foreign key constraints](https://www.sqlite.org/pragma.html#pragma_foreign_keys).
     ///
-    /// SQLx chooses to enable this by default so that foreign keys function as expected,
+    /// Musq enables this by default so that foreign keys function as expected,
     /// compared to other database flavors.
     pub fn foreign_keys(self, on: bool) -> Self {
         self.pragma("foreign_keys", if on { "ON" } else { "OFF" })
@@ -252,13 +252,13 @@ impl Musq {
     /// You may get a `database is locked` (corresponding to `SQLITE_BUSY`) error if another
     /// connection is accessing the database file at the same time.
     ///
-    /// SQLx does not set a journal mode by default, to avoid unintentionally changing a database
+    /// Musq does not set a journal mode by default, to avoid unintentionally changing a database
     /// into or out of WAL mode.
     ///
     /// The default journal mode for non-WAL databases is `DELETE`, or `MEMORY` for in-memory
     /// databases.
     ///
-    /// For consistency, any commands in `sqlx-cli` which create a SQLite database will create it
+    /// For consistency, any commands in `musq-cli` which create a SQLite database will create it
     /// in WAL mode.
     pub fn journal_mode(self, mode: JournalMode) -> Self {
         self.pragma("journal_mode", mode.as_str())
@@ -363,7 +363,7 @@ impl Musq {
     ///
     /// If you do end up needing to set this to `true` for some reason, please
     /// [open an issue](https://github.com/launchbadge/sqlx/issues/new/choose) as this may indicate
-    /// a concurrency bug in SQLx. Please provide clear instructions for reproducing the issue,
+    /// a concurrency bug in Musq. Please provide clear instructions for reproducing the issue,
     /// including a sample database schema if applicable.
     pub fn serialized(mut self, serialized: bool) -> Self {
         self.serialized = serialized;
