@@ -122,6 +122,36 @@ thread sharing. This is usually fine, but if `s` is large, we can avoid the copy
 
 FIXME: Add note on efficiently querying large blobs
 
+## Named parameters
+
+Musq supports the standard SQLite parameter syntax with `:name` and `@name` in
+addition to positional placeholders. Values can be supplied positionally using
+[`bind`](#) or directly by name with [`bind_named`]:
+
+```rust
+query("SELECT :foo, @bar")
+    .bind_named(":foo", 1)
+    .bind_named("@bar", 2);
+```
+
+If the same name appears multiple times it is bound from the first matching
+value.
+
+Named parameters can be mixed freely with positional placeholders and used in
+normal SQL statements:
+
+```rust
+query("INSERT INTO users (id, name) VALUES (:id, ?)")
+    .bind_named("id", 5_i32)
+    .bind("Bob");
+
+let (name,): (String,) = query_as("SELECT name FROM users WHERE id = :id")
+    .bind_named("id", 5_i32)
+    .fetch_one(&mut conn)
+    .await?;
+assert_eq!(name, "Bob");
+```
+
 # Development
 
 
