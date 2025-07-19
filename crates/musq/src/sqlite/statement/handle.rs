@@ -55,13 +55,15 @@ impl StatementHandle {
         unsafe { sqlite3_changes(self.db_handle()) as u64 }
     }
 
-    pub(crate) fn column_name(&self, index: usize) -> &str {
+    pub(crate) fn column_name(&self, index: usize) -> Result<&str, SqliteError> {
         // https://sqlite.org/c3ref/column_name.html
         unsafe {
             let name = sqlite3_column_name(self.0.as_ptr(), index as c_int);
-            debug_assert!(!name.is_null());
+            if name.is_null() {
+                return Err(self.last_error());
+            }
 
-            from_utf8_unchecked(CStr::from_ptr(name).to_bytes())
+            Ok(from_utf8_unchecked(CStr::from_ptr(name).to_bytes()))
         }
     }
 

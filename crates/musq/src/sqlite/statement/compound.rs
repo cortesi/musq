@@ -97,7 +97,7 @@ impl CompoundStatement {
                     let mut column_names = HashMap::with_capacity(num);
 
                     for i in 0..num {
-                        let name: UStr = statement.column_name(i).to_owned().into();
+                        let name: UStr = statement.column_name(i)?.to_owned().into();
                         let type_info = statement
                             .column_decltype(i)
                             .unwrap_or_else(|| statement.column_type_info(i));
