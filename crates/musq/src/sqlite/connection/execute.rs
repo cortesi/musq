@@ -114,7 +114,7 @@ impl Iterator for ExecuteIter<'_> {
 
                 Some(Ok(Either::Left(done)))
             }
-            Err(e) => Some(Err(e.into())),
+            Err(e) => Some(Err(e)),
         }
     }
 }
