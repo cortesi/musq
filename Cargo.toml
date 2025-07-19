@@ -1,5 +1,6 @@
 [workspace]
 members = [ "crates/*" ]
+resolver = "3"
 
 [workspace.package]
 version = "0.0.1"
@@ -10,37 +11,6 @@ keywords = ["database", "async", "sqlite"]
 categories = ["database", "asynchronous"]
 authors = ["Aldo Cortesi <aldo@corte.si>"]
 
-[package]
-name = "tests"
-version.workspace = true
-edition.workspace = true
-
 [workspace.dependencies]
 musq = { path = "crates/musq" }
 musq-macros = { path = "crates/musq-macros" }
-
-[dependencies]
-musq = { workspace = true }
-musq-macros = { workspace = true }
-
-[dev-dependencies]
-anyhow = "1.0.52"
-time_ = { version = "0.3.2", package = "time" }
-futures = "0.3.19"
-env_logger = "0.11.3"
-tokio = { version = "1.15.0", features = ["full"] }
-musq-test = { path = "./crates/musq-test" }
-paste = "1.0.6"
-serde = { version = "1.0.132", features = ["derive"] }
-serde_json = "1.0.73"
-url = "2.2.2"
-rand = "0.9.0"
-rand_xoshiro = "0.7.0"
-hex = "0.4.3"
-tempdir = "0.3.7"
-criterion = { version = "0.6", features = ["async_tokio"] }
-pprof = { version = "0.15.0", features = ["flamegraph", "criterion"] }
-
-[[bench]]
-name = "benchmark"
-harness = false

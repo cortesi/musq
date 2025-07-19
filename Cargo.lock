@@ -1093,31 +1093,43 @@ dependencies = [
 name = "musq"
 version = "0.0.1"
 dependencies = [
+ "anyhow",
  "atoi",
  "bstr",
  "bytes",
+ "criterion 0.6.0",
  "crossbeam-queue",
  "either",
+ "env_logger",
  "event-listener",
  "flume",
+ "futures",
  "futures-channel",
  "futures-core",
  "futures-executor",
  "futures-intrusive",
  "futures-util",
  "hashlink",
+ "hex",
  "indexmap",
  "libsqlite3-sys",
  "log",
  "musq-macros",
  "musq-test",
+ "paste",
+ "pprof",
+ "rand 0.9.1",
+ "rand_xoshiro",
  "serde",
+ "serde_json",
  "smallvec",
  "sqlformat",
+ "tempdir",
  "thiserror",
  "time",
  "tokio",
  "tracing",
+ "url",
 ]
 
 [[package]]
@@ -1783,30 +1795,6 @@ dependencies = [
  "once_cell",
  "rustix",
  "windows-sys 0.59.0",
-]
-
-[[package]]
-name = "tests"
-version = "0.0.1"
-dependencies = [
- "anyhow",
- "criterion 0.6.0",
- "env_logger",
- "futures",
- "hex",
- "musq",
- "musq-macros",
- "musq-test",
- "paste",
- "pprof",
- "rand 0.9.1",
- "rand_xoshiro",
- "serde",
- "serde_json",
- "tempdir",
- "time",
- "tokio",
- "url",
 ]
 
 [[package]]
