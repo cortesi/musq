@@ -18,11 +18,9 @@ use crate::{
     },
 };
 
-// Each SQLite connection has a dedicated thread.
-
-// TODO: Tweak this so that we can use a thread pool per pool of SQLite3 connections to reduce
-//       OS resource usage. Low priority because a high concurrent load for SQLite3 is very
-//       unlikely.
+// Each SQLite connection has a dedicated thread. It's possible to create a worker pool for this,
+// but given typical application usage patterns for SQLite, the simplicity of a single-threaded
+// worker is preferred.
 
 pub(crate) struct ConnectionWorker {
     command_tx: flume::Sender<Command>,
