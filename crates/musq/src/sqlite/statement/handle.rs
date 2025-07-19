@@ -222,6 +222,18 @@ impl Drop for StatementHandle {
     fn drop(&mut self) {
         // SAFETY: we have exclusive access to the `StatementHandle` here
         unsafe {
+            let db = self.db_handle();
+
+            // Ensure the statement is reset before finalizing so that
+            // sqlite3_finalize does not return SQLITE_BUSY.
+            let reset_status = sqlite3_reset(self.0.as_ptr());
+            if reset_status != SQLITE_OK {
+                tracing::error!(
+                    "sqlite3_reset before finalize failed: {}",
+                    SqliteError::new(db)
+                );
+            }
+
             // https://sqlite.org/c3ref/finalize.html
             let status = sqlite3_finalize(self.0.as_ptr());
             if status == SQLITE_MISUSE {
@@ -232,6 +244,8 @@ impl Drop for StatementHandle {
                 // sqlite3_finalize on already finalized
                 // statement.
                 panic!("Detected sqlite3_finalize misuse.");
+            } else if status != SQLITE_OK {
+                tracing::error!("sqlite3_finalize failed: {}", SqliteError::new(db));
             }
         }
     }
