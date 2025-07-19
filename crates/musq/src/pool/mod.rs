@@ -49,7 +49,8 @@ pub use self::maybe::MaybePoolConnection;
 /// The pool has a maximum connection limit that it will not exceed; if `acquire()` is called when at this limit and all
 /// connections are checked out, the task will be made to wait until a connection becomes available.
 ///
-/// You can configure the connection limit, and other parameters, using [PoolOptions][crate::pool::PoolOptions].
+/// You can configure the connection limit, and other parameters, using the
+/// [`Musq`](crate::Musq) configuration API.
 ///
 /// Calls to `acquire()` are fair, i.e. fulfilled on a first-come, first-serve basis.
 ///
@@ -91,7 +92,7 @@ impl Pool {
     /// Retrieves a connection from the pool.
     ///
     /// The total time this method is allowed to execute is capped by
-    /// [`PoolOptions::acquire_timeout`].
+    /// [`Musq::acquire_timeout`].
     /// If that timeout elapses, this will return [`Error::PoolClosed`].
     ///
     /// ### Note: Cancellation/Timeout May Drop Connections
@@ -103,11 +104,10 @@ impl Pool {
     ///
     /// However, if your workload is sensitive to dropped connections such as using an in-memory
     /// SQLite database with a pool size of 1, you can pretty easily ensure that a cancelled
-    /// `acquire()` call will never drop connections by tweaking your [`PoolOptions`]:
+    /// `acquire()` call will never drop connections by tweaking your [`Musq`] options:
     ///
-    /// * Set [`test_before_acquire(false)`][PoolOptions::test_before_acquire]
-    /// * Never set [`before_acquire`][PoolOptions::before_acquire] or
-    ///   [`after_connect`][PoolOptions::after_connect].
+    /// * Set `test_before_acquire(false)`
+    /// * Never set `before_acquire` or `after_connect`.
     ///
     /// This should eliminate any potential `.await` points between acquiring a connection and
     /// returning it.

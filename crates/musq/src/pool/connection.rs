@@ -80,15 +80,13 @@ impl PoolConnection {
     /// Detach this connection from the pool, allowing it to open a replacement.
     ///
     /// Note that if your application uses a single shared pool, this
-    /// effectively lets the application exceed the [`max_connections`] setting.
+    /// effectively lets the application exceed the `max_connections` setting.
     ///
-    /// If [`min_connections`] is nonzero, a task will be spawned to replace this connection.
+    /// If `min_connections` is nonzero, a task will be spawned to replace this connection.
     ///
     /// If you want the pool to treat this connection as permanently checked-out,
     /// use [`.leak()`][Self::leak] instead.
     ///
-    /// [`max_connections`]: crate::pool::PoolOptions::max_connections
-    /// [`min_connections`]: crate::pool::PoolOptions::min_connections
     pub fn detach(mut self) -> Connection {
         self.take_live().float(self.pool.clone()).detach()
     }
