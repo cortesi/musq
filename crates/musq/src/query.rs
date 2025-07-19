@@ -67,6 +67,13 @@ impl Query<Arguments> {
     }
 }
 
+impl<F> Map<F, Arguments> {
+    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Self {
+        self.inner = self.inner.bind(value);
+        self
+    }
+}
+
 impl<A: Send> Query<A>
 where
     A: IntoArguments,
@@ -75,8 +82,8 @@ where
     ///
     /// See [`try_map`](Query::try_map) for a fallible version of this method.
     ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    /// The [`query_as`](crate::query_as) function will construct a mapped query using
+    /// a [`FromRow`](crate::FromRow) implementation.
     pub fn map<F, O>(self, mut f: F) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
     where
         F: FnMut(Row) -> O + Send,
@@ -87,8 +94,8 @@ where
 
     /// Map each row in the result to another type.
     ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    /// The [`query_as`](crate::query_as) function will construct a mapped query using
+    /// a [`FromRow`](crate::FromRow) implementation.
     pub fn try_map<F, O>(self, f: F) -> Map<F, A>
     where
         F: FnMut(Row) -> Result<O, Error> + Send,
@@ -205,8 +212,8 @@ where
     ///
     /// See [`try_map`](Map::try_map) for a fallible version of this method.
     ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    /// The [`query_as`](crate::query_as) function will construct a mapped query using
+    /// a [`FromRow`](crate::FromRow) implementation.
     pub fn map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> P + Send,
@@ -217,8 +224,8 @@ where
 
     /// Map each row in the result to another type.
     ///
-    /// The [`query_as`](super::query_as::query_as) method will construct a mapped query using
-    /// a [`FromRow`](super::from_row::FromRow) implementation.
+    /// The [`query_as`](crate::query_as) function will construct a mapped query using
+    /// a [`FromRow`](crate::FromRow) implementation.
     pub fn try_map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send, A>
     where
         G: FnMut(O) -> Result<P, Error> + Send,
@@ -364,4 +371,70 @@ where
         arguments: Some(arguments),
         statement: Either::Left(sql.to_string()),
     }
+}
+
+use crate::from_row::FromRow;
+
+pub fn query_as<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+where
+    O: Send + Unpin + for<'r> FromRow<'r>,
+{
+    query(sql).try_map(|row| O::from_row("", &row))
+}
+
+pub fn query_as_with<'q, O, A>(sql: &'q str, arguments: A) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+where
+    A: IntoArguments,
+    O: Send + Unpin + for<'r> FromRow<'r>,
+{
+    query_with(sql, arguments).try_map(|row| O::from_row("", &row))
+}
+
+pub fn query_statement_as<'q, O>(statement: &'q Statement) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+where
+    O: Send + Unpin + for<'r> FromRow<'r>,
+{
+    query_statement(statement).try_map(|row| O::from_row("", &row))
+}
+
+pub fn query_statement_as_with<'q, O, A>(statement: &'q Statement, arguments: A) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+where
+    A: IntoArguments,
+    O: Send + Unpin + for<'r> FromRow<'r>,
+{
+    query_statement_with(statement, arguments).try_map(|row| O::from_row("", &row))
+}
+
+pub fn query_scalar<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+where
+    (O,): for<'r> FromRow<'r>,
+    O: Send + Unpin,
+{
+    query_as(sql).map(|(o,)| o)
+}
+
+pub fn query_scalar_with<'q, O, A>(sql: &'q str, arguments: A) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+where
+    A: IntoArguments,
+    (O,): for<'r> FromRow<'r>,
+    O: Send + Unpin,
+{
+    query_as_with(sql, arguments).map(|(o,)| o)
+}
+
+pub fn query_statement_scalar<'q, O>(statement: &'q Statement) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+where
+    (O,): for<'r> FromRow<'r>,
+    O: Send + Unpin,
+{
+    query_statement_as(statement).map(|(o,)| o)
+}
+
+pub fn query_statement_scalar_with<'q, O, A>(statement: &'q Statement, arguments: A) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+where
+    A: IntoArguments,
+    (O,): for<'r> FromRow<'r>,
+    O: Send + Unpin,
+{
+    query_statement_as_with(statement, arguments).map(|(o,)| o)
 }

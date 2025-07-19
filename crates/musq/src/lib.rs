@@ -14,10 +14,7 @@ mod logger;
 mod musq;
 pub mod pool;
 pub mod query;
-mod query_as;
-mod query_common;
 mod query_result;
-mod query_scalar;
 mod row;
 mod statement_cache;
 mod transaction;
@@ -33,11 +30,10 @@ pub use crate::{
     from_row::FromRow,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::Pool,
-    query::{query, query_with},
-    query_as::{query_as, query_as_with},
-    query_common::QueryFetch,
+    query::{
+        query, query_as, query_as_with, query_scalar, query_scalar_with, query_with,
+    },
     query_result::QueryResult,
-    query_scalar::{query_scalar, query_scalar_with},
     row::Row,
     sqlite::{
         ArgumentValue, Arguments, Connection, IntoArguments, SqliteDataType, SqliteError,
