@@ -400,6 +400,22 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn it_respects_statement_cache_capacity() -> anyhow::Result<()> {
+    let options = Musq::new().statement_cache_capacity(1);
+    let mut conn = options.open_in_memory().await?;
+
+    // first query populates cache
+    conn.fetch_one("SELECT 1 AS val").await?;
+    assert_eq!(1, conn.cached_statements_size());
+
+    // second query should evict the first due to capacity of 1
+    conn.fetch_one("SELECT 2 AS val").await?;
+    assert_eq!(1, conn.cached_statements_size());
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
     let mut tx = conn.begin().await?;

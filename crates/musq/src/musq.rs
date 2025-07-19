@@ -121,6 +121,8 @@ pub struct Musq {
     pub(crate) command_channel_size: usize,
     pub(crate) row_channel_size: usize,
 
+    pub(crate) statement_cache_capacity: usize,
+
     pub(crate) serialized: bool,
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
 
@@ -201,6 +203,7 @@ impl Musq {
             thread_name: Arc::new(DebugFn(|id| format!("musq-worker-{id}"))),
             command_channel_size: 50,
             row_channel_size: 50,
+            statement_cache_capacity: crate::statement_cache::DEFAULT_CAPACITY,
             optimize_on_close: OptimizeOnClose::Disabled,
             pool_acquire_timeout: Duration::from_secs(30),
             pool_max_connections: 10,
@@ -395,6 +398,12 @@ impl Musq {
     /// in order to limit CPU and memory usage.
     pub fn row_buffer_size(mut self, size: usize) -> Self {
         self.row_channel_size = size;
+        self
+    }
+
+    /// Set the maximum size of the statement cache for each connection.
+    pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
+        self.statement_cache_capacity = capacity;
         self
     }
 
