@@ -55,3 +55,6 @@ pub fn derive_from_row(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
         Err(e) => e.to_compile_error().into(),
     }
 }
+
+#[cfg(test)]
+mod tests;
