@@ -3,35 +3,63 @@ use std::os::raw::c_int;
 use std::slice;
 use std::sync::{Condvar, Mutex};
 
-use libsqlite3_sys::{SQLITE_LOCKED, SQLITE_OK, sqlite3, sqlite3_unlock_notify};
+use libsqlite3_sys::{
+    sqlite3, sqlite3_reset, sqlite3_stmt, sqlite3_unlock_notify, SQLITE_LOCKED,
+    SQLITE_OK,
+};
 
-use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
+use crate::{
+    error::Error,
+    sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError},
+};
+
+const MAX_RETRIES: usize = 5;
 
 // Wait for unlock notification (https://www.sqlite.org/unlock_notify.html)
-pub unsafe fn wait(conn: *mut sqlite3) -> Result<(), SqliteError> {
+// If `stmt` is provided, it will be reset and the call retried when
+// `SQLITE_LOCKED` is returned.
+pub unsafe fn wait(
+    conn: *mut sqlite3,
+    stmt: Option<*mut sqlite3_stmt>,
+) -> Result<(), Error> {
     let notify = Notify::new();
+    let mut attempts = 0;
+    loop {
+        let rc = unsafe {
+            sqlite3_unlock_notify(
+                conn,
+                Some(unlock_notify_cb),
+                &notify as *const Notify as *mut Notify as *mut _,
+            )
+        };
 
-    let rc = unsafe {
-        sqlite3_unlock_notify(
-            conn,
-            Some(unlock_notify_cb),
-            &notify as *const Notify as *mut Notify as *mut _,
-        )
-    };
+        if rc == SQLITE_LOCKED {
+            if let Some(stmt) = stmt {
+                unsafe { sqlite3_reset(stmt) };
+                attempts += 1;
 
-    if rc == SQLITE_LOCKED {
-        // See https://www.sqlite.org/unlock_notify.html. SQLITE_LOCKED indicates
-        // that a deadlock was detected and the unlock notification was not
-        // queued. The statement should be reset or stepped to break the
-        // deadlock before retrying.
-        return Err(SqliteError {
-            primary: PrimaryErrCode::Locked,
-            extended: ExtendedErrCode::Unknown(SQLITE_LOCKED as u32),
-            message:
-                "sqlite3_unlock_notify returned SQLITE_LOCKED (deadlock). Reset the blocking statement and retry".to_string(),
-        });
-    } else if rc != SQLITE_OK {
-        return Err(SqliteError::new(conn));
+                if attempts > MAX_RETRIES {
+                    return Err(Error::UnlockNotify);
+                }
+
+                continue;
+            }
+
+            // See https://www.sqlite.org/unlock_notify.html. SQLITE_LOCKED indicates
+            // that a deadlock was detected and the unlock notification was not
+            // queued. The statement should be reset or stepped to break the
+            // deadlock before retrying.
+            return Err(Error::Sqlite(SqliteError {
+                primary: PrimaryErrCode::Locked,
+                extended: ExtendedErrCode::Unknown(SQLITE_LOCKED as u32),
+                message:
+                    "sqlite3_unlock_notify returned SQLITE_LOCKED (deadlock). Reset the blocking statement and retry".to_string(),
+            }));
+        } else if rc != SQLITE_OK {
+            return Err(Error::Sqlite(SqliteError::new(conn)));
+        }
+
+        break;
     }
 
     notify.wait();

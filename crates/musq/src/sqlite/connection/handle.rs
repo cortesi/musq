@@ -68,7 +68,7 @@ impl ConnectionHandle {
 
                 match status {
                     SQLITE_OK => return Ok(()),
-                    SQLITE_LOCKED_SHAREDCACHE => unlock_notify::wait(self.as_ptr())?,
+                    SQLITE_LOCKED_SHAREDCACHE => unlock_notify::wait(self.as_ptr(), None)?,
                     _ => return Err(SqliteError::new(self.as_ptr()).into()),
                 }
             }

@@ -189,7 +189,7 @@ impl StatementHandle {
         Ok(())
     }
 
-    pub(crate) fn step(&mut self) -> Result<bool, SqliteError> {
+    pub(crate) fn step(&mut self) -> Result<bool, crate::Error> {
         // SAFETY: we have exclusive access to the handle
         unsafe {
             loop {
@@ -200,7 +200,7 @@ impl StatementHandle {
                     SQLITE_LOCKED_SHAREDCACHE => {
                         // The shared cache is locked by another connection. Wait for unlock
                         // notification and try again.
-                        unlock_notify::wait(self.db_handle())?;
+                        unlock_notify::wait(self.db_handle(), Some(self.0.as_ptr()))?;
                         // Need to reset the handle after the unlock
                         // (https://www.sqlite.org/unlock_notify.html)
                         sqlite3_reset(self.0.as_ptr());
@@ -208,10 +208,10 @@ impl StatementHandle {
                     libsqlite3_sys::SQLITE_BUSY => {
                         // Another connection holds a lock that prevented the step from
                         // completing. Wait for an unlock notification and retry.
-                        unlock_notify::wait(self.db_handle())?;
+                        unlock_notify::wait(self.db_handle(), Some(self.0.as_ptr()))?;
                         sqlite3_reset(self.0.as_ptr());
                     }
-                    _ => return Err(SqliteError::new(self.db_handle())),
+                    _ => return Err(SqliteError::new(self.db_handle()).into()),
                 }
             }
         }
