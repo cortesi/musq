@@ -15,7 +15,8 @@ impl Encode for i8 {
 impl<'r> Decode<'r> for i8 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
-        Ok(value.int().try_into()?)
+        let v: i32 = value.int()?;
+        Ok(v.try_into()?)
     }
 }
 
@@ -28,7 +29,8 @@ impl Encode for i16 {
 impl<'r> Decode<'r> for i16 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
-        Ok(value.int().try_into()?)
+        let v: i32 = value.int()?;
+        Ok(v.try_into()?)
     }
 }
 
@@ -41,7 +43,7 @@ impl Encode for i32 {
 impl<'r> Decode<'r> for i32 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
-        Ok(value.int())
+        Ok(value.int()?)
     }
 }
 
