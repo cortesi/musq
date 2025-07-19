@@ -18,8 +18,8 @@ pub(crate) enum ValueData {
 }
 
 impl Value {
-    pub fn int(&self) -> i32 {
-        self.int64() as i32
+    pub fn int(&self) -> Result<i32, DecodeError> {
+        Ok(i32::try_from(self.int64())?)
     }
 
     pub fn int64(&self) -> i64 {

@@ -18,6 +18,6 @@ impl<'r> Decode<'r> for bool {
             value,
             SqliteDataType::Bool | SqliteDataType::Int | SqliteDataType::Int64
         );
-        Ok(value.int() != 0)
+        Ok(value.int()? != 0)
     }
 }
