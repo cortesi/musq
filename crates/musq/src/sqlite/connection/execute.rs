@@ -1,6 +1,6 @@
 use crate::{
     Either, Error, QueryResult, Row,
-    logger::QueryLogger,
+    logger::{QueryLog, QueryLogger, NopQueryLogger},
     sqlite::{
         Arguments,
         connection::{ConnectionHandle, ConnectionState},
@@ -11,7 +11,7 @@ use crate::{
 pub struct ExecuteIter<'a> {
     handle: &'a mut ConnectionHandle,
     statement: &'a mut CompoundStatement,
-    logger: QueryLogger<'a>,
+    logger: Box<dyn QueryLog + 'a>,
     args: Option<Arguments>,
 
     /// since a `VirtualStatement` can encompass multiple actual statements,
@@ -29,7 +29,11 @@ pub(crate) fn iter<'a>(
     // fetch the cached statement or allocate a new one
     let statement = conn.statements.get(query)?;
 
-    let logger = QueryLogger::new(query, conn.log_settings.clone());
+    let logger: Box<dyn QueryLog + 'a> = if conn.log_settings.is_enabled() {
+        Box::new(QueryLogger::new(query, conn.log_settings.clone()))
+    } else {
+        Box::new(NopQueryLogger::default())
+    };
 
     Ok(ExecuteIter {
         handle: &mut conn.handle,
@@ -87,7 +91,7 @@ impl Iterator for ExecuteIter<'_> {
 
         match statement.handle.step() {
             Ok(true) => {
-                self.logger.increment_rows_returned();
+                self.logger.inc_rows_returned();
 
                 Some(Ok(Either::Right(Row::current(
                     statement.handle,
@@ -99,7 +103,7 @@ impl Iterator for ExecuteIter<'_> {
                 let last_insert_rowid = self.handle.last_insert_rowid();
 
                 let changes = statement.handle.changes();
-                self.logger.increase_rows_affected(changes);
+                self.logger.inc_rows_affected(changes);
 
                 let done = QueryResult {
                     changes,

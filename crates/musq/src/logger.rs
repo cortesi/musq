@@ -29,6 +29,12 @@ impl LogSettings {
         self.slow_statements_level = level;
         self.slow_statements_duration = duration;
     }
+
+    /// Returns `true` if any logging level is enabled.
+    pub fn is_enabled(&self) -> bool {
+        self.statements_level != LevelFilter::Off
+            || self.slow_statements_level != LevelFilter::Off
+    }
 }
 
 // Yes these look silly. `tracing` doesn't currently support dynamic levels
@@ -92,6 +98,12 @@ pub struct QueryLogger<'q> {
     rows_affected: u64,
     start: Instant,
     settings: LogSettings,
+}
+
+/// Trait implemented by types that can log query execution statistics.
+pub trait QueryLog {
+    fn inc_rows_returned(&mut self);
+    fn inc_rows_affected(&mut self, n: u64);
 }
 
 impl<'q> QueryLogger<'q> {
@@ -162,6 +174,25 @@ impl<'q> Drop for QueryLogger<'q> {
     fn drop(&mut self) {
         self.finish();
     }
+}
+
+impl<'q> QueryLog for QueryLogger<'q> {
+    fn inc_rows_returned(&mut self) {
+        self.increment_rows_returned();
+    }
+
+    fn inc_rows_affected(&mut self, n: u64) {
+        self.increase_rows_affected(n);
+    }
+}
+
+/// A no-op logger used when query logging is disabled.
+#[derive(Default)]
+pub struct NopQueryLogger;
+
+impl QueryLog for NopQueryLogger {
+    fn inc_rows_returned(&mut self) {}
+    fn inc_rows_affected(&mut self, _n: u64) {}
 }
 
 pub fn parse_query_summary(sql: &str) -> String {
