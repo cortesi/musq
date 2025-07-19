@@ -84,30 +84,36 @@ impl CompoundStatement {
                 return Ok(None);
             }
 
-            if let Some(statement) = prepare_all(conn.as_ptr(), &mut self.tail)? {
-                let num = statement.column_count();
+            match prepare_all(conn.as_ptr(), &mut self.tail)? {
+                Some(statement) => {
+                    let num = statement.column_count();
 
-                let mut columns = Vec::with_capacity(num);
-                let mut column_names = HashMap::with_capacity(num);
+                    let mut columns = Vec::with_capacity(num);
+                    let mut column_names = HashMap::with_capacity(num);
 
-                for i in 0..num {
-                    let name: UStr = statement.column_name(i).to_owned().into();
-                    let type_info = statement
-                        .column_decltype(i)
-                        .unwrap_or_else(|| statement.column_type_info(i));
+                    for i in 0..num {
+                        let name: UStr = statement.column_name(i).to_owned().into();
+                        let type_info = statement
+                            .column_decltype(i)
+                            .unwrap_or_else(|| statement.column_type_info(i));
 
-                    columns.push(Column {
-                        ordinal: i,
-                        name: name.clone(),
-                        type_info,
-                    });
+                        columns.push(Column {
+                            ordinal: i,
+                            name: name.clone(),
+                            type_info,
+                        });
 
-                    column_names.insert(name, i);
+                        column_names.insert(name, i);
+                    }
+
+                    self.handles.push(statement);
+                    self.columns.push(Arc::new(columns));
+                    self.column_names.push(Arc::new(column_names));
                 }
-
-                self.handles.push(statement);
-                self.columns.push(Arc::new(columns));
-                self.column_names.push(Arc::new(column_names));
+                None => {
+                    // nothing more to prepare
+                    return Ok(None);
+                }
             }
         }
 
@@ -168,6 +174,13 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
         // so tail is left pointing to what remains un-compiled.
 
         let n = (tail as usize) - (query_ptr as usize);
+
+        if n == 0 {
+            // SQLite did not consume any bytes of the input. Returning `None`
+            // avoids an infinite loop in the caller.
+            return Ok(None);
+        }
+
         query.advance(n);
 
         if let Some(handle) = NonNull::new(statement_handle) {
