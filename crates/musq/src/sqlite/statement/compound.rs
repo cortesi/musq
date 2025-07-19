@@ -8,13 +8,18 @@ use std::{
 
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
-    SQLITE_OK, SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_prepare_v3, sqlite3_stmt,
+    SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_prepare_v3,
+    sqlite3_stmt,
 };
 
 use crate::{
     Column,
     error::Error,
-    sqlite::{SqliteError, connection::ConnectionHandle, statement::StatementHandle},
+    sqlite::{
+        SqliteError,
+        connection::ConnectionHandle,
+        statement::{StatementHandle, unlock_notify},
+    },
     ustr::UStr,
 };
 
@@ -154,19 +159,25 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
         let query_len = query.len() as i32;
 
         // <https://www.sqlite.org/c3ref/prepare.html>
-        let status = unsafe {
-            sqlite3_prepare_v3(
-                conn,
-                query_ptr,
-                query_len,
-                flags,
-                &mut statement_handle,
-                &mut tail,
-            )
-        };
+        loop {
+            let status = unsafe {
+                sqlite3_prepare_v3(
+                    conn,
+                    query_ptr,
+                    query_len,
+                    flags,
+                    &mut statement_handle,
+                    &mut tail,
+                )
+            };
 
-        if status != SQLITE_OK {
-            return Err(SqliteError::new(conn).into());
+            match status {
+                SQLITE_OK => break,
+                SQLITE_LOCKED_SHAREDCACHE | libsqlite3_sys::SQLITE_BUSY => unsafe {
+                    unlock_notify::wait(conn, None)?;
+                },
+                _ => return Err(SqliteError::new(conn).into()),
+            }
         }
 
         // tail should point to the first byte past the end of the first SQL
