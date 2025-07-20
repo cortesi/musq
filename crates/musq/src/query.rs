@@ -20,8 +20,9 @@ pub struct Query {
 /// the return types are changed to reflect the mapping. However, there is no equivalent of
 /// [`Query::execute`] as it doesn't make sense to map the result type and then ignore it.
 ///
-/// [`Query::bind`] is also omitted; stylistically we recommend placing your `.bind()` calls
-/// before `.try_map()`. This is also to prevent adding superfluous binds to the result of
+/// [`Map::bind`] and [`Map::bind_named`] may be used to add parameters after
+/// [`try_map()`]. Stylistically we still recommend placing your `.bind()` calls
+/// before `.try_map()` to avoid adding superfluous binds when using
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
 pub struct Map<F> {
