@@ -10,11 +10,11 @@
 use std::{fmt, future::Future, sync::Arc};
 
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 
 use self::inner::PoolInner;
 use crate::{
-    executor::Execute, transaction::Transaction, Error, QueryResult, Result, Row, Statement,
+    Error, QueryResult, Result, Row, Statement, executor::Execute, transaction::Transaction,
 };
 use either::Either;
 

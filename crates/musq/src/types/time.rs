@@ -1,38 +1,44 @@
-use crate::{
-    Value,
-    decode::Decode,
-    encode::Encode,
-    error::DecodeError,
-    sqlite::{ArgumentValue, SqliteDataType},
-};
+use crate::{Value, decode::Decode, encode::Encode, error::DecodeError, sqlite::SqliteDataType};
 use time::format_description::{FormatItem, well_known::Rfc3339};
 use time::macros::format_description as fd;
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Encode for OffsetDateTime {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Text(self.format(&Rfc3339).unwrap())
+    fn encode(self) -> Value {
+        Value::Text {
+            value: self.format(&Rfc3339).unwrap().into_bytes(),
+            type_info: None,
+        }
     }
 }
 
 impl Encode for PrimitiveDateTime {
-    fn encode(self) -> ArgumentValue {
+    fn encode(self) -> Value {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
-        ArgumentValue::Text(self.format(&format).unwrap())
+        Value::Text {
+            value: self.format(&format).unwrap().into_bytes(),
+            type_info: None,
+        }
     }
 }
 
 impl Encode for Date {
-    fn encode(self) -> ArgumentValue {
+    fn encode(self) -> Value {
         let format = fd!("[year]-[month]-[day]");
-        ArgumentValue::Text(self.format(&format).unwrap())
+        Value::Text {
+            value: self.format(&format).unwrap().into_bytes(),
+            type_info: None,
+        }
     }
 }
 
 impl Encode for Time {
-    fn encode(self) -> ArgumentValue {
+    fn encode(self) -> Value {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
-        ArgumentValue::Text(self.format(&format).unwrap())
+        Value::Text {
+            value: self.format(&format).unwrap().into_bytes(),
+            type_info: None,
+        }
     }
 }
 

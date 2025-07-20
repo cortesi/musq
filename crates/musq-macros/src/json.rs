@@ -21,12 +21,12 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
 
     Ok(quote!(
         impl #impl_generics musq::encode::Encode for #ident #ty_generics #where_clause {
-            fn encode(self) -> musq::ArgumentValue {
+            fn encode(self) -> musq::Value {
                 let v = serde_json::to_string(&self).expect(
                          "failed to encode value as JSON; the most likely cause is \
                          attempting to serialize a map with a non-string key type"
                 );
-                musq::ArgumentValue::Text(v)
+                musq::Value::Text { value: v.into_bytes(), type_info: None }
             }
         }
 

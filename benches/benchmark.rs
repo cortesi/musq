@@ -21,7 +21,10 @@ async fn pool() -> musq::Pool {
         .open_in_memory()
         .await
         .unwrap();
-    musq::query(BENCH_SCHEMA).execute(&mut pool.acquire().await.unwrap()).await.unwrap();
+    musq::query(BENCH_SCHEMA)
+        .execute(&mut pool.acquire().await.unwrap())
+        .await
+        .unwrap();
     pool
 }
 
