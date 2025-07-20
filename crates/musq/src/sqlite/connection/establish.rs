@@ -6,11 +6,11 @@ use std::{
     time::Duration,
 };
 
+use crate::sqlite::ffi;
 use libsqlite3_sys::{
     SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
-use crate::sqlite::ffi;
 
 use crate::{
     Error, Musq,
@@ -122,11 +122,13 @@ impl EstablishParams {
             )));
         }
 
-        // SAFE: tested for NULL just above
-        // This allows any returns below to close this handle with RAII
-        let handle = unsafe { ConnectionHandle::new(handle) };
+        if let Err(e) = open_res {
+            // handle may already be closed inside `open_v2`
+            return Err(Error::Sqlite(e));
+        }
 
-        open_res.map_err(Error::Sqlite)?;
+        // SAFE: tested for NULL just above and open_v2 succeeded
+        let handle = unsafe { ConnectionHandle::new(handle) };
 
         // Enable extended result codes
         // https://www.sqlite.org/c3ref/extended_result_codes.html

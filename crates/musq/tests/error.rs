@@ -73,3 +73,20 @@ async fn it_fails_with_check_violation() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn it_fails_to_open() -> anyhow::Result<()> {
+    use musq::{Connection, Musq};
+    use tempdir::TempDir;
+
+    let dir = TempDir::new("musq-open-fail")?;
+    let path = dir.path().join("nonexistent.db");
+
+    let options = Musq::new().filename(&path);
+    let res = Connection::connect_with(&options).await;
+
+    let err = res.unwrap_err();
+    assert!(err.into_sqlite_error().is_some());
+
+    Ok(())
+}

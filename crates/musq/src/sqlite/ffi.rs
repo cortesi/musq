@@ -37,6 +37,11 @@ pub(crate) fn open_v2(
                 message: "sqlite3_open_v2 failed".into(),
             })
         } else {
+            // SAFETY: db is valid when rc != SQLITE_OK and not null
+            unsafe {
+                ffi_sys::sqlite3_close(db);
+            }
+
             Err(SqliteError::new(db))
         }
     }
