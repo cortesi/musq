@@ -10,7 +10,7 @@ use libsqlite3_sys::{
 };
 
 use crate::sqlite::{
-    error::{PrimaryErrCode, SqliteError},
+    error::{ExtendedErrCode, PrimaryErrCode, SqliteError},
     ffi,
 };
 
@@ -175,23 +175,56 @@ impl StatementHandle {
     pub(crate) fn step(&mut self) -> Result<bool, crate::Error> {
         // SAFETY: we have exclusive access to the handle
         loop {
-            match ffi::step(self.0.as_ptr()).map_err(crate::Error::from)? {
+            let rc = ffi::step(self.0.as_ptr()).map_err(crate::Error::from)?;
+            match rc {
                 SQLITE_ROW => return Ok(true),
                 SQLITE_DONE => return Ok(false),
                 SQLITE_MISUSE => panic!("misuse!"),
-                SQLITE_LOCKED_SHAREDCACHE => {
+                SQLITE_LOCKED_SHAREDCACHE | libsqlite3_sys::SQLITE_LOCKED => {
                     // The shared cache is locked by another connection. Wait for unlock
                     // notification and try again.
                     unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
                     // Need to reset the handle after the unlock
                     // (https://www.sqlite.org/unlock_notify.html)
-                    ffi::reset(self.0.as_ptr())?;
+                    loop {
+                        match ffi::reset(self.0.as_ptr()) {
+                            Ok(()) => break,
+                            Err(ref e)
+                                if e.primary == PrimaryErrCode::Locked
+                                    || e.primary == PrimaryErrCode::Busy
+                                    || e.extended == ExtendedErrCode::LockedSharedCache =>
+                            {
+                                unlock_notify::wait(
+                                    unsafe { self.db_handle() },
+                                    Some(self.0.as_ptr()),
+                                )?;
+                                continue;
+                            }
+                            Err(e) => return Err(e.into()),
+                        }
+                    }
                 }
                 libsqlite3_sys::SQLITE_BUSY => {
                     // Another connection holds a lock that prevented the step from
                     // completing. Wait for an unlock notification and retry.
                     unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
-                    ffi::reset(self.0.as_ptr())?;
+                    loop {
+                        match ffi::reset(self.0.as_ptr()) {
+                            Ok(()) => break,
+                            Err(ref e)
+                                if e.primary == PrimaryErrCode::Locked
+                                    || e.primary == PrimaryErrCode::Busy
+                                    || e.extended == ExtendedErrCode::LockedSharedCache =>
+                            {
+                                unlock_notify::wait(
+                                    unsafe { self.db_handle() },
+                                    Some(self.0.as_ptr()),
+                                )?;
+                                continue;
+                            }
+                            Err(e) => return Err(e.into()),
+                        }
+                    }
                 }
                 _ => return Err(unsafe { SqliteError::new(self.db_handle()) }.into()),
             }

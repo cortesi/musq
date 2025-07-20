@@ -186,7 +186,7 @@ pub(crate) fn bind_blob64(
     len: u64,
 ) -> Result<(), SqliteError> {
     let rc = unsafe {
-        ffi_sys::sqlite3_bind_blob64(stmt, index as c_int, data, len, ffi_sys::SQLITE_TRANSIENT())
+        ffi_sys::sqlite3_bind_blob64(stmt, index, data, len, ffi_sys::SQLITE_TRANSIENT())
     };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -320,6 +320,7 @@ pub(crate) fn step(stmt: *mut sqlite3_stmt) -> Result<i32, SqliteError> {
     if rc == ffi_sys::SQLITE_ROW
         || rc == ffi_sys::SQLITE_DONE
         || rc == ffi_sys::SQLITE_LOCKED_SHAREDCACHE
+        || rc == ffi_sys::SQLITE_LOCKED
         || rc == ffi_sys::SQLITE_BUSY
         || rc == ffi_sys::SQLITE_MISUSE
         || rc == ffi_sys::SQLITE_OK
