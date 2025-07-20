@@ -1,19 +1,19 @@
-use std::ffi::CStr;
 use std::ffi::c_void;
+use std::ffi::CStr;
 
 use std::os::raw::{c_char, c_int};
 use std::ptr::NonNull;
 use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
-    SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK, SQLITE_ROW, sqlite3,
-    sqlite3_stmt,
+    sqlite3, sqlite3_stmt, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK,
+    SQLITE_ROW,
 };
 
 use crate::sqlite::ffi;
 
-use crate::sqlite::SqliteError;
 use crate::sqlite::type_info::SqliteDataType;
+use crate::sqlite::SqliteError;
 
 use super::unlock_notify;
 
@@ -183,7 +183,7 @@ impl StatementHandle {
                 SQLITE_LOCKED_SHAREDCACHE => {
                     // The shared cache is locked by another connection. Wait for unlock
                     // notification and try again.
-                    unsafe { unlock_notify::wait(self.db_handle(), Some(self.0.as_ptr()))? };
+                    unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
                     // Need to reset the handle after the unlock
                     // (https://www.sqlite.org/unlock_notify.html)
                     ffi::reset(self.0.as_ptr());
@@ -191,7 +191,7 @@ impl StatementHandle {
                 libsqlite3_sys::SQLITE_BUSY => {
                     // Another connection holds a lock that prevented the step from
                     // completing. Wait for an unlock notification and retry.
-                    unsafe { unlock_notify::wait(self.db_handle(), Some(self.0.as_ptr()))? };
+                    unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
                     ffi::reset(self.0.as_ptr());
                 }
                 _ => return Err(unsafe { SqliteError::new(self.db_handle()) }.into()),
