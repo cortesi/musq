@@ -121,25 +121,6 @@ pub(crate) fn prepare_v3(
     }
 }
 
-/// Wrapper around [`sqlite3_progress_handler`].
-///
-/// # Safety
-/// - `db` must be a valid SQLite handle.
-/// - `callback` must remain valid for the lifetime of the registration.
-///
-/// See <https://www.sqlite.org/c3ref/progress_handler.html>
-#[inline]
-pub(crate) fn progress_handler(
-    db: *mut sqlite3,
-    num_ops: i32,
-    callback: Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
-    arg: *mut c_void,
-) {
-    unsafe {
-        ffi_sys::sqlite3_progress_handler(db, num_ops as c_int, callback, arg);
-    }
-}
-
 /// Wrapper around [`sqlite3_unlock_notify`].
 ///
 /// # Safety

@@ -112,15 +112,14 @@ mod tests {
 
     #[tokio::test]
     async fn test_statement_cache_get_returns_same_statement() -> anyhow::Result<()> {
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let mut cache = StatementCache::new(DEFAULT_CAPACITY);
 
-        let mut locked = conn.lock_handle().await?;
         let ptr_first: *const CompoundStatement = {
-            let stmt = locked.guard.statements.get("SELECT 1")?;
+            let stmt = cache.get("SELECT 1")?;
             stmt as *const _
         };
         let ptr_second: *const CompoundStatement = {
-            let stmt = locked.guard.statements.get("SELECT 1")?;
+            let stmt = cache.get("SELECT 1")?;
             stmt as *const _
         };
 

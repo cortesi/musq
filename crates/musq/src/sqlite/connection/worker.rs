@@ -3,8 +3,8 @@ use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
 
+use tokio::sync::Mutex;
 use tokio::sync::oneshot;
-use tokio::sync::{Mutex, MutexGuard};
 
 use either::Either;
 
@@ -55,7 +55,6 @@ enum Command {
     Rollback {
         tx: Option<rendezvous_oneshot::Sender<Result<()>>>,
     },
-    UnlockDb,
     ClearCache {
         tx: oneshot::Sender<()>,
     },
@@ -226,10 +225,6 @@ impl ConnectionWorker {
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
                             tx.send(()).ok();
                         }
-                        Command::UnlockDb => {
-                            drop(conn);
-                            conn = shared.conn.blocking_lock();
-                        }
                         Command::Shutdown { tx } => {
                             // drop the connection references before sending confirmation
                             // and ending the command loop
@@ -335,20 +330,6 @@ impl ConnectionWorker {
 
     pub(crate) async fn clear_cache(&mut self) -> Result<()> {
         self.oneshot_cmd(|tx| Command::ClearCache { tx }).await
-    }
-
-    pub(crate) async fn unlock_db(&mut self) -> Result<MutexGuard<'_, ConnectionState>> {
-        // Start acquiring the mutex before notifying the worker so we are
-        // guaranteed to get the lock next.
-        let (guard, res) = futures_util::future::join(
-            self.shared.conn.lock(),
-            self.command_tx.send_async(Command::UnlockDb),
-        )
-        .await;
-
-        res.map_err(|_| Error::WorkerCrashed)?;
-
-        Ok(guard)
     }
 
     /// Send a command to the worker to shut down the processing thread.

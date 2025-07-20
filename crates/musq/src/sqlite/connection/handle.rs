@@ -34,10 +34,6 @@ impl ConnectionHandle {
         self.0.as_ptr()
     }
 
-    pub(crate) fn as_non_null_ptr(&self) -> NonNull<sqlite3> {
-        self.0
-    }
-
     pub(crate) fn last_insert_rowid(&self) -> i64 {
         // SAFETY: we have exclusive access to the database handle
         ffi::last_insert_rowid(self.as_ptr())
