@@ -1,17 +1,17 @@
-use std::ffi::c_void;
 use std::ffi::CStr;
+use std::ffi::c_void;
 
 use std::os::raw::c_char;
 use std::ptr::NonNull;
 use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_stmt, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW,
+    SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW, sqlite3, sqlite3_stmt,
 };
 
 use crate::sqlite::{
     DEFAULT_MAX_RETRIES,
-    error::{ExtendedErrCode, PrimaryErrCode, SqliteError},
+    error::{PrimaryErrCode, SqliteError},
     ffi,
 };
 
@@ -199,11 +199,7 @@ impl StatementHandle {
                     loop {
                         match ffi::reset(self.0.as_ptr()) {
                             Ok(()) => break,
-                            Err(ref e)
-                                if e.primary == PrimaryErrCode::Locked
-                                    || e.primary == PrimaryErrCode::Busy
-                                    || e.extended == ExtendedErrCode::LockedSharedCache =>
-                            {
+                            Err(ref e) if e.should_retry() => {
                                 unlock_notify::wait(
                                     unsafe { self.db_handle() },
                                     Some(self.0.as_ptr()),
@@ -225,11 +221,7 @@ impl StatementHandle {
                     loop {
                         match ffi::reset(self.0.as_ptr()) {
                             Ok(()) => break,
-                            Err(ref e)
-                                if e.primary == PrimaryErrCode::Locked
-                                    || e.primary == PrimaryErrCode::Busy
-                                    || e.extended == ExtendedErrCode::LockedSharedCache =>
-                            {
+                            Err(ref e) if e.should_retry() => {
                                 unlock_notify::wait(
                                     unsafe { self.db_handle() },
                                     Some(self.0.as_ptr()),

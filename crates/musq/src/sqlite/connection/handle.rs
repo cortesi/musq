@@ -6,7 +6,7 @@ use crate::sqlite::ffi;
 
 use crate::{
     Error, Result,
-    sqlite::{DEFAULT_MAX_RETRIES, error::ExtendedErrCode, statement::unlock_notify},
+    sqlite::{DEFAULT_MAX_RETRIES, statement::unlock_notify},
 };
 
 /// Managed handle to the raw SQLite3 database handle.
@@ -53,7 +53,7 @@ impl ConnectionHandle {
         loop {
             match ffi::exec(self.as_ptr(), query.as_ptr()) {
                 Ok(()) => return Ok(()),
-                Err(e) if e.extended == ExtendedErrCode::LockedSharedCache => {
+                Err(e) if e.should_retry() => {
                     if attempts >= DEFAULT_MAX_RETRIES {
                         return Err(Error::UnlockNotify);
                     }

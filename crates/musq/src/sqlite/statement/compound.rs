@@ -15,7 +15,6 @@ use crate::{
     error::{Error, Result},
     sqlite::{
         connection::ConnectionHandle,
-        error::{ExtendedErrCode, PrimaryErrCode},
         statement::{StatementHandle, unlock_notify},
     },
     ustr::UStr,
@@ -168,10 +167,7 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
                 &mut tail,
             ) {
                 Ok(()) => break,
-                Err(e)
-                    if e.extended == ExtendedErrCode::LockedSharedCache
-                        || e.primary == PrimaryErrCode::Busy =>
-                {
+                Err(e) if e.should_retry() => {
                     unlock_notify::wait(conn, None)?;
                 }
                 Err(e) => return Err(e.into()),
