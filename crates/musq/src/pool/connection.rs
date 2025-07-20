@@ -52,18 +52,6 @@ impl DerefMut for PoolConnection {
     }
 }
 
-impl AsRef<Connection> for PoolConnection {
-    fn as_ref(&self) -> &Connection {
-        self
-    }
-}
-
-impl AsMut<Connection> for PoolConnection {
-    fn as_mut(&mut self) -> &mut Connection {
-        self
-    }
-}
-
 impl PoolConnection {
     /// Close this connection, allowing the pool to open a replacement.
     ///
