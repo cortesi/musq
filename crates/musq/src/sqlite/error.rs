@@ -1,9 +1,8 @@
 use std::ffi::CStr;
-use std::os::raw::c_int;
 use std::str::from_utf8_unchecked;
 
-use libsqlite3_sys::{self, sqlite3};
 use crate::sqlite::ffi;
+use libsqlite3_sys::{self, sqlite3};
 
 // Error Codes And Messages
 // https://www.sqlite.org/c3ref/errcode.html
@@ -43,7 +42,7 @@ pub enum PrimaryErrCode {
 }
 
 impl PrimaryErrCode {
-    fn from_code(code: c_int) -> PrimaryErrCode {
+    fn from_code(code: i32) -> PrimaryErrCode {
         match code & 255 {
             libsqlite3_sys::SQLITE_ERROR => PrimaryErrCode::Error,
             libsqlite3_sys::SQLITE_INTERNAL => PrimaryErrCode::Internal,
@@ -160,7 +159,7 @@ pub enum ExtendedErrCode {
 }
 
 impl ExtendedErrCode {
-    fn from_code(code: c_int) -> ExtendedErrCode {
+    fn from_code(code: i32) -> ExtendedErrCode {
         match code {
             libsqlite3_sys::SQLITE_ERROR_MISSING_COLLSEQ => ExtendedErrCode::ErrorMissingCollseq,
             libsqlite3_sys::SQLITE_ERROR_RETRY => ExtendedErrCode::ErrorRetry,
@@ -272,4 +271,3 @@ impl SqliteError {
         }
     }
 }
-

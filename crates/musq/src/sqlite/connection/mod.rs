@@ -1,14 +1,14 @@
 use std::{
     fmt::{self, Debug, Formatter, Write},
-    os::raw::{c_int, c_void},
+    os::raw::c_void,
     panic::catch_unwind,
     ptr::NonNull,
 };
 
+use crate::sqlite::ffi;
 use futures_core::future::BoxFuture;
 use futures_util::future;
 use libsqlite3_sys::sqlite3;
-use crate::sqlite::ffi;
 use tokio::sync::MutexGuard;
 
 use crate::{
@@ -229,7 +229,7 @@ impl Connection {
 
 /// Implements a C binding to a progress callback. The function returns `0` if the
 /// user-provided callback returns `true`, and `1` otherwise to signal an interrupt.
-extern "C" fn progress_callback<F>(callback: *mut c_void) -> c_int
+extern "C" fn progress_callback<F>(callback: *mut c_void) -> i32
 where
     F: FnMut() -> bool,
 {
@@ -238,7 +238,7 @@ where
             let callback: *mut F = callback.cast::<F>();
             (*callback)()
         });
-        c_int::from(!r.unwrap_or_default())
+        i32::from(!r.unwrap_or_default())
     }
 }
 
