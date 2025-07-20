@@ -17,6 +17,10 @@ const fn assert_c_int_is_32bit() {
 // A compile-time assertion to ensure that `c_int` is 32 bits.
 const _ASSERT_C_INT_32BIT: () = assert_c_int_is_32bit();
 
+unsafe extern "C" {
+    fn sqlite3_close_v2(db: *mut sqlite3) -> c_int;
+}
+
 /// Wrapper around [`sqlite3_open_v2`].
 ///
 /// # Safety
@@ -183,7 +187,7 @@ pub(crate) fn errmsg(db: *mut sqlite3) -> *const c_char {
     unsafe { ffi_sys::sqlite3_errmsg(db) }
 }
 
-/// Wrapper around [`sqlite3_close`].
+/// Wrapper around [`sqlite3_close_v2`].
 ///
 /// # Safety
 /// - `db` must be a valid SQLite connection handle.
@@ -191,7 +195,7 @@ pub(crate) fn errmsg(db: *mut sqlite3) -> *const c_char {
 /// See <https://www.sqlite.org/c3ref/close.html>
 #[inline]
 pub(crate) fn close(db: *mut sqlite3) -> std::result::Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_close(db) };
+    let rc = unsafe { sqlite3_close_v2(db) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {

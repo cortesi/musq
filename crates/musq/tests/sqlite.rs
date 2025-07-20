@@ -947,3 +947,32 @@ async fn connection_drops_without_close() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn connection_drop_busy_doesnt_panic() -> anyhow::Result<()> {
+    use libsqlite3_sys::{self, sqlite3_close, sqlite3_finalize, sqlite3_prepare_v2, sqlite3_stmt};
+    use musq_test::connection;
+    use std::ffi::CString;
+    use std::ptr;
+
+    let mut conn = connection().await?;
+    let (db, stmt) = {
+        let mut handle = conn.lock_handle().await?;
+        let db = handle.as_raw_handle().as_ptr();
+        let sql = CString::new("SELECT 1").unwrap();
+        let mut stmt_ptr: *mut sqlite3_stmt = ptr::null_mut();
+        let rc =
+            unsafe { sqlite3_prepare_v2(db, sql.as_ptr(), -1, &mut stmt_ptr, ptr::null_mut()) };
+        assert_eq!(rc, libsqlite3_sys::SQLITE_OK);
+        (db, stmt_ptr)
+    };
+
+    drop(conn);
+
+    unsafe {
+        sqlite3_finalize(stmt);
+        let _ = sqlite3_close(db);
+    }
+
+    Ok(())
+}

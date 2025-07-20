@@ -2,7 +2,7 @@ use std::{ffi::CString, ptr::NonNull};
 
 use libsqlite3_sys::sqlite3;
 
-use crate::sqlite::ffi;
+use crate::sqlite::{error::PrimaryErrCode, ffi};
 
 use crate::{
     Error, Result,
@@ -70,9 +70,11 @@ impl Drop for ConnectionHandle {
     fn drop(&mut self) {
         // https://sqlite.org/c3ref/close.html
         if let Err(e) = ffi::close(self.0.as_ptr()) {
-            // this should *only* happen due to an internal bug in SQLite where we left
-            // SQLite handles open
-            panic!("{}", e);
+            if e.primary == PrimaryErrCode::Misuse {
+                panic!("{}", e);
+            } else {
+                tracing::error!("sqlite3_close_v2 failed: {}", e);
+            }
         }
     }
 }
