@@ -11,7 +11,8 @@ use bytes::{Buf, Bytes};
 use libsqlite3_sys::{SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_stmt};
 
 use crate::{
-    Column, SqliteDataType,
+    SqliteDataType,
+    column::Column,
     error::{Error, Result},
     sqlite::{
         connection::ConnectionHandle,
@@ -100,11 +101,7 @@ impl CompoundStatement {
                             .or_else(|| statement.column_type_info(i))
                             .unwrap_or(SqliteDataType::Null);
 
-                        columns.push(Column {
-                            ordinal: i,
-                            name: name.clone(),
-                            type_info,
-                        });
+                        columns.push(Column { type_info });
 
                         column_names.insert(name, i);
                     }

@@ -1,4 +1,4 @@
-use crate::{Arguments, Statement};
+use crate::Arguments;
 
 // Private module that defines the `Sealed` trait used to prevent external
 // implementations of [`Execute`].
@@ -25,9 +25,6 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     /// Gets the SQL that will be executed.
     fn sql(&self) -> &str;
 
-    /// Gets the previously cached statement, if available.
-    fn statement(&self) -> Option<&Statement>;
-
     /// Returns the arguments to be bound against the query string.
     ///
     /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
@@ -39,10 +36,6 @@ pub trait Execute: sealed::Sealed + Send + Sized {
 impl Execute for &str {
     fn sql(&self) -> &str {
         self
-    }
-
-    fn statement(&self) -> Option<&Statement> {
-        None
     }
 
     fn take_arguments(&mut self) -> Option<Arguments> {

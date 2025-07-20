@@ -9,13 +9,10 @@ use std::ptr;
 use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
 use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
 
-#[allow(dead_code)]
-const fn assert_c_int_is_32bit() {
-    assert!(std::mem::size_of::<c_int>() == 4);
-}
-
 // A compile-time assertion to ensure that `c_int` is 32 bits.
-const _ASSERT_C_INT_32BIT: () = assert_c_int_is_32bit();
+const _: () = {
+    assert!(std::mem::size_of::<c_int>() == 4);
+};
 
 /// Wrapper around [`sqlite3_open_v2`].
 ///

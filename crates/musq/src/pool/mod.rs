@@ -14,7 +14,8 @@ use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 
 use self::inner::PoolInner;
 use crate::{
-    Error, QueryResult, Result, Row, Statement, executor::Execute, transaction::Transaction,
+    Error, QueryResult, Result, Row, executor::Execute, sqlite::statement::Prepared,
+    transaction::Transaction,
 };
 use either::Either;
 
@@ -197,13 +198,13 @@ impl Pool {
         Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
     }
 
-    pub fn prepare_with<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Statement>> {
+    pub fn prepare_with<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         let pool = self.clone();
 
         Box::pin(async move { pool.acquire().await?.prepare_with(sql).await })
     }
 
-    pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Statement>> {
+    pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         self.prepare_with(sql)
     }
 

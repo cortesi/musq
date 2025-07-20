@@ -1,7 +1,8 @@
 use std::{collections::HashMap, sync::Arc};
 
 use crate::{
-    Column, Result,
+    Result,
+    column::Column,
     decode::Decode,
     error::Error,
     sqlite::{SqliteDataType, Value, statement::StatementHandle},

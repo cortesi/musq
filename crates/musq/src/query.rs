@@ -3,8 +3,8 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt, future};
 
 use crate::{
-    Arguments, Connection, QueryResult, Result, Row, Statement, encode::Encode, error::Error,
-    executor::Execute,
+    Arguments, Connection, QueryResult, Result, Row, encode::Encode, error::Error,
+    executor::Execute, sqlite::statement::Statement,
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
@@ -35,13 +35,6 @@ impl Execute for Query {
         match &self.statement {
             Either::Right(statement) => statement.sql(),
             Either::Left(sql) => sql,
-        }
-    }
-
-    fn statement(&self) -> Option<&Statement> {
-        match &self.statement {
-            Either::Right(statement) => Some(statement),
-            Either::Left(_) => None,
         }
     }
 
@@ -159,10 +152,6 @@ impl Query {
 impl<F: Send> Execute for Map<F> {
     fn sql(&self) -> &str {
         self.inner.sql()
-    }
-
-    fn statement(&self) -> Option<&Statement> {
-        self.inner.statement()
     }
 
     fn take_arguments(&mut self) -> Option<Arguments> {

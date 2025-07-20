@@ -12,8 +12,9 @@ use crate::{
     QueryResult, Row,
     error::{Error, Result},
     sqlite::{
-        Arguments, Statement,
+        Arguments,
         connection::{ConnectionState, establish::EstablishParams, execute},
+        statement::Statement,
     },
     transaction::{
         begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
@@ -379,18 +380,12 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement> {
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query)?;
 
-    let mut columns = None;
-
-    while let Some(statement) = statement.prepare_next(&mut conn.handle)? {
-        // the first non-empty statement is chosen as the statement we pull columns from
-        if !statement.columns.is_empty() && columns.is_none() {
-            columns = Some(Arc::clone(statement.columns));
-        }
+    while let Some(_statement) = statement.prepare_next(&mut conn.handle)? {
+        // prepare all statements in the compound query
     }
 
     Ok(Statement {
         sql: query.to_string(),
-        columns: columns.unwrap_or_default(),
     })
 }
 

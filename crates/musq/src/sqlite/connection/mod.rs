@@ -7,12 +7,13 @@ use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 use either::Either;
 
 use crate::{
-    QueryResult, Result, Row, Statement,
+    QueryResult, Result, Row,
     error::Error,
     executor::Execute,
     logger::LogSettings,
     musq::{Musq, OptimizeOnClose},
     sqlite::connection::{establish::EstablishParams, worker::ConnectionWorker},
+    sqlite::statement::{Prepared, Statement},
     statement_cache::StatementCache,
     transaction::Transaction,
 };
@@ -217,21 +218,17 @@ impl Connection {
         })
     }
 
-    pub fn prepare_with<'c, 'q: 'c>(
-        &'c mut self,
-        sql: &'q str,
-    ) -> BoxFuture<'c, Result<Statement>> {
+    pub fn prepare_with<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         Box::pin(async move {
-            let statement = self.worker.prepare(sql).await?;
+            self.worker.prepare(sql).await?;
 
-            Ok(Statement {
-                sql: sql.into(),
-                ..statement
+            Ok(Prepared {
+                statement: Statement { sql: sql.into() },
             })
         })
     }
 
-    pub fn prepare<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Statement>> {
+    pub fn prepare<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         self.prepare_with(sql)
     }
 
