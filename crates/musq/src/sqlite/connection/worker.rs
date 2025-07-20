@@ -334,8 +334,9 @@ impl ConnectionWorker {
     }
 
     pub(crate) async fn unlock_db(&mut self) -> Result<MutexGuard<'_, ConnectionState>> {
+        // Start acquiring the mutex before notifying the worker so we are
+        // guaranteed to get the lock next.
         let (guard, res) = futures_util::future::join(
-            // we need to join the wait queue for the lock before we send the message
             self.shared.conn.lock(),
             self.command_tx.send_async(Command::UnlockDb),
         )
