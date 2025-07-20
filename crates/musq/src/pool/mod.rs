@@ -7,16 +7,9 @@
 //! A connection pool is a standard technique that can manage opening and re-using connections.
 //! Normally it also enforces a maximum number of connections as these are an expensive resource
 //! on the database server.
-use std::{
-    fmt,
-    future::Future,
-    pin::Pin,
-    sync::Arc,
-    task::{Context, Poll},
-};
+use std::{fmt, future::Future, sync::Arc};
 
-use event_listener::EventListener;
-use futures_core::{FusedFuture, future::BoxFuture, stream::BoxStream};
+use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 
 use self::inner::PoolInner;
@@ -73,13 +66,6 @@ impl Pool {
         inner.release(conn);
         Ok(Pool(inner))
     }
-}
-
-/// A future that resolves when the pool is closed.
-///
-/// See [`Pool::close_event()`] for details.
-pub struct CloseEvent {
-    listener: Option<EventListener>,
 }
 
 impl Pool {
@@ -164,7 +150,7 @@ impl Pool {
     /// This can be used to cancel long-running operations that hold onto a [`PoolConnection`]
     /// so they don't prevent the pool from closing (which would otherwise wait until all
     /// connections are returned).
-    pub fn close_event(&self) -> CloseEvent {
+    pub fn close_event(&self) -> impl Future<Output = ()> + '_ {
         self.0.close_event()
     }
 
@@ -288,65 +274,6 @@ impl fmt::Debug for Pool {
             .field("is_closed", &self.0.is_closed())
             .field("options", &self.0.options)
             .finish()
-    }
-}
-
-impl CloseEvent {
-    /// Execute the given future until it returns or the pool is closed.
-    ///
-    /// Cancels the future and returns `Err(PoolClosed)` if/when the pool is closed.
-    /// If the pool was already closed, the future is never run.
-    pub async fn do_until<Fut: Future>(&mut self, fut: Fut) -> Result<Fut::Output> {
-        // Check that the pool wasn't closed already.
-        //
-        // We use `poll_immediate()` as it will use the correct waker instead of
-        // a no-op one like `.now_or_never()`, but it won't actually suspend execution here.
-        futures_util::future::poll_immediate(&mut *self)
-            .await
-            .map_or(Ok(()), |_| Err(Error::PoolClosed))?;
-
-        futures_util::pin_mut!(fut);
-
-        // I find that this is clearer in intent than `futures_util::future::select()`
-        // or `futures_util::select_biased!{}` (which isn't enabled anyway).
-        futures_util::future::poll_fn(|cx| {
-            // Poll `fut` first as the wakeup event is more likely for it than `self`.
-            if let Poll::Ready(ret) = fut.as_mut().poll(cx) {
-                return Poll::Ready(Ok(ret));
-            }
-
-            // Can't really factor out mapping to `Err(Error::PoolClosed)` though it seems like
-            // we should because that results in a different `Ok` type each time.
-            //
-            // Ideally we'd map to something like `Result<!>` but using `!` as a type
-            // is not allowed on stable Rust yet.
-            self.poll_unpin(cx).map(|_| Err(Error::PoolClosed))
-        })
-        .await
-    }
-}
-
-impl Future for CloseEvent {
-    type Output = ();
-
-    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
-        if let Some(listener) = &mut self.listener {
-            futures_core::ready!(listener.poll_unpin(cx));
-        }
-
-        // `EventListener` doesn't like being polled after it yields, and even if it did it
-        // would probably just wait for the next event, neither of which we want.
-        //
-        // So this way, once we get our close event, we fuse this future to immediately return.
-        self.listener = None;
-
-        Poll::Ready(())
-    }
-}
-
-impl FusedFuture for CloseEvent {
-    fn is_terminated(&self) -> bool {
-        self.listener.is_none()
     }
 }
 

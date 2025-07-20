@@ -7,9 +7,9 @@ use std::{
 };
 
 use crossbeam_queue::ArrayQueue;
-use futures_util::FutureExt;
+use std::future::Future;
 
-use crate::{Error, Result, pool::CloseEvent};
+use crate::{Error, Result};
 
 use super::connection::{Floating, Idle, Live};
 
@@ -85,9 +85,13 @@ impl PoolInner {
         }
     }
 
-    pub(crate) fn close_event(&self) -> CloseEvent {
-        CloseEvent {
-            listener: (!self.is_closed()).then(|| self.on_closed.listen()),
+    pub(crate) fn close_event(&self) -> impl Future<Output = ()> + '_ {
+        let listener = (!self.is_closed()).then(|| self.on_closed.listen());
+
+        async move {
+            if let Some(listener) = listener {
+                listener.await;
+            }
         }
     }
 
@@ -95,9 +99,12 @@ impl PoolInner {
     ///
     /// If we steal a permit from the parent but *don't* open a connection, it should be returned to the parent.
     async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<tokio::sync::SemaphorePermit<'a>> {
-        let acquire_self = self.semaphore.acquire_many(1).fuse();
-        let mut close_event = self.close_event();
-        close_event.do_until(acquire_self).await.map(|e| e.unwrap())
+        tokio::select! {
+            permit = self.semaphore.acquire_many(1) => {
+                Ok(permit.unwrap())
+            }
+            _ = self.close_event() => Err(Error::PoolClosed),
+        }
     }
 
     pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating<Idle>> {
