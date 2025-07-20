@@ -10,6 +10,7 @@ use libsqlite3_sys::{
 };
 
 use crate::sqlite::{
+    DEFAULT_MAX_RETRIES,
     error::{ExtendedErrCode, PrimaryErrCode, SqliteError},
     ffi,
 };
@@ -176,6 +177,7 @@ impl StatementHandle {
 
     pub(crate) fn step(&mut self) -> crate::Result<bool> {
         // SAFETY: we have exclusive access to the handle
+        let mut attempts = 0;
         loop {
             let rc = ffi::step(self.0.as_ptr()).map_err(crate::Error::from)?;
             match rc {
@@ -187,11 +189,11 @@ impl StatementHandle {
                 SQLITE_LOCKED_SHAREDCACHE | libsqlite3_sys::SQLITE_LOCKED => {
                     // The shared cache is locked by another connection. Wait for unlock
                     // notification and try again.
-                    unlock_notify::wait(
-                        unsafe { self.db_handle() },
-                        Some(self.0.as_ptr()),
-                        unlock_notify::DEFAULT_MAX_RETRIES,
-                    )?;
+                    if attempts >= DEFAULT_MAX_RETRIES {
+                        return Err(crate::Error::UnlockNotify);
+                    }
+                    attempts += 1;
+                    unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
                     // Need to reset the handle after the unlock
                     // (https://www.sqlite.org/unlock_notify.html)
                     loop {
@@ -205,7 +207,6 @@ impl StatementHandle {
                                 unlock_notify::wait(
                                     unsafe { self.db_handle() },
                                     Some(self.0.as_ptr()),
-                                    unlock_notify::DEFAULT_MAX_RETRIES,
                                 )?;
                                 continue;
                             }
@@ -216,11 +217,11 @@ impl StatementHandle {
                 libsqlite3_sys::SQLITE_BUSY => {
                     // Another connection holds a lock that prevented the step from
                     // completing. Wait for an unlock notification and retry.
-                    unlock_notify::wait(
-                        unsafe { self.db_handle() },
-                        Some(self.0.as_ptr()),
-                        unlock_notify::DEFAULT_MAX_RETRIES,
-                    )?;
+                    if attempts >= DEFAULT_MAX_RETRIES {
+                        return Err(crate::Error::UnlockNotify);
+                    }
+                    attempts += 1;
+                    unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
                     loop {
                         match ffi::reset(self.0.as_ptr()) {
                             Ok(()) => break,
@@ -232,7 +233,6 @@ impl StatementHandle {
                                 unlock_notify::wait(
                                     unsafe { self.db_handle() },
                                     Some(self.0.as_ptr()),
-                                    unlock_notify::DEFAULT_MAX_RETRIES,
                                 )?;
                                 continue;
                             }

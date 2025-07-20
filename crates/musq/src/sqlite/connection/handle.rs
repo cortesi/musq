@@ -6,7 +6,7 @@ use crate::sqlite::ffi;
 
 use crate::{
     Error, Result,
-    sqlite::{error::ExtendedErrCode, statement::unlock_notify},
+    sqlite::{DEFAULT_MAX_RETRIES, error::ExtendedErrCode, statement::unlock_notify},
 };
 
 /// Managed handle to the raw SQLite3 database handle.
@@ -49,11 +49,16 @@ impl ConnectionHandle {
             CString::new(query).map_err(|_| Error::Protocol("query contains nul bytes".into()))?;
 
         // SAFETY: we have exclusive access to the database handle
+        let mut attempts = 0;
         loop {
             match ffi::exec(self.as_ptr(), query.as_ptr()) {
                 Ok(()) => return Ok(()),
                 Err(e) if e.extended == ExtendedErrCode::LockedSharedCache => {
-                    unlock_notify::wait(self.as_ptr(), None, unlock_notify::DEFAULT_MAX_RETRIES)?;
+                    if attempts >= DEFAULT_MAX_RETRIES {
+                        return Err(Error::UnlockNotify);
+                    }
+                    attempts += 1;
+                    unlock_notify::wait(self.as_ptr(), None)?;
                 }
                 Err(e) => return Err(e.into()),
             }

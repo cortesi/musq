@@ -3,6 +3,7 @@ use std::ffi::c_void;
 use std::slice;
 use std::sync::{Condvar, Mutex};
 
+use crate::sqlite::DEFAULT_MAX_RETRIES;
 use crate::sqlite::ffi;
 use libsqlite3_sys::{SQLITE_LOCKED, sqlite3, sqlite3_stmt};
 
@@ -11,15 +12,10 @@ use crate::{
     sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError},
 };
 
-/// Default number of times [`wait`] will retry when a statement is reset due to
-/// `SQLITE_LOCKED`.
-pub const DEFAULT_MAX_RETRIES: usize = 5;
-
 // Wait for unlock notification (https://www.sqlite.org/unlock_notify.html)
 // If `stmt` is provided, it will be reset and the call retried when
-// `SQLITE_LOCKED` is returned. The `max_retries` parameter controls how many
-// times to retry this reset before giving up.
-pub fn wait(conn: *mut sqlite3, stmt: Option<*mut sqlite3_stmt>, max_retries: usize) -> Result<()> {
+// `SQLITE_LOCKED` is returned.
+pub fn wait(conn: *mut sqlite3, stmt: Option<*mut sqlite3_stmt>) -> Result<()> {
     let notify = Notify::new();
     let mut attempts = 0;
     loop {
@@ -34,7 +30,7 @@ pub fn wait(conn: *mut sqlite3, stmt: Option<*mut sqlite3_stmt>, max_retries: us
                     let _ = ffi::reset(stmt);
                     attempts += 1;
 
-                    if attempts > max_retries {
+                    if attempts > DEFAULT_MAX_RETRIES {
                         return Err(Error::UnlockNotify);
                     }
 
