@@ -1,6 +1,4 @@
-use std::error::Error as StdError;
 use std::ffi::CStr;
-use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_int;
 use std::str::from_utf8_unchecked;
 
@@ -249,7 +247,8 @@ impl ExtendedErrCode {
 }
 
 /// An error returned from Sqlite
-#[derive(Debug)]
+#[derive(Debug, thiserror::Error)]
+#[error("(code: {:?}) {message}", .extended)]
 pub struct SqliteError {
     pub primary: PrimaryErrCode,
     pub extended: ExtendedErrCode,
@@ -274,14 +273,3 @@ impl SqliteError {
     }
 }
 
-impl Display for SqliteError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // We include the code as some produce ambiguous messages:
-        // SQLITE_BUSY: "database is locked"
-        // SQLITE_LOCKED: "database table is locked"
-        // Sadly there's no function to get the string label back from an error code.
-        write!(f, "(code: {:?}) {}", self.extended, self.message)
-    }
-}
-
-impl StdError for SqliteError {}

@@ -6,14 +6,12 @@ use std::ptr::NonNull;
 use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_stmt, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_OK,
-    SQLITE_ROW,
+    sqlite3, sqlite3_stmt, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW,
 };
 
-use crate::sqlite::ffi;
+use crate::sqlite::{ffi, error::{SqliteError, PrimaryErrCode}};
 
 use crate::sqlite::type_info::SqliteDataType;
-use crate::sqlite::SqliteError;
 
 use super::unlock_notify;
 
@@ -103,7 +101,7 @@ impl StatementHandle {
     // Binding Values To Prepared Statements
     // https://www.sqlite.org/c3ref/bind_blob.html
 
-    pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> c_int {
+    pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> Result<(), SqliteError> {
         ffi::bind_blob64(
             self.0.as_ptr(),
             index as c_int,
@@ -112,7 +110,7 @@ impl StatementHandle {
         )
     }
 
-    pub(crate) fn bind_text(&self, index: usize, v: &str) -> c_int {
+    pub(crate) fn bind_text(&self, index: usize, v: &str) -> Result<(), SqliteError> {
         ffi::bind_text64(
             self.0.as_ptr(),
             index as c_int,
@@ -121,19 +119,19 @@ impl StatementHandle {
         )
     }
 
-    pub(crate) fn bind_int(&self, index: usize, v: i32) -> c_int {
+    pub(crate) fn bind_int(&self, index: usize, v: i32) -> Result<(), SqliteError> {
         ffi::bind_int(self.0.as_ptr(), index as c_int, v as c_int)
     }
 
-    pub(crate) fn bind_int64(&self, index: usize, v: i64) -> c_int {
+    pub(crate) fn bind_int64(&self, index: usize, v: i64) -> Result<(), SqliteError> {
         ffi::bind_int64(self.0.as_ptr(), index as c_int, v)
     }
 
-    pub(crate) fn bind_double(&self, index: usize, v: f64) -> c_int {
+    pub(crate) fn bind_double(&self, index: usize, v: f64) -> Result<(), SqliteError> {
         ffi::bind_double(self.0.as_ptr(), index as c_int, v)
     }
 
-    pub(crate) fn bind_null(&self, index: usize) -> c_int {
+    pub(crate) fn bind_null(&self, index: usize) -> Result<(), SqliteError> {
         ffi::bind_null(self.0.as_ptr(), index as c_int)
     }
 
@@ -166,9 +164,7 @@ impl StatementHandle {
 
     pub(crate) fn reset(&mut self) -> Result<(), SqliteError> {
         // SAFETY: we have exclusive access to the handle
-        if ffi::reset(self.0.as_ptr()) != SQLITE_OK {
-            return Err(unsafe { SqliteError::new(self.db_handle()) });
-        }
+        ffi::reset(self.0.as_ptr())?;
 
         Ok(())
     }
@@ -176,7 +172,7 @@ impl StatementHandle {
     pub(crate) fn step(&mut self) -> Result<bool, crate::Error> {
         // SAFETY: we have exclusive access to the handle
         loop {
-            match ffi::step(self.0.as_ptr()) {
+            match ffi::step(self.0.as_ptr()).map_err(crate::Error::from)? {
                 SQLITE_ROW => return Ok(true),
                 SQLITE_DONE => return Ok(false),
                 SQLITE_MISUSE => panic!("misuse!"),
@@ -186,13 +182,13 @@ impl StatementHandle {
                     unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
                     // Need to reset the handle after the unlock
                     // (https://www.sqlite.org/unlock_notify.html)
-                    ffi::reset(self.0.as_ptr());
+                    ffi::reset(self.0.as_ptr())?;
                 }
                 libsqlite3_sys::SQLITE_BUSY => {
                     // Another connection holds a lock that prevented the step from
                     // completing. Wait for an unlock notification and retry.
                     unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
-                    ffi::reset(self.0.as_ptr());
+                    ffi::reset(self.0.as_ptr())?;
                 }
                 _ => return Err(unsafe { SqliteError::new(self.db_handle()) }.into()),
             }
@@ -203,31 +199,23 @@ impl StatementHandle {
 impl Drop for StatementHandle {
     fn drop(&mut self) {
         // SAFETY: we have exclusive access to the `StatementHandle` here
-        unsafe {
-            let db = self.db_handle();
-
+        {
             // Ensure the statement is reset before finalizing so that
             // sqlite3_finalize does not return SQLITE_BUSY.
-            let reset_status = ffi::reset(self.0.as_ptr());
-            if reset_status != SQLITE_OK {
-                tracing::error!(
-                    "sqlite3_reset before finalize failed: {}",
-                    SqliteError::new(db)
-                );
+            if let Err(e) = ffi::reset(self.0.as_ptr()) {
+                tracing::error!("sqlite3_reset before finalize failed: {}", e);
             }
 
             // https://sqlite.org/c3ref/finalize.html
-            let status = ffi::finalize(self.0.as_ptr());
-            if status == SQLITE_MISUSE {
-                // Panic in case of detected misuse of SQLite API.
-                //
-                // sqlite3_finalize returns it at least in the
-                // case of detected double free, i.e. calling
-                // sqlite3_finalize on already finalized
-                // statement.
-                panic!("Detected sqlite3_finalize misuse.");
-            } else if status != SQLITE_OK {
-                tracing::error!("sqlite3_finalize failed: {}", SqliteError::new(db));
+            match ffi::finalize(self.0.as_ptr()) {
+                Ok(()) => {}
+                Err(e) => {
+                    if e.primary == PrimaryErrCode::Misuse {
+                        panic!("Detected sqlite3_finalize misuse.");
+                    } else {
+                        tracing::error!("sqlite3_finalize failed: {}", e);
+                    }
+                }
             }
         }
     }

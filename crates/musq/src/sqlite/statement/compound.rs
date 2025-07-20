@@ -9,7 +9,7 @@ use std::{
 use crate::sqlite::ffi;
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{
-    sqlite3, sqlite3_stmt, SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
+    sqlite3, sqlite3_stmt, SQLITE_PREPARE_PERSISTENT,
 };
 
 use crate::{
@@ -17,7 +17,7 @@ use crate::{
     sqlite::{
         connection::ConnectionHandle,
         statement::{unlock_notify, StatementHandle},
-        SqliteError,
+        error::{ExtendedErrCode, PrimaryErrCode},
     },
     ustr::UStr,
     Column,
@@ -160,21 +160,22 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
 
         // <https://www.sqlite.org/c3ref/prepare.html>
         loop {
-            let status = ffi::prepare_v3(
+            match ffi::prepare_v3(
                 conn,
                 query_ptr,
                 query_len,
                 flags as u32,
                 &mut statement_handle,
                 &mut tail,
-            );
-
-            match status {
-                SQLITE_OK => break,
-                SQLITE_LOCKED_SHAREDCACHE | libsqlite3_sys::SQLITE_BUSY => {
+            ) {
+                Ok(()) => break,
+                Err(e)
+                    if e.extended == ExtendedErrCode::LockedSharedCache
+                        || e.primary == PrimaryErrCode::Busy =>
+                {
                     unlock_notify::wait(conn, None)?;
                 }
-                _ => return Err(SqliteError::new(conn).into()),
+                Err(e) => return Err(e.into()),
             }
         }
 
