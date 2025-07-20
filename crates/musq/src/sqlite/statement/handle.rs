@@ -124,7 +124,6 @@ impl StatementHandle {
         )
     }
 
-
     pub(crate) fn bind_int64(&self, index: usize, v: i64) -> std::result::Result<(), SqliteError> {
         ffi::bind_int64(self.0.as_ptr(), index as i32, v)
     }
