@@ -133,6 +133,10 @@ impl Pool {
     /// internally and so may be unpredictable otherwise.
     ///
     /// `.close()` may be safely called and `.await`ed on multiple handles concurrently.
+    ///
+    /// The returned future **must** be awaited to ensure the pool is fully
+    /// closed.
+    #[must_use = "futures returned by `Pool::close` must be awaited"]
     pub async fn close(&self) {
         self.0.close().await
     }
@@ -154,12 +158,12 @@ impl Pool {
     }
 
     /// Returns the number of connections currently active. This includes idle connections.
-    pub fn size(&self) -> u32 {
+    pub(crate) fn size(&self) -> u32 {
         self.0.size()
     }
 
     /// Returns the number of connections active and idle (not in use).
-    pub fn num_idle(&self) -> usize {
+    pub(crate) fn num_idle(&self) -> usize {
         // This previously called [`crossbeam::queue::ArrayQueue::len()`] which waits for the head and tail pointers to
         // be in a consistent state, which may never happen at high levels of churn.
         self.0.num_idle()
@@ -274,8 +278,8 @@ impl Clone for Pool {
 impl fmt::Debug for Pool {
     fn fmt(&self, fmt: &mut fmt::Formatter<'_>) -> fmt::Result {
         fmt.debug_struct("Pool")
-            .field("size", &self.0.size())
-            .field("num_idle", &self.0.num_idle())
+            .field("size", &self.size())
+            .field("num_idle", &self.num_idle())
             .field("is_closed", &self.0.is_closed())
             .field("options", &self.0.options)
             .finish()
