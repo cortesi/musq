@@ -3,6 +3,12 @@ use std::collections::HashMap;
 
 use atoi::atoi;
 
+pub(crate) fn parse_question_param(name: &str) -> Result<usize, Error> {
+    let rest = name.trim_start_matches('?');
+    atoi::<usize>(rest.as_bytes())
+        .ok_or_else(|| Error::Protocol(format!("invalid numeric SQL parameter: {name}")))
+}
+
 #[derive(Debug)]
 pub enum ArgumentValue {
     Null,
@@ -60,10 +66,8 @@ impl Arguments {
         for param_i in 1..=cnt {
             // figure out the index of this bind parameter into our argument tuple
             let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
-                if let Some(rest) = name.strip_prefix('?') {
-                    // parameter should have the form ?NNN
-
-                    atoi(rest.as_bytes()).expect("parameter of the form ?NNN")
+                if name.starts_with('?') {
+                    parse_question_param(name)?
                 } else if let Some(rest) = name.strip_prefix('$') {
                     // parameters of the form $NNN are positional, otherwise they are named
                     if let Some(n) = atoi(rest.as_bytes()) {
@@ -126,3 +130,17 @@ impl ArgumentValue {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::parse_question_param;
+    use crate::Error;
+
+    #[test]
+    fn test_parse_question_param_invalid() {
+        let err = parse_question_param("?foo").unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("?foo")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+}
