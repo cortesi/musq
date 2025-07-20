@@ -351,28 +351,6 @@ pub(crate) fn bind_text64(
     }
 }
 
-/// Wrapper around [`sqlite3_bind_int`].
-///
-/// # Safety
-/// - `stmt` must be a valid prepared statement pointer.
-///
-/// See <https://www.sqlite.org/c3ref/bind_blob.html>
-#[inline]
-#[must_use = "handle the Result"]
-pub(crate) fn bind_int(
-    stmt: *mut sqlite3_stmt,
-    index: i32,
-    value: i32,
-) -> std::result::Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_bind_int(stmt, index as c_int, value as c_int) };
-    if rc == ffi_sys::SQLITE_OK {
-        Ok(())
-    } else {
-        let db = unsafe { ffi_sys::sqlite3_db_handle(stmt) };
-        Err(SqliteError::new(db))
-    }
-}
-
 /// Wrapper around [`sqlite3_bind_int64`].
 ///
 /// # Safety
