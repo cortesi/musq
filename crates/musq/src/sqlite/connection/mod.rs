@@ -345,7 +345,7 @@ where
     unsafe {
         let r = catch_unwind(|| {
             let callback: *mut F = callback.cast::<F>();
-            (*callback)()
+            (&mut *callback)()
         });
 
         match r {
