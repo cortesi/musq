@@ -164,7 +164,7 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
                 conn,
                 query_ptr,
                 query_len,
-                flags as u32,
+                flags,
                 &mut statement_handle,
                 &mut tail,
             ) {

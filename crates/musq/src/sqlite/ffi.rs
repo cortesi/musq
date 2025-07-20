@@ -3,7 +3,7 @@
 // the SQLite C API so that the rest of the codebase can remain safe.
 
 use std::ffi::c_void;
-use std::os::raw::{c_char, c_int, c_uint};
+use std::os::raw::{c_char, c_int};
 use std::ptr;
 
 use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
@@ -67,7 +67,7 @@ pub(crate) fn prepare_v3(
     db: *mut sqlite3,
     sql: *const c_char,
     n_byte: i32,
-    flags: c_uint,
+    flags: u32,
     stmt: *mut *mut sqlite3_stmt,
     tail: *mut *const c_char,
 ) -> Result<(), SqliteError> {
