@@ -20,8 +20,6 @@ mod statement_cache;
 mod transaction;
 pub mod types;
 
-pub use either::Either;
-
 pub use crate::{
     column::Column,
     error::{DecodeError, Error, Result},

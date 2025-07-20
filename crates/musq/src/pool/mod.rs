@@ -21,8 +21,9 @@ use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 
 use self::inner::PoolInner;
 use crate::{
-    Either, Error, QueryResult, Result, Row, Statement, executor::Execute, transaction::Transaction,
+    Error, QueryResult, Result, Row, Statement, executor::Execute, transaction::Transaction,
 };
+use either::Either;
 
 mod connection_like;
 

@@ -1,5 +1,7 @@
+use either::Either;
+
 use crate::{
-    Either, Error, QueryResult, Row,
+    Error, QueryResult, Row,
     logger::{NopQueryLogger, QueryLog, QueryLogger},
     sqlite::{
         Arguments,
