@@ -198,6 +198,10 @@ impl StatementHandle {
                     // Need to reset the handle after the unlock
                     // (https://www.sqlite.org/unlock_notify.html)
                     loop {
+                        if attempts >= DEFAULT_MAX_RETRIES {
+                            return Err(crate::Error::UnlockNotify);
+                        }
+                        attempts += 1;
                         match ffi::reset(self.0.as_ptr()) {
                             Ok(()) => break,
                             Err(ref e) if e.should_retry() => {
@@ -220,6 +224,10 @@ impl StatementHandle {
                     attempts += 1;
                     unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
                     loop {
+                        if attempts >= DEFAULT_MAX_RETRIES {
+                            return Err(crate::Error::UnlockNotify);
+                        }
+                        attempts += 1;
                         match ffi::reset(self.0.as_ptr()) {
                             Ok(()) => break,
                             Err(ref e) if e.should_retry() => {
