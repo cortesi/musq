@@ -87,9 +87,7 @@ pub fn private_level_filter_to_levels(
     tracing_level.zip(filter.to_level())
 }
 
-pub use sqlformat;
-
-pub struct QueryLogger<'q> {
+pub(crate) struct QueryLogger<'q> {
     sql: &'q str,
     rows_returned: u64,
     rows_affected: u64,
@@ -98,7 +96,7 @@ pub struct QueryLogger<'q> {
 }
 
 /// Trait implemented by types that can log query execution statistics.
-pub trait QueryLog {
+pub(crate) trait QueryLog {
     fn inc_rows_returned(&mut self);
     fn inc_rows_affected(&mut self, n: u64);
 }
@@ -185,14 +183,14 @@ impl<'q> QueryLog for QueryLogger<'q> {
 
 /// A no-op logger used when query logging is disabled.
 #[derive(Default)]
-pub struct NopQueryLogger;
+pub(crate) struct NopQueryLogger;
 
 impl QueryLog for NopQueryLogger {
     fn inc_rows_returned(&mut self) {}
     fn inc_rows_affected(&mut self, _n: u64) {}
 }
 
-pub fn parse_query_summary(sql: &str) -> String {
+fn parse_query_summary(sql: &str) -> String {
     // For now, just take the first 4 words
     sql.split_whitespace()
         .take(4)
