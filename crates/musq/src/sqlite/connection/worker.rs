@@ -10,7 +10,7 @@ use either::Either;
 
 use crate::{
     QueryResult, Row,
-    error::Error,
+    error::{Error, Result},
     sqlite::{
         Arguments, Statement,
         connection::{ConnectionState, establish::EstablishParams, execute},
@@ -39,21 +39,21 @@ pub(crate) struct WorkerSharedState {
 enum Command {
     Prepare {
         query: Box<str>,
-        tx: oneshot::Sender<Result<Statement, Error>>,
+        tx: oneshot::Sender<Result<Statement>>,
     },
     Execute {
         query: Box<str>,
         arguments: Option<Arguments>,
-        tx: flume::Sender<Result<Either<QueryResult, Row>, Error>>,
+        tx: flume::Sender<Result<Either<QueryResult, Row>>>,
     },
     Begin {
-        tx: rendezvous_oneshot::Sender<Result<(), Error>>,
+        tx: rendezvous_oneshot::Sender<Result<()>>,
     },
     Commit {
-        tx: rendezvous_oneshot::Sender<Result<(), Error>>,
+        tx: rendezvous_oneshot::Sender<Result<()>>,
     },
     Rollback {
-        tx: Option<rendezvous_oneshot::Sender<Result<(), Error>>>,
+        tx: Option<rendezvous_oneshot::Sender<Result<()>>>,
     },
     UnlockDb,
     ClearCache {
@@ -65,7 +65,7 @@ enum Command {
 }
 
 impl ConnectionWorker {
-    pub(crate) async fn establish(params: EstablishParams) -> Result<Self, Error> {
+    pub(crate) async fn establish(params: EstablishParams) -> Result<Self> {
         let (establish_tx, establish_rx) = oneshot::channel();
 
         let join_handle = thread::Builder::new()
@@ -247,7 +247,7 @@ impl ConnectionWorker {
         })
     }
 
-    pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement, Error> {
+    pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
             tx,
@@ -261,7 +261,7 @@ impl ConnectionWorker {
         query: String,
         args: Option<Arguments>,
         chan_size: usize,
-    ) -> Result<flume::Receiver<Result<Either<QueryResult, Row>, Error>>, Error> {
+    ) -> Result<flume::Receiver<Result<Either<QueryResult, Row>>>> {
         let (tx, rx) = flume::bounded(chan_size);
 
         self.command_tx
@@ -276,28 +276,28 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
-    pub(crate) async fn begin(&mut self) -> Result<(), Error> {
+    pub(crate) async fn begin(&mut self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Begin { tx })
             .await?
     }
 
-    pub(crate) async fn commit(&mut self) -> Result<(), Error> {
+    pub(crate) async fn commit(&mut self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Commit { tx })
             .await?
     }
 
-    pub(crate) async fn rollback(&mut self) -> Result<(), Error> {
+    pub(crate) async fn rollback(&mut self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Rollback { tx: Some(tx) })
             .await?
     }
 
-    pub(crate) fn start_rollback(&mut self) -> Result<(), Error> {
+    pub(crate) fn start_rollback(&mut self) -> Result<()> {
         self.command_tx
             .send(Command::Rollback { tx: None })
             .map_err(|_| Error::WorkerCrashed)
     }
 
-    async fn oneshot_cmd<F, T>(&mut self, command: F) -> Result<T, Error>
+    async fn oneshot_cmd<F, T>(&mut self, command: F) -> Result<T>
     where
         F: FnOnce(oneshot::Sender<T>) -> Command,
     {
@@ -311,7 +311,7 @@ impl ConnectionWorker {
         rx.await.map_err(|_| Error::WorkerCrashed)
     }
 
-    async fn oneshot_cmd_with_ack<F, T>(&mut self, command: F) -> Result<T, Error>
+    async fn oneshot_cmd_with_ack<F, T>(&mut self, command: F) -> Result<T>
     where
         F: FnOnce(rendezvous_oneshot::Sender<T>) -> Command,
     {
@@ -325,11 +325,11 @@ impl ConnectionWorker {
         rx.recv().await.map_err(|_| Error::WorkerCrashed)
     }
 
-    pub(crate) async fn clear_cache(&mut self) -> Result<(), Error> {
+    pub(crate) async fn clear_cache(&mut self) -> Result<()> {
         self.oneshot_cmd(|tx| Command::ClearCache { tx }).await
     }
 
-    pub(crate) async fn unlock_db(&mut self) -> Result<MutexGuard<'_, ConnectionState>, Error> {
+    pub(crate) async fn unlock_db(&mut self) -> Result<MutexGuard<'_, ConnectionState>> {
         let (guard, res) = futures_util::future::join(
             // we need to join the wait queue for the lock before we send the message
             self.shared.conn.lock(),
@@ -345,7 +345,7 @@ impl ConnectionWorker {
     /// Send a command to the worker to shut down the processing thread.
     ///
     /// A `WorkerCrashed` error may be returned if the thread has already stopped.
-    pub(crate) fn shutdown(&mut self) -> impl Future<Output = Result<(), Error>> {
+    pub(crate) fn shutdown(&mut self) -> impl Future<Output = Result<()>> {
         let join_handle = self.join_handle.take();
         let (tx, rx) = oneshot::channel();
 
@@ -374,7 +374,7 @@ impl ConnectionWorker {
     }
 }
 
-fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement, Error> {
+fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement> {
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query)?;
 
@@ -414,14 +414,14 @@ mod rendezvous_oneshot {
     }
 
     impl<T> Sender<T> {
-        pub async fn send(self, value: T) -> Result<(), Canceled> {
+        pub async fn send(self, value: T) -> std::result::Result<(), Canceled> {
             let (ack_tx, ack_rx) = oneshot::channel();
             self.inner.send((value, ack_tx)).map_err(|_| Canceled)?;
             ack_rx.await.map_err(|_| Canceled)?;
             Ok(())
         }
 
-        pub fn blocking_send(self, value: T) -> Result<(), Canceled> {
+        pub fn blocking_send(self, value: T) -> std::result::Result<(), Canceled> {
             futures_executor::block_on(self.send(value))
         }
     }
@@ -431,7 +431,7 @@ mod rendezvous_oneshot {
     }
 
     impl<T> Receiver<T> {
-        pub async fn recv(self) -> Result<T, Canceled> {
+        pub async fn recv(self) -> std::result::Result<T, Canceled> {
             let (value, ack_tx) = self.inner.await.map_err(|_| Canceled)?;
             ack_tx.send(()).map_err(|_| Canceled)?;
             Ok(value)

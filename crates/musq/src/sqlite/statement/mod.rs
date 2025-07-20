@@ -41,9 +41,7 @@ impl Statement {
         query::query_statement_with(self, arguments)
     }
 
-    pub fn query_as<O>(
-        &self,
-    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send>
+    pub fn query_as<O>(&self) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
     where
         O: for<'r> from_row::FromRow<'r> + Send + Unpin,
     {
@@ -53,16 +51,14 @@ impl Statement {
     pub fn query_as_with<'s, O>(
         &'s self,
         arguments: Arguments,
-    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send>
+    ) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
     where
         O: for<'r> from_row::FromRow<'r> + Send + Unpin,
     {
         query::query_statement_as_with(self, arguments)
     }
 
-    pub fn query_scalar<O>(
-        &self,
-    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send>
+    pub fn query_scalar<O>(&self) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
     where
         (O,): for<'r> from_row::FromRow<'r>,
         O: Send + Unpin,
@@ -73,7 +69,7 @@ impl Statement {
     pub fn query_scalar_with<'s, O>(
         &'s self,
         arguments: Arguments,
-    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send>
+    ) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
     where
         (O,): for<'r> from_row::FromRow<'r>,
         O: Send + Unpin,

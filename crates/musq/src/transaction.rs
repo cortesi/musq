@@ -54,7 +54,11 @@ where
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(&mut self) -> Result<()> {
-        self.connection.as_connection_mut().worker.rollback().await?;
+        self.connection
+            .as_connection_mut()
+            .worker
+            .rollback()
+            .await?;
         self.open = false;
         Ok(())
     }
@@ -114,7 +118,11 @@ where
 {
     fn drop(&mut self) {
         if self.open {
-            self.connection.as_connection_mut().worker.start_rollback().ok();
+            self.connection
+                .as_connection_mut()
+                .worker
+                .start_rollback()
+                .ok();
         }
     }
 }

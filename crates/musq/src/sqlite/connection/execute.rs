@@ -1,7 +1,7 @@
 use either::Either;
 
 use crate::{
-    Error, QueryResult, Row,
+    QueryResult, Result, Row,
     logger::{NopQueryLogger, QueryLog, QueryLogger},
     sqlite::{
         Arguments,
@@ -27,7 +27,7 @@ pub(crate) fn iter<'a>(
     conn: &'a mut ConnectionState,
     query: &'a str,
     args: Option<Arguments>,
-) -> Result<ExecuteIter<'a>, Error> {
+) -> Result<ExecuteIter<'a>> {
     // fetch the cached statement or allocate a new one
     let statement = conn.statements.get(query)?;
 
@@ -51,7 +51,7 @@ fn bind(
     statement: &mut StatementHandle,
     arguments: &Option<Arguments>,
     offset: usize,
-) -> Result<usize, Error> {
+) -> Result<usize> {
     let mut n = 0;
 
     if let Some(arguments) = arguments {
@@ -62,7 +62,7 @@ fn bind(
 }
 
 impl Iterator for ExecuteIter<'_> {
-    type Item = Result<Either<QueryResult, Row>, Error>;
+    type Item = Result<Either<QueryResult, Row>>;
 
     fn next(&mut self) -> Option<Self::Item> {
         let statement = if self.goto_next {

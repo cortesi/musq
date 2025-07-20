@@ -23,7 +23,7 @@ pub(crate) fn open_v2(
     handle: *mut *mut sqlite3,
     flags: i32,
     vfs: *const c_char,
-) -> Result<(), SqliteError> {
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_open_v2(filename, handle, flags as c_int, vfs) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -48,7 +48,10 @@ pub(crate) fn open_v2(
 }
 
 /// Wrapper around [`sqlite3_extended_result_codes`].
-pub(crate) fn extended_result_codes(db: *mut sqlite3, onoff: i32) -> Result<(), SqliteError> {
+pub(crate) fn extended_result_codes(
+    db: *mut sqlite3,
+    onoff: i32,
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_extended_result_codes(db, onoff as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -58,7 +61,7 @@ pub(crate) fn extended_result_codes(db: *mut sqlite3, onoff: i32) -> Result<(), 
 }
 
 /// Wrapper around [`sqlite3_busy_timeout`].
-pub(crate) fn busy_timeout(db: *mut sqlite3, ms: i32) -> Result<(), SqliteError> {
+pub(crate) fn busy_timeout(db: *mut sqlite3, ms: i32) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_busy_timeout(db, ms as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -75,7 +78,7 @@ pub(crate) fn prepare_v3(
     flags: u32,
     stmt: *mut *mut sqlite3_stmt,
     tail: *mut *const c_char,
-) -> Result<(), SqliteError> {
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_prepare_v3(db, sql, n_byte as c_int, flags, stmt, tail) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -101,7 +104,7 @@ pub(crate) fn unlock_notify(
     db: *mut sqlite3,
     callback: Option<unsafe extern "C" fn(*mut *mut c_void, c_int)>,
     arg: *mut c_void,
-) -> Result<(), SqliteError> {
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_unlock_notify(db, callback, arg) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -121,7 +124,7 @@ pub(crate) fn errmsg(db: *mut sqlite3) -> *const c_char {
 }
 
 /// Wrapper around [`sqlite3_close`].
-pub(crate) fn close(db: *mut sqlite3) -> Result<(), SqliteError> {
+pub(crate) fn close(db: *mut sqlite3) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_close(db) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -131,7 +134,7 @@ pub(crate) fn close(db: *mut sqlite3) -> Result<(), SqliteError> {
 }
 
 /// Wrapper around [`sqlite3_exec`] with no callback.
-pub(crate) fn exec(db: *mut sqlite3, sql: *const c_char) -> Result<(), SqliteError> {
+pub(crate) fn exec(db: *mut sqlite3, sql: *const c_char) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_exec(db, sql, None, ptr::null_mut(), ptr::null_mut()) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -186,7 +189,7 @@ pub(crate) fn bind_blob64(
     index: i32,
     data: *const c_void,
     len: u64,
-) -> Result<(), SqliteError> {
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe {
         ffi_sys::sqlite3_bind_blob64(stmt, index, data, len, ffi_sys::SQLITE_TRANSIENT())
     };
@@ -204,7 +207,7 @@ pub(crate) fn bind_text64(
     index: i32,
     data: *const c_char,
     len: u64,
-) -> Result<(), SqliteError> {
+) -> std::result::Result<(), SqliteError> {
     unsafe {
         let rc = ffi_sys::sqlite3_bind_text64(
             stmt,
@@ -224,7 +227,11 @@ pub(crate) fn bind_text64(
 }
 
 /// Wrapper around [`sqlite3_bind_int`].
-pub(crate) fn bind_int(stmt: *mut sqlite3_stmt, index: i32, value: i32) -> Result<(), SqliteError> {
+pub(crate) fn bind_int(
+    stmt: *mut sqlite3_stmt,
+    index: i32,
+    value: i32,
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_int(stmt, index as c_int, value as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -239,7 +246,7 @@ pub(crate) fn bind_int64(
     stmt: *mut sqlite3_stmt,
     index: i32,
     value: i64,
-) -> Result<(), SqliteError> {
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_int64(stmt, index as c_int, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -254,7 +261,7 @@ pub(crate) fn bind_double(
     stmt: *mut sqlite3_stmt,
     index: i32,
     value: f64,
-) -> Result<(), SqliteError> {
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_double(stmt, index as c_int, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -265,7 +272,10 @@ pub(crate) fn bind_double(
 }
 
 /// Wrapper around [`sqlite3_bind_null`].
-pub(crate) fn bind_null(stmt: *mut sqlite3_stmt, index: i32) -> Result<(), SqliteError> {
+pub(crate) fn bind_null(
+    stmt: *mut sqlite3_stmt,
+    index: i32,
+) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_null(stmt, index as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -306,7 +316,7 @@ pub(crate) fn clear_bindings(stmt: *mut sqlite3_stmt) {
 }
 
 /// Wrapper around [`sqlite3_reset`].
-pub(crate) fn reset(stmt: *mut sqlite3_stmt) -> Result<(), SqliteError> {
+pub(crate) fn reset(stmt: *mut sqlite3_stmt) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_reset(stmt) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -317,7 +327,7 @@ pub(crate) fn reset(stmt: *mut sqlite3_stmt) -> Result<(), SqliteError> {
 }
 
 /// Wrapper around [`sqlite3_step`].
-pub(crate) fn step(stmt: *mut sqlite3_stmt) -> Result<i32, SqliteError> {
+pub(crate) fn step(stmt: *mut sqlite3_stmt) -> std::result::Result<i32, SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_step(stmt) };
     if rc == ffi_sys::SQLITE_ROW
         || rc == ffi_sys::SQLITE_DONE
@@ -335,7 +345,7 @@ pub(crate) fn step(stmt: *mut sqlite3_stmt) -> Result<i32, SqliteError> {
 }
 
 /// Wrapper around [`sqlite3_finalize`].
-pub(crate) fn finalize(stmt: *mut sqlite3_stmt) -> Result<(), SqliteError> {
+pub(crate) fn finalize(stmt: *mut sqlite3_stmt) -> std::result::Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_finalize(stmt) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())

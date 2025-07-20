@@ -7,7 +7,7 @@ use crate::sqlite::ffi;
 use libsqlite3_sys::{SQLITE_LOCKED, sqlite3, sqlite3_stmt};
 
 use crate::{
-    error::Error,
+    error::{Error, Result},
     sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError},
 };
 
@@ -19,11 +19,7 @@ pub const DEFAULT_MAX_RETRIES: usize = 5;
 // If `stmt` is provided, it will be reset and the call retried when
 // `SQLITE_LOCKED` is returned. The `max_retries` parameter controls how many
 // times to retry this reset before giving up.
-pub fn wait(
-    conn: *mut sqlite3,
-    stmt: Option<*mut sqlite3_stmt>,
-    max_retries: usize,
-) -> Result<(), Error> {
+pub fn wait(conn: *mut sqlite3, stmt: Option<*mut sqlite3_stmt>, max_retries: usize) -> Result<()> {
     let notify = Notify::new();
     let mut attempts = 0;
     loop {

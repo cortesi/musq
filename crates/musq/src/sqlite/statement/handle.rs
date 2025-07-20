@@ -53,7 +53,7 @@ impl StatementHandle {
         unsafe { ffi::changes(self.db_handle()) as u64 }
     }
 
-    pub(crate) fn column_name(&self, index: usize) -> Result<String, SqliteError> {
+    pub(crate) fn column_name(&self, index: usize) -> std::result::Result<String, SqliteError> {
         // https://sqlite.org/c3ref/column_name.html
         let name = ffi::column_name(self.0.as_ptr(), index as i32);
         if name.is_null() {
@@ -106,7 +106,7 @@ impl StatementHandle {
     // Binding Values To Prepared Statements
     // https://www.sqlite.org/c3ref/bind_blob.html
 
-    pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> Result<(), SqliteError> {
+    pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> std::result::Result<(), SqliteError> {
         ffi::bind_blob64(
             self.0.as_ptr(),
             index as i32,
@@ -115,7 +115,7 @@ impl StatementHandle {
         )
     }
 
-    pub(crate) fn bind_text(&self, index: usize, v: &str) -> Result<(), SqliteError> {
+    pub(crate) fn bind_text(&self, index: usize, v: &str) -> std::result::Result<(), SqliteError> {
         ffi::bind_text64(
             self.0.as_ptr(),
             index as i32,
@@ -124,19 +124,19 @@ impl StatementHandle {
         )
     }
 
-    pub(crate) fn bind_int(&self, index: usize, v: i32) -> Result<(), SqliteError> {
+    pub(crate) fn bind_int(&self, index: usize, v: i32) -> std::result::Result<(), SqliteError> {
         ffi::bind_int(self.0.as_ptr(), index as i32, v)
     }
 
-    pub(crate) fn bind_int64(&self, index: usize, v: i64) -> Result<(), SqliteError> {
+    pub(crate) fn bind_int64(&self, index: usize, v: i64) -> std::result::Result<(), SqliteError> {
         ffi::bind_int64(self.0.as_ptr(), index as i32, v)
     }
 
-    pub(crate) fn bind_double(&self, index: usize, v: f64) -> Result<(), SqliteError> {
+    pub(crate) fn bind_double(&self, index: usize, v: f64) -> std::result::Result<(), SqliteError> {
         ffi::bind_double(self.0.as_ptr(), index as i32, v)
     }
 
-    pub(crate) fn bind_null(&self, index: usize) -> Result<(), SqliteError> {
+    pub(crate) fn bind_null(&self, index: usize) -> std::result::Result<(), SqliteError> {
         ffi::bind_null(self.0.as_ptr(), index as i32)
     }
 
@@ -167,14 +167,14 @@ impl StatementHandle {
         ffi::clear_bindings(self.0.as_ptr());
     }
 
-    pub(crate) fn reset(&mut self) -> Result<(), SqliteError> {
+    pub(crate) fn reset(&mut self) -> std::result::Result<(), SqliteError> {
         // SAFETY: we have exclusive access to the handle
         ffi::reset(self.0.as_ptr())?;
 
         Ok(())
     }
 
-    pub(crate) fn step(&mut self) -> Result<bool, crate::Error> {
+    pub(crate) fn step(&mut self) -> crate::Result<bool> {
         // SAFETY: we have exclusive access to the handle
         loop {
             let rc = ffi::step(self.0.as_ptr()).map_err(crate::Error::from)?;

@@ -129,7 +129,7 @@ impl Row {
 }
 
 impl<'r> crate::from_row::FromRow<'r> for Row {
-    fn from_row(_prefix: &str, row: &'r Row) -> Result<Self, Error> {
+    fn from_row(_prefix: &str, row: &'r Row) -> Result<Self> {
         Ok(row.clone())
     }
 }

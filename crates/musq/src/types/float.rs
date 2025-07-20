@@ -13,7 +13,7 @@ impl Encode for f32 {
 }
 
 impl<'r> Decode<'r> for f32 {
-    fn decode(value: &'r Value) -> Result<f32, DecodeError> {
+    fn decode(value: &'r Value) -> std::result::Result<f32, DecodeError> {
         compatible!(value, SqliteDataType::Float);
         Ok(value.double()? as f32)
     }
@@ -26,7 +26,7 @@ impl Encode for f64 {
 }
 
 impl<'r> Decode<'r> for f64 {
-    fn decode(value: &'r Value) -> Result<f64, DecodeError> {
+    fn decode(value: &'r Value) -> std::result::Result<f64, DecodeError> {
         compatible!(value, SqliteDataType::Float);
         value.double()
     }

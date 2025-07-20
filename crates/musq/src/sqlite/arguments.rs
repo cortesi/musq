@@ -1,9 +1,9 @@
-use crate::{Error, encode::Encode, sqlite::statement::StatementHandle};
+use crate::{Error, Result, encode::Encode, sqlite::statement::StatementHandle};
 use std::collections::HashMap;
 
 use atoi::atoi;
 
-pub(crate) fn parse_question_param(name: &str) -> Result<usize, Error> {
+pub(crate) fn parse_question_param(name: &str) -> Result<usize> {
     let rest = name.trim_start_matches('?');
     atoi::<usize>(rest.as_bytes())
         .ok_or_else(|| Error::Protocol(format!("invalid numeric SQL parameter: {name}")))
@@ -50,7 +50,7 @@ impl Arguments {
         }
     }
 
-    pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize, Error> {
+    pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize> {
         let mut next_pos = offset;
         if let Some(max) = self.named.values().max().cloned() {
             if max > next_pos {
@@ -126,7 +126,7 @@ impl Arguments {
 }
 
 impl ArgumentValue {
-    fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<(), Error> {
+    fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<()> {
         use ArgumentValue::*;
 
         match self {

@@ -113,7 +113,7 @@ impl PoolInner {
     fn pop_idle<'a>(
         self: &'a Arc<Self>,
         permit: tokio::sync::SemaphorePermit<'a>,
-    ) -> Result<Floating<Idle>, tokio::sync::SemaphorePermit<'a>> {
+    ) -> std::result::Result<Floating<Idle>, tokio::sync::SemaphorePermit<'a>> {
         if let Some(idle) = self.idle_conns.pop() {
             self.num_idle.fetch_sub(1, Ordering::AcqRel);
             Ok(Floating::from_idle(idle, (*self).clone(), permit))
@@ -142,7 +142,7 @@ impl PoolInner {
     fn try_increment_size<'a>(
         self: &'a Arc<Self>,
         permit: tokio::sync::SemaphorePermit<'a>,
-    ) -> Result<DecrementSizeGuard, tokio::sync::SemaphorePermit<'a>> {
+    ) -> std::result::Result<DecrementSizeGuard, tokio::sync::SemaphorePermit<'a>> {
         match self
             .size
             .fetch_update(Ordering::AcqRel, Ordering::Acquire, |size| {
@@ -214,7 +214,7 @@ impl PoolInner {
         }
         let timeout = deadline_as_timeout(deadline)?;
 
-        // result here is `Result<Result<C, Error>, TimeoutError>`
+        // result here is `Result<Result<C>, TimeoutError>`
         // if this block does not return, sleep for the backoff timeout and try again
         match tokio::time::timeout(timeout, self.options.connect()).await {
             Ok(Ok(raw)) => Ok(Floating::new_live(raw, guard)),

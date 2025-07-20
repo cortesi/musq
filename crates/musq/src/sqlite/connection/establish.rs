@@ -13,7 +13,7 @@ use libsqlite3_sys::{
 };
 
 use crate::{
-    Error, Musq,
+    Error, Musq, Result,
     sqlite::connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
 };
 
@@ -30,7 +30,7 @@ pub struct EstablishParams {
 }
 
 impl EstablishParams {
-    pub fn from_options(options: &Musq) -> Result<Self, Error> {
+    pub fn from_options(options: &Musq) -> Result<Self> {
         let mut filename = options
             .filename
             .to_str()
@@ -108,7 +108,7 @@ impl EstablishParams {
     /// The configured busy timeout is converted to milliseconds for
     /// [`sqlite3_busy_timeout`]. If the duration exceeds `i32::MAX`
     /// milliseconds, it is clamped to `i32::MAX`.
-    pub(crate) fn establish(&self) -> Result<ConnectionState, Error> {
+    pub(crate) fn establish(&self) -> Result<ConnectionState> {
         let mut handle = null_mut();
 
         // <https://www.sqlite.org/c3ref/open.html>

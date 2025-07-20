@@ -72,7 +72,7 @@ impl SqliteDataType {
 impl FromStr for SqliteDataType {
     type Err = crate::Error;
 
-    fn from_str(s: &str) -> Result<Self, Self::Err> {
+    fn from_str(s: &str) -> std::result::Result<Self, Self::Err> {
         let original = s.to_owned();
         let s = original.to_ascii_lowercase();
         Ok(match &*s {
@@ -106,7 +106,7 @@ impl FromStr for SqliteDataType {
 }
 
 #[test]
-fn test_data_type_from_str() -> Result<(), crate::Error> {
+fn test_data_type_from_str() -> crate::Result<()> {
     assert_eq!(SqliteDataType::Int, "INT4".parse()?);
 
     assert_eq!(SqliteDataType::Int64, "INT".parse()?);

@@ -5,7 +5,7 @@ use libsqlite3_sys::sqlite3;
 use crate::sqlite::ffi;
 
 use crate::{
-    Error,
+    Error, Result,
     sqlite::{error::ExtendedErrCode, statement::unlock_notify},
 };
 
@@ -43,7 +43,7 @@ impl ConnectionHandle {
         ffi::last_insert_rowid(self.as_ptr())
     }
 
-    pub(crate) fn exec(&self, query: impl Into<String>) -> Result<(), Error> {
+    pub(crate) fn exec(&self, query: impl Into<String>) -> Result<()> {
         let query = query.into();
         let query =
             CString::new(query).map_err(|_| Error::Protocol("query contains nul bytes".into()))?;

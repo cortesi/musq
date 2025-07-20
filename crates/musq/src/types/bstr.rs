@@ -1,6 +1,6 @@
 /// Conversions between `bstr` types and SQL types.
 use crate::{
-    ArgumentValue, Result, SqliteDataType, Value, compatible, decode::Decode, encode::Encode,
+    ArgumentValue, SqliteDataType, Value, compatible, decode::Decode, encode::Encode,
     error::DecodeError,
 };
 
@@ -8,7 +8,7 @@ use crate::{
 pub use bstr::{BStr, BString, ByteSlice};
 
 impl<'r> Decode<'r> for BString {
-    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
+    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
         Ok(BString::from(value.blob().to_owned()))
     }

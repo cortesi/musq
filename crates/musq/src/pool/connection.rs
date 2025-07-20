@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use crate::{Connection, error::Error};
+use crate::{Connection, Result};
 
 use super::inner::{DecrementSizeGuard, PoolInner};
 use std::future::Future;
@@ -72,7 +72,7 @@ impl PoolConnection {
     ///
     /// [`.detach()`]: PoolConnection::detach
     /// [`.close()`]: Connection::close
-    pub async fn close(mut self) -> Result<(), Error> {
+    pub async fn close(mut self) -> Result<()> {
         let floating = self.take_live().float(self.pool.clone());
         floating.inner.raw.close().await
     }

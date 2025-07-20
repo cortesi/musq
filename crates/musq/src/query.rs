@@ -3,7 +3,7 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt, future};
 
 use crate::{
-    Arguments, Connection, QueryResult, Row, Statement, encode::Encode, error::Error,
+    Arguments, Connection, QueryResult, Result, Row, Statement, encode::Encode, error::Error,
     executor::Execute,
 };
 
@@ -89,7 +89,7 @@ impl Query {
     ///
     /// The [`query_as`](crate::query_as) function will construct a mapped query using
     /// a [`FromRow`](crate::FromRow) implementation.
-    pub fn map<F, O>(self, mut f: F) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+    pub fn map<F, O>(self, mut f: F) -> Map<impl FnMut(Row) -> Result<O> + Send>
     where
         F: FnMut(Row) -> O + Send,
         O: Unpin,
@@ -103,7 +103,7 @@ impl Query {
     /// a [`FromRow`](crate::FromRow) implementation.
     pub fn try_map<F, O>(self, f: F) -> Map<F>
     where
-        F: FnMut(Row) -> Result<O, Error> + Send,
+        F: FnMut(Row) -> Result<O> + Send,
         O: Unpin,
     {
         Map {
@@ -113,7 +113,7 @@ impl Query {
     }
 
     /// Execute the query and return the total number of rows affected.
-    pub async fn execute(self, executor: &mut Connection) -> Result<QueryResult, Error> {
+    pub async fn execute(self, executor: &mut Connection) -> Result<QueryResult> {
         executor.execute(self).await
     }
 
@@ -121,12 +121,12 @@ impl Query {
     pub async fn execute_many<'c>(
         self,
         executor: &'c mut Connection,
-    ) -> BoxStream<'c, Result<QueryResult, Error>> {
+    ) -> BoxStream<'c, Result<QueryResult>> {
         executor.execute_many(self)
     }
 
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'c>(self, executor: &'c mut Connection) -> BoxStream<'c, Result<Row, Error>> {
+    pub fn fetch<'c>(self, executor: &'c mut Connection) -> BoxStream<'c, Result<Row>> {
         executor.fetch(self)
     }
 
@@ -135,25 +135,22 @@ impl Query {
     pub fn fetch_many<'c>(
         self,
         executor: &'c mut Connection,
-    ) -> BoxStream<'c, Result<Either<QueryResult, Row>, Error>> {
+    ) -> BoxStream<'c, Result<Either<QueryResult, Row>>> {
         executor.fetch_many(self)
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all(self, executor: &mut Connection) -> Result<Vec<Row>, Error> {
+    pub async fn fetch_all(self, executor: &mut Connection) -> Result<Vec<Row>> {
         executor.fetch_all(self).await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one(self, executor: &mut Connection) -> Result<Row, Error> {
+    pub async fn fetch_one(self, executor: &mut Connection) -> Result<Row> {
         executor.fetch_one(self).await
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional(
-        self,
-        executor: &mut Connection,
-    ) -> Result<Option<Row>, Error> {
+    pub async fn fetch_optional(self, executor: &mut Connection) -> Result<Option<Row>> {
         executor.fetch_optional(self).await
     }
 }
@@ -174,7 +171,7 @@ impl<F: Send> Execute for Map<F> {
 
 impl<F, O> Map<F>
 where
-    F: FnMut(Row) -> Result<O, Error> + Send,
+    F: FnMut(Row) -> Result<O> + Send,
     O: Send + Unpin,
 {
     /// Map each row in the result to another type.
@@ -183,7 +180,7 @@ where
     ///
     /// The [`query_as`](crate::query_as) function will construct a mapped query using
     /// a [`FromRow`](crate::FromRow) implementation.
-    pub fn map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send>
+    pub fn map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P> + Send>
     where
         G: FnMut(O) -> P + Send,
         P: Unpin,
@@ -195,9 +192,9 @@ where
     ///
     /// The [`query_as`](crate::query_as) function will construct a mapped query using
     /// a [`FromRow`](crate::FromRow) implementation.
-    pub fn try_map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send>
+    pub fn try_map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P> + Send>
     where
-        G: FnMut(O) -> Result<P, Error> + Send,
+        G: FnMut(O) -> Result<P> + Send,
         P: Unpin,
     {
         let mut f = self.mapper;
@@ -208,7 +205,7 @@ where
     }
 
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'c>(self, executor: &'c mut Connection) -> BoxStream<'c, Result<O, Error>>
+    pub fn fetch<'c>(self, executor: &'c mut Connection) -> BoxStream<'c, Result<O>>
     where
         F: 'c,
         O: 'c,
@@ -228,7 +225,7 @@ where
     pub fn fetch_many<'c>(
         mut self,
         executor: &'c mut Connection,
-    ) -> BoxStream<'c, Result<Either<QueryResult, O>, Error>>
+    ) -> BoxStream<'c, Result<Either<QueryResult, O>>>
     where
         F: 'c,
         O: 'c,
@@ -248,7 +245,7 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'c>(self, executor: &'c mut Connection) -> Result<Vec<O>, Error>
+    pub async fn fetch_all<'c>(self, executor: &'c mut Connection) -> Result<Vec<O>>
     where
         F: 'c,
         O: 'c,
@@ -257,7 +254,7 @@ where
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'c>(self, executor: &'c mut Connection) -> Result<O, Error>
+    pub async fn fetch_one<'c>(self, executor: &'c mut Connection) -> Result<O>
     where
         F: 'c,
         O: 'c,
@@ -271,10 +268,7 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'c>(
-        mut self,
-        executor: &'c mut Connection,
-    ) -> Result<Option<O>, Error>
+    pub async fn fetch_optional<'c>(mut self, executor: &'c mut Connection) -> Result<Option<O>>
     where
         F: 'c,
         O: 'c,
@@ -323,7 +317,7 @@ pub fn query_with(sql: &str, arguments: Arguments) -> Query {
 
 use crate::from_row::FromRow;
 
-pub fn query_as<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+pub fn query_as<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
@@ -333,7 +327,7 @@ where
 pub fn query_as_with<'q, O>(
     sql: &'q str,
     arguments: Arguments,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
@@ -342,7 +336,7 @@ where
 
 pub fn query_statement_as<'q, O>(
     statement: &'q Statement,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
@@ -352,14 +346,14 @@ where
 pub fn query_statement_as_with<'q, O>(
     statement: &'q Statement,
     arguments: Arguments,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
     query_statement_with(statement, arguments).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_scalar<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+pub fn query_scalar<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
@@ -370,7 +364,7 @@ where
 pub fn query_scalar_with<'q, O>(
     sql: &'q str,
     arguments: Arguments,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
@@ -380,7 +374,7 @@ where
 
 pub fn query_statement_scalar<'q, O>(
     statement: &'q Statement,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
@@ -391,7 +385,7 @@ where
 pub fn query_statement_scalar_with<'q, O>(
     statement: &'q Statement,
     arguments: Arguments,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
+) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
