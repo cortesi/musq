@@ -20,12 +20,6 @@ pub struct Arguments {
     pub(crate) named: HashMap<String, usize>,
 }
 
-impl IntoArguments for Arguments {
-    fn into_arguments(self) -> Arguments {
-        self
-    }
-}
-
 impl Arguments {
     pub fn add<T>(&mut self, value: T)
     where
@@ -132,6 +126,3 @@ impl ArgumentValue {
     }
 }
 
-pub trait IntoArguments: Sized + Send {
-    fn into_arguments(self) -> Arguments;
-}

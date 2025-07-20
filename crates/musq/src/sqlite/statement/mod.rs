@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use crate::{Column, IntoArguments, from_row, query, sqlite::Arguments};
+use crate::{Column, from_row, query, sqlite::Arguments};
 
 mod compound;
 mod handle;
@@ -33,40 +33,36 @@ impl Statement {
         &self.columns
     }
 
-    pub fn query(&self) -> query::Query<Arguments> {
+    pub fn query(&self) -> query::Query {
         query::query_statement(self)
     }
 
-    pub fn query_with<A>(&self, arguments: A) -> query::Query<A>
-    where
-        A: IntoArguments,
-    {
+    pub fn query_with(&self, arguments: Arguments) -> query::Query {
         query::query_statement_with(self, arguments)
     }
 
     pub fn query_as<O>(
         &self,
-    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send, Arguments>
+    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send>
     where
         O: for<'r> from_row::FromRow<'r> + Send + Unpin,
     {
         query::query_statement_as(self)
     }
 
-    pub fn query_as_with<'s, O, A>(
+    pub fn query_as_with<'s, O>(
         &'s self,
-        arguments: A,
-    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send, A>
+        arguments: Arguments,
+    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send>
     where
         O: for<'r> from_row::FromRow<'r> + Send + Unpin,
-        A: IntoArguments,
     {
         query::query_statement_as_with(self, arguments)
     }
 
     pub fn query_scalar<O>(
         &self,
-    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send, Arguments>
+    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send>
     where
         (O,): for<'r> from_row::FromRow<'r>,
         O: Send + Unpin,
@@ -74,14 +70,13 @@ impl Statement {
         query::query_statement_scalar(self)
     }
 
-    pub fn query_scalar_with<'s, O, A>(
+    pub fn query_scalar_with<'s, O>(
         &'s self,
-        arguments: A,
-    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send, A>
+        arguments: Arguments,
+    ) -> query::Map<impl FnMut(crate::Row) -> Result<O, crate::Error> + Send>
     where
         (O,): for<'r> from_row::FromRow<'r>,
         O: Send + Unpin,
-        A: IntoArguments,
     {
         query::query_statement_scalar_with(self, arguments)
     }

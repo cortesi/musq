@@ -3,7 +3,7 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt, future};
 
 use crate::{
-    Arguments, IntoArguments, QueryResult, Row, Statement,
+    Arguments, QueryResult, Row, Statement,
     encode::Encode,
     error::Error,
     executor::{Execute, Executor},
@@ -11,9 +11,9 @@ use crate::{
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
-pub struct Query<A> {
+pub struct Query {
     pub(crate) statement: Either<String, Statement>,
-    pub(crate) arguments: Option<A>,
+    pub(crate) arguments: Option<Arguments>,
 }
 
 /// SQL query that will map its results to owned Rust types.
@@ -26,15 +26,12 @@ pub struct Query<A> {
 /// before `.try_map()`. This is also to prevent adding superfluous binds to the result of
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
-pub struct Map<F, A> {
-    inner: Query<A>,
+pub struct Map<F> {
+    inner: Query,
     mapper: F,
 }
 
-impl<A> Execute for Query<A>
-where
-    A: Send + IntoArguments,
-{
+impl Execute for Query {
     fn sql(&self) -> &str {
         match &self.statement {
             Either::Right(statement) => statement.sql(),
@@ -50,11 +47,11 @@ where
     }
 
     fn take_arguments(&mut self) -> Option<Arguments> {
-        self.arguments.take().map(IntoArguments::into_arguments)
+        self.arguments.take()
     }
 }
 
-impl Query<Arguments> {
+impl Query {
     /// Bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that appear in the query then
@@ -75,7 +72,7 @@ impl Query<Arguments> {
     }
 }
 
-impl<F> Map<F, Arguments> {
+impl<F> Map<F> {
     pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Self {
         self.inner = self.inner.bind(value);
         self
@@ -87,17 +84,14 @@ impl<F> Map<F, Arguments> {
     }
 }
 
-impl<A: Send> Query<A>
-where
-    A: IntoArguments,
-{
+impl Query {
     /// Map each row in the result to another type.
     ///
     /// See [`try_map`](Query::try_map) for a fallible version of this method.
     ///
     /// The [`query_as`](crate::query_as) function will construct a mapped query using
     /// a [`FromRow`](crate::FromRow) implementation.
-    pub fn map<F, O>(self, mut f: F) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+    pub fn map<F, O>(self, mut f: F) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
     where
         F: FnMut(Row) -> O + Send,
         O: Unpin,
@@ -109,7 +103,7 @@ where
     ///
     /// The [`query_as`](crate::query_as) function will construct a mapped query using
     /// a [`FromRow`](crate::FromRow) implementation.
-    pub fn try_map<F, O>(self, f: F) -> Map<F, A>
+    pub fn try_map<F, O>(self, f: F) -> Map<F>
     where
         F: FnMut(Row) -> Result<O, Error> + Send,
         O: Unpin,
@@ -121,33 +115,27 @@ where
     }
 
     /// Execute the query and return the total number of rows affected.
-    pub async fn execute<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<QueryResult, Error>
+    pub async fn execute<'c, E>(self, executor: E) -> Result<QueryResult, Error>
     where
-        'q: 'e,
-        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.execute(self).await
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    pub async fn execute_many<'q, 'e, 'c: 'e, E>(
+    pub async fn execute_many<'c, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<QueryResult, Error>>
+    ) -> BoxStream<'c, Result<QueryResult, Error>>
     where
-        'q: 'e,
-        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.execute_many(self)
     }
 
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'q, 'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<Row, Error>>
+    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<Row, Error>>
     where
-        'q: 'e,
-        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch(self)
@@ -155,52 +143,42 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    pub fn fetch_many<'q, 'e, 'c: 'e, E>(
+    pub fn fetch_many<'c, E>(
         self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<QueryResult, Row>, Error>>
+    ) -> BoxStream<'c, Result<Either<QueryResult, Row>, Error>>
     where
-        'q: 'e,
-        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch_many(self)
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<Row>, Error>
+    pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<Row>, Error>
     where
-        'q: 'e,
-        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch_all(self).await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Row, Error>
+    pub async fn fetch_one<'c, E>(self, executor: E) -> Result<Row, Error>
     where
-        'q: 'e,
-        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch_one(self).await
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Option<Row>, Error>
+    pub async fn fetch_optional<'c, E>(self, executor: E) -> Result<Option<Row>, Error>
     where
-        'q: 'e,
-        A: 'q + 'e,
         E: Executor<'c>,
     {
         executor.fetch_optional(self).await
     }
 }
 
-impl<F: Send, A: Send> Execute for Map<F, A>
-where
-    A: IntoArguments,
+impl<F: Send> Execute for Map<F>
 {
     fn sql(&self) -> &str {
         self.inner.sql()
@@ -215,11 +193,10 @@ where
     }
 }
 
-impl<F, O, A> Map<F, A>
+impl<F, O> Map<F>
 where
     F: FnMut(Row) -> Result<O, Error> + Send,
     O: Send + Unpin,
-    A: Send + IntoArguments,
 {
     /// Map each row in the result to another type.
     ///
@@ -227,7 +204,7 @@ where
     ///
     /// The [`query_as`](crate::query_as) function will construct a mapped query using
     /// a [`FromRow`](crate::FromRow) implementation.
-    pub fn map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send, A>
+    pub fn map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send>
     where
         G: FnMut(O) -> P + Send,
         P: Unpin,
@@ -239,7 +216,7 @@ where
     ///
     /// The [`query_as`](crate::query_as) function will construct a mapped query using
     /// a [`FromRow`](crate::FromRow) implementation.
-    pub fn try_map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send, A>
+    pub fn try_map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P, Error> + Send>
     where
         G: FnMut(O) -> Result<P, Error> + Send,
         P: Unpin,
@@ -252,13 +229,11 @@ where
     }
 
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'q, 'e, 'c: 'e, E>(self, executor: E) -> BoxStream<'e, Result<O, Error>>
+    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<O, Error>>
     where
-        'q: 'e,
-        A: 'q,
-        E: 'e + Executor<'c>,
-        F: 'e,
-        O: 'e,
+        E: 'c + Executor<'c>,
+        F: 'c,
+        O: 'c,
     {
         self.fetch_many(executor)
             .try_filter_map(|step| async move {
@@ -272,16 +247,14 @@ where
 
     /// Execute multiple queries and return the generated results as a stream
     /// from each query, in a stream.
-    pub fn fetch_many<'q, 'e, 'c: 'e, E>(
+    pub fn fetch_many<'c, E>(
         mut self,
         executor: E,
-    ) -> BoxStream<'e, Result<Either<QueryResult, O>, Error>>
+    ) -> BoxStream<'c, Result<Either<QueryResult, O>, Error>>
     where
-        'q: 'e,
-        A: 'q,
-        E: 'e + Executor<'c>,
-        F: 'e,
-        O: 'e,
+        E: 'c + Executor<'c>,
+        F: 'c,
+        O: 'c,
     {
         Box::pin(async_stream::try_stream! {
             let mut s = executor.fetch_many(self.inner);
@@ -298,25 +271,21 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<Vec<O>, Error>
+    pub async fn fetch_all<'c, E>(self, executor: E) -> Result<Vec<O>, Error>
     where
-        'q: 'e,
-        A: 'q,
-        E: 'e + Executor<'c>,
-        F: 'e,
-        O: 'e,
+        E: 'c + Executor<'c>,
+        F: 'c,
+        O: 'c,
     {
         self.fetch(executor).try_collect().await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'q, 'e, 'c: 'e, E>(self, executor: E) -> Result<O, Error>
+    pub async fn fetch_one<'c, E>(self, executor: E) -> Result<O, Error>
     where
-        'q: 'e,
-        A: 'q,
-        E: 'e + Executor<'c>,
-        F: 'e,
-        O: 'e,
+        E: 'c + Executor<'c>,
+        F: 'c,
+        O: 'c,
     {
         self.fetch_optional(executor)
             .and_then(|row| match row {
@@ -327,16 +296,14 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'q, 'e, 'c: 'e, E>(
+    pub async fn fetch_optional<'c, E>(
         mut self,
         executor: E,
     ) -> Result<Option<O>, Error>
     where
-        'q: 'e,
-        A: 'q,
-        E: 'e + Executor<'c>,
-        F: 'e,
-        O: 'e,
+        E: 'c + Executor<'c>,
+        F: 'c,
+        O: 'c,
     {
         let row = executor.fetch_optional(self.inner).await?;
 
@@ -349,7 +316,7 @@ where
 }
 
 // Make a SQL query from a statement.
-pub fn query_statement(statement: &Statement) -> Query<Arguments> {
+pub fn query_statement(statement: &Statement) -> Query {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Right(statement.clone()),
@@ -357,10 +324,7 @@ pub fn query_statement(statement: &Statement) -> Query<Arguments> {
 }
 
 // Make a SQL query from a statement, with the given arguments.
-pub fn query_statement_with<A>(statement: &Statement, arguments: A) -> Query<A>
-where
-    A: IntoArguments,
-{
+pub fn query_statement_with(statement: &Statement, arguments: Arguments) -> Query {
     Query {
         arguments: Some(arguments),
         statement: Either::Right(statement.clone()),
@@ -368,7 +332,7 @@ where
 }
 
 /// Make a SQL query.
-pub fn query(sql: &str) -> Query<Arguments> {
+pub fn query(sql: &str) -> Query {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Left(sql.to_string()),
@@ -376,10 +340,7 @@ pub fn query(sql: &str) -> Query<Arguments> {
 }
 
 /// Make a SQL query, with the given arguments.
-pub fn query_with<A>(sql: &str, arguments: A) -> Query<A>
-where
-    A: IntoArguments,
-{
+pub fn query_with(sql: &str, arguments: Arguments) -> Query {
     Query {
         arguments: Some(arguments),
         statement: Either::Left(sql.to_string()),
@@ -388,19 +349,18 @@ where
 
 use crate::from_row::FromRow;
 
-pub fn query_as<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+pub fn query_as<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
 where
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
     query(sql).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_as_with<'q, O, A>(
+pub fn query_as_with<'q, O>(
     sql: &'q str,
-    arguments: A,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+    arguments: Arguments,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
 where
-    A: IntoArguments,
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
     query_with(sql, arguments).try_map(|row| O::from_row("", &row))
@@ -408,19 +368,18 @@ where
 
 pub fn query_statement_as<'q, O>(
     statement: &'q Statement,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
 where
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
     query_statement(statement).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_statement_as_with<'q, O, A>(
+pub fn query_statement_as_with<'q, O>(
     statement: &'q Statement,
-    arguments: A,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+    arguments: Arguments,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
 where
-    A: IntoArguments,
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
     query_statement_with(statement, arguments).try_map(|row| O::from_row("", &row))
@@ -428,7 +387,7 @@ where
 
 pub fn query_scalar<'q, O>(
     sql: &'q str,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
 where
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
@@ -436,12 +395,11 @@ where
     query_as(sql).map(|(o,)| o)
 }
 
-pub fn query_scalar_with<'q, O, A>(
+pub fn query_scalar_with<'q, O>(
     sql: &'q str,
-    arguments: A,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+    arguments: Arguments,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
 where
-    A: IntoArguments,
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
 {
@@ -450,7 +408,7 @@ where
 
 pub fn query_statement_scalar<'q, O>(
     statement: &'q Statement,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
 where
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
@@ -458,12 +416,11 @@ where
     query_statement_as(statement).map(|(o,)| o)
 }
 
-pub fn query_statement_scalar_with<'q, O, A>(
+pub fn query_statement_scalar_with<'q, O>(
     statement: &'q Statement,
-    arguments: A,
-) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+    arguments: Arguments,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send>
 where
-    A: IntoArguments,
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
 {
