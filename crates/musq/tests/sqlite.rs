@@ -632,6 +632,7 @@ async fn it_can_transact() {
     let mut ntx = conn.begin().await.unwrap();
     assert_eq!(check!(ntx, 0), 0);
     ntx.rollback().await.unwrap();
+    drop(ntx);
 
     {
         let mut tx0 = conn.begin().await.unwrap();
