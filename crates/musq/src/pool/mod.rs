@@ -24,7 +24,6 @@ use crate::{
     Either, Error, QueryResult, Result, Row, Statement, executor::Execute, transaction::Transaction,
 };
 
-
 mod connection_like;
 
 mod connection;
@@ -34,7 +33,6 @@ pub use self::connection::PoolConnection;
 pub use self::connection_like::ConnectionLike;
 
 #[doc(hidden)]
-
 /// An asynchronous pool of database connections.
 ///
 /// Create a pool with [Pool::connect] or [Pool::connect_with] and then call [Pool::acquire] to get a connection from

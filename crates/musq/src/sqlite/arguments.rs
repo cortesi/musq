@@ -57,14 +57,16 @@ impl Arguments {
                 next_pos = max;
             }
         }
-        // Track mappings from parameter names to argument indices so that multiple
-        // references to the same name are bound from the same argument.
-        let mut names: HashMap<String, usize> = self.named.clone();
+        // Track mappings from positional-parameter-introduced names to their
+        // argument indices so that multiple references to the same name are
+        // bound from the same argument. We first consult `self.named` for
+        // values explicitly bound via [`add_named`].
+        let mut names: HashMap<String, usize> = HashMap::new();
 
         let cnt = handle.bind_parameter_count();
 
         for param_i in 1..=cnt {
-            // figure out the index of this bind parameter into our argument tuple
+            // Figure out the index of this bind parameter into our argument tuple.
             let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
                 if name.starts_with('?') {
                     parse_question_param(name)?
@@ -72,6 +74,8 @@ impl Arguments {
                     // parameters of the form $NNN are positional, otherwise they are named
                     if let Some(n) = atoi(rest.as_bytes()) {
                         n
+                    } else if let Some(&idx) = self.named.get(rest) {
+                        idx
                     } else {
                         *names.entry(rest.to_string()).or_insert_with(|| {
                             next_pos += 1;
@@ -79,15 +83,23 @@ impl Arguments {
                         })
                     }
                 } else if let Some(rest) = name.strip_prefix(':') {
-                    *names.entry(rest.to_string()).or_insert_with(|| {
-                        next_pos += 1;
-                        next_pos
-                    })
+                    if let Some(&idx) = self.named.get(rest) {
+                        idx
+                    } else {
+                        *names.entry(rest.to_string()).or_insert_with(|| {
+                            next_pos += 1;
+                            next_pos
+                        })
+                    }
                 } else if let Some(rest) = name.strip_prefix('@') {
-                    *names.entry(rest.to_string()).or_insert_with(|| {
-                        next_pos += 1;
-                        next_pos
-                    })
+                    if let Some(&idx) = self.named.get(rest) {
+                        idx
+                    } else {
+                        *names.entry(rest.to_string()).or_insert_with(|| {
+                            next_pos += 1;
+                            next_pos
+                        })
+                    }
                 } else {
                     return Err(Error::Protocol(format!(
                         "unsupported SQL parameter format: {name}"
