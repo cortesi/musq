@@ -136,12 +136,21 @@ impl CompoundStatement {
     pub fn reset(&mut self) -> Result<()> {
         self.index = None;
 
+        let mut first_err: Option<Error> = None;
+
         for handle in self.handles.iter_mut() {
-            handle.reset()?;
+            if let Err(e) = handle.reset() {
+                if first_err.is_none() {
+                    first_err = Some(e.into());
+                }
+            }
             handle.clear_bindings();
         }
 
-        Ok(())
+        match first_err {
+            Some(e) => Err(e),
+            None => Ok(()),
+        }
     }
 }
 
