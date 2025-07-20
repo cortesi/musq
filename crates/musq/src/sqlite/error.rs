@@ -243,7 +243,7 @@ impl ExtendedErrCode {
         }
     }
 
-    pub fn is_busy(&self) -> bool {
+    pub(crate) fn is_busy(&self) -> bool {
         matches!(
             self,
             ExtendedErrCode::BusyRecovery
@@ -278,11 +278,11 @@ impl SqliteError {
         }
     }
 
-    pub fn is_busy(&self) -> bool {
+    pub(crate) fn is_busy(&self) -> bool {
         self.primary == PrimaryErrCode::Busy || self.extended.is_busy()
     }
 
-    pub fn should_retry(&self) -> bool {
+    pub(crate) fn should_retry(&self) -> bool {
         self.primary == PrimaryErrCode::Locked
             || self.extended == ExtendedErrCode::LockedSharedCache
             || self.is_busy()
