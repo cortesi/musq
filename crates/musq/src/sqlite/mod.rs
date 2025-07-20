@@ -19,4 +19,4 @@ pub(crate) mod value;
 /// [`ConnectionHandle::exec`] and [`StatementHandle::step`] use this constant to
 /// limit how many unlock notification attempts will be made before returning
 /// [`Error::UnlockNotify`].
-pub const DEFAULT_MAX_RETRIES: usize = 5;
+pub(crate) const DEFAULT_MAX_RETRIES: usize = 5;
