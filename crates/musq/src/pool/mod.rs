@@ -34,8 +34,8 @@ pub use self::connection_like::ConnectionLike;
 #[doc(hidden)]
 /// An asynchronous pool of database connections.
 ///
-/// Create a pool with [Pool::connect] or [Pool::connect_with] and then call [Pool::acquire] to get a connection from
-/// the pool; when the connection is dropped it will return to the pool so it can be reused.
+/// Create a pool with [`Musq::open`] or [`Musq::open_in_memory`] and then call [`Pool::acquire`] to get a connection
+/// from the pool; when the connection is dropped it will return to the pool so it can be reused.
 ///
 /// You can also execute queries directly on `&Pool`; this will automatically checkout a connection
 /// for you.
