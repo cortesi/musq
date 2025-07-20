@@ -933,3 +933,17 @@ async fn it_fails_on_missing_bind() -> anyhow::Result<()> {
 
     Ok(())
 }
+
+#[tokio::test]
+async fn connection_drops_without_close() -> anyhow::Result<()> {
+    use musq_test::connection;
+
+    let conn = connection().await?;
+    drop(conn);
+
+    // ensure a new connection can be established after dropping
+    let conn2 = connection().await?;
+    conn2.close().await?;
+
+    Ok(())
+}

@@ -7,6 +7,7 @@ use std::{
 
 use crate::sqlite::ffi;
 use futures_core::{future::BoxFuture, stream::BoxStream};
+use futures_executor::block_on;
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 use libsqlite3_sys::sqlite3;
 use tokio::sync::MutexGuard;
@@ -138,12 +139,7 @@ impl Connection {
             pragma_string.push_str("PRAGMA optimize;");
             self.execute(crate::query(&pragma_string)).await?;
         }
-        // Destructure self to extract the worker and avoid partial move
-        let Connection { mut worker, .. } = self;
-        let shutdown = worker.shutdown();
-        // The rest of self is dropped here
-        // Ensure the worker thread has terminated
-        shutdown.await
+        self.worker.shutdown().await
     }
 
     /// Immediately close the connection without sending a graceful shutdown.
@@ -424,6 +420,15 @@ impl LockedSqliteHandle<'_> {
     /// Removes the progress handler on a database connection. The method does nothing if no handler was set.
     pub fn remove_progress_handler(&mut self) {
         self.guard.remove_progress_handler();
+    }
+}
+
+impl Drop for Connection {
+    fn drop(&mut self) {
+        // best effort shutdown of the worker thread
+        if !self.worker.is_shutdown() {
+            let _ = block_on(self.worker.shutdown());
+        }
     }
 }
 
