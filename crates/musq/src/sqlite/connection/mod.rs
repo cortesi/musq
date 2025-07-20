@@ -347,7 +347,21 @@ where
             let callback: *mut F = callback.cast::<F>();
             (*callback)()
         });
-        i32::from(!r.unwrap_or_default())
+
+        match r {
+            Ok(res) => i32::from(!res),
+            Err(err) => {
+                if let Some(msg) = err.downcast_ref::<&str>() {
+                    tracing::error!("progress handler panicked: {}", msg);
+                } else if let Some(msg) = err.downcast_ref::<String>() {
+                    tracing::error!("progress handler panicked: {}", msg);
+                } else {
+                    tracing::error!("progress handler panicked");
+                }
+
+                i32::from(!bool::default())
+            }
+        }
     }
 }
 
