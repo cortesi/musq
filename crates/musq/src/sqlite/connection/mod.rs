@@ -153,7 +153,7 @@ impl Connection {
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
     /// Returns a [`Transaction`] for controlling and tracking the new transaction.
-    pub fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<'_>>>
+    pub fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<&mut Self>>>
     where
         Self: Sized,
     {
@@ -197,13 +197,16 @@ impl Connection {
     pub async fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> Result<R, E>
     where
         for<'c> F:
-            FnOnce(&'c mut Transaction<'_>) -> BoxFuture<'c, Result<R, E>> + 'a + Send + Sync,
+            FnOnce(&'c mut Transaction<&'a mut Self>) -> BoxFuture<'c, Result<R, E>> + Send + Sync,
         Self: Sized,
         R: Send,
         E: From<Error> + Send,
     {
         let mut transaction = self.begin().await?;
-        let ret = callback(&mut transaction).await;
+        let ret = {
+            let fut = callback(&mut transaction);
+            fut.await
+        };
 
         match ret {
             Ok(ret) => {
