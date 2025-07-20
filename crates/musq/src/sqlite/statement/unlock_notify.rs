@@ -3,9 +3,8 @@ use std::os::raw::c_int;
 use std::slice;
 use std::sync::{Condvar, Mutex};
 
-use libsqlite3_sys::{
-    SQLITE_LOCKED, SQLITE_OK, sqlite3, sqlite3_reset, sqlite3_stmt, sqlite3_unlock_notify,
-};
+use libsqlite3_sys::{SQLITE_LOCKED, SQLITE_OK, sqlite3, sqlite3_stmt};
+use crate::sqlite::ffi;
 
 use crate::{
     error::Error,
@@ -21,17 +20,15 @@ pub unsafe fn wait(conn: *mut sqlite3, stmt: Option<*mut sqlite3_stmt>) -> Resul
     let notify = Notify::new();
     let mut attempts = 0;
     loop {
-        let rc = unsafe {
-            sqlite3_unlock_notify(
-                conn,
-                Some(unlock_notify_cb),
-                &notify as *const Notify as *mut Notify as *mut _,
-            )
-        };
+        let rc = ffi::unlock_notify(
+            conn,
+            Some(unlock_notify_cb),
+            &notify as *const Notify as *mut Notify as *mut _,
+        );
 
         if rc == SQLITE_LOCKED {
             if let Some(stmt) = stmt {
-                unsafe { sqlite3_reset(stmt) };
+                ffi::reset(stmt);
                 attempts += 1;
 
                 if attempts > MAX_RETRIES {

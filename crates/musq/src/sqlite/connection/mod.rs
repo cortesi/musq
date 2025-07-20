@@ -7,7 +7,8 @@ use std::{
 
 use futures_core::future::BoxFuture;
 use futures_util::future;
-use libsqlite3_sys::{sqlite3, sqlite3_progress_handler};
+use libsqlite3_sys::sqlite3;
+use crate::sqlite::ffi;
 use tokio::sync::MutexGuard;
 
 use crate::{
@@ -73,7 +74,7 @@ impl ConnectionState {
     pub(crate) fn remove_progress_handler(&mut self) {
         if let Some(mut handler) = self.progress_handler_callback.take() {
             unsafe {
-                sqlite3_progress_handler(self.handle.as_ptr(), 0, None, std::ptr::null_mut());
+                ffi::progress_handler(self.handle.as_ptr(), 0, None, std::ptr::null_mut());
                 let _ = { Box::from_raw(handler.0.as_mut()) };
             }
         }
@@ -283,7 +284,7 @@ impl LockedSqliteHandle<'_> {
             self.guard.remove_progress_handler();
             self.guard.progress_handler_callback = Some(Handler(callback));
 
-            sqlite3_progress_handler(
+            ffi::progress_handler(
                 self.as_raw_handle().as_mut(),
                 num_ops,
                 Some(progress_callback::<F>),

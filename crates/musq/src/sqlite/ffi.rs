@@ -3,10 +3,77 @@
 // the SQLite C API so that the rest of the codebase can remain safe.
 
 use std::ffi::c_void;
-use std::os::raw::{c_char, c_int};
+use std::os::raw::{c_char, c_int, c_uint};
 use std::ptr;
 
-use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
+use libsqlite3_sys::{
+    self as ffi_sys,
+    sqlite3,
+    sqlite3_stmt,
+};
+
+/// Wrapper around [`sqlite3_open_v2`].
+pub(crate) fn open_v2(
+    filename: *const c_char,
+    handle: *mut *mut sqlite3,
+    flags: c_int,
+    vfs: *const c_char,
+) -> c_int {
+    unsafe { ffi_sys::sqlite3_open_v2(filename, handle, flags, vfs) }
+}
+
+/// Wrapper around [`sqlite3_extended_result_codes`].
+pub(crate) fn extended_result_codes(db: *mut sqlite3, onoff: c_int) -> c_int {
+    unsafe { ffi_sys::sqlite3_extended_result_codes(db, onoff) }
+}
+
+/// Wrapper around [`sqlite3_busy_timeout`].
+pub(crate) fn busy_timeout(db: *mut sqlite3, ms: c_int) -> c_int {
+    unsafe { ffi_sys::sqlite3_busy_timeout(db, ms) }
+}
+
+/// Wrapper around [`sqlite3_prepare_v3`].
+pub(crate) fn prepare_v3(
+    db: *mut sqlite3,
+    sql: *const c_char,
+    n_byte: c_int,
+    flags: c_uint,
+    stmt: *mut *mut sqlite3_stmt,
+    tail: *mut *const c_char,
+) -> c_int {
+    unsafe { ffi_sys::sqlite3_prepare_v3(db, sql, n_byte, flags, stmt, tail) }
+}
+
+/// Wrapper around [`sqlite3_progress_handler`].
+pub(crate) fn progress_handler(
+    db: *mut sqlite3,
+    num_ops: c_int,
+    callback: Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
+    arg: *mut c_void,
+) {
+    unsafe {
+        ffi_sys::sqlite3_progress_handler(db, num_ops, callback, arg);
+    }
+}
+
+/// Wrapper around [`sqlite3_unlock_notify`].
+pub(crate) fn unlock_notify(
+    db: *mut sqlite3,
+    callback: Option<unsafe extern "C" fn(*mut *mut c_void, c_int)>,
+    arg: *mut c_void,
+) -> c_int {
+    unsafe { ffi_sys::sqlite3_unlock_notify(db, callback, arg) }
+}
+
+/// Wrapper around [`sqlite3_extended_errcode`].
+pub(crate) fn extended_errcode(db: *mut sqlite3) -> c_int {
+    unsafe { ffi_sys::sqlite3_extended_errcode(db) }
+}
+
+/// Wrapper around [`sqlite3_errmsg`].
+pub(crate) fn errmsg(db: *mut sqlite3) -> *const c_char {
+    unsafe { ffi_sys::sqlite3_errmsg(db) }
+}
 
 /// Wrapper around [`sqlite3_close`].
 pub(crate) fn close(db: *mut sqlite3) -> c_int {
