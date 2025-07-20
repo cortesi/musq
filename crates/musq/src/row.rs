@@ -30,7 +30,7 @@ impl Row {
         statement: &StatementHandle,
         columns: &Arc<Vec<Column>>,
         column_names: &Arc<HashMap<UStr, usize>>,
-    ) -> Self {
+    ) -> Result<Self> {
         use crate::sqlite::Value;
         use libsqlite3_sys::SQLITE_NULL;
 
@@ -98,17 +98,17 @@ impl Row {
                         },
                     }
                 }
-                _ => unreachable!(),
+                _ => return Err(Error::UnknownColumnType(code)),
             };
 
             values.push(val);
         }
 
-        Self {
+        Ok(Self {
             values: values.into_boxed_slice(),
             columns: Arc::clone(columns),
             column_names: Arc::clone(column_names),
-        }
+        })
     }
 
     /// Returns the values for this row.
