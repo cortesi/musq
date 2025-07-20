@@ -287,12 +287,4 @@ impl SqliteError {
             || self.extended == ExtendedErrCode::LockedSharedCache
             || self.is_busy()
     }
-
-    pub(crate) fn primary_code(&self) -> PrimaryErrCode {
-        self.primary
-    }
-
-    pub(crate) fn extended_code(&self) -> ExtendedErrCode {
-        self.extended
-    }
 }
