@@ -124,12 +124,7 @@ impl StatementHandle {
         )
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn bind_int(&self, index: usize, v: i32) -> std::result::Result<(), SqliteError> {
-        ffi::bind_int(self.0.as_ptr(), index as i32, v)
-    }
 
-    #[allow(dead_code)]
     pub(crate) fn bind_int64(&self, index: usize, v: i64) -> std::result::Result<(), SqliteError> {
         ffi::bind_int64(self.0.as_ptr(), index as i32, v)
     }
