@@ -111,14 +111,15 @@ impl Connection {
         Transaction::begin(self)
     }
 
-    pub fn cached_statements_size(&self) -> usize {
+    pub(crate) fn cached_statements_size(&self) -> usize {
         self.worker
             .shared
             .cached_statements_size
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
-    pub async fn clear_cached_statements(&mut self) -> Result<()> {
+    #[cfg(test)]
+    pub(crate) async fn clear_cached_statements(&mut self) -> Result<()> {
         self.worker.clear_cache().await?;
         Ok(())
     }
