@@ -22,7 +22,6 @@ mod connection;
 mod inner;
 
 pub use self::connection::PoolConnection;
-#[doc(hidden)]
 /// An asynchronous pool of database connections.
 ///
 /// Create a pool with [`Musq::open`] or [`Musq::open_in_memory`] and then call [`Pool::acquire`] to get a connection
