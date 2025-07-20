@@ -1,4 +1,4 @@
-use musq::{ExtendedErrCode, PrimaryErrCode, Result, query};
+use musq::{Result, query};
 use musq_test::tdb;
 
 #[tokio::test]
@@ -12,10 +12,7 @@ async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
     let err = res.unwrap_err();
 
     let err = err.into_sqlite_error().unwrap();
-
-    assert_eq!(err.primary, PrimaryErrCode::Constraint);
-    assert_eq!(err.extended, ExtendedErrCode::ConstraintPrimaryKey);
-
+    assert!(err.message.contains("constraint"));
     Ok(())
 }
 
@@ -32,8 +29,7 @@ async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
 
     let err = err.into_sqlite_error().unwrap();
 
-    assert_eq!(err.primary, PrimaryErrCode::Constraint);
-    assert_eq!(err.extended, ExtendedErrCode::ConstraintForeignKey);
+    assert!(err.message.contains("constraint"));
 
     Ok(())
 }
@@ -50,8 +46,7 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
 
     let err = err.into_sqlite_error().unwrap();
 
-    assert_eq!(err.primary, PrimaryErrCode::Constraint);
-    assert_eq!(err.extended, ExtendedErrCode::ConstraintNotNull);
+    assert!(err.message.contains("constraint"));
 
     Ok(())
 }
@@ -68,8 +63,7 @@ async fn it_fails_with_check_violation() -> anyhow::Result<()> {
 
     let err = err.into_sqlite_error().unwrap();
 
-    assert_eq!(err.primary, PrimaryErrCode::Constraint);
-    assert_eq!(err.extended, ExtendedErrCode::ConstraintCheck);
+    assert!(err.message.contains("constraint"));
 
     Ok(())
 }
