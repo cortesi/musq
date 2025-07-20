@@ -69,7 +69,7 @@ impl Arguments {
             // Figure out the index of this bind parameter into our argument tuple.
             let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
                 if name.starts_with('?') {
-                    parse_question_param(name)?
+                    parse_question_param(&name)?
                 } else if let Some(rest) = name.strip_prefix('$') {
                     // parameters of the form $NNN are positional, otherwise they are named
                     if let Some(n) = atoi(rest.as_bytes()) {
