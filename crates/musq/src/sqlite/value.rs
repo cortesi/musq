@@ -2,19 +2,14 @@ use std::str::from_utf8;
 
 use crate::{error::DecodeError, sqlite::type_info::SqliteDataType};
 
-#[derive(Clone)]
-pub struct Value {
-    pub(crate) data: ValueData,
-    pub(crate) type_info: SqliteDataType,
-}
-
-#[derive(Clone)]
-pub(crate) enum ValueData {
-    Null,
-    Integer(i64),
-    Double(f64),
-    Text(Vec<u8>),
-    Blob(Vec<u8>),
+/// A database value plus optional type information.
+#[derive(Clone, Debug)]
+pub enum Value {
+    Null(Option<SqliteDataType>),
+    Integer(i64, Option<SqliteDataType>),
+    Double(f64, Option<SqliteDataType>),
+    Text(Vec<u8>, Option<SqliteDataType>),
+    Blob(Vec<u8>, Option<SqliteDataType>),
 }
 
 impl Value {
@@ -23,49 +18,45 @@ impl Value {
     }
 
     pub fn int64(&self) -> std::result::Result<i64, DecodeError> {
-        match self.data {
-            ValueData::Integer(v) => Ok(v),
+        match self {
+            Value::Integer(v, _) => Ok(*v),
             _ => Err(DecodeError::Conversion("not an integer".into())),
         }
     }
 
     pub fn double(&self) -> std::result::Result<f64, DecodeError> {
-        match self.data {
-            ValueData::Double(v) => Ok(v),
-            ValueData::Integer(v) => Ok(v as f64),
+        match self {
+            Value::Double(v, _) => Ok(*v),
+            Value::Integer(v, _) => Ok(*v as f64),
             _ => Err(DecodeError::Conversion("not a float".into())),
         }
     }
 
     pub fn blob(&self) -> &[u8] {
-        match &self.data {
-            ValueData::Blob(v) | ValueData::Text(v) => v.as_slice(),
+        match self {
+            Value::Blob(v, _) | Value::Text(v, _) => v.as_slice(),
             _ => &[],
         }
     }
 
     pub fn text(&self) -> std::result::Result<&str, DecodeError> {
-        match &self.data {
-            ValueData::Text(v) => from_utf8(v).map_err(|e| DecodeError::Conversion(e.to_string())),
+        match self {
+            Value::Text(v, _) => from_utf8(v).map_err(|e| DecodeError::Conversion(e.to_string())),
             _ => Err(DecodeError::Conversion("not text".into())),
         }
     }
 
-    fn type_info_opt(&self) -> Option<SqliteDataType> {
-        match self.data {
-            ValueData::Null => None,
-            ValueData::Integer(_) => Some(SqliteDataType::Int),
-            ValueData::Double(_) => Some(SqliteDataType::Float),
-            ValueData::Text(_) => Some(SqliteDataType::Text),
-            ValueData::Blob(_) => Some(SqliteDataType::Blob),
+    pub fn type_info(&self) -> SqliteDataType {
+        match self {
+            Value::Null(t) => t.unwrap_or(SqliteDataType::Null),
+            Value::Integer(_, t) => t.unwrap_or(SqliteDataType::Int),
+            Value::Double(_, t) => t.unwrap_or(SqliteDataType::Float),
+            Value::Text(_, t) => t.unwrap_or(SqliteDataType::Text),
+            Value::Blob(_, t) => t.unwrap_or(SqliteDataType::Blob),
         }
     }
 
-    pub fn type_info(&self) -> SqliteDataType {
-        self.type_info_opt().unwrap_or(self.type_info)
-    }
-
     pub fn is_null(&self) -> bool {
-        matches!(self.data, ValueData::Null)
+        matches!(self, Value::Null(_))
     }
 }

@@ -1,12 +1,12 @@
-use std::ffi::c_void;
 use std::ffi::CStr;
+use std::ffi::c_void;
 
 use std::os::raw::c_char;
 use std::ptr::NonNull;
 use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_stmt, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW,
+    SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW, sqlite3, sqlite3_stmt,
 };
 
 use crate::sqlite::{
@@ -124,6 +124,7 @@ impl StatementHandle {
         )
     }
 
+    #[allow(dead_code)]
     pub(crate) fn bind_int(&self, index: usize, v: i32) -> std::result::Result<(), SqliteError> {
         ffi::bind_int(self.0.as_ptr(), index as i32, v)
     }

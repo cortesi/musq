@@ -37,5 +37,3 @@ where
         (**self).as_connection_mut()
     }
 }
-
-

@@ -1,13 +1,12 @@
 use std::sync::Arc;
 
 use crate::{
-    ArgumentValue, SqliteDataType, Value, compatible, decode::Decode, encode::Encode,
-    error::DecodeError,
+    SqliteDataType, Value, compatible, decode::Decode, encode::Encode, error::DecodeError,
 };
 
 impl Encode for &str {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Text(self.to_owned())
+    fn encode(self) -> Value {
+        Value::Text(self.as_bytes().to_vec(), None)
     }
 }
 
@@ -19,8 +18,8 @@ impl<'r> Decode<'r> for &'r str {
 }
 
 impl Encode for String {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Text(self)
+    fn encode(self) -> Value {
+        Value::Text(self.into_bytes(), None)
     }
 }
 
@@ -32,8 +31,8 @@ impl<'r> Decode<'r> for String {
 }
 
 impl Encode for Arc<String> {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Text((*self).clone())
+    fn encode(self) -> Value {
+        Value::Text((*self).clone().into_bytes(), None)
     }
 }
 

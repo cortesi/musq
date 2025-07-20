@@ -4,7 +4,7 @@ use crate::{
     Column, Result,
     decode::Decode,
     error::Error,
-    sqlite::{Value, statement::StatementHandle},
+    sqlite::{SqliteDataType, Value, statement::StatementHandle},
     ustr::UStr,
 };
 
@@ -31,7 +31,6 @@ impl Row {
         columns: &Arc<Vec<Column>>,
         column_names: &Arc<HashMap<UStr, usize>>,
     ) -> Self {
-        use crate::sqlite::value::ValueData;
         use libsqlite3_sys::SQLITE_NULL;
 
         let size = statement.column_count();
@@ -39,10 +38,14 @@ impl Row {
 
         for i in 0..size {
             let code = statement.column_type(i);
-            let data = match code {
-                SQLITE_NULL => ValueData::Null,
-                libsqlite3_sys::SQLITE_INTEGER => ValueData::Integer(statement.column_int64(i)),
-                libsqlite3_sys::SQLITE_FLOAT => ValueData::Double(statement.column_double(i)),
+            let ti = match columns[i].type_info {
+                SqliteDataType::Null => None,
+                other => Some(other),
+            };
+            let value = match code {
+                SQLITE_NULL => Value::Null(ti),
+                libsqlite3_sys::SQLITE_INTEGER => Value::Integer(statement.column_int64(i), ti),
+                libsqlite3_sys::SQLITE_FLOAT => Value::Double(statement.column_double(i), ti),
                 libsqlite3_sys::SQLITE_TEXT => {
                     let len = statement.column_bytes(i) as usize;
                     let ptr = statement.column_blob(i) as *const u8;
@@ -51,25 +54,22 @@ impl Row {
                     } else {
                         unsafe { std::slice::from_raw_parts(ptr, len) }
                     };
-                    ValueData::Text(slice.to_vec())
+                    Value::Text(slice.to_vec(), ti)
                 }
                 libsqlite3_sys::SQLITE_BLOB => {
                     let len = statement.column_bytes(i) as usize;
                     if len == 0 {
-                        ValueData::Blob(Vec::new())
+                        Value::Blob(Vec::new(), ti)
                     } else {
                         let ptr = statement.column_blob(i) as *const u8;
                         let slice = unsafe { std::slice::from_raw_parts(ptr, len) };
-                        ValueData::Blob(slice.to_vec())
+                        Value::Blob(slice.to_vec(), ti)
                     }
                 }
                 _ => unreachable!(),
             };
 
-            values.push(Value {
-                data,
-                type_info: columns[i].type_info,
-            });
+            values.push(value);
         }
 
         Self {
