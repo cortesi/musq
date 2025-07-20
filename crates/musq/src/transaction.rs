@@ -5,7 +5,7 @@ use std::{
 
 use futures_core::future::BoxFuture;
 
-use crate::{Connection, Result, pool::ConnectionLike};
+use crate::{Connection, Result};
 
 /// An in-progress database transaction or savepoint.
 ///
@@ -22,14 +22,17 @@ use crate::{Connection, Result, pool::ConnectionLike};
 /// [`Pool::begin`]: crate::pool::Pool::begin()
 /// [`commit`]: Self::commit()
 /// [`rollback`]: Self::rollback()
-pub struct Transaction<C: ConnectionLike + Send> {
+pub struct Transaction<C>
+where
+    C: DerefMut<Target = Connection> + Send,
+{
     connection: C,
     open: bool,
 }
 
 impl<C> Transaction<C>
 where
-    C: ConnectionLike + Send,
+    C: DerefMut<Target = Connection> + Send,
 {
     /// Begin a nested transaction
     pub fn begin<'c>(mut conn: C) -> BoxFuture<'c, Result<Self>>
@@ -37,7 +40,7 @@ where
         C: 'c,
     {
         Box::pin(async move {
-            conn.as_connection_mut().worker.begin().await?;
+            conn.deref_mut().worker.begin().await?;
             Ok(Self {
                 connection: conn,
                 open: true,
@@ -47,18 +50,14 @@ where
 
     /// Commits this transaction or savepoint.
     pub async fn commit(&mut self) -> Result<()> {
-        self.connection.as_connection_mut().worker.commit().await?;
+        self.connection.deref_mut().worker.commit().await?;
         self.open = false;
         Ok(())
     }
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(&mut self) -> Result<()> {
-        self.connection
-            .as_connection_mut()
-            .worker
-            .rollback()
-            .await?;
+        self.connection.deref_mut().worker.rollback().await?;
         self.open = false;
         Ok(())
     }
@@ -66,14 +65,14 @@ where
 
 impl<C> Debug for Transaction<C>
 where
-    C: ConnectionLike + Debug + Send,
+    C: DerefMut<Target = Connection> + Debug + Send,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         // Try to read the current transaction depth. If the lock is currently
         // held elsewhere, we simply omit the value.
         let depth = self
             .connection
-            .as_connection()
+            .deref()
             .worker
             .shared
             .conn
@@ -94,49 +93,32 @@ where
 
 impl<C> Deref for Transaction<C>
 where
-    C: ConnectionLike + Send,
+    C: DerefMut<Target = Connection> + Send,
 {
     type Target = Connection;
 
     fn deref(&self) -> &Self::Target {
-        self.connection.as_connection()
+        self.connection.deref()
     }
 }
 
 impl<C> DerefMut for Transaction<C>
 where
-    C: ConnectionLike + Send,
+    C: DerefMut<Target = Connection> + Send,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        self.connection.as_connection_mut()
+        self.connection.deref_mut()
     }
 }
 
 impl<C> Drop for Transaction<C>
 where
-    C: ConnectionLike + Send,
+    C: DerefMut<Target = Connection> + Send,
 {
     fn drop(&mut self) {
         if self.open {
-            self.connection
-                .as_connection_mut()
-                .worker
-                .start_rollback()
-                .ok();
+            self.connection.deref_mut().worker.start_rollback().ok();
         }
-    }
-}
-
-impl<C> ConnectionLike for Transaction<C>
-where
-    C: ConnectionLike + Send,
-{
-    fn as_connection(&self) -> &Connection {
-        self.connection.as_connection()
-    }
-
-    fn as_connection_mut(&mut self) -> &mut Connection {
-        self.connection.as_connection_mut()
     }
 }
 
