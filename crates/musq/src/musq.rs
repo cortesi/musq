@@ -1,4 +1,5 @@
 use std::{
+    fmt,
     fmt::Write,
     path::{Path, PathBuf},
     sync::Arc,
@@ -33,6 +34,12 @@ impl LockingMode {
     }
 }
 
+impl fmt::Display for LockingMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 /// Refer to [SQLite documentation] for the meaning of the database journaling mode.
 ///
 /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_journal_mode
@@ -60,6 +67,12 @@ impl JournalMode {
     }
 }
 
+impl fmt::Display for JournalMode {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
+    }
+}
+
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum AutoVacuum {
     #[default]
@@ -75,6 +88,12 @@ impl AutoVacuum {
             AutoVacuum::Full => "FULL",
             AutoVacuum::Incremental => "INCREMENTAL",
         }
+    }
+}
+
+impl fmt::Display for AutoVacuum {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
@@ -98,6 +117,12 @@ impl Synchronous {
             Synchronous::Full => "FULL",
             Synchronous::Extra => "EXTRA",
         }
+    }
+}
+
+impl fmt::Display for Synchronous {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.write_str(self.as_str())
     }
 }
 
