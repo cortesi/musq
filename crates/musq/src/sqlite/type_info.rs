@@ -12,8 +12,7 @@ pub enum SqliteDataType {
     Text,
     Blob,
 
-    // TODO: Support NUMERIC
-    #[allow(dead_code)]
+    /// Values that follow SQLite's `NUMERIC` affinity.
     Numeric,
 
     // non-standard extensions
@@ -96,6 +95,8 @@ impl FromStr for SqliteDataType {
                 SqliteDataType::Float
             }
 
+            _ if s.contains("num") || s.contains("dec") => SqliteDataType::Numeric,
+
             _ => {
                 return Err(crate::Error::TypeNotFound {
                     type_name: original,
@@ -128,6 +129,9 @@ fn test_data_type_from_str() -> crate::Result<()> {
     assert_eq!(SqliteDataType::Float, "REAL".parse()?);
     assert_eq!(SqliteDataType::Float, "FLOAT".parse()?);
     assert_eq!(SqliteDataType::Float, "DOUBLE PRECISION".parse()?);
+
+    assert_eq!(SqliteDataType::Numeric, "NUMERIC".parse()?);
+    assert_eq!(SqliteDataType::Numeric, "DECIMAL(10,5)".parse()?);
 
     assert_eq!(SqliteDataType::Bool, "BOOLEAN".parse()?);
     assert_eq!(SqliteDataType::Bool, "BOOL".parse()?);

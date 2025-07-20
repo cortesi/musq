@@ -16,7 +16,10 @@ impl Encode for i8 {
 
 impl<'r> Decode<'r> for i8 {
     fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
-        compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
+        compatible!(
+            value,
+            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
+        );
         let v: i32 = value.int()?;
         Ok(v.try_into()?)
     }
@@ -33,7 +36,10 @@ impl Encode for i16 {
 
 impl<'r> Decode<'r> for i16 {
     fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
-        compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
+        compatible!(
+            value,
+            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
+        );
         let v: i32 = value.int()?;
         Ok(v.try_into()?)
     }
@@ -50,7 +56,10 @@ impl Encode for i32 {
 
 impl<'r> Decode<'r> for i32 {
     fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
-        compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
+        compatible!(
+            value,
+            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
+        );
         value.int()
     }
 }
@@ -66,7 +75,10 @@ impl Encode for i64 {
 
 impl<'r> Decode<'r> for i64 {
     fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
-        compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
+        compatible!(
+            value,
+            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
+        );
         value.int64()
     }
 }

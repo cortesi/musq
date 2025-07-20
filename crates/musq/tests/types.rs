@@ -19,6 +19,16 @@ test_type!(f32("3.1410000324249268" == 3.141f32 as f64 as f32));
 
 test_type!(f64("939399419.1225182" == 939399419.1225182_f64));
 
+test_type!(numeric_f64<f64>(
+    "SELECT CAST({0} AS NUMERIC) is CAST(? AS NUMERIC), CAST({0} AS NUMERIC), CAST(? AS NUMERIC)",
+    "CAST(5.5 AS NUMERIC)" == 5.5_f64,
+));
+
+test_type!(numeric_i64<i64>(
+    "SELECT CAST({0} AS NUMERIC) is CAST(? AS NUMERIC), CAST({0} AS NUMERIC), CAST(? AS NUMERIC)",
+    "CAST(1234 AS NUMERIC)" == 1234_i64,
+));
+
 test_type!(str<String>(
     "'this is foo'" == "this is foo",
     "cast(x'7468697320006973206E756C2D636F6E7461696E696E67' as text)" == "this \0is nul-containing",
