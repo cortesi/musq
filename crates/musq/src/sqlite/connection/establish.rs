@@ -14,9 +14,7 @@ use crate::sqlite::ffi;
 
 use crate::{
     Error, Musq,
-    sqlite::{
-        connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
-    },
+    sqlite::connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
 };
 
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
@@ -105,6 +103,11 @@ impl EstablishParams {
         })
     }
 
+    /// Establish a new SQLite connection.
+    ///
+    /// The configured busy timeout is converted to milliseconds for
+    /// [`sqlite3_busy_timeout`]. If the duration exceeds `i32::MAX`
+    /// milliseconds, it is clamped to `i32::MAX`.
     pub(crate) fn establish(&self) -> Result<ConnectionState, Error> {
         let mut handle = null_mut();
 
@@ -134,9 +137,12 @@ impl EstablishParams {
         // This causes SQLite to automatically sleep in increasing intervals until the time
         // when there is something locked during [sqlite3_step].
         //
-        // We also need to convert the u128 value to i32, checking we're not overflowing.
-        let ms = i32::try_from(self.busy_timeout.as_millis())
-            .expect("Given busy timeout value is too big.");
+        // We also need to convert the u128 value to i32. If the value overflows,
+        // we clamp to `i32::MAX` to comply with SQLite's API.
+        let ms = match i32::try_from(self.busy_timeout.as_millis()) {
+            Ok(ms) => ms,
+            Err(_) => i32::MAX,
+        };
 
         ffi::busy_timeout(handle.as_ptr(), ms).map_err(Error::Sqlite)?;
 
