@@ -67,37 +67,11 @@ impl AsMut<Connection> for PoolConnection {
 impl PoolConnection {
     /// Close this connection, allowing the pool to open a replacement.
     ///
-    /// Equivalent to calling [`.detach()`] then [`.close()`], but the connection permit is retained
-    /// for the duration so that the pool may not exceed `max_connections`.
-    ///
-    /// [`.detach()`]: PoolConnection::detach
-    /// [`.close()`]: Connection::close
+    /// The connection permit is retained for the duration so the pool will not
+    /// exceed `max_connections`.
     pub async fn close(mut self) -> Result<()> {
         let floating = self.take_live().float(self.pool.clone());
         floating.inner.raw.close().await
-    }
-
-    /// Detach this connection from the pool, allowing it to open a replacement.
-    ///
-    /// Note that if your application uses a single shared pool, this
-    /// effectively lets the application exceed the `max_connections` setting.
-    ///
-    /// If `min_connections` is nonzero, a task will be spawned to replace this connection.
-    ///
-    /// If you want the pool to treat this connection as permanently checked-out,
-    /// use [`.leak()`][Self::leak] instead.
-    ///
-    pub fn detach(mut self) -> Connection {
-        self.take_live().float(self.pool.clone()).detach()
-    }
-
-    /// Detach this connection from the pool, treating it as permanently checked-out.
-    ///
-    /// This effectively will reduce the maximum capacity of the pool by 1 every time it is used.
-    ///
-    /// If you don't want to impact the pool's capacity, use [`.detach()`][Self::detach] instead.
-    pub fn leak(mut self) -> Connection {
-        self.take_live().raw
     }
 
     fn take_live(&mut self) -> Live {
@@ -206,10 +180,6 @@ impl Floating<Live> {
         let _ = self.inner.raw.close().await;
 
         // `guard` is dropped as intended
-    }
-
-    pub fn detach(self) -> Connection {
-        self.inner.raw
     }
 
     pub fn into_idle(self) -> Floating<Idle> {
