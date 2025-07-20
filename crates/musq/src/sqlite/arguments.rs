@@ -5,8 +5,18 @@ use atoi::atoi;
 
 pub(crate) fn parse_question_param(name: &str) -> Result<usize> {
     let rest = name.trim_start_matches('?');
-    let num = atoi::<usize>(rest.as_bytes())
-        .ok_or_else(|| Error::Protocol(format!("invalid numeric SQL parameter: {name}")))?;
+
+    // reject if the parameter is empty, contains non-digit characters,
+    // or has a leading zero
+    if rest.is_empty() || rest.starts_with('0') || !rest.as_bytes().iter().all(u8::is_ascii_digit) {
+        return Err(Error::Protocol(format!(
+            "invalid numeric SQL parameter: {name}"
+        )));
+    }
+
+    let num = rest
+        .parse::<usize>()
+        .map_err(|_| Error::Protocol(format!("invalid numeric SQL parameter: {name}")))?;
 
     if num == 0 {
         return Err(Error::Protocol(format!(
@@ -169,6 +179,35 @@ mod tests {
         let err = parse_question_param("?0").unwrap_err();
         match err {
             Error::Protocol(msg) => assert!(msg.contains("?0")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_question_param_trailing_chars() {
+        let err = parse_question_param("?12a").unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("?12a")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_question_param_leading_zero() {
+        let err = parse_question_param("?01").unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("?01")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_question_param_overflow() {
+        let big = (usize::MAX as u128 + 1).to_string();
+        let param = format!("?{big}");
+        let err = parse_question_param(&param).unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains(&param)),
             other => panic!("unexpected error: {other:?}"),
         }
     }
