@@ -6,15 +6,15 @@ use std::{
 };
 
 use crate::sqlite::ffi;
-use futures_core::future::BoxFuture;
-use futures_util::future;
+use futures_core::{future::BoxFuture, stream::BoxStream};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 use libsqlite3_sys::sqlite3;
 use tokio::sync::MutexGuard;
 
 use crate::{
-    Result,
+    Either, QueryResult, Result, Row, Statement,
     error::Error,
-    executor::Executor,
+    executor::Execute,
     logger::LogSettings,
     musq::{Musq, OptimizeOnClose},
     sqlite::connection::{establish::EstablishParams, worker::ConnectionWorker},
@@ -26,7 +26,7 @@ pub(crate) use handle::ConnectionHandle;
 pub(crate) mod establish;
 pub(crate) mod execute;
 
-mod executor;
+// removed executor trait implementation module
 mod handle;
 mod worker;
 
@@ -224,6 +224,139 @@ impl Connection {
         Self: Sized,
     {
         options.connect().await
+    }
+}
+
+impl Connection {
+    pub fn fetch_many<'c, 'q: 'c, E>(
+        &'c mut self,
+        mut query: E,
+    ) -> BoxStream<'c, Result<Either<QueryResult, Row>, Error>>
+    where
+        E: Execute + 'q,
+    {
+        let arguments = query.take_arguments();
+        let sql = query.sql().into();
+
+        Box::pin(
+            self.worker
+                .execute(sql, arguments, self.row_channel_size)
+                .map_ok(flume::Receiver::into_stream)
+                .try_flatten_stream(),
+        )
+    }
+
+    pub fn fetch_optional<'c, 'q: 'c, E>(
+        &'c mut self,
+        mut query: E,
+    ) -> BoxFuture<'c, Result<Option<Row>, Error>>
+    where
+        E: Execute + 'q,
+    {
+        let arguments = query.take_arguments();
+        let sql = query.sql().to_string();
+
+        Box::pin(async move {
+            let stream = self
+                .worker
+                .execute(sql, arguments, self.row_channel_size)
+                .map_ok(flume::Receiver::into_stream)
+                .try_flatten_stream();
+
+            futures_util::pin_mut!(stream);
+
+            while let Some(res) = stream.try_next().await? {
+                if let Either::Right(row) = res {
+                    return Ok(Some(row));
+                }
+            }
+
+            Ok(None)
+        })
+    }
+
+    pub fn prepare_with<'c, 'q: 'c>(
+        &'c mut self,
+        sql: &'q str,
+    ) -> BoxFuture<'c, Result<Statement, Error>> {
+        Box::pin(async move {
+            let statement = self.worker.prepare(sql).await?;
+
+            Ok(Statement {
+                sql: sql.into(),
+                ..statement
+            })
+        })
+    }
+
+    pub fn prepare<'c, 'q: 'c>(
+        &'c mut self,
+        sql: &'q str,
+    ) -> BoxFuture<'c, Result<Statement, Error>> {
+        self.prepare_with(sql)
+    }
+
+    pub fn fetch<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<Row, Error>>
+    where
+        E: Execute + 'q,
+    {
+        self.fetch_many(query)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(_) => None,
+                    Either::Right(row) => Some(row),
+                })
+            })
+            .boxed()
+    }
+
+    pub fn execute_many<'c, 'q: 'c, E>(
+        &'c mut self,
+        query: E,
+    ) -> BoxStream<'c, Result<QueryResult, Error>>
+    where
+        E: Execute + 'q,
+    {
+        self.fetch_many(query)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(rows) => Some(rows),
+                    Either::Right(_) => None,
+                })
+            })
+            .boxed()
+    }
+
+    pub fn execute<'c, 'q: 'c, E>(
+        &'c mut self,
+        query: E,
+    ) -> BoxFuture<'c, Result<QueryResult, Error>>
+    where
+        E: Execute + 'q,
+    {
+        self.execute_many(query).try_collect().boxed()
+    }
+
+    pub fn fetch_all<'c, 'q: 'c, E>(
+        &'c mut self,
+        query: E,
+    ) -> BoxFuture<'c, Result<Vec<Row>, Error>>
+    where
+        E: Execute + 'q,
+    {
+        self.fetch(query).try_collect().boxed()
+    }
+
+    pub fn fetch_one<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Row, Error>>
+    where
+        E: Execute + 'q,
+    {
+        self.fetch_optional(query)
+            .and_then(|row| match row {
+                Some(row) => future::ok(row),
+                None => future::err(Error::RowNotFound),
+            })
+            .boxed()
     }
 }
 
