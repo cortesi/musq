@@ -1,6 +1,4 @@
-use std::sync::Arc;
-
-use crate::{Column, from_row, query, sqlite::Arguments};
+use crate::{from_row, query, sqlite::Arguments};
 
 mod compound;
 mod handle;
@@ -19,33 +17,40 @@ pub(crate) use handle::StatementHandle;
 /// cached within the connection.
 #[derive(Debug, Clone)]
 #[allow(clippy::rc_buffer)]
-pub struct Statement {
+pub(crate) struct Statement {
     pub(crate) sql: String,
-    pub columns: Arc<Vec<Column>>,
 }
 
 impl Statement {
     pub fn sql(&self) -> &str {
         &self.sql
     }
+}
 
-    pub fn columns(&self) -> &[Column] {
-        &self.columns
+/// A prepared statement without exposed metadata.
+#[derive(Debug, Clone)]
+pub struct Prepared {
+    pub(crate) statement: Statement,
+}
+
+impl Prepared {
+    pub fn sql(&self) -> &str {
+        self.statement.sql()
     }
 
     pub fn query(&self) -> query::Query {
-        query::query_statement(self)
+        query::query_statement(&self.statement)
     }
 
     pub fn query_with(&self, arguments: Arguments) -> query::Query {
-        query::query_statement_with(self, arguments)
+        query::query_statement_with(&self.statement, arguments)
     }
 
     pub fn query_as<O>(&self) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
     where
         O: for<'r> from_row::FromRow<'r> + Send + Unpin,
     {
-        query::query_statement_as(self)
+        query::query_statement_as(&self.statement)
     }
 
     pub fn query_as_with<'s, O>(
@@ -55,7 +60,7 @@ impl Statement {
     where
         O: for<'r> from_row::FromRow<'r> + Send + Unpin,
     {
-        query::query_statement_as_with(self, arguments)
+        query::query_statement_as_with(&self.statement, arguments)
     }
 
     pub fn query_scalar<O>(&self) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
@@ -63,7 +68,7 @@ impl Statement {
         (O,): for<'r> from_row::FromRow<'r>,
         O: Send + Unpin,
     {
-        query::query_statement_scalar(self)
+        query::query_statement_scalar(&self.statement)
     }
 
     pub fn query_scalar_with<'s, O>(
@@ -74,6 +79,6 @@ impl Statement {
         (O,): for<'r> from_row::FromRow<'r>,
         O: Send + Unpin,
     {
-        query::query_statement_scalar_with(self, arguments)
+        query::query_statement_scalar_with(&self.statement, arguments)
     }
 }

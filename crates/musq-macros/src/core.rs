@@ -62,8 +62,8 @@ impl RenameAll {
 pub struct JsonContainer {
     pub ident: syn::Ident,
     pub generics: syn::Generics,
-    #[allow(dead_code)]
-    pub data: ast::Data<util::Ignored, RowField>,
+    #[darling(skip)]
+    pub _data: Option<ast::Data<util::Ignored, RowField>>,
 }
 
 #[derive(Debug, FromDeriveInput)]
@@ -111,8 +111,8 @@ pub struct TypeContainer {
 #[derive(darling::FromVariant, Debug)]
 pub struct TypeVariant {
     pub ident: syn::Ident,
-    #[allow(dead_code)]
-    pub fields: darling::ast::Fields<TypeField>,
+    #[darling(skip)]
+    pub _fields: Option<darling::ast::Fields<TypeField>>,
 
     pub rename: Option<String>,
 }
@@ -123,8 +123,8 @@ pub struct TypeField {
     pub ident: Option<syn::Ident>,
     pub ty: Type,
 
-    #[allow(dead_code)]
-    pub rename: Option<String>,
+    #[darling(skip)]
+    pub _rename: Option<String>,
 }
 
 pub(crate) fn check_repr_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {

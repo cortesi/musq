@@ -525,16 +525,6 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
 
-    assert_eq!(statement.columns[0].name(), "id");
-    assert_eq!(statement.columns[1].name(), "text");
-    assert_eq!(statement.columns[2].name(), "is_sent");
-    assert_eq!(statement.columns[3].name(), "owner_id");
-
-    assert_eq!(statement.columns[0].type_info().name(), "INTEGER");
-    assert_eq!(statement.columns[1].type_info().name(), "TEXT");
-    assert_eq!(statement.columns[2].type_info().name(), "BOOLEAN");
-    assert_eq!(statement.columns[3].type_info().name(), "INTEGER");
-
     let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
     let tweet_text: &str = row.get_value("text")?;
 
@@ -561,8 +551,6 @@ async fn it_handles_numeric_affinity() -> anyhow::Result<()> {
     let stmt = conn
         .prepare("SELECT price FROM products WHERE product_no = ?")
         .await?;
-
-    assert_eq!(stmt.columns[0].type_info().name(), "NUMERIC");
 
     let row = stmt.query().bind(1_i32).fetch_one(&mut conn).await?;
     let price: f64 = row.get_value_idx(0)?;

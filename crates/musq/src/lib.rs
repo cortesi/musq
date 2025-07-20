@@ -25,7 +25,6 @@ mod transaction;
 pub mod types;
 
 pub use crate::{
-    column::Column,
     error::{DecodeError, Error, Result},
     executor::Execute,
     from_row::FromRow,
@@ -34,6 +33,6 @@ pub use crate::{
     query::{query, query_as, query_as_with, query_scalar, query_scalar_with, query_with},
     query_result::QueryResult,
     row::Row,
-    sqlite::{Arguments, Connection, SqliteDataType, SqliteError, Statement, Value},
+    sqlite::{Arguments, Connection, Prepared, SqliteDataType, SqliteError, Value},
     transaction::Transaction,
 };

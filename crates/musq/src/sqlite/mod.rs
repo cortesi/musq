@@ -1,7 +1,7 @@
 pub use arguments::Arguments;
 pub use connection::Connection;
 pub use error::SqliteError;
-pub use statement::Statement;
+pub use statement::Prepared;
 pub use type_info::SqliteDataType;
 pub use value::Value;
 
@@ -9,7 +9,7 @@ mod arguments;
 mod connection;
 pub mod error;
 mod ffi;
-pub mod statement;
+pub(crate) mod statement;
 mod type_info;
 pub(crate) mod value;
 
