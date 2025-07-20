@@ -1,16 +1,8 @@
-use std::{
-    fmt::{self, Debug, Formatter, Write},
-    os::raw::c_void,
-    panic::catch_unwind,
-    ptr::NonNull,
-};
+use std::fmt::{self, Debug, Formatter, Write};
 
-use crate::sqlite::ffi;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_executor::block_on;
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
-use libsqlite3_sys::sqlite3;
-use tokio::sync::MutexGuard;
 
 use either::Either;
 
@@ -50,14 +42,6 @@ pub struct Connection {
     pub(crate) row_channel_size: usize,
 }
 
-pub struct LockedSqliteHandle<'a> {
-    pub(crate) guard: MutexGuard<'a, ConnectionState>,
-}
-
-/// Represents a callback handler that will be shared with the underlying sqlite3 connection.
-pub(crate) struct Handler(NonNull<dyn FnMut() -> bool + Send + 'static>);
-unsafe impl Send for Handler {}
-
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
 
@@ -67,22 +51,6 @@ pub(crate) struct ConnectionState {
     pub(crate) statements: StatementCache,
 
     log_settings: LogSettings,
-
-    /// Stores the progress handler set on the current connection. If the handler returns `false`,
-    /// the query is interrupted.
-    progress_handler_callback: Option<Handler>,
-}
-
-impl ConnectionState {
-    /// Drops the `progress_handler_callback` if it exists.
-    pub(crate) fn remove_progress_handler(&mut self) {
-        if let Some(handler) = self.progress_handler_callback.take() {
-            unsafe {
-                ffi::progress_handler(self.handle.as_ptr(), 0, None, std::ptr::null_mut());
-                let _ = { Box::from_raw(handler.0.as_ptr()) };
-            }
-        }
-    }
 }
 
 impl Debug for Connection {
@@ -103,16 +71,6 @@ impl Connection {
             worker,
             row_channel_size: options.row_channel_size,
         })
-    }
-
-    /// Lock the SQLite database handle out from the worker thread so direct SQLite API calls can
-    /// be made safely.
-    ///
-    /// Returns an error if the worker thread crashed.
-    pub async fn lock_handle(&mut self) -> Result<LockedSqliteHandle<'_>> {
-        let guard = self.worker.unlock_db().await?;
-
-        Ok(LockedSqliteHandle { guard })
     }
 
     /// Explicitly close this database connection.
@@ -333,97 +291,6 @@ impl Connection {
     }
 }
 
-/// Implements a C binding to a progress callback. The function returns `0` if the
-/// user-provided callback returns `true`, and `1` otherwise to signal an interrupt.
-extern "C" fn progress_callback<F>(callback: *mut c_void) -> i32
-where
-    F: FnMut() -> bool,
-{
-    unsafe {
-        let r = catch_unwind(|| {
-            let callback: *mut F = callback.cast::<F>();
-            (&mut *callback)()
-        });
-
-        match r {
-            Ok(res) => i32::from(!res),
-            Err(err) => {
-                if let Some(msg) = err.downcast_ref::<&str>() {
-                    tracing::error!("progress handler panicked: {}", msg);
-                } else if let Some(msg) = err.downcast_ref::<String>() {
-                    tracing::error!("progress handler panicked: {}", msg);
-                } else {
-                    tracing::error!("progress handler panicked");
-                }
-
-                i32::from(!bool::default())
-            }
-        }
-    }
-}
-
-impl LockedSqliteHandle<'_> {
-    /// Returns the underlying sqlite3* connection handle.
-    ///
-    /// As long as this `LockedSqliteHandle` exists, it is guaranteed that the background thread
-    /// is not making FFI calls on this database handle or any of its statements.
-    ///
-    /// ### Note: The `sqlite3` type is semver-exempt.
-    /// This API exposes the `sqlite3` type from `libsqlite3-sys` crate for type safety.
-    /// However, we reserve the right to upgrade `libsqlite3-sys` as necessary.
-    ///
-    /// Thus, if you are making direct calls via `libsqlite3-sys` you should pin the version
-    /// of Musq that you're using, and upgrade it and `libsqlite3-sys` manually as new
-    /// versions are released.
-    pub fn as_raw_handle(&mut self) -> NonNull<sqlite3> {
-        self.guard.handle.as_non_null_ptr()
-    }
-
-    /// Sets a progress handler that is invoked periodically during long running calls. If the progress callback
-    /// returns `false`, then the operation is interrupted.
-    ///
-    /// `num_ops` is the approximate number of [virtual machine instructions](https://www.sqlite.org/opcode.html)
-    /// that are evaluated between successive invocations of the callback. If `num_ops` is less than one then any
-    /// existing progress handler is removed and the call returns without installing a new handler.
-    ///
-    /// Only a single progress handler may be defined at one time per database connection; setting a new progress
-    /// handler cancels the old one.
-    ///
-    /// The progress handler callback must not do anything that will modify the database connection that invoked
-    /// the progress handler. Note that sqlite3_prepare_v2() and sqlite3_step() both modify their database connections
-    /// in this context.
-    pub fn set_progress_handler<F>(&mut self, num_ops: i32, callback: F)
-    where
-        F: FnMut() -> bool + Send + 'static,
-    {
-        if num_ops < 1 {
-            self.remove_progress_handler();
-            return;
-        }
-
-        unsafe {
-            let callback_boxed = Box::new(callback);
-            // SAFETY: `Box::into_raw()` always returns a non-null pointer.
-            let callback = NonNull::new_unchecked(Box::into_raw(callback_boxed));
-            let handler = callback.as_ptr() as *mut _;
-            self.guard.remove_progress_handler();
-            self.guard.progress_handler_callback = Some(Handler(callback));
-
-            ffi::progress_handler(
-                self.as_raw_handle().as_mut(),
-                num_ops,
-                Some(progress_callback::<F>),
-                handler,
-            );
-        }
-    }
-
-    /// Removes the progress handler on a database connection. The method does nothing if no handler was set.
-    pub fn remove_progress_handler(&mut self) {
-        self.guard.remove_progress_handler();
-    }
-}
-
 impl Drop for Connection {
     fn drop(&mut self) {
         // best effort shutdown of the worker thread
@@ -437,6 +304,5 @@ impl Drop for ConnectionState {
     fn drop(&mut self) {
         // explicitly drop statements before the connection handle is dropped
         self.statements.clear();
-        self.remove_progress_handler();
     }
 }

@@ -153,7 +153,6 @@ impl EstablishParams {
             statements: StatementCache::new(self.statement_cache_capacity),
             transaction_depth: 0,
             log_settings: self.log_settings.clone(),
-            progress_handler_callback: None,
         })
     }
 }
