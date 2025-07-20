@@ -2,7 +2,7 @@ use crate::{Result, sqlite::statement::CompoundStatement};
 use hashlink::lru_cache::LruCache;
 
 /// Default capacity for [`StatementCache`].
-pub const DEFAULT_CAPACITY: usize = 1024;
+pub(crate) const DEFAULT_CAPACITY: usize = 1024;
 
 /// A cache for prepared statements. When full, the least recently used
 /// statement gets removed.
