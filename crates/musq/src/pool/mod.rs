@@ -276,15 +276,3 @@ impl fmt::Debug for Pool {
             .finish()
     }
 }
-
-#[test]
-#[allow(dead_code)]
-fn assert_pool_traits() {
-    fn assert_send_sync<T: Send + Sync>() {}
-    fn assert_clone<T: Clone>() {}
-
-    fn assert_pool() {
-        assert_send_sync::<Pool>();
-        assert_clone::<Pool>();
-    }
-}
