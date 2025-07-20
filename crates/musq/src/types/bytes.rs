@@ -36,9 +36,15 @@ impl<'r> Decode<'r> for Vec<u8> {
 
 impl Encode for Arc<Vec<u8>> {
     fn encode(self) -> Value {
-        Value::Blob {
-            value: (*self).clone(),
-            type_info: None,
+        match Arc::try_unwrap(self) {
+            Ok(v) => Value::Blob {
+                value: v,
+                type_info: None,
+            },
+            Err(arc) => Value::Blob {
+                value: (*arc).clone(),
+                type_info: None,
+            },
         }
     }
 }

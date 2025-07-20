@@ -120,7 +120,14 @@ If `s` is a `&str` reference, Musq has to clone the value into an owned structur
 thread sharing. This is usually fine, but if `s` is large, we can avoid the copy by passing an owned `String` or an
 `Arc<String>` instead. The same idea holds for the reference `&[u8]` and its counterparts `Vec<u8>` and `Arc<Vec<u8>>`.
 
-FIXME: Add note on efficiently querying large blobs
+When fetching large blobs you can decode directly into an `Arc<Vec<u8>>` to
+reduce copying and easily share the data:
+
+```rust
+let blob: Arc<Vec<u8>> = query_scalar("SELECT data FROM blob_test")
+    .fetch_one(&mut conn)
+    .await?;
+```
 
 ## Named parameters
 
