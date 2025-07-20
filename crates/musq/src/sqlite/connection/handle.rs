@@ -1,12 +1,11 @@
 use std::{
     ffi::CString,
-    ptr::{self, NonNull},
+    ptr::NonNull,
 };
 
-use libsqlite3_sys::{
-    SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, sqlite3, sqlite3_close, sqlite3_exec,
-    sqlite3_last_insert_rowid,
-};
+use libsqlite3_sys::{SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, sqlite3};
+
+use crate::sqlite::ffi;
 
 use crate::{
     Error,
@@ -44,7 +43,7 @@ impl ConnectionHandle {
 
     pub(crate) fn last_insert_rowid(&self) -> i64 {
         // SAFETY: we have exclusive access to the database handle
-        unsafe { sqlite3_last_insert_rowid(self.as_ptr()) }
+        ffi::last_insert_rowid(self.as_ptr())
     }
 
     pub(crate) fn exec(&self, query: impl Into<String>) -> Result<(), Error> {
@@ -53,24 +52,13 @@ impl ConnectionHandle {
             CString::new(query).map_err(|_| Error::Protocol("query contains nul bytes".into()))?;
 
         // SAFETY: we have exclusive access to the database handle
-        unsafe {
-            loop {
-                let status = sqlite3_exec(
-                    self.as_ptr(),
-                    query.as_ptr(),
-                    // callback if we wanted result rows
-                    None,
-                    // callback data
-                    ptr::null_mut(),
-                    // out-pointer for the error message, we just use `SqliteError::new()`
-                    ptr::null_mut(),
-                );
+        loop {
+            let status = ffi::exec(self.as_ptr(), query.as_ptr());
 
-                match status {
-                    SQLITE_OK => return Ok(()),
-                    SQLITE_LOCKED_SHAREDCACHE => unlock_notify::wait(self.as_ptr(), None)?,
-                    _ => return Err(SqliteError::new(self.as_ptr()).into()),
-                }
+            match status {
+                SQLITE_OK => return Ok(()),
+                SQLITE_LOCKED_SHAREDCACHE => unsafe { unlock_notify::wait(self.as_ptr(), None)? },
+                _ => return Err(SqliteError::new(self.as_ptr()).into()),
             }
         }
     }
@@ -78,14 +66,12 @@ impl ConnectionHandle {
 
 impl Drop for ConnectionHandle {
     fn drop(&mut self) {
-        unsafe {
-            // https://sqlite.org/c3ref/close.html
-            let status = sqlite3_close(self.0.as_ptr());
-            if status != SQLITE_OK {
-                // this should *only* happen due to an internal bug in SQLite where we left
-                // SQLite handles open
-                panic!("{}", SqliteError::new(self.0.as_ptr()));
-            }
+        // https://sqlite.org/c3ref/close.html
+        let status = ffi::close(self.0.as_ptr());
+        if status != SQLITE_OK {
+            // this should *only* happen due to an internal bug in SQLite where we left
+            // SQLite handles open
+            panic!("{}", SqliteError::new(self.0.as_ptr()));
         }
     }
 }

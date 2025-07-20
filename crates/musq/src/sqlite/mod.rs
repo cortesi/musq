@@ -7,6 +7,7 @@ pub use value::Value;
 
 mod arguments;
 mod connection;
+mod ffi;
 pub mod error;
 pub mod statement;
 mod type_info;
