@@ -1,5 +1,4 @@
 use crate::{
-    compatible,
     decode::Decode,
     encode::Encode,
     error::DecodeError,
