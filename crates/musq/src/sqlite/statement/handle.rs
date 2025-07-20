@@ -256,7 +256,11 @@ impl Drop for StatementHandle {
                     if e.primary == PrimaryErrCode::Misuse {
                         panic!("Detected sqlite3_finalize misuse.");
                     } else {
-                        tracing::error!("sqlite3_finalize failed: {}", e);
+                        tracing::error!(
+                            db_ptr = ?unsafe { self.db_handle() },
+                            "sqlite3_finalize failed: {}",
+                            e
+                        );
                     }
                 }
             }
