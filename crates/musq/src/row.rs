@@ -11,8 +11,8 @@ use crate::{
 /// Implementation of [`Row`] for SQLite.
 #[derive(Clone)]
 pub struct Row {
-    pub values: Box<[Value]>,
-    pub columns: Arc<Vec<Column>>,
+    values: Box<[Value]>,
+    columns: Arc<Vec<Column>>,
     pub(crate) column_names: Arc<HashMap<UStr, usize>>,
 }
 
@@ -77,6 +77,16 @@ impl Row {
             columns: Arc::clone(columns),
             column_names: Arc::clone(column_names),
         }
+    }
+
+    /// Returns the values for this row.
+    pub fn values(&self) -> &[Value] {
+        self.values.as_ref()
+    }
+
+    /// Returns the column definitions for this row.
+    pub fn columns(&self) -> &[Column] {
+        self.columns.as_ref()
     }
 
     /// Returns `true` if this row has no columns.
