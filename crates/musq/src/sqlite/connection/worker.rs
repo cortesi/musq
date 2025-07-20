@@ -247,6 +247,10 @@ impl ConnectionWorker {
         })
     }
 
+    pub(crate) fn is_shutdown(&self) -> bool {
+        self.join_handle.is_none()
+    }
+
     pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
