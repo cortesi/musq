@@ -7,12 +7,11 @@ use std::{
 
 use crate::sqlite::ffi;
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
+use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 use libsqlite3_sys::sqlite3;
 use tokio::sync::MutexGuard;
 
 use crate::{
-    Either, QueryResult, Result, Row, Statement,
     error::Error,
     executor::Execute,
     logger::LogSettings,
@@ -20,6 +19,7 @@ use crate::{
     sqlite::connection::{establish::EstablishParams, worker::ConnectionWorker},
     statement_cache::StatementCache,
     transaction::Transaction,
+    Either, QueryResult, Result, Row, Statement,
 };
 
 pub(crate) use handle::ConnectionHandle;
@@ -170,24 +170,6 @@ impl Connection {
     pub async fn clear_cached_statements(&mut self) -> Result<()> {
         self.worker.clear_cache().await?;
         Ok(())
-    }
-
-    pub fn shrink_buffers(&mut self) {
-        // No-op.
-    }
-
-    #[doc(hidden)]
-    pub fn flush(&mut self) -> BoxFuture<'_, Result<()>> {
-        // For SQLite, FLUSH does effectively nothing...
-        // Well, we could use this to ensure that the command channel has been cleared,
-        // but it would only develop a backlog if a lot of queries are executed and then cancelled
-        // partway through, and then this would only make that situation worse.
-        Box::pin(future::ok(()))
-    }
-
-    #[doc(hidden)]
-    pub fn should_flush(&self) -> bool {
-        false
     }
 
     /// Execute the function inside a transaction.
