@@ -295,5 +295,4 @@ impl SqliteError {
             || self.extended == ExtendedErrCode::LockedSharedCache
             || self.is_busy()
     }
-
 }

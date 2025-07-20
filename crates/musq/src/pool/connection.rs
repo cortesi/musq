@@ -57,6 +57,10 @@ impl PoolConnection {
     ///
     /// The connection permit is retained for the duration so the pool will not
     /// exceed `max_connections`.
+    ///
+    /// The returned future **must** be awaited to ensure the connection is
+    /// fully closed.
+    #[must_use = "futures returned by `PoolConnection::close` must be awaited"]
     pub async fn close(mut self) -> Result<()> {
         let floating = self.take_live().float(self.pool.clone());
         floating.inner.raw.close().await

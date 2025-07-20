@@ -133,6 +133,10 @@ impl Pool {
     /// internally and so may be unpredictable otherwise.
     ///
     /// `.close()` may be safely called and `.await`ed on multiple handles concurrently.
+    ///
+    /// The returned future **must** be awaited to ensure the pool is fully
+    /// closed.
+    #[must_use = "futures returned by `Pool::close` must be awaited"]
     pub async fn close(&self) {
         self.0.close().await
     }

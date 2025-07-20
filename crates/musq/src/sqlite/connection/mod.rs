@@ -89,6 +89,10 @@ impl Connection {
     ///
     /// Therefore it is recommended to call `.close()` on a connection when you are done using it
     /// and to `.await` the result to ensure the termination message is sent.
+    ///
+    /// The returned future **must** be awaited to ensure the connection is fully
+    /// closed.
+    #[must_use = "futures returned by `Connection::close` must be awaited"]
     pub async fn close(mut self) -> Result<()> {
         if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
             let mut pragma_string = String::new();
