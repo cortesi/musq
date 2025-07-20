@@ -55,9 +55,6 @@ enum Command {
     Rollback {
         tx: Option<rendezvous_oneshot::Sender<Result<()>>>,
     },
-    ClearCache {
-        tx: oneshot::Sender<()>,
-    },
     Shutdown {
         tx: oneshot::Sender<Result<()>>,
     },
@@ -220,11 +217,6 @@ impl ConnectionWorker {
                                 ignore_next_start_rollback = true;
                             }
                         }
-                        Command::ClearCache { tx } => {
-                            conn.statements.clear();
-                            update_cached_statements_size(&conn, &shared.cached_statements_size);
-                            tx.send(()).ok();
-                        }
                         Command::Shutdown { tx } => {
                             conn.statements.clear();
                             let res = conn.handle.close();
@@ -329,10 +321,6 @@ impl ConnectionWorker {
             .map_err(|_| Error::WorkerCrashed)?;
 
         rx.recv().await.map_err(|_| Error::WorkerCrashed)
-    }
-
-    pub(crate) async fn clear_cache(&mut self) -> Result<()> {
-        self.oneshot_cmd(|tx| Command::ClearCache { tx }).await
     }
 
     /// Send a command to the worker to shut down the processing thread.
