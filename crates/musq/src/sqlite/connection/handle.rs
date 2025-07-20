@@ -5,8 +5,8 @@ use libsqlite3_sys::sqlite3;
 use crate::sqlite::ffi;
 
 use crate::{
-    sqlite::{statement::unlock_notify, error::ExtendedErrCode},
     Error,
+    sqlite::{error::ExtendedErrCode, statement::unlock_notify},
 };
 
 /// Managed handle to the raw SQLite3 database handle.
@@ -53,7 +53,7 @@ impl ConnectionHandle {
             match ffi::exec(self.as_ptr(), query.as_ptr()) {
                 Ok(()) => return Ok(()),
                 Err(e) if e.extended == ExtendedErrCode::LockedSharedCache => {
-                    unlock_notify::wait(self.as_ptr(), None)?;
+                    unlock_notify::wait(self.as_ptr(), None, unlock_notify::DEFAULT_MAX_RETRIES)?;
                 }
                 Err(e) => return Err(e.into()),
             }
