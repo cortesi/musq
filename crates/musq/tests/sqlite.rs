@@ -548,6 +548,38 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+async fn it_handles_numeric_affinity() -> anyhow::Result<()> {
+    let mut conn = tdb().await?;
+
+    query("INSERT INTO products (product_no, name, price) VALUES (1, 'Prod 1', 9.99)")
+        .execute(&mut conn)
+        .await?;
+
+    query("INSERT INTO products (product_no, name, price) VALUES (?, ?, ?)")
+        .bind(2_i32)
+        .bind("Prod 2")
+        .bind(19.95_f64)
+        .execute(&mut conn)
+        .await?;
+
+    let stmt = conn
+        .prepare("SELECT price FROM products WHERE product_no = ?")
+        .await?;
+
+    assert_eq!(stmt.columns[0].type_info().name(), "NUMERIC");
+
+    let row = stmt.query().bind(1_i32).fetch_one(&mut conn).await?;
+    let price: f64 = row.get_value_idx(0)?;
+    assert_eq!(price, 9.99_f64);
+
+    let row = stmt.query().bind(2_i32).fetch_one(&mut conn).await?;
+    let price: f64 = row.get_value_idx(0)?;
+    assert_eq!(price, 19.95_f64);
+
+    Ok(())
+}
+
+#[tokio::test]
 async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
