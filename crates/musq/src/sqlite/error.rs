@@ -8,7 +8,7 @@ use libsqlite3_sys::{self, sqlite3};
 
 /// Primary Sqlite error codes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum PrimaryErrCode {
+pub(crate) enum PrimaryErrCode {
     Error,
     Internal,
     Perm,
@@ -78,7 +78,7 @@ impl PrimaryErrCode {
 
 /// Extended Sqlite error codes
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ExtendedErrCode {
+pub(crate) enum ExtendedErrCode {
     ErrorMissingCollseq,
     ErrorRetry,
     ErrorSnapshot,
@@ -257,8 +257,8 @@ impl ExtendedErrCode {
 #[derive(Debug, thiserror::Error)]
 #[error("(code: {:?}) {message}", .extended)]
 pub struct SqliteError {
-    pub primary: PrimaryErrCode,
-    pub extended: ExtendedErrCode,
+    pub(crate) primary: PrimaryErrCode,
+    pub(crate) extended: ExtendedErrCode,
     pub message: String,
 }
 
@@ -286,5 +286,13 @@ impl SqliteError {
         self.primary == PrimaryErrCode::Locked
             || self.extended == ExtendedErrCode::LockedSharedCache
             || self.is_busy()
+    }
+
+    pub(crate) fn primary_code(&self) -> PrimaryErrCode {
+        self.primary
+    }
+
+    pub(crate) fn extended_code(&self) -> ExtendedErrCode {
+        self.extended
     }
 }

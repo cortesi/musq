@@ -1,7 +1,5 @@
 use futures::TryStreamExt;
-use musq::{
-    Connection, Error, ExtendedErrCode, Musq, PrimaryErrCode, Row, query, query_as, query_scalar,
-};
+use musq::{Connection, Error, Musq, Row, query, query_as, query_scalar};
 use musq_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -198,8 +196,6 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
 
     let err = res.unwrap_err().into_sqlite_error().unwrap();
 
-    assert_eq!(err.primary, PrimaryErrCode::Error);
-    assert_eq!(err.extended, ExtendedErrCode::Unknown(1));
     assert_eq!(err.message, "near \"SEELCT\": syntax error");
 
     Ok(())

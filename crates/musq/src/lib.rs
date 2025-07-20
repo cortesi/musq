@@ -34,9 +34,6 @@ pub use crate::{
     query::{query, query_as, query_as_with, query_scalar, query_scalar_with, query_with},
     query_result::QueryResult,
     row::Row,
-    sqlite::{
-        Arguments, Connection, SqliteDataType, SqliteError, Statement, Value,
-        error::{ExtendedErrCode, PrimaryErrCode},
-    },
+    sqlite::{Arguments, Connection, SqliteDataType, SqliteError, Statement, Value},
     transaction::Transaction,
 };
