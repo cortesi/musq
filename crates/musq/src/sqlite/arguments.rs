@@ -69,8 +69,8 @@ impl Arguments {
             let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
                 if let Some(rest) = name.strip_prefix('?') {
                     // parameter should have the form ?NNN
-                    let n = atoi(rest.as_bytes()).expect("parameter of the form ?NNN");
-                    n
+
+                    atoi(rest.as_bytes()).expect("parameter of the form ?NNN")
                 } else if let Some(rest) = name.strip_prefix('$') {
                     // parameters of the form $NNN are positional, otherwise they are named
                     if let Some(n) = atoi(rest.as_bytes()) {

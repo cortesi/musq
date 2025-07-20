@@ -105,7 +105,7 @@ impl Row {
     }
 
     /// Get a single value from the row by column name.
-pub fn get_value<'r, T>(&'r self, column: &str) -> Result<T>
+    pub fn get_value<'r, T>(&'r self, column: &str) -> Result<T>
     where
         T: Decode<'r>,
     {

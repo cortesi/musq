@@ -59,14 +59,31 @@ pub(crate) fn bind_parameter_name(stmt: *mut sqlite3_stmt, index: c_int) -> *con
 }
 
 /// Wrapper around [`sqlite3_bind_blob64`].
-pub(crate) fn bind_blob64(stmt: *mut sqlite3_stmt, index: c_int, data: *const c_void, len: u64) -> c_int {
+pub(crate) fn bind_blob64(
+    stmt: *mut sqlite3_stmt,
+    index: c_int,
+    data: *const c_void,
+    len: u64,
+) -> c_int {
     unsafe { ffi_sys::sqlite3_bind_blob64(stmt, index, data, len, ffi_sys::SQLITE_TRANSIENT()) }
 }
 
 /// Wrapper around [`sqlite3_bind_text64`].
-pub(crate) fn bind_text64(stmt: *mut sqlite3_stmt, index: c_int, data: *const c_char, len: u64) -> c_int {
+pub(crate) fn bind_text64(
+    stmt: *mut sqlite3_stmt,
+    index: c_int,
+    data: *const c_char,
+    len: u64,
+) -> c_int {
     unsafe {
-        ffi_sys::sqlite3_bind_text64(stmt, index, data, len, ffi_sys::SQLITE_TRANSIENT(), ffi_sys::SQLITE_UTF8 as u8)
+        ffi_sys::sqlite3_bind_text64(
+            stmt,
+            index,
+            data,
+            len,
+            ffi_sys::SQLITE_TRANSIENT(),
+            ffi_sys::SQLITE_UTF8 as u8,
+        )
     }
 }
 
@@ -134,4 +151,3 @@ pub(crate) fn step(stmt: *mut sqlite3_stmt) -> c_int {
 pub(crate) fn finalize(stmt: *mut sqlite3_stmt) -> c_int {
     unsafe { ffi_sys::sqlite3_finalize(stmt) }
 }
-

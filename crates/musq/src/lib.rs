@@ -30,9 +30,7 @@ pub use crate::{
     from_row::FromRow,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::Pool,
-    query::{
-        query, query_as, query_as_with, query_scalar, query_scalar_with, query_with,
-    },
+    query::{query, query_as, query_as_with, query_scalar, query_scalar_with, query_with},
     query_result::QueryResult,
     row::Row,
     sqlite::{

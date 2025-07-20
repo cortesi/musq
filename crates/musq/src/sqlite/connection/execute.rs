@@ -1,6 +1,6 @@
 use crate::{
     Either, Error, QueryResult, Row,
-    logger::{QueryLog, QueryLogger, NopQueryLogger},
+    logger::{NopQueryLogger, QueryLog, QueryLogger},
     sqlite::{
         Arguments,
         connection::{ConnectionHandle, ConnectionState},

@@ -96,7 +96,7 @@ pub enum Error {
 
     /// [`sqlite3_unlock_notify`] kept returning `SQLITE_LOCKED` even after
     /// resetting the blocking statement.
-    #[error("unlock_notify failed after multiple attempts")] 
+    #[error("unlock_notify failed after multiple attempts")]
     UnlockNotify,
 }
 

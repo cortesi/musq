@@ -395,7 +395,10 @@ where
     query(sql).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_as_with<'q, O, A>(sql: &'q str, arguments: A) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+pub fn query_as_with<'q, O, A>(
+    sql: &'q str,
+    arguments: A,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
 where
     A: IntoArguments,
     O: Send + Unpin + for<'r> FromRow<'r>,
@@ -403,14 +406,19 @@ where
     query_with(sql, arguments).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_statement_as<'q, O>(statement: &'q Statement) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+pub fn query_statement_as<'q, O>(
+    statement: &'q Statement,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
 where
     O: Send + Unpin + for<'r> FromRow<'r>,
 {
     query_statement(statement).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_statement_as_with<'q, O, A>(statement: &'q Statement, arguments: A) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+pub fn query_statement_as_with<'q, O, A>(
+    statement: &'q Statement,
+    arguments: A,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
 where
     A: IntoArguments,
     O: Send + Unpin + for<'r> FromRow<'r>,
@@ -418,7 +426,9 @@ where
     query_statement_with(statement, arguments).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_scalar<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+pub fn query_scalar<'q, O>(
+    sql: &'q str,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
 where
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
@@ -426,7 +436,10 @@ where
     query_as(sql).map(|(o,)| o)
 }
 
-pub fn query_scalar_with<'q, O, A>(sql: &'q str, arguments: A) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+pub fn query_scalar_with<'q, O, A>(
+    sql: &'q str,
+    arguments: A,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
 where
     A: IntoArguments,
     (O,): for<'r> FromRow<'r>,
@@ -435,7 +448,9 @@ where
     query_as_with(sql, arguments).map(|(o,)| o)
 }
 
-pub fn query_statement_scalar<'q, O>(statement: &'q Statement) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
+pub fn query_statement_scalar<'q, O>(
+    statement: &'q Statement,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, Arguments>
 where
     (O,): for<'r> FromRow<'r>,
     O: Send + Unpin,
@@ -443,7 +458,10 @@ where
     query_statement_as(statement).map(|(o,)| o)
 }
 
-pub fn query_statement_scalar_with<'q, O, A>(statement: &'q Statement, arguments: A) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
+pub fn query_statement_scalar_with<'q, O, A>(
+    statement: &'q Statement,
+    arguments: A,
+) -> Map<impl FnMut(Row) -> Result<O, Error> + Send, A>
 where
     A: IntoArguments,
     (O,): for<'r> FromRow<'r>,

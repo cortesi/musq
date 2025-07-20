@@ -43,7 +43,7 @@ impl Encode for i32 {
 impl<'r> Decode<'r> for i32 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
-        Ok(value.int()?)
+        value.int()
     }
 }
 

@@ -1,5 +1,5 @@
-use crate::row::expand_derive_from_row;
 use crate::core::assert_errors_with;
+use crate::row::expand_derive_from_row;
 use syn::parse_str;
 
 #[test]

@@ -1,7 +1,4 @@
-use std::{
-    ffi::CString,
-    ptr::NonNull,
-};
+use std::{ffi::CString, ptr::NonNull};
 
 use libsqlite3_sys::{SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, sqlite3};
 

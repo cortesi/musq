@@ -1,5 +1,5 @@
-use crate::decode::expand_derive_decode;
 use crate::core::assert_errors_with;
+use crate::decode::expand_derive_decode;
 use syn::parse_str;
 
 #[test]

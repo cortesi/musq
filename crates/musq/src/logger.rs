@@ -32,8 +32,7 @@ impl LogSettings {
 
     /// Returns `true` if any logging level is enabled.
     pub fn is_enabled(&self) -> bool {
-        self.statements_level != LevelFilter::Off
-            || self.slow_statements_level != LevelFilter::Off
+        self.statements_level != LevelFilter::Off || self.slow_statements_level != LevelFilter::Off
     }
 }
 
