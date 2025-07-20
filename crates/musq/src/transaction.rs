@@ -132,16 +132,16 @@ where
     }
 }
 
-pub fn begin_ansi_transaction_sql(depth: usize) -> String {
+pub(crate) fn begin_ansi_transaction_sql(depth: usize) -> String {
     // The first savepoint is equivalent to a BEGIN
     format!("SAVEPOINT _musq_savepoint_{depth}")
 }
 
-pub fn commit_ansi_transaction_sql(depth: usize) -> String {
+pub(crate) fn commit_ansi_transaction_sql(depth: usize) -> String {
     format!("RELEASE SAVEPOINT _musq_savepoint_{}", depth - 1)
 }
 
-pub fn rollback_ansi_transaction_sql(depth: usize) -> String {
+pub(crate) fn rollback_ansi_transaction_sql(depth: usize) -> String {
     if depth == 1 {
         "ROLLBACK".into()
     } else {
