@@ -38,8 +38,9 @@ mod worker;
 /// Because SQLite is an in-process database accessed by blocking API calls, Musq uses a background
 /// thread and communicates with it via channels to allow non-blocking access to the database.
 ///
-/// Dropping this struct will signal the worker thread to quit and close the database, though
-/// if an error occurs there is no way to pass it back to the user this way.
+/// Dropping this struct closes the connection immediately by signalling the worker thread to
+/// quit and close the database. If an error occurs there is no way to pass it back to the
+/// user this way.
 ///
 /// You can explicitly call [`.close()`][Self::close] to ensure the database is closed successfully
 /// or get an error otherwise.
@@ -140,12 +141,6 @@ impl Connection {
             self.execute(crate::query(&pragma_string)).await?;
         }
         self.worker.shutdown().await
-    }
-
-    /// Immediately close the connection without sending a graceful shutdown.
-    pub fn close_hard(self) -> Result<()> {
-        drop(self);
-        Ok(())
     }
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
