@@ -6,11 +6,15 @@ use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint};
 use std::ptr;
 
-use libsqlite3_sys::{
-    self as ffi_sys,
-    sqlite3,
-    sqlite3_stmt,
-};
+use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
+
+#[allow(dead_code)]
+const fn assert_c_int_is_32bit() {
+    assert!(std::mem::size_of::<c_int>() == 4);
+}
+
+// A compile-time assertion to ensure that `c_int` is 32 bits.
+const _ASSERT_C_INT_32BIT: () = assert_c_int_is_32bit();
 
 /// Wrapper around [`sqlite3_open_v2`].
 pub(crate) fn open_v2(
