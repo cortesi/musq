@@ -6,9 +6,7 @@ use std::{
     time::Duration,
 };
 
-use crate::{
-    Result, debugfn::DebugFn, executor::Executor, logger::LogSettings, pool, sqlite::Connection,
-};
+use crate::{Result, debugfn::DebugFn, logger::LogSettings, pool, sqlite::Connection};
 
 use log::LevelFilter;
 

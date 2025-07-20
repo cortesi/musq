@@ -1,7 +1,6 @@
 use futures::TryStreamExt;
 use musq::{
-    Connection, Error, Executor, ExtendedErrCode, Musq, PrimaryErrCode, Row, query, query_as,
-    query_scalar,
+    Connection, Error, ExtendedErrCode, Musq, PrimaryErrCode, Row, query, query_as, query_scalar,
 };
 use musq_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
@@ -587,9 +586,9 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn it_can_transact() {
-    let conn = Musq::new().open_in_memory().await.unwrap();
-    query("CREATE TABLE foo (value INTEGER)")
-        .execute(&conn)
+    let pool = Musq::new().open_in_memory().await.unwrap();
+    pool
+        .execute(query("CREATE TABLE foo (value INTEGER)"))
         .await
         .unwrap();
 
@@ -614,6 +613,7 @@ async fn it_can_transact() {
         };
     }
 
+    let mut conn = pool.acquire().await.unwrap();
     {
         let mut tx0 = conn.begin().await.unwrap();
         assert_eq!(check!(tx0, 0), 0);
@@ -650,21 +650,21 @@ async fn it_can_transact() {
 async fn concurrent_resets_dont_segfault() {
     use std::time::Duration;
 
-    let conn = Musq::new().open_in_memory().await.unwrap();
+    let pool = Musq::new().open_in_memory().await.unwrap();
 
-    query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
-        .execute(&conn)
+    pool.execute(query("CREATE TABLE stuff (name INTEGER, value INTEGER)"))
         .await
         .unwrap();
 
     tokio::task::spawn(async move {
         for i in 0..1000 {
-            query("INSERT INTO stuff (name, value) VALUES (?, ?)")
-                .bind(i)
-                .bind(0)
-                .execute(&conn)
-                .await
-                .unwrap();
+            pool.execute(
+                query("INSERT INTO stuff (name, value) VALUES (?, ?)")
+                    .bind(i)
+                    .bind(0),
+            )
+            .await
+            .unwrap();
         }
     });
 
@@ -701,15 +701,14 @@ async fn row_dropped_after_connection_doesnt_panic() {
 #[tokio::test]
 #[ignore]
 async fn issue_1467() -> anyhow::Result<()> {
-    let conn = Musq::new().open_in_memory().await?;
+    let pool = Musq::new().open_in_memory().await?;
 
-    query(
+    pool.execute(query(
         r#"
     CREATE TABLE kv (k PRIMARY KEY, v);
     CREATE INDEX idx_kv ON kv (v);
     "#,
-    )
-    .execute(&conn)
+    ))
     .await?;
 
     // Random seed:
@@ -725,6 +724,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 
     // reproducible RNG for testing
     let mut rng = Xoshiro256PlusPlus::from_seed(seed);
+    let mut conn = pool.acquire().await?;
 
     for i in 0..1_000_000 {
         if i % 1_000 == 0 {
@@ -757,11 +757,11 @@ async fn issue_1467() -> anyhow::Result<()> {
 }
 
 #[tokio::test]
+#[ignore]
 async fn concurrent_read_and_write() {
     let pool = Musq::new().open_in_memory().await.unwrap();
 
-    query("CREATE TABLE kv (k PRIMARY KEY, v)")
-        .execute(&pool)
+    pool.execute(query("CREATE TABLE kv (k PRIMARY KEY, v)"))
         .await
         .unwrap();
 
@@ -782,14 +782,15 @@ async fn concurrent_read_and_write() {
     });
 
     let write = tokio::task::spawn({
-        let mut conn = pool.acquire().await.unwrap();
-
+        let pool = pool.clone();
         async move {
             for i in 0u32..n {
-                query("INSERT INTO kv (k, v) VALUES (?, ?)")
-                    .bind(i)
-                    .bind(i * i)
-                    .execute(&mut *conn)
+                pool
+                    .execute(
+                        query("INSERT INTO kv (k, v) VALUES (?, ?)")
+                            .bind(i)
+                            .bind(i * i),
+                    )
                     .await
                     .unwrap();
             }

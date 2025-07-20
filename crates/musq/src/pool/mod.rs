@@ -16,14 +16,13 @@ use std::{
 };
 
 use event_listener::EventListener;
-use futures_core::FusedFuture;
-use futures_util::FutureExt;
+use futures_core::{FusedFuture, future::BoxFuture, stream::BoxStream};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 
 use self::inner::PoolInner;
-use crate::{Error, Result, transaction::Transaction};
-
-#[macro_use]
-mod executor;
+use crate::{
+    Either, Error, QueryResult, Result, Row, Statement, executor::Execute, transaction::Transaction,
+};
 
 #[macro_use]
 pub mod maybe;
@@ -41,7 +40,7 @@ pub use self::maybe::MaybePoolConnection;
 /// Create a pool with [Pool::connect] or [Pool::connect_with] and then call [Pool::acquire] to get a connection from
 /// the pool; when the connection is dropped it will return to the pool so it can be reused.
 ///
-/// You can also pass `&Pool` directly anywhere an `Executor` is required; this will automatically checkout a connection
+/// You can also execute queries directly on `&Pool`; this will automatically checkout a connection
 /// for you.
 ///
 /// See [the module documentation](crate::pool) for examples.
@@ -185,6 +184,98 @@ impl Pool {
         // This previously called [`crossbeam::queue::ArrayQueue::len()`] which waits for the head and tail pointers to
         // be in a consistent state, which may never happen at high levels of churn.
         self.0.num_idle()
+    }
+
+    pub fn fetch_many<'c, 'q: 'c, E>(
+        &'c self,
+        query: E,
+    ) -> BoxStream<'c, Result<Either<QueryResult, Row>>>
+    where
+        E: Execute + 'q,
+    {
+        let pool = self.clone();
+
+        Box::pin(async_stream::try_stream! {
+            let mut conn = pool.acquire().await?;
+            let mut s = conn.fetch_many(query);
+
+            while let Some(v) = s.try_next().await? {
+                yield v;
+            }
+        })
+    }
+
+    pub fn fetch_optional<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Option<Row>>>
+    where
+        E: Execute + 'q,
+    {
+        let pool = self.clone();
+
+        Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
+    }
+
+    pub fn prepare_with<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Statement>> {
+        let pool = self.clone();
+
+        Box::pin(async move { pool.acquire().await?.prepare_with(sql).await })
+    }
+
+    pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Statement>> {
+        self.prepare_with(sql)
+    }
+
+    pub fn fetch<'c, 'q: 'c, E>(&'c self, query: E) -> BoxStream<'c, Result<Row>>
+    where
+        E: Execute + 'q,
+    {
+        self.fetch_many(query)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(_) => None,
+                    Either::Right(row) => Some(row),
+                })
+            })
+            .boxed()
+    }
+
+    pub fn execute_many<'c, 'q: 'c, E>(&'c self, query: E) -> BoxStream<'c, Result<QueryResult>>
+    where
+        E: Execute + 'q,
+    {
+        self.fetch_many(query)
+            .try_filter_map(|step| async move {
+                Ok(match step {
+                    Either::Left(rows) => Some(rows),
+                    Either::Right(_) => None,
+                })
+            })
+            .boxed()
+    }
+
+    pub fn execute<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<QueryResult>>
+    where
+        E: Execute + 'q,
+    {
+        self.execute_many(query).try_collect().boxed()
+    }
+
+    pub fn fetch_all<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
+    where
+        E: Execute + 'q,
+    {
+        self.fetch(query).try_collect().boxed()
+    }
+
+    pub fn fetch_one<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Row>>
+    where
+        E: Execute + 'q,
+    {
+        self.fetch_optional(query)
+            .and_then(|row| match row {
+                Some(row) => future::ok(row),
+                None => future::err(Error::RowNotFound),
+            })
+            .boxed()
     }
 }
 

@@ -26,7 +26,7 @@ pub use indexmap::IndexMap;
 pub use crate::{
     column::Column,
     error::{DecodeError, Error, Result},
-    executor::{Execute, Executor},
+    executor::Execute,
     from_row::FromRow,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::Pool,
@@ -34,8 +34,7 @@ pub use crate::{
     query_result::QueryResult,
     row::Row,
     sqlite::{
-        ArgumentValue, Arguments, Connection, SqliteDataType, SqliteError,
-        Statement, Value,
+        ArgumentValue, Arguments, Connection, SqliteDataType, SqliteError, Statement, Value,
         error::{ExtendedErrCode, PrimaryErrCode},
     },
     transaction::Transaction,
