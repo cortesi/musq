@@ -7,7 +7,7 @@ use crate::{Connection, Result};
 use super::inner::{DecrementSizeGuard, PoolInner};
 use std::future::Future;
 
-/// A connection managed by a [`Pool`][crate::pool::Pool].
+/// A connection managed by a [`Pool`][crate::Pool].
 ///
 /// Will be returned to the pool on-drop.
 pub struct PoolConnection {
@@ -57,6 +57,10 @@ impl PoolConnection {
     ///
     /// The connection permit is retained for the duration so the pool will not
     /// exceed `max_connections`.
+    ///
+    /// The returned future **must** be awaited to ensure the connection is
+    /// fully closed.
+    #[must_use = "futures returned by `PoolConnection::close` must be awaited"]
     pub async fn close(mut self) -> Result<()> {
         let floating = self.take_live().float(self.pool.clone());
         floating.inner.raw.close().await
@@ -88,7 +92,7 @@ impl PoolConnection {
     }
 }
 
-/// Returns the connection to the [`Pool`][crate::pool::Pool] it was checked-out from.
+/// Returns the connection to the [`Pool`][crate::Pool] it was checked-out from.
 impl Drop for PoolConnection {
     fn drop(&mut self) {
         // We still need to spawn a task to maintain `min_connections`.

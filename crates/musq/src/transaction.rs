@@ -19,7 +19,7 @@ use crate::{Connection, Result};
 /// established to be rolled back, restoring the transaction state to what it was at the time of the savepoint.
 ///
 /// [`Connection::begin`]: crate::connection::Connection::begin()
-/// [`Pool::begin`]: crate::pool::Pool::begin()
+/// [`Pool::begin`]: crate::Pool::begin()
 /// [`commit`]: Self::commit()
 /// [`rollback`]: Self::rollback()
 pub struct Transaction<C>

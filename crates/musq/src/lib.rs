@@ -15,7 +15,7 @@ mod from_row;
 #[macro_use]
 mod logger;
 mod musq;
-pub mod pool;
+mod pool;
 pub mod query;
 mod query_result;
 mod row;
@@ -29,7 +29,7 @@ pub use crate::{
     executor::Execute,
     from_row::FromRow,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
-    pool::Pool,
+    pool::{Pool, PoolConnection},
     query::{query, query_as, query_as_with, query_scalar, query_scalar_with, query_with},
     query_result::QueryResult,
     row::Row,

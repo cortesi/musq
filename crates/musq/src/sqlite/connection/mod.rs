@@ -90,6 +90,10 @@ impl Connection {
     ///
     /// Therefore it is recommended to call `.close()` on a connection when you are done using it
     /// and to `.await` the result to ensure the termination message is sent.
+    ///
+    /// The returned future **must** be awaited to ensure the connection is fully
+    /// closed.
+    #[must_use = "futures returned by `Connection::close` must be awaited"]
     pub async fn close(mut self) -> Result<()> {
         if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
             let mut pragma_string = String::new();
@@ -112,14 +116,15 @@ impl Connection {
         Transaction::begin(self)
     }
 
-    pub fn cached_statements_size(&self) -> usize {
+    pub(crate) fn cached_statements_size(&self) -> usize {
         self.worker
             .shared
             .cached_statements_size
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
-    pub async fn clear_cached_statements(&mut self) -> Result<()> {
+    #[cfg(test)]
+    pub(crate) async fn clear_cached_statements(&mut self) -> Result<()> {
         self.worker.clear_cache().await?;
         Ok(())
     }
