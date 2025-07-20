@@ -82,8 +82,6 @@ impl PoolConnection {
     /// Note that if your application uses a single shared pool, this
     /// effectively lets the application exceed the `max_connections` setting.
     ///
-    /// If `min_connections` is nonzero, a task will be spawned to replace this connection.
-    ///
     /// If you want the pool to treat this connection as permanently checked-out,
     /// use [`.leak()`][Self::leak] instead.
     ///
