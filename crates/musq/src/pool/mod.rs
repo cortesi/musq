@@ -25,13 +25,10 @@ use crate::{
 };
 use either::Either;
 
-mod connection_like;
-
 mod connection;
 mod inner;
 
 pub use self::connection::PoolConnection;
-pub use self::connection_like::ConnectionLike;
 #[doc(hidden)]
 /// An asynchronous pool of database connections.
 ///
