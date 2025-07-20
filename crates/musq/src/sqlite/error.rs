@@ -243,6 +243,15 @@ impl ExtendedErrCode {
             _ => ExtendedErrCode::Unknown(code as u32),
         }
     }
+
+    pub fn is_busy(&self) -> bool {
+        matches!(
+            self,
+            ExtendedErrCode::BusyRecovery
+                | ExtendedErrCode::BusySnapshot
+                | ExtendedErrCode::BusyTimeout
+        )
+    }
 }
 
 /// An error returned from Sqlite
@@ -269,5 +278,15 @@ impl SqliteError {
             primary: PrimaryErrCode::from_code(code),
             message,
         }
+    }
+
+    pub fn is_busy(&self) -> bool {
+        self.primary == PrimaryErrCode::Busy || self.extended.is_busy()
+    }
+
+    pub fn should_retry(&self) -> bool {
+        self.primary == PrimaryErrCode::Locked
+            || self.extended == ExtendedErrCode::LockedSharedCache
+            || self.is_busy()
     }
 }
