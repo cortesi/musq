@@ -11,7 +11,11 @@ use crate::{error::DecodeError, sqlite::type_info::SqliteDataType};
 /// The variants closely mirror SQLite's dynamic typing system and allow a
 /// single enum to capture every value that can be transferred between the
 /// database and user code.
+///
+/// **Note:** This enum is marked `#[non_exhaustive]`; do not match on it
+/// exhaustively as more variants may be added in the future.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub enum Value {
     /// A NULL value. If the original column declared a specific type the
     /// information is stored in `type_info` for use during decoding.
