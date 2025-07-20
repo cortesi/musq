@@ -522,7 +522,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
 
     let _ = query("INSERT INTO tweet ( id, text ) VALUES ( 2, 'Hello, World' )")
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
 
     let tweet_id: i32 = 2;
@@ -539,7 +539,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     assert_eq!(statement.columns[2].type_info().name(), "BOOLEAN");
     assert_eq!(statement.columns[3].type_info().name(), "INTEGER");
 
-    let row = statement.query().bind(tweet_id).fetch_one(&mut *tx).await?;
+    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
     let tweet_text: &str = row.get_value("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
@@ -736,19 +736,19 @@ async fn issue_1467() -> anyhow::Result<()> {
 
         let exists = query("SELECT 1 FROM kv WHERE k = ?")
             .bind(key)
-            .fetch_optional(&mut *tx)
+            .fetch_optional(&mut tx)
             .await?;
         if exists.is_some() {
             query("UPDATE kv SET v = ? WHERE k = ?")
                 .bind(value)
                 .bind(key)
-                .execute(&mut *tx)
+                .execute(&mut tx)
                 .await?;
         } else {
             query("INSERT INTO kv(k, v) VALUES (?, ?)")
                 .bind(key)
                 .bind(value)
-                .execute(&mut *tx)
+                .execute(&mut tx)
                 .await?;
         }
         tx.commit().await?;
@@ -774,7 +774,7 @@ async fn concurrent_read_and_write() {
             for i in 0u32..n {
                 query("SELECT v FROM kv")
                     .bind(i)
-                    .fetch_all(&mut *conn)
+                    .fetch_all(&mut conn)
                     .await
                     .unwrap();
             }

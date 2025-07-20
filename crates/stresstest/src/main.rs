@@ -192,12 +192,12 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<(), 
     // Insert into A
     musq::query("INSERT INTO a (data) VALUES (?)")
         .bind(a_data)
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
 
     // Get the last inserted id from A
     let a_id: i64 = musq::query("SELECT last_insert_rowid()")
-        .fetch_one(&mut *tx)
+        .fetch_one(&mut tx)
         .await?
         .get_value_idx(0)?;
 
@@ -205,7 +205,7 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<(), 
     musq::query("INSERT INTO b (a_id, data) VALUES (?, ?)")
         .bind(a_id)
         .bind(b_data)
-        .execute(&mut *tx)
+        .execute(&mut tx)
         .await?;
 
     // Commit the transaction

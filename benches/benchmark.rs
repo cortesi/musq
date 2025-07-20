@@ -21,7 +21,7 @@ async fn pool() -> musq::Pool {
         .open_in_memory()
         .await
         .unwrap();
-    musq::query(BENCH_SCHEMA).execute(&pool).await.unwrap();
+    musq::query(BENCH_SCHEMA).execute(&mut pool.acquire().await.unwrap()).await.unwrap();
     pool
 }
 
@@ -32,7 +32,7 @@ fn setup() -> musq::Pool {
         musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
             .bind(1)
             .bind("two")
-            .execute(&p)
+            .execute(&mut p.acquire().await.unwrap())
             .await
             .unwrap();
         tx.send(pool().await).unwrap();
@@ -43,12 +43,15 @@ fn setup() -> musq::Pool {
 async fn writes(pool: musq::Pool) {
     let mut futs = vec![];
     for _ in 0..CONCURRENCY {
-        futs.push(
+        let pool = pool.clone();
+        futs.push(async move {
+            let mut conn = pool.acquire().await.unwrap();
             musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
                 .bind(1)
                 .bind("two")
-                .execute(&pool),
-        )
+                .execute(&mut conn)
+                .await
+        });
     }
     futures::future::join_all(futs).await;
 }
@@ -56,8 +59,13 @@ async fn writes(pool: musq::Pool) {
 async fn reads(pool: musq::Pool) {
     let mut futs = vec![];
     for _ in 0..CONCURRENCY {
-        let f = musq::query_as::<Data>("SELECT * from DATA").fetch_one(&pool);
-        futs.push(f)
+        let pool = pool.clone();
+        futs.push(async move {
+            let mut conn = pool.acquire().await.unwrap();
+            musq::query_as::<Data>("SELECT * from DATA")
+                .fetch_one(&mut conn)
+                .await
+        });
     }
     futures::future::join_all(futs).await;
 }

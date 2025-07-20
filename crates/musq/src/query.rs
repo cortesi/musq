@@ -113,7 +113,7 @@ impl Query {
     }
 
     /// Execute the query and return the total number of rows affected.
-    pub async fn execute<'c>(self, executor: &'c mut Connection) -> Result<QueryResult, Error> {
+    pub async fn execute(self, executor: &mut Connection) -> Result<QueryResult, Error> {
         executor.execute(self).await
     }
 
@@ -140,19 +140,19 @@ impl Query {
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'c>(self, executor: &'c mut Connection) -> Result<Vec<Row>, Error> {
+    pub async fn fetch_all(self, executor: &mut Connection) -> Result<Vec<Row>, Error> {
         executor.fetch_all(self).await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'c>(self, executor: &'c mut Connection) -> Result<Row, Error> {
+    pub async fn fetch_one(self, executor: &mut Connection) -> Result<Row, Error> {
         executor.fetch_one(self).await
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'c>(
+    pub async fn fetch_optional(
         self,
-        executor: &'c mut Connection,
+        executor: &mut Connection,
     ) -> Result<Option<Row>, Error> {
         executor.fetch_optional(self).await
     }
