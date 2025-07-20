@@ -174,24 +174,6 @@ impl Connection {
         Ok(())
     }
 
-    pub fn shrink_buffers(&mut self) {
-        // No-op.
-    }
-
-    #[doc(hidden)]
-    pub fn flush(&mut self) -> BoxFuture<'_, Result<()>> {
-        // For SQLite, FLUSH does effectively nothing...
-        // Well, we could use this to ensure that the command channel has been cleared,
-        // but it would only develop a backlog if a lot of queries are executed and then cancelled
-        // partway through, and then this would only make that situation worse.
-        Box::pin(future::ok(()))
-    }
-
-    #[doc(hidden)]
-    pub fn should_flush(&self) -> bool {
-        false
-    }
-
     /// Execute the function inside a transaction.
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not
