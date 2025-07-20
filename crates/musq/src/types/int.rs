@@ -56,6 +56,6 @@ impl Encode for i64 {
 impl<'r> Decode<'r> for i64 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
-        Ok(value.int64())
+        value.int64()
     }
 }

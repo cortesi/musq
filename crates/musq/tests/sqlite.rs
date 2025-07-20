@@ -443,10 +443,10 @@ SELECT id, text FROM _musq_test;
 
     let row = cursor.try_next().await?.unwrap();
 
-    let id: i64 = row.get_value("id")?;
+    let id: Option<i64> = row.get_value("id")?;
     let text: &str = row.get_value("text")?;
 
-    assert_eq!(0, id);
+    assert_eq!(None, id);
     assert_eq!("this is a test", text);
 
     Ok(())
@@ -587,8 +587,7 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_can_transact() {
     let pool = Musq::new().open_in_memory().await.unwrap();
-    pool
-        .execute(query("CREATE TABLE foo (value INTEGER)"))
+    pool.execute(query("CREATE TABLE foo (value INTEGER)"))
         .await
         .unwrap();
 
@@ -786,14 +785,13 @@ async fn concurrent_read_and_write() {
         let pool = pool.clone();
         async move {
             for i in 0u32..n {
-                pool
-                    .execute(
-                        query("INSERT INTO kv (k, v) VALUES (?, ?)")
-                            .bind(i)
-                            .bind(i * i),
-                    )
-                    .await
-                    .unwrap();
+                pool.execute(
+                    query("INSERT INTO kv (k, v) VALUES (?, ?)")
+                        .bind(i)
+                        .bind(i * i),
+                )
+                .await
+                .unwrap();
             }
         }
     });

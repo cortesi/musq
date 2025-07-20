@@ -43,6 +43,6 @@ impl Encode for u32 {
 impl<'r> Decode<'r> for u32 {
     fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Int | SqliteDataType::Int64);
-        Ok(value.int64().try_into()?)
+        Ok(value.int64()?.try_into()?)
     }
 }
