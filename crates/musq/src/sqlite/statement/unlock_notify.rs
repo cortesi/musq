@@ -54,7 +54,7 @@ pub fn wait(conn: *mut sqlite3, stmt: Option<*mut sqlite3_stmt>) -> Result<()> {
         break;
     }
 
-    notify.wait();
+    notify.wait()?;
 
     Ok(())
 }
@@ -81,18 +81,20 @@ impl Notify {
         }
     }
 
-    fn wait(&self) {
+    fn wait(&self) -> Result<()> {
         // We only want to wait until the lock is available again.
         #[allow(let_underscore_lock)]
         let _ = self
             .condvar
-            .wait_while(self.mutex.lock().unwrap(), |fired| !*fired)
-            .unwrap();
+            .wait_while(self.mutex.lock().map_err(Error::from)?, |fired| !*fired)
+            .map_err(Error::from)?;
+        Ok(())
     }
 
     fn fire(&self) {
-        let mut lock = self.mutex.lock().unwrap();
-        *lock = true;
+        if let Ok(mut lock) = self.mutex.lock() {
+            *lock = true;
+        }
         self.condvar.notify_one();
     }
 }

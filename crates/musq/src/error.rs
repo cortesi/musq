@@ -2,6 +2,9 @@
 
 use std::io;
 use std::num::TryFromIntError;
+use std::sync::PoisonError;
+
+use tokio::sync::TryLockError;
 
 use crate::{SqliteDataType, sqlite, sqlite::error::SqliteError};
 
@@ -112,5 +115,17 @@ impl Error {
 impl From<SqliteError> for Error {
     fn from(error: SqliteError) -> Self {
         Error::Sqlite(error)
+    }
+}
+
+impl<T> From<PoisonError<T>> for Error {
+    fn from(_: PoisonError<T>) -> Self {
+        Error::WorkerCrashed
+    }
+}
+
+impl From<TryLockError> for Error {
+    fn from(_: TryLockError) -> Self {
+        Error::WorkerCrashed
     }
 }
