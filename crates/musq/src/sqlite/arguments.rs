@@ -2,7 +2,6 @@ use crate::{Error, encode::Encode, sqlite::statement::StatementHandle};
 use std::collections::HashMap;
 
 use atoi::atoi;
-use libsqlite3_sys::SQLITE_OK;
 
 #[derive(Debug)]
 pub enum ArgumentValue {
@@ -120,17 +119,13 @@ impl ArgumentValue {
     fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<(), Error> {
         use ArgumentValue::*;
 
-        let status = match self {
-            Text(v) => handle.bind_text(i, v.as_str()),
-            Blob(v) => handle.bind_blob(i, v.as_slice()),
-            Int(v) => handle.bind_int(i, *v),
-            Int64(v) => handle.bind_int64(i, *v),
-            Double(v) => handle.bind_double(i, *v),
-            Null => handle.bind_null(i),
-        };
-
-        if status != SQLITE_OK {
-            return Err(handle.last_error().into());
+        match self {
+            Text(v) => handle.bind_text(i, v.as_str())?,
+            Blob(v) => handle.bind_blob(i, v.as_slice())?,
+            Int(v) => handle.bind_int(i, *v)?,
+            Int64(v) => handle.bind_int64(i, *v)?,
+            Double(v) => handle.bind_double(i, *v)?,
+            Null => handle.bind_null(i)?,
         }
 
         Ok(())

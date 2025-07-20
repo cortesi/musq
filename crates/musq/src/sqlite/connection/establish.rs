@@ -7,7 +7,7 @@ use std::{
 };
 
 use libsqlite3_sys::{
-    SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
+    SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
 };
 use crate::sqlite::ffi;
@@ -15,7 +15,6 @@ use crate::sqlite::ffi;
 use crate::{
     Error, Musq,
     sqlite::{
-        SqliteError,
         connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
     },
 };
@@ -110,7 +109,7 @@ impl EstablishParams {
         let mut handle = null_mut();
 
         // <https://www.sqlite.org/c3ref/open.html>
-        let mut status = ffi::open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null());
+        let open_res = ffi::open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null());
 
         if handle.is_null() {
             // Failed to allocate memory
@@ -124,9 +123,7 @@ impl EstablishParams {
         // This allows any returns below to close this handle with RAII
         let handle = unsafe { ConnectionHandle::new(handle) };
 
-        if status != SQLITE_OK {
-            return Err(Error::Sqlite(SqliteError::new(handle.as_ptr())));
-        }
+        open_res.map_err(Error::Sqlite)?;
 
         // Enable extended result codes
         // https://www.sqlite.org/c3ref/extended_result_codes.html
@@ -141,11 +138,7 @@ impl EstablishParams {
         let ms = i32::try_from(self.busy_timeout.as_millis())
             .expect("Given busy timeout value is too big.");
 
-        status = ffi::busy_timeout(handle.as_ptr(), ms);
-
-        if status != SQLITE_OK {
-            return Err(Error::Sqlite(SqliteError::new(handle.as_ptr())));
-        }
+        ffi::busy_timeout(handle.as_ptr(), ms).map_err(Error::Sqlite)?;
 
         Ok(ConnectionState {
             handle,

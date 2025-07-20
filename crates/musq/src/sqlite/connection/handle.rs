@@ -1,11 +1,11 @@
 use std::{ffi::CString, ptr::NonNull};
 
-use libsqlite3_sys::{sqlite3, SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK};
+use libsqlite3_sys::sqlite3;
 
 use crate::sqlite::ffi;
 
 use crate::{
-    sqlite::{statement::unlock_notify, SqliteError},
+    sqlite::{statement::unlock_notify, error::ExtendedErrCode},
     Error,
 };
 
@@ -50,12 +50,12 @@ impl ConnectionHandle {
 
         // SAFETY: we have exclusive access to the database handle
         loop {
-            let status = ffi::exec(self.as_ptr(), query.as_ptr());
-
-            match status {
-                SQLITE_OK => return Ok(()),
-                SQLITE_LOCKED_SHAREDCACHE => unlock_notify::wait(self.as_ptr(), None)?,
-                _ => return Err(SqliteError::new(self.as_ptr()).into()),
+            match ffi::exec(self.as_ptr(), query.as_ptr()) {
+                Ok(()) => return Ok(()),
+                Err(e) if e.extended == ExtendedErrCode::LockedSharedCache => {
+                    unlock_notify::wait(self.as_ptr(), None)?;
+                }
+                Err(e) => return Err(e.into()),
             }
         }
     }
@@ -64,11 +64,10 @@ impl ConnectionHandle {
 impl Drop for ConnectionHandle {
     fn drop(&mut self) {
         // https://sqlite.org/c3ref/close.html
-        let status = ffi::close(self.0.as_ptr());
-        if status != SQLITE_OK {
+        if let Err(e) = ffi::close(self.0.as_ptr()) {
             // this should *only* happen due to an internal bug in SQLite where we left
             // SQLite handles open
-            panic!("{}", SqliteError::new(self.0.as_ptr()));
+            panic!("{}", e);
         }
     }
 }
