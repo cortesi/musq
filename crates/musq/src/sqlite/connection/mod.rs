@@ -122,7 +122,6 @@ impl Connection {
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
-
     #[cfg(test)]
     pub(crate) async fn clear_cached_statements(&mut self) -> Result<()> {
         self.worker.clear_cache().await?;

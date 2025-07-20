@@ -469,11 +469,8 @@ async fn it_caches_statements() -> anyhow::Result<()> {
         assert_eq!(i, val);
     }
 
-
     // Cache can be cleared, but this is an internal detail so we simply
     // ensure queries continue to execute.
-
-
 
     // `Query` is not persistent if `.persistent(false)` is used
     // explicitly.
@@ -507,7 +504,6 @@ async fn it_respects_statement_cache_capacity() -> anyhow::Result<()> {
     let row = conn.fetch_one("SELECT 2 AS val").await?;
     let val: i32 = row.get_value("val").unwrap();
     assert_eq!(val, 2);
-
 
     Ok(())
 }
