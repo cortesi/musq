@@ -6,8 +6,10 @@ use std::thread;
 use tokio::sync::oneshot;
 use tokio::sync::{Mutex, MutexGuard};
 
+use either::Either;
+
 use crate::{
-    Either, QueryResult, Row,
+    QueryResult, Row,
     error::Error,
     sqlite::{
         Arguments, Statement,

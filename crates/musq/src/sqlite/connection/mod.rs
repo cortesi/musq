@@ -11,8 +11,10 @@ use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 use libsqlite3_sys::sqlite3;
 use tokio::sync::MutexGuard;
 
+use either::Either;
+
 use crate::{
-    Either, QueryResult, Result, Row, Statement,
+    QueryResult, Result, Row, Statement,
     error::Error,
     executor::Execute,
     logger::LogSettings,

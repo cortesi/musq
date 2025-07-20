@@ -20,7 +20,6 @@ mod statement_cache;
 mod transaction;
 pub mod types;
 
-pub use either::Either;
 pub use indexmap::IndexMap;
 
 pub use crate::{
