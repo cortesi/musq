@@ -5,8 +5,16 @@ use atoi::atoi;
 
 pub(crate) fn parse_question_param(name: &str) -> Result<usize> {
     let rest = name.trim_start_matches('?');
-    atoi::<usize>(rest.as_bytes())
-        .ok_or_else(|| Error::Protocol(format!("invalid numeric SQL parameter: {name}")))
+    let num = atoi::<usize>(rest.as_bytes())
+        .ok_or_else(|| Error::Protocol(format!("invalid numeric SQL parameter: {name}")))?;
+
+    if num == 0 {
+        return Err(Error::Protocol(format!(
+            "invalid numeric SQL parameter: {name}"
+        )));
+    }
+
+    Ok(num)
 }
 
 #[derive(Debug)]
@@ -152,6 +160,15 @@ mod tests {
         let err = parse_question_param("?foo").unwrap_err();
         match err {
             Error::Protocol(msg) => assert!(msg.contains("?foo")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_question_param_zero() {
+        let err = parse_question_param("?0").unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("?0")),
             other => panic!("unexpected error: {other:?}"),
         }
     }
