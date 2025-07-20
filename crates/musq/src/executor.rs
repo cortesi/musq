@@ -1,13 +1,27 @@
 use crate::{Arguments, Statement};
 
+// Private module that defines the `Sealed` trait used to prevent external
+// implementations of [`Execute`].
+mod sealed {
+    /// Prevent downstream implementations of [`Execute`].
+    pub trait Sealed {}
+
+    impl Sealed for &str {}
+    impl Sealed for crate::query::Query {}
+    impl<F> Sealed for crate::query::Map<F> {}
+}
+
 /// A type that may be executed against a database connection.
+///
+/// This trait is **sealed** and cannot be implemented outside of this crate.
 ///
 /// Implemented for the following:
 ///
 ///  * [`&str`](std::str)
 ///  * [`Query`](super::query::Query)
+///  * [`Map<F>`](super::query::Map)
 ///
-pub trait Execute: Send + Sized {
+pub trait Execute: sealed::Sealed + Send + Sized {
     /// Gets the SQL that will be executed.
     fn sql(&self) -> &str;
 

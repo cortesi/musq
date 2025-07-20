@@ -56,7 +56,7 @@ enum Command {
         tx: Option<rendezvous_oneshot::Sender<Result<()>>>,
     },
     Shutdown {
-        tx: oneshot::Sender<()>,
+        tx: oneshot::Sender<Result<()>>,
     },
 }
 
@@ -218,11 +218,14 @@ impl ConnectionWorker {
                             }
                         }
                         Command::Shutdown { tx } => {
+                            conn.statements.clear();
+                            let res = conn.handle.close();
+
                             // drop the connection references before sending confirmation
                             // and ending the command loop
                             drop(conn);
                             drop(shared);
-                            let _ = tx.send(());
+                            let _ = tx.send(res);
                             return;
                         }
                     }
@@ -341,7 +344,8 @@ impl ConnectionWorker {
             }
 
             // wait for the response
-            rx.await.map_err(|_| Error::WorkerCrashed)?;
+            let res = rx.await.map_err(|_| Error::WorkerCrashed)?;
+            res?;
 
             if let Some(handle) = join_handle {
                 handle.join().map_err(|_| Error::WorkerCrashed)?;

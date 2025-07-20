@@ -6,8 +6,12 @@ use libsqlite3_sys::{self, sqlite3};
 // Error Codes And Messages
 // https://www.sqlite.org/c3ref/errcode.html
 
-/// Primary Sqlite error codes
+/// Primary Sqlite error codes.
+///
+/// **Note:** This enum is marked `#[non_exhaustive]`; avoid exhaustive
+/// matches as new variants may be introduced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub(crate) enum PrimaryErrCode {
     Error,
     Internal,
@@ -76,8 +80,12 @@ impl PrimaryErrCode {
     }
 }
 
-/// Extended Sqlite error codes
+/// Extended Sqlite error codes.
+///
+/// **Note:** This enum is marked `#[non_exhaustive]`; avoid exhaustive
+/// matches as new variants may be introduced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[non_exhaustive]
 pub(crate) enum ExtendedErrCode {
     ErrorMissingCollseq,
     ErrorRetry,
