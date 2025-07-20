@@ -1,5 +1,4 @@
 use std::ffi::CStr;
-use std::str::from_utf8_unchecked;
 
 use crate::sqlite::ffi;
 use libsqlite3_sys::{self, sqlite3};
@@ -269,9 +268,8 @@ impl SqliteError {
         let message = unsafe {
             let msg = ffi::errmsg(handle);
             debug_assert!(!msg.is_null());
-            from_utf8_unchecked(CStr::from_ptr(msg).to_bytes())
-        }
-        .to_owned();
+            CStr::from_ptr(msg).to_string_lossy().into_owned()
+        };
 
         Self {
             extended: ExtendedErrCode::from_code(code),
