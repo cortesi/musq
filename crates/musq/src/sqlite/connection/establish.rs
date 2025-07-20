@@ -9,8 +9,8 @@ use std::{
 use libsqlite3_sys::{
     SQLITE_OK, SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
-    sqlite3_busy_timeout, sqlite3_extended_result_codes, sqlite3_open_v2,
 };
+use crate::sqlite::ffi;
 
 use crate::{
     Error, Musq,
@@ -110,9 +110,7 @@ impl EstablishParams {
         let mut handle = null_mut();
 
         // <https://www.sqlite.org/c3ref/open.html>
-        let mut status = unsafe {
-            sqlite3_open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null())
-        };
+        let mut status = ffi::open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null());
 
         if handle.is_null() {
             // Failed to allocate memory
@@ -132,10 +130,8 @@ impl EstablishParams {
 
         // Enable extended result codes
         // https://www.sqlite.org/c3ref/extended_result_codes.html
-        unsafe {
-            // NOTE: ignore the failure here
-            sqlite3_extended_result_codes(handle.as_ptr(), 1);
-        }
+        // NOTE: ignore the failure here
+        let _ = ffi::extended_result_codes(handle.as_ptr(), 1);
 
         // Configure a busy timeout
         // This causes SQLite to automatically sleep in increasing intervals until the time
@@ -145,7 +141,7 @@ impl EstablishParams {
         let ms = i32::try_from(self.busy_timeout.as_millis())
             .expect("Given busy timeout value is too big.");
 
-        status = unsafe { sqlite3_busy_timeout(handle.as_ptr(), ms) };
+        status = ffi::busy_timeout(handle.as_ptr(), ms);
 
         if status != SQLITE_OK {
             return Err(Error::Sqlite(SqliteError::new(handle.as_ptr())));

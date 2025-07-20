@@ -4,7 +4,8 @@ use std::fmt::{self, Display, Formatter};
 use std::os::raw::c_int;
 use std::str::from_utf8_unchecked;
 
-use libsqlite3_sys::{self, sqlite3, sqlite3_errmsg, sqlite3_extended_errcode};
+use libsqlite3_sys::{self, sqlite3};
+use crate::sqlite::ffi;
 
 // Error Codes And Messages
 // https://www.sqlite.org/c3ref/errcode.html
@@ -257,9 +258,9 @@ pub struct SqliteError {
 
 impl SqliteError {
     pub(crate) fn new(handle: *mut sqlite3) -> Self {
-        let code = unsafe { sqlite3_extended_errcode(handle) };
+        let code = ffi::extended_errcode(handle);
         let message = unsafe {
-            let msg = sqlite3_errmsg(handle);
+            let msg = ffi::errmsg(handle);
             debug_assert!(!msg.is_null());
             from_utf8_unchecked(CStr::from_ptr(msg).to_bytes())
         }
