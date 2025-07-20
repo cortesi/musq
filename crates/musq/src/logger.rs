@@ -72,7 +72,7 @@ macro_rules! private_tracing_dynamic_event {
 }
 
 #[doc(hidden)]
-pub fn private_level_filter_to_levels(
+pub(crate) fn private_level_filter_to_levels(
     filter: log::LevelFilter,
 ) -> Option<(tracing::Level, log::Level)> {
     let tracing_level = match filter {
