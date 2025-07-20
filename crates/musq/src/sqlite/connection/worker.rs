@@ -89,7 +89,13 @@ impl ConnectionWorker {
                     // configuration here.
                     conn: Mutex::new(conn),
                 });
-                let mut conn = shared.conn.try_lock().unwrap();
+                let mut conn = match shared.conn.try_lock() {
+                    Ok(lock) => lock,
+                    Err(e) => {
+                        establish_tx.send(Err(e.into())).ok();
+                        return;
+                    }
+                };
 
                 if establish_tx
                     .send(Ok((command_tx, Arc::clone(&shared))))
