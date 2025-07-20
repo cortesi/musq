@@ -13,8 +13,8 @@ use libsqlite3_sys::{
 };
 
 use crate::{
+    sqlite::connection::{handle::ConnectionHandle, ConnectionState, LogSettings, StatementCache},
     Error, Musq,
-    sqlite::connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
 };
 
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
@@ -132,8 +132,8 @@ impl EstablishParams {
 
         // Enable extended result codes
         // https://www.sqlite.org/c3ref/extended_result_codes.html
-        // NOTE: ignore the failure here
-        let _ = ffi::extended_result_codes(handle.as_ptr(), 1);
+        // On failure return the sqlite error for visibility
+        ffi::extended_result_codes(handle.as_ptr(), 1).map_err(Error::Sqlite)?;
 
         // Configure a busy timeout
         // This causes SQLite to automatically sleep in increasing intervals until the time
