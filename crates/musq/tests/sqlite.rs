@@ -863,6 +863,36 @@ async fn test_multiple_set_progress_handler_calls_drop_old_handler() -> anyhow::
 }
 
 #[tokio::test]
+async fn test_progress_handler_invoked_multiple_times() -> anyhow::Result<()> {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
+    let mut conn = connection().await?;
+
+    let counter = Arc::new(AtomicUsize::new(0));
+    {
+        let counter = counter.clone();
+        conn.lock_handle().await?.set_progress_handler(1, move || {
+            counter.fetch_add(1, Ordering::SeqCst);
+            true
+        });
+    }
+
+    let _: (i64,) = musq::query_as(
+        "WITH RECURSIVE t(n) AS (VALUES(0) UNION ALL SELECT n+1 FROM t WHERE n < 50) SELECT sum(n) FROM t",
+    )
+    .fetch_one(&mut conn)
+    .await?;
+
+    conn.lock_handle().await?.remove_progress_handler();
+
+    assert!(counter.load(Ordering::SeqCst) > 1);
+    Ok(())
+}
+
+#[tokio::test]
 async fn it_binds_strings() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
