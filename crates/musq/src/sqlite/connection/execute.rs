@@ -95,11 +95,10 @@ impl Iterator for ExecuteIter<'_> {
             Ok(true) => {
                 self.logger.inc_rows_returned();
 
-                Some(Ok(Either::Right(Row::current(
-                    statement.handle,
-                    statement.columns,
-                    statement.column_names,
-                ))))
+                match Row::current(statement.handle, statement.columns, statement.column_names) {
+                    Ok(row) => Some(Ok(Either::Right(row))),
+                    Err(e) => Some(Err(e)),
+                }
             }
             Ok(false) => {
                 let last_insert_rowid = self.handle.last_insert_rowid();

@@ -66,6 +66,10 @@ pub enum Error {
     #[error("no column found for name: {0}")]
     ColumnNotFound(String),
 
+    /// Encountered an unknown column type code.
+    #[error("unknown column type: {0}")]
+    UnknownColumnType(i32),
+
     /// Error occurred while decoding a value from a specific column.
     #[error("error occurred while decoding column {index}: {source}")]
     ColumnDecode {
