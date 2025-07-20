@@ -39,7 +39,6 @@ impl LogSettings {
 // Yes these look silly. `tracing` doesn't currently support dynamic levels
 // https://github.com/tokio-rs/tracing/issues/372
 #[doc(hidden)]
-#[macro_export]
 macro_rules! private_tracing_dynamic_enabled {
     (target: $target:expr, $level:expr) => {{
         use ::tracing::Level;
@@ -58,7 +57,6 @@ macro_rules! private_tracing_dynamic_enabled {
 }
 
 #[doc(hidden)]
-#[macro_export]
 macro_rules! private_tracing_dynamic_event {
     (target: $target:expr, $level:expr, $($args:tt)*) => {{
         use ::tracing::Level;

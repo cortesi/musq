@@ -38,6 +38,16 @@
 //!
 //! `Option<T>` is supported where `T` implements `Encode` or `Decode`. An `Option<T>` represents a potentially `NULL`
 //! value from SQLite.
+
+macro_rules! compatible {
+    ($x:expr, $($y:path)|+) => {
+        let t = $x.type_info();
+        if !t.is_null() && !matches!(t, $($y)|+) {
+            return Err(DecodeError::DataType(t))
+        }
+    };
+}
+
 pub mod bstr;
 pub mod time;
 
@@ -47,13 +57,3 @@ mod float;
 mod int;
 mod str;
 mod uint;
-
-#[macro_export]
-macro_rules! compatible {
-    ($x:expr, $($y:path)|+) => {
-        let t = $x.type_info();
-        if !t.is_null() && !matches!(t, $($y)|+) {
-            return Err(DecodeError::DataType(t))
-        }
-    };
-}

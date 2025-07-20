@@ -10,6 +10,7 @@ pub mod encode;
 mod error;
 mod executor;
 mod from_row;
+#[macro_use]
 mod logger;
 mod musq;
 pub mod pool;
@@ -18,6 +19,7 @@ mod query_result;
 mod row;
 mod statement_cache;
 mod transaction;
+#[macro_use]
 pub mod types;
 
 pub use crate::{

@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    ArgumentValue, SqliteDataType, Value, compatible, decode::Decode, encode::Encode,
-    error::DecodeError,
+    ArgumentValue, SqliteDataType, Value, decode::Decode, encode::Encode, error::DecodeError,
 };
 
 impl Encode for &[u8] {

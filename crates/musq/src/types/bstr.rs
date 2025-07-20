@@ -1,7 +1,6 @@
 /// Conversions between `bstr` types and SQL types.
 use crate::{
-    ArgumentValue, SqliteDataType, Value, compatible, decode::Decode, encode::Encode,
-    error::DecodeError,
+    ArgumentValue, SqliteDataType, Value, decode::Decode, encode::Encode, error::DecodeError,
 };
 
 #[doc(no_inline)]
