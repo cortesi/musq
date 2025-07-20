@@ -386,8 +386,8 @@ impl LockedSqliteHandle<'_> {
     /// returns `false`, then the operation is interrupted.
     ///
     /// `num_ops` is the approximate number of [virtual machine instructions](https://www.sqlite.org/opcode.html)
-    /// that are evaluated between successive invocations of the callback. If `num_ops` is less than one then the
-    /// progress handler is disabled.
+    /// that are evaluated between successive invocations of the callback. If `num_ops` is less than one then any
+    /// existing progress handler is removed and the call returns without installing a new handler.
     ///
     /// Only a single progress handler may be defined at one time per database connection; setting a new progress
     /// handler cancels the old one.
@@ -399,6 +399,11 @@ impl LockedSqliteHandle<'_> {
     where
         F: FnMut() -> bool + Send + 'static,
     {
+        if num_ops < 1 {
+            self.remove_progress_handler();
+            return;
+        }
+
         unsafe {
             let callback_boxed = Box::new(callback);
             // SAFETY: `Box::into_raw()` always returns a non-null pointer.
