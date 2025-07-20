@@ -1,5 +1,7 @@
 mod sqlite;
 mod ustr;
+#[macro_use]
+mod enum_mode;
 
 pub use musq_macros::*;
 

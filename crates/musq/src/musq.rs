@@ -1,5 +1,4 @@
 use std::{
-    fmt,
     fmt::Write,
     path::{Path, PathBuf},
     sync::Arc,
@@ -15,115 +14,52 @@ use indexmap::IndexMap;
 
 static IN_MEMORY_DB_SEQ: AtomicUsize = AtomicUsize::new(0);
 
-/// Refer to [SQLite documentation] for the meaning of the connection locking mode.
-///
-/// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_locking_mode
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum LockingMode {
-    #[default]
-    Normal,
-    Exclusive,
-}
-
-impl LockingMode {
-    pub(crate) fn as_str(&self) -> &'static str {
-        match self {
-            LockingMode::Normal => "NORMAL",
-            LockingMode::Exclusive => "EXCLUSIVE",
-        }
+enum_mode! {
+    /// Refer to [SQLite documentation] for the meaning of the connection locking mode.
+    ///
+    /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_locking_mode
+    pub LockingMode {
+        Normal => "NORMAL",
+        Exclusive => "EXCLUSIVE",
     }
+    default Normal
 }
 
-impl fmt::Display for LockingMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
+enum_mode! {
+    /// Refer to [SQLite documentation] for the meaning of the database journaling mode.
+    ///
+    /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_journal_mode
+    pub JournalMode {
+        Delete => "DELETE",
+        Truncate => "TRUNCATE",
+        Persist => "PERSIST",
+        Memory => "MEMORY",
+        Wal => "WAL",
+        Off => "OFF",
     }
+    default Wal
 }
 
-/// Refer to [SQLite documentation] for the meaning of the database journaling mode.
-///
-/// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_journal_mode
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum JournalMode {
-    Delete,
-    Truncate,
-    Persist,
-    Memory,
-    #[default]
-    Wal,
-    Off,
-}
-
-impl JournalMode {
-    pub(crate) fn as_str(&self) -> &'static str {
-        match self {
-            JournalMode::Delete => "DELETE",
-            JournalMode::Truncate => "TRUNCATE",
-            JournalMode::Persist => "PERSIST",
-            JournalMode::Memory => "MEMORY",
-            JournalMode::Wal => "WAL",
-            JournalMode::Off => "OFF",
-        }
+enum_mode! {
+    pub AutoVacuum {
+        None => "NONE",
+        Full => "FULL",
+        Incremental => "INCREMENTAL",
     }
+    default None
 }
 
-impl fmt::Display for JournalMode {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
+enum_mode! {
+    /// Refer to [SQLite documentation] for the meaning of various synchronous settings.
+    ///
+    /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_synchronous
+    pub Synchronous {
+        Off => "OFF",
+        Normal => "NORMAL",
+        Full => "FULL",
+        Extra => "EXTRA",
     }
-}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
-pub enum AutoVacuum {
-    #[default]
-    None,
-    Full,
-    Incremental,
-}
-
-impl AutoVacuum {
-    pub(crate) fn as_str(&self) -> &'static str {
-        match self {
-            AutoVacuum::None => "NONE",
-            AutoVacuum::Full => "FULL",
-            AutoVacuum::Incremental => "INCREMENTAL",
-        }
-    }
-}
-
-impl fmt::Display for AutoVacuum {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
-}
-
-/// Refer to [SQLite documentation] for the meaning of various synchronous settings.
-///
-/// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_synchronous
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
-pub enum Synchronous {
-    Off,
-    Normal,
-    #[default]
-    Full,
-    Extra,
-}
-
-impl Synchronous {
-    pub(crate) fn as_str(&self) -> &'static str {
-        match self {
-            Synchronous::Off => "OFF",
-            Synchronous::Normal => "NORMAL",
-            Synchronous::Full => "FULL",
-            Synchronous::Extra => "EXTRA",
-        }
-    }
-}
-
-impl fmt::Display for Synchronous {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(self.as_str())
-    }
+    default Full
 }
 
 /// Create a Musq connection
