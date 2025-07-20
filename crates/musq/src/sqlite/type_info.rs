@@ -1,5 +1,4 @@
 use std::fmt::{self, Display, Formatter};
-use std::os::raw::c_int;
 use std::str::FromStr;
 
 use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT};
@@ -53,7 +52,7 @@ impl SqliteDataType {
         }
     }
 
-    pub(crate) fn from_code(code: c_int) -> Self {
+    pub(crate) fn from_code(code: i32) -> Self {
         match code {
             SQLITE_INTEGER => SqliteDataType::Int,
             SQLITE_FLOAT => SqliteDataType::Float,

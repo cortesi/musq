@@ -1,15 +1,18 @@
-use std::ffi::c_void;
 use std::ffi::CStr;
+use std::ffi::c_void;
 
-use std::os::raw::{c_char, c_int};
+use std::os::raw::c_char;
 use std::ptr::NonNull;
 use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
-    sqlite3, sqlite3_stmt, SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW,
+    SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW, sqlite3, sqlite3_stmt,
 };
 
-use crate::sqlite::{ffi, error::{SqliteError, PrimaryErrCode}};
+use crate::sqlite::{
+    error::{PrimaryErrCode, SqliteError},
+    ffi,
+};
 
 use crate::sqlite::type_info::SqliteDataType;
 
@@ -52,7 +55,7 @@ impl StatementHandle {
 
     pub(crate) fn column_name(&self, index: usize) -> Result<&str, SqliteError> {
         // https://sqlite.org/c3ref/column_name.html
-        let name = ffi::column_name(self.0.as_ptr(), index as c_int);
+        let name = ffi::column_name(self.0.as_ptr(), index as i32);
         if name.is_null() {
             return Err(self.last_error());
         }
@@ -65,7 +68,7 @@ impl StatementHandle {
     }
 
     pub(crate) fn column_decltype(&self, index: usize) -> Option<SqliteDataType> {
-        let decl = ffi::column_decltype(self.0.as_ptr(), index as c_int);
+        let decl = ffi::column_decltype(self.0.as_ptr(), index as i32);
         if decl.is_null() {
             // If the Nth column of the result set is an expression or subquery,
             // then a NULL pointer is returned.
@@ -90,7 +93,7 @@ impl StatementHandle {
 
     pub(crate) fn bind_parameter_name(&self, index: usize) -> Option<&str> {
         // https://www.sqlite.org/c3ref/bind_parameter_name.html
-        let name = ffi::bind_parameter_name(self.0.as_ptr(), index as c_int);
+        let name = ffi::bind_parameter_name(self.0.as_ptr(), index as i32);
         if name.is_null() {
             return None;
         }
@@ -104,7 +107,7 @@ impl StatementHandle {
     pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> Result<(), SqliteError> {
         ffi::bind_blob64(
             self.0.as_ptr(),
-            index as c_int,
+            index as i32,
             v.as_ptr() as *const c_void,
             v.len() as u64,
         )
@@ -113,49 +116,49 @@ impl StatementHandle {
     pub(crate) fn bind_text(&self, index: usize, v: &str) -> Result<(), SqliteError> {
         ffi::bind_text64(
             self.0.as_ptr(),
-            index as c_int,
+            index as i32,
             v.as_ptr() as *const c_char,
             v.len() as u64,
         )
     }
 
     pub(crate) fn bind_int(&self, index: usize, v: i32) -> Result<(), SqliteError> {
-        ffi::bind_int(self.0.as_ptr(), index as c_int, v as c_int)
+        ffi::bind_int(self.0.as_ptr(), index as i32, v)
     }
 
     pub(crate) fn bind_int64(&self, index: usize, v: i64) -> Result<(), SqliteError> {
-        ffi::bind_int64(self.0.as_ptr(), index as c_int, v)
+        ffi::bind_int64(self.0.as_ptr(), index as i32, v)
     }
 
     pub(crate) fn bind_double(&self, index: usize, v: f64) -> Result<(), SqliteError> {
-        ffi::bind_double(self.0.as_ptr(), index as c_int, v)
+        ffi::bind_double(self.0.as_ptr(), index as i32, v)
     }
 
     pub(crate) fn bind_null(&self, index: usize) -> Result<(), SqliteError> {
-        ffi::bind_null(self.0.as_ptr(), index as c_int)
+        ffi::bind_null(self.0.as_ptr(), index as i32)
     }
 
     // result values from the query
     // https://www.sqlite.org/c3ref/column_blob.html
 
-    pub(crate) fn column_type(&self, index: usize) -> c_int {
-        ffi::column_type(self.0.as_ptr(), index as c_int)
+    pub(crate) fn column_type(&self, index: usize) -> i32 {
+        ffi::column_type(self.0.as_ptr(), index as i32)
     }
 
     pub(crate) fn column_int64(&self, index: usize) -> i64 {
-        ffi::column_int64(self.0.as_ptr(), index as c_int)
+        ffi::column_int64(self.0.as_ptr(), index as i32)
     }
 
     pub(crate) fn column_double(&self, index: usize) -> f64 {
-        ffi::column_double(self.0.as_ptr(), index as c_int)
+        ffi::column_double(self.0.as_ptr(), index as i32)
     }
 
     pub(crate) fn column_blob(&self, index: usize) -> *const c_void {
-        ffi::column_blob(self.0.as_ptr(), index as c_int)
+        ffi::column_blob(self.0.as_ptr(), index as i32)
     }
 
     pub(crate) fn column_bytes(&self, index: usize) -> i32 {
-        ffi::column_bytes(self.0.as_ptr(), index as c_int)
+        ffi::column_bytes(self.0.as_ptr(), index as i32)
     }
 
     pub(crate) fn clear_bindings(&self) {

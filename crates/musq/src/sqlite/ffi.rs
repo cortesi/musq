@@ -6,8 +6,8 @@ use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint};
 use std::ptr;
 
+use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
 use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
-use crate::sqlite::error::{SqliteError, PrimaryErrCode, ExtendedErrCode};
 
 #[allow(dead_code)]
 const fn assert_c_int_is_32bit() {
@@ -21,10 +21,10 @@ const _ASSERT_C_INT_32BIT: () = assert_c_int_is_32bit();
 pub(crate) fn open_v2(
     filename: *const c_char,
     handle: *mut *mut sqlite3,
-    flags: c_int,
+    flags: i32,
     vfs: *const c_char,
 ) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_open_v2(filename, handle, flags, vfs) };
+    let rc = unsafe { ffi_sys::sqlite3_open_v2(filename, handle, flags as c_int, vfs) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -43,8 +43,8 @@ pub(crate) fn open_v2(
 }
 
 /// Wrapper around [`sqlite3_extended_result_codes`].
-pub(crate) fn extended_result_codes(db: *mut sqlite3, onoff: c_int) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_extended_result_codes(db, onoff) };
+pub(crate) fn extended_result_codes(db: *mut sqlite3, onoff: i32) -> Result<(), SqliteError> {
+    let rc = unsafe { ffi_sys::sqlite3_extended_result_codes(db, onoff as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -53,8 +53,8 @@ pub(crate) fn extended_result_codes(db: *mut sqlite3, onoff: c_int) -> Result<()
 }
 
 /// Wrapper around [`sqlite3_busy_timeout`].
-pub(crate) fn busy_timeout(db: *mut sqlite3, ms: c_int) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_busy_timeout(db, ms) };
+pub(crate) fn busy_timeout(db: *mut sqlite3, ms: i32) -> Result<(), SqliteError> {
+    let rc = unsafe { ffi_sys::sqlite3_busy_timeout(db, ms as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -66,12 +66,12 @@ pub(crate) fn busy_timeout(db: *mut sqlite3, ms: c_int) -> Result<(), SqliteErro
 pub(crate) fn prepare_v3(
     db: *mut sqlite3,
     sql: *const c_char,
-    n_byte: c_int,
+    n_byte: i32,
     flags: c_uint,
     stmt: *mut *mut sqlite3_stmt,
     tail: *mut *const c_char,
 ) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_prepare_v3(db, sql, n_byte, flags, stmt, tail) };
+    let rc = unsafe { ffi_sys::sqlite3_prepare_v3(db, sql, n_byte as c_int, flags, stmt, tail) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -82,22 +82,25 @@ pub(crate) fn prepare_v3(
 /// Wrapper around [`sqlite3_progress_handler`].
 pub(crate) fn progress_handler(
     db: *mut sqlite3,
-    num_ops: c_int,
-    callback: Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
+    num_ops: i32,
+    callback: Option<unsafe extern "C" fn(*mut c_void) -> i32>,
     arg: *mut c_void,
 ) {
     unsafe {
-        ffi_sys::sqlite3_progress_handler(db, num_ops, callback, arg);
+        let cb: Option<unsafe extern "C" fn(*mut c_void) -> c_int> = std::mem::transmute(callback);
+        ffi_sys::sqlite3_progress_handler(db, num_ops as c_int, cb, arg);
     }
 }
 
 /// Wrapper around [`sqlite3_unlock_notify`].
 pub(crate) fn unlock_notify(
     db: *mut sqlite3,
-    callback: Option<unsafe extern "C" fn(*mut *mut c_void, c_int)>,
+    callback: Option<unsafe extern "C" fn(*mut *mut c_void, i32)>,
     arg: *mut c_void,
 ) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_unlock_notify(db, callback, arg) };
+    let cb: Option<unsafe extern "C" fn(*mut *mut c_void, c_int)> =
+        unsafe { std::mem::transmute(callback) };
+    let rc = unsafe { ffi_sys::sqlite3_unlock_notify(db, cb, arg) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -106,8 +109,8 @@ pub(crate) fn unlock_notify(
 }
 
 /// Wrapper around [`sqlite3_extended_errcode`].
-pub(crate) fn extended_errcode(db: *mut sqlite3) -> c_int {
-    unsafe { ffi_sys::sqlite3_extended_errcode(db) }
+pub(crate) fn extended_errcode(db: *mut sqlite3) -> i32 {
+    unsafe { ffi_sys::sqlite3_extended_errcode(db) as i32 }
 }
 
 /// Wrapper around [`sqlite3_errmsg`].
@@ -146,43 +149,45 @@ pub(crate) fn db_handle(stmt: *mut sqlite3_stmt) -> *mut sqlite3 {
 }
 
 /// Wrapper around [`sqlite3_column_count`].
-pub(crate) fn column_count(stmt: *mut sqlite3_stmt) -> c_int {
-    unsafe { ffi_sys::sqlite3_column_count(stmt) }
+pub(crate) fn column_count(stmt: *mut sqlite3_stmt) -> i32 {
+    unsafe { ffi_sys::sqlite3_column_count(stmt) as i32 }
 }
 
 /// Wrapper around [`sqlite3_changes`].
-pub(crate) fn changes(db: *mut sqlite3) -> c_int {
-    unsafe { ffi_sys::sqlite3_changes(db) }
+pub(crate) fn changes(db: *mut sqlite3) -> i32 {
+    unsafe { ffi_sys::sqlite3_changes(db) as i32 }
 }
 
 /// Wrapper around [`sqlite3_column_name`]. Returns a pointer to a null terminated string.
-pub(crate) fn column_name(stmt: *mut sqlite3_stmt, index: c_int) -> *const c_char {
-    unsafe { ffi_sys::sqlite3_column_name(stmt, index) }
+pub(crate) fn column_name(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
+    unsafe { ffi_sys::sqlite3_column_name(stmt, index as c_int) }
 }
 
 /// Wrapper around [`sqlite3_column_decltype`].
-pub(crate) fn column_decltype(stmt: *mut sqlite3_stmt, index: c_int) -> *const c_char {
-    unsafe { ffi_sys::sqlite3_column_decltype(stmt, index) }
+pub(crate) fn column_decltype(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
+    unsafe { ffi_sys::sqlite3_column_decltype(stmt, index as c_int) }
 }
 
 /// Wrapper around [`sqlite3_bind_parameter_count`].
-pub(crate) fn bind_parameter_count(stmt: *mut sqlite3_stmt) -> c_int {
-    unsafe { ffi_sys::sqlite3_bind_parameter_count(stmt) }
+pub(crate) fn bind_parameter_count(stmt: *mut sqlite3_stmt) -> i32 {
+    unsafe { ffi_sys::sqlite3_bind_parameter_count(stmt) as i32 }
 }
 
 /// Wrapper around [`sqlite3_bind_parameter_name`].
-pub(crate) fn bind_parameter_name(stmt: *mut sqlite3_stmt, index: c_int) -> *const c_char {
-    unsafe { ffi_sys::sqlite3_bind_parameter_name(stmt, index) }
+pub(crate) fn bind_parameter_name(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
+    unsafe { ffi_sys::sqlite3_bind_parameter_name(stmt, index as c_int) }
 }
 
 /// Wrapper around [`sqlite3_bind_blob64`].
 pub(crate) fn bind_blob64(
     stmt: *mut sqlite3_stmt,
-    index: c_int,
+    index: i32,
     data: *const c_void,
     len: u64,
 ) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_bind_blob64(stmt, index, data, len, ffi_sys::SQLITE_TRANSIENT()) };
+    let rc = unsafe {
+        ffi_sys::sqlite3_bind_blob64(stmt, index as c_int, data, len, ffi_sys::SQLITE_TRANSIENT())
+    };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -194,14 +199,14 @@ pub(crate) fn bind_blob64(
 /// Wrapper around [`sqlite3_bind_text64`].
 pub(crate) fn bind_text64(
     stmt: *mut sqlite3_stmt,
-    index: c_int,
+    index: i32,
     data: *const c_char,
     len: u64,
 ) -> Result<(), SqliteError> {
     unsafe {
         let rc = ffi_sys::sqlite3_bind_text64(
             stmt,
-            index,
+            index as c_int,
             data,
             len,
             ffi_sys::SQLITE_TRANSIENT(),
@@ -217,8 +222,8 @@ pub(crate) fn bind_text64(
 }
 
 /// Wrapper around [`sqlite3_bind_int`].
-pub(crate) fn bind_int(stmt: *mut sqlite3_stmt, index: c_int, value: c_int) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_bind_int(stmt, index, value) };
+pub(crate) fn bind_int(stmt: *mut sqlite3_stmt, index: i32, value: i32) -> Result<(), SqliteError> {
+    let rc = unsafe { ffi_sys::sqlite3_bind_int(stmt, index as c_int, value as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -228,8 +233,12 @@ pub(crate) fn bind_int(stmt: *mut sqlite3_stmt, index: c_int, value: c_int) -> R
 }
 
 /// Wrapper around [`sqlite3_bind_int64`].
-pub(crate) fn bind_int64(stmt: *mut sqlite3_stmt, index: c_int, value: i64) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_bind_int64(stmt, index, value) };
+pub(crate) fn bind_int64(
+    stmt: *mut sqlite3_stmt,
+    index: i32,
+    value: i64,
+) -> Result<(), SqliteError> {
+    let rc = unsafe { ffi_sys::sqlite3_bind_int64(stmt, index as c_int, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -239,8 +248,12 @@ pub(crate) fn bind_int64(stmt: *mut sqlite3_stmt, index: c_int, value: i64) -> R
 }
 
 /// Wrapper around [`sqlite3_bind_double`].
-pub(crate) fn bind_double(stmt: *mut sqlite3_stmt, index: c_int, value: f64) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_bind_double(stmt, index, value) };
+pub(crate) fn bind_double(
+    stmt: *mut sqlite3_stmt,
+    index: i32,
+    value: f64,
+) -> Result<(), SqliteError> {
+    let rc = unsafe { ffi_sys::sqlite3_bind_double(stmt, index as c_int, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -250,8 +263,8 @@ pub(crate) fn bind_double(stmt: *mut sqlite3_stmt, index: c_int, value: f64) -> 
 }
 
 /// Wrapper around [`sqlite3_bind_null`].
-pub(crate) fn bind_null(stmt: *mut sqlite3_stmt, index: c_int) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_bind_null(stmt, index) };
+pub(crate) fn bind_null(stmt: *mut sqlite3_stmt, index: i32) -> Result<(), SqliteError> {
+    let rc = unsafe { ffi_sys::sqlite3_bind_null(stmt, index as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -261,28 +274,28 @@ pub(crate) fn bind_null(stmt: *mut sqlite3_stmt, index: c_int) -> Result<(), Sql
 }
 
 /// Wrapper around [`sqlite3_column_type`].
-pub(crate) fn column_type(stmt: *mut sqlite3_stmt, index: c_int) -> c_int {
-    unsafe { ffi_sys::sqlite3_column_type(stmt, index) }
+pub(crate) fn column_type(stmt: *mut sqlite3_stmt, index: i32) -> i32 {
+    unsafe { ffi_sys::sqlite3_column_type(stmt, index as c_int) as i32 }
 }
 
 /// Wrapper around [`sqlite3_column_int64`].
-pub(crate) fn column_int64(stmt: *mut sqlite3_stmt, index: c_int) -> i64 {
-    unsafe { ffi_sys::sqlite3_column_int64(stmt, index) }
+pub(crate) fn column_int64(stmt: *mut sqlite3_stmt, index: i32) -> i64 {
+    unsafe { ffi_sys::sqlite3_column_int64(stmt, index as c_int) }
 }
 
 /// Wrapper around [`sqlite3_column_double`].
-pub(crate) fn column_double(stmt: *mut sqlite3_stmt, index: c_int) -> f64 {
-    unsafe { ffi_sys::sqlite3_column_double(stmt, index) }
+pub(crate) fn column_double(stmt: *mut sqlite3_stmt, index: i32) -> f64 {
+    unsafe { ffi_sys::sqlite3_column_double(stmt, index as c_int) }
 }
 
 /// Wrapper around [`sqlite3_column_blob`].
-pub(crate) fn column_blob(stmt: *mut sqlite3_stmt, index: c_int) -> *const c_void {
-    unsafe { ffi_sys::sqlite3_column_blob(stmt, index) }
+pub(crate) fn column_blob(stmt: *mut sqlite3_stmt, index: i32) -> *const c_void {
+    unsafe { ffi_sys::sqlite3_column_blob(stmt, index as c_int) }
 }
 
 /// Wrapper around [`sqlite3_column_bytes`].
-pub(crate) fn column_bytes(stmt: *mut sqlite3_stmt, index: c_int) -> c_int {
-    unsafe { ffi_sys::sqlite3_column_bytes(stmt, index) }
+pub(crate) fn column_bytes(stmt: *mut sqlite3_stmt, index: i32) -> i32 {
+    unsafe { ffi_sys::sqlite3_column_bytes(stmt, index as c_int) as i32 }
 }
 
 /// Wrapper around [`sqlite3_clear_bindings`].
@@ -302,7 +315,7 @@ pub(crate) fn reset(stmt: *mut sqlite3_stmt) -> Result<(), SqliteError> {
 }
 
 /// Wrapper around [`sqlite3_step`].
-pub(crate) fn step(stmt: *mut sqlite3_stmt) -> Result<c_int, SqliteError> {
+pub(crate) fn step(stmt: *mut sqlite3_stmt) -> Result<i32, SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_step(stmt) };
     if rc == ffi_sys::SQLITE_ROW
         || rc == ffi_sys::SQLITE_DONE
@@ -311,7 +324,7 @@ pub(crate) fn step(stmt: *mut sqlite3_stmt) -> Result<c_int, SqliteError> {
         || rc == ffi_sys::SQLITE_MISUSE
         || rc == ffi_sys::SQLITE_OK
     {
-        Ok(rc)
+        Ok(rc as i32)
     } else {
         let db = unsafe { ffi_sys::sqlite3_db_handle(stmt) };
         Err(SqliteError::new(db))

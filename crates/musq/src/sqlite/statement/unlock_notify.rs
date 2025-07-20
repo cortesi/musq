@@ -1,10 +1,10 @@
 use std::ffi::c_void;
-use std::os::raw::c_int;
+
 use std::slice;
 use std::sync::{Condvar, Mutex};
 
 use crate::sqlite::ffi;
-use libsqlite3_sys::{sqlite3, sqlite3_stmt, SQLITE_LOCKED};
+use libsqlite3_sys::{SQLITE_LOCKED, sqlite3, sqlite3_stmt};
 
 use crate::{
     error::Error,
@@ -60,7 +60,7 @@ pub fn wait(conn: *mut sqlite3, stmt: Option<*mut sqlite3_stmt>) -> Result<(), E
     Ok(())
 }
 
-unsafe extern "C" fn unlock_notify_cb(ptr: *mut *mut c_void, len: c_int) {
+unsafe extern "C" fn unlock_notify_cb(ptr: *mut *mut c_void, len: i32) {
     let ptr = ptr as *mut *mut Notify;
     let slice = unsafe { slice::from_raw_parts(ptr, len as usize) };
 
