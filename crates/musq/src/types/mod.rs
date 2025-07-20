@@ -57,5 +57,3 @@ macro_rules! compatible {
         }
     };
 }
-
-pub use compatible;
