@@ -1,12 +1,12 @@
 use std::{ffi::CString, ptr::NonNull};
 
-use libsqlite3_sys::{SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, sqlite3};
+use libsqlite3_sys::{sqlite3, SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK};
 
 use crate::sqlite::ffi;
 
 use crate::{
+    sqlite::{statement::unlock_notify, SqliteError},
     Error,
-    sqlite::{SqliteError, statement::unlock_notify},
 };
 
 /// Managed handle to the raw SQLite3 database handle.
@@ -54,7 +54,7 @@ impl ConnectionHandle {
 
             match status {
                 SQLITE_OK => return Ok(()),
-                SQLITE_LOCKED_SHAREDCACHE => unsafe { unlock_notify::wait(self.as_ptr(), None)? },
+                SQLITE_LOCKED_SHAREDCACHE => unlock_notify::wait(self.as_ptr(), None)?,
                 _ => return Err(SqliteError::new(self.as_ptr()).into()),
             }
         }

@@ -2,23 +2,25 @@ use std::{
     cmp,
     collections::HashMap,
     os::raw::c_char,
-    ptr::{NonNull, null, null_mut},
+    ptr::{null, null_mut, NonNull},
     sync::Arc,
 };
 
-use bytes::{Buf, Bytes};
-use libsqlite3_sys::{SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_stmt};
 use crate::sqlite::ffi;
+use bytes::{Buf, Bytes};
+use libsqlite3_sys::{
+    sqlite3, sqlite3_stmt, SQLITE_LOCKED_SHAREDCACHE, SQLITE_OK, SQLITE_PREPARE_PERSISTENT,
+};
 
 use crate::{
-    Column,
     error::Error,
     sqlite::{
-        SqliteError,
         connection::ConnectionHandle,
-        statement::{StatementHandle, unlock_notify},
+        statement::{unlock_notify, StatementHandle},
+        SqliteError,
     },
     ustr::UStr,
+    Column,
 };
 
 // A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
@@ -169,9 +171,9 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
 
             match status {
                 SQLITE_OK => break,
-                SQLITE_LOCKED_SHAREDCACHE | libsqlite3_sys::SQLITE_BUSY => unsafe {
+                SQLITE_LOCKED_SHAREDCACHE | libsqlite3_sys::SQLITE_BUSY => {
                     unlock_notify::wait(conn, None)?;
-                },
+                }
                 _ => return Err(SqliteError::new(conn).into()),
             }
         }
