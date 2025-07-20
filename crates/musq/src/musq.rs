@@ -92,7 +92,7 @@ pub struct Musq {
 }
 
 #[derive(Clone, Debug)]
-pub enum OptimizeOnClose {
+pub(crate) enum OptimizeOnClose {
     Enabled { analysis_limit: Option<u32> },
     Disabled,
 }
