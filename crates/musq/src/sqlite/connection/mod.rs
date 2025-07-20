@@ -147,7 +147,7 @@ impl Connection {
     }
 
     /// Immediately close the connection without sending a graceful shutdown.
-    pub async fn close_hard(self) -> Result<()> {
+    pub fn close_hard(self) -> Result<()> {
         drop(self);
         Ok(())
     }
