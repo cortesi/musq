@@ -285,7 +285,7 @@ where
 }
 
 // Make a SQL query from a statement.
-pub fn query_statement(statement: &Statement) -> Query {
+pub(crate) fn query_statement(statement: &Statement) -> Query {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Right(statement.clone()),
@@ -293,7 +293,7 @@ pub fn query_statement(statement: &Statement) -> Query {
 }
 
 // Make a SQL query from a statement, with the given arguments.
-pub fn query_statement_with(statement: &Statement, arguments: Arguments) -> Query {
+pub(crate) fn query_statement_with(statement: &Statement, arguments: Arguments) -> Query {
     Query {
         arguments: Some(arguments),
         statement: Either::Right(statement.clone()),
@@ -335,7 +335,7 @@ where
     query_with(sql, arguments).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_statement_as<'q, O>(
+pub(crate) fn query_statement_as<'q, O>(
     statement: &'q Statement,
 ) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
@@ -344,7 +344,7 @@ where
     query_statement(statement).try_map(|row| O::from_row("", &row))
 }
 
-pub fn query_statement_as_with<'q, O>(
+pub(crate) fn query_statement_as_with<'q, O>(
     statement: &'q Statement,
     arguments: Arguments,
 ) -> Map<impl FnMut(Row) -> Result<O> + Send>
@@ -373,7 +373,7 @@ where
     query_as_with(sql, arguments).map(|(o,)| o)
 }
 
-pub fn query_statement_scalar<'q, O>(
+pub(crate) fn query_statement_scalar<'q, O>(
     statement: &'q Statement,
 ) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
@@ -383,7 +383,7 @@ where
     query_statement_as(statement).map(|(o,)| o)
 }
 
-pub fn query_statement_scalar_with<'q, O>(
+pub(crate) fn query_statement_scalar_with<'q, O>(
     statement: &'q Statement,
     arguments: Arguments,
 ) -> Map<impl FnMut(Row) -> Result<O> + Send>
