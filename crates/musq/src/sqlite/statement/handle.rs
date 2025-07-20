@@ -3,7 +3,6 @@ use std::ffi::c_void;
 
 use std::os::raw::c_char;
 use std::ptr::NonNull;
-use std::str::from_utf8_unchecked;
 
 use libsqlite3_sys::{
     SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW, sqlite3, sqlite3_stmt,
@@ -77,7 +76,7 @@ impl StatementHandle {
             return None;
         }
 
-        let decl = unsafe { from_utf8_unchecked(CStr::from_ptr(decl).to_bytes()) };
+        let decl = unsafe { CStr::from_ptr(decl).to_string_lossy() };
         let ty: SqliteDataType = decl.parse().ok()?;
 
         Some(ty)
