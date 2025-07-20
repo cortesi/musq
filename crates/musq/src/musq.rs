@@ -169,9 +169,11 @@ impl Musq {
         }
     }
 
-    /// Set the filename as in-memory. Use the `open_in_memory` method instead, unless you have a very particular use
-    /// case.
-    pub fn in_memory(mut self, val: bool) -> Self {
+    /// Set the filename as in-memory.
+    ///
+    /// This is intended for internal use. External callers should use
+    /// [`open_in_memory`](Self::open_in_memory) to create an in-memory database.
+    pub(crate) fn in_memory(mut self, val: bool) -> Self {
         self.in_memory = val;
         self
     }
