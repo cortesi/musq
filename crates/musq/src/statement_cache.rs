@@ -81,3 +81,51 @@ impl StatementCache {
         self.inner.capacity()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Connection, Musq, query_as};
+
+    #[tokio::test]
+    async fn test_cached_statement_reused_with_different_args() -> anyhow::Result<()> {
+        let mut conn = Connection::connect_with(&Musq::new()).await?;
+
+        let initial = conn.cached_statements_size();
+
+        let (v1,): (i32,) = query_as("SELECT ?1")
+            .bind(1_i32)
+            .fetch_one(&mut conn)
+            .await?;
+        assert_eq!(v1, 1);
+        assert_eq!(conn.cached_statements_size(), initial + 1);
+
+        let (v2,): (i32,) = query_as("SELECT ?1")
+            .bind(5_i32)
+            .fetch_one(&mut conn)
+            .await?;
+        assert_eq!(v2, 5);
+        assert_eq!(conn.cached_statements_size(), initial + 1);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_statement_cache_get_returns_same_statement() -> anyhow::Result<()> {
+        let mut conn = Connection::connect_with(&Musq::new()).await?;
+
+        let mut locked = conn.lock_handle().await?;
+        let ptr_first: *const CompoundStatement = {
+            let stmt = locked.guard.statements.get("SELECT 1")?;
+            stmt as *const _
+        };
+        let ptr_second: *const CompoundStatement = {
+            let stmt = locked.guard.statements.get("SELECT 1")?;
+            stmt as *const _
+        };
+
+        assert_eq!(ptr_first, ptr_second);
+
+        Ok(())
+    }
+}

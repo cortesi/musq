@@ -153,7 +153,7 @@ impl ArgumentValue {
 #[cfg(test)]
 mod tests {
     use super::parse_question_param;
-    use crate::Error;
+    use crate::{Connection, Error, Musq, query, query_as};
 
     #[test]
     fn test_parse_question_param_invalid() {
@@ -171,5 +171,56 @@ mod tests {
             Error::Protocol(msg) => assert!(msg.contains("?0")),
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_bind_positional_and_named_parameters() -> anyhow::Result<()> {
+        let mut conn = Connection::connect_with(&Musq::new()).await?;
+
+        let (a, b, c): (i32, i32, i32) = query_as("SELECT ?1, :b, :a")
+            .bind(7_i32)
+            .bind_named("b", 8_i32)
+            .bind_named("a", 9_i32)
+            .fetch_one(&mut conn)
+            .await?;
+
+        assert_eq!((a, b, c), (7, 8, 9));
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_error_on_missing_parameter() -> anyhow::Result<()> {
+        let mut conn = Connection::connect_with(&Musq::new()).await?;
+
+        let res = query("select ?1, ?2")
+            .bind(5_i32)
+            .fetch_one(&mut conn)
+            .await;
+
+        assert!(res.is_err());
+
+        if let Err(Error::Protocol(msg)) = res {
+            assert!(msg.contains("index is 2"));
+        } else {
+            panic!("expected protocol error");
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_excess_parameters_are_ignored() -> anyhow::Result<()> {
+        let mut conn = Connection::connect_with(&Musq::new()).await?;
+
+        let (v,): (i32,) = query_as("SELECT ?1")
+            .bind(5_i32)
+            .bind(15_i32)
+            .fetch_one(&mut conn)
+            .await?;
+
+        assert_eq!(v, 5);
+
+        Ok(())
     }
 }
