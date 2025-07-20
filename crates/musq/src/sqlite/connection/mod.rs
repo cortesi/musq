@@ -72,10 +72,10 @@ pub(crate) struct ConnectionState {
 impl ConnectionState {
     /// Drops the `progress_handler_callback` if it exists.
     pub(crate) fn remove_progress_handler(&mut self) {
-        if let Some(mut handler) = self.progress_handler_callback.take() {
+        if let Some(handler) = self.progress_handler_callback.take() {
             unsafe {
                 ffi::progress_handler(self.handle.as_ptr(), 0, None, std::ptr::null_mut());
-                let _ = { Box::from_raw(handler.0.as_mut()) };
+                let _ = { Box::from_raw(handler.0.as_ptr()) };
             }
         }
     }
