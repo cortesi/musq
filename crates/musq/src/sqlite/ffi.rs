@@ -6,8 +6,8 @@ use std::ffi::c_void;
 use std::os::raw::{c_char, c_int, c_uint};
 use std::ptr;
 
+use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
 use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
-use crate::sqlite::error::{SqliteError, PrimaryErrCode, ExtendedErrCode};
 
 #[allow(dead_code)]
 const fn assert_c_int_is_32bit() {
@@ -182,7 +182,9 @@ pub(crate) fn bind_blob64(
     data: *const c_void,
     len: u64,
 ) -> Result<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_bind_blob64(stmt, index, data, len, ffi_sys::SQLITE_TRANSIENT()) };
+    let rc = unsafe {
+        ffi_sys::sqlite3_bind_blob64(stmt, index, data, len, ffi_sys::SQLITE_TRANSIENT())
+    };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
@@ -217,7 +219,11 @@ pub(crate) fn bind_text64(
 }
 
 /// Wrapper around [`sqlite3_bind_int`].
-pub(crate) fn bind_int(stmt: *mut sqlite3_stmt, index: c_int, value: c_int) -> Result<(), SqliteError> {
+pub(crate) fn bind_int(
+    stmt: *mut sqlite3_stmt,
+    index: c_int,
+    value: c_int,
+) -> Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_int(stmt, index, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -228,7 +234,11 @@ pub(crate) fn bind_int(stmt: *mut sqlite3_stmt, index: c_int, value: c_int) -> R
 }
 
 /// Wrapper around [`sqlite3_bind_int64`].
-pub(crate) fn bind_int64(stmt: *mut sqlite3_stmt, index: c_int, value: i64) -> Result<(), SqliteError> {
+pub(crate) fn bind_int64(
+    stmt: *mut sqlite3_stmt,
+    index: c_int,
+    value: i64,
+) -> Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_int64(stmt, index, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -239,7 +249,11 @@ pub(crate) fn bind_int64(stmt: *mut sqlite3_stmt, index: c_int, value: i64) -> R
 }
 
 /// Wrapper around [`sqlite3_bind_double`].
-pub(crate) fn bind_double(stmt: *mut sqlite3_stmt, index: c_int, value: f64) -> Result<(), SqliteError> {
+pub(crate) fn bind_double(
+    stmt: *mut sqlite3_stmt,
+    index: c_int,
+    value: f64,
+) -> Result<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_double(stmt, index, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -307,6 +321,7 @@ pub(crate) fn step(stmt: *mut sqlite3_stmt) -> Result<c_int, SqliteError> {
     if rc == ffi_sys::SQLITE_ROW
         || rc == ffi_sys::SQLITE_DONE
         || rc == ffi_sys::SQLITE_LOCKED_SHAREDCACHE
+        || rc == ffi_sys::SQLITE_LOCKED
         || rc == ffi_sys::SQLITE_BUSY
         || rc == ffi_sys::SQLITE_MISUSE
         || rc == ffi_sys::SQLITE_OK
