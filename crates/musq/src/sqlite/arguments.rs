@@ -71,10 +71,10 @@ impl Arguments {
 
     pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize> {
         let mut next_pos = offset;
-        if let Some(max) = self.named.values().max().cloned() {
-            if max > next_pos {
-                next_pos = max;
-            }
+        if let Some(max) = self.named.values().max().cloned()
+            && max > next_pos
+        {
+            next_pos = max;
         }
         // Track mappings from positional-parameter-introduced names to their
         // argument indices so that multiple references to the same name are
