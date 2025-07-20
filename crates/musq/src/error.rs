@@ -86,14 +86,14 @@ pub enum Error {
     /// A [`Pool::acquire`] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.
     ///
-    /// [`Pool::acquire`]: crate::pool::Pool::acquire
+    /// [`Pool::acquire`]: crate::Pool::acquire
     #[error("pool timed out while waiting for an open connection")]
     PoolTimedOut,
 
     /// [`Pool::close`] was called while we were waiting in [`Pool::acquire`].
     ///
-    /// [`Pool::acquire`]: crate::pool::Pool::acquire
-    /// [`Pool::close`]: crate::pool::Pool::close
+    /// [`Pool::acquire`]: crate::Pool::acquire
+    /// [`Pool::close`]: crate::Pool::close
     #[error("attempted to acquire a connection on a closed pool")]
     PoolClosed,
 
