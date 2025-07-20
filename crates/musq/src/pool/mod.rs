@@ -320,7 +320,7 @@ impl CloseEvent {
             // Can't really factor out mapping to `Err(Error::PoolClosed)` though it seems like
             // we should because that results in a different `Ok` type each time.
             //
-            // Ideally we'd map to something like `Result<!, Error>` but using `!` as a type
+            // Ideally we'd map to something like `Result<!>` but using `!` as a type
             // is not allowed on stable Rust yet.
             self.poll_unpin(cx).map(|_| Err(Error::PoolClosed))
         })

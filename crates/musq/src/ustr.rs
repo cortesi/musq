@@ -71,7 +71,9 @@ impl Display for UStr {
 // manual impls because otherwise things get a little screwy with lifetimes
 
 impl<'de> serde::Deserialize<'de> for UStr {
-    fn deserialize<D>(deserializer: D) -> Result<Self, <D as serde::Deserializer<'de>>::Error>
+    fn deserialize<D>(
+        deserializer: D,
+    ) -> std::result::Result<Self, <D as serde::Deserializer<'de>>::Error>
     where
         D: serde::Deserializer<'de>,
     {
@@ -83,7 +85,7 @@ impl serde::Serialize for UStr {
     fn serialize<S>(
         &self,
         serializer: S,
-    ) -> Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
+    ) -> std::result::Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
     where
         S: serde::Serializer,
     {

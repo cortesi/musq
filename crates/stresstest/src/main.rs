@@ -10,7 +10,7 @@ use rand::Rng;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use musq::{Error, JournalMode, Pool, Row, Synchronous};
+use musq::{JournalMode, Pool, Result, Row, Synchronous};
 
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
@@ -121,7 +121,7 @@ impl TimingData {
     }
 }
 
-async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool, Error> {
+async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool> {
     let journal_mode = match args.journal_mode.to_lowercase().as_str() {
         "wal" => JournalMode::Wal,
         "delete" => JournalMode::Delete,
@@ -155,7 +155,7 @@ async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool, Error> {
     musq.open(path).await
 }
 
-async fn create_schema(pool: &Pool) -> Result<(), Error> {
+async fn create_schema(pool: &Pool) -> Result<()> {
     // Create table A
     pool.execute(musq::query(
         "CREATE TABLE IF NOT EXISTS a (
@@ -185,7 +185,7 @@ async fn create_schema(pool: &Pool) -> Result<(), Error> {
     Ok(())
 }
 
-async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<(), Error> {
+async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<()> {
     // Start a transaction
     let mut tx = pool.begin().await?;
 
@@ -214,7 +214,7 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<(), 
     Ok(())
 }
 
-async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row), Error> {
+async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row)> {
     let random_id = rand::rng().random_range(1..=max_id) as i64;
 
     let b_row = pool
@@ -230,7 +230,7 @@ async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row), Erro
     Ok((a_row, b_row))
 }
 
-async fn count_records(pool: &Pool) -> Result<(i64, i64), Error> {
+async fn count_records(pool: &Pool) -> Result<(i64, i64)> {
     let a_count: i64 = pool
         .fetch_one(musq::query("SELECT COUNT(*) FROM a"))
         .await?
@@ -256,7 +256,7 @@ async fn perform_operations(
     num_records: u64,
     concurrency: usize,
     blob_size: usize,
-) -> Result<TimingData, Error> {
+) -> Result<TimingData> {
     let start = Instant::now();
     let timing_data = Arc::new(Mutex::new(TimingData::new(
         num_records,
@@ -299,7 +299,7 @@ async fn perform_operations(
 }
 
 #[tokio::main]
-async fn main() -> Result<(), Error> {
+async fn main() -> Result<()> {
     let args = Args::parse();
 
     println!(

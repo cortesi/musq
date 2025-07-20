@@ -1,5 +1,5 @@
 use crate::Row;
-use crate::error::Error;
+use crate::error::Result;
 
 /// A record that can be built from a row returned by the database.
 ///
@@ -192,7 +192,7 @@ use crate::error::Error;
 /// }
 /// ```
 pub trait FromRow<'r>: Sized {
-    fn from_row(prefix: &str, row: &'r Row) -> Result<Self, Error>;
+    fn from_row(prefix: &str, row: &'r Row) -> Result<Self>;
 }
 
 // implement FromRow for tuples of types that implement Decode
@@ -205,7 +205,7 @@ macro_rules! impl_from_row_for_tuple {
             $($T: crate::decode::Decode<'r>,)+
         {
 
-            fn from_row(_prefix: &str, row: &'r Row) -> Result<Self, Error> {
+            fn from_row(_prefix: &str, row: &'r Row) -> Result<Self> {
                 Ok(($(row.get_value_idx($idx as usize)?,)+))
             }
         }

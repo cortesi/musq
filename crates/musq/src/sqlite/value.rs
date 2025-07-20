@@ -18,18 +18,18 @@ pub(crate) enum ValueData {
 }
 
 impl Value {
-    pub fn int(&self) -> Result<i32, DecodeError> {
+    pub fn int(&self) -> std::result::Result<i32, DecodeError> {
         Ok(i32::try_from(self.int64()?)?)
     }
 
-    pub fn int64(&self) -> Result<i64, DecodeError> {
+    pub fn int64(&self) -> std::result::Result<i64, DecodeError> {
         match self.data {
             ValueData::Integer(v) => Ok(v),
             _ => Err(DecodeError::Conversion("not an integer".into())),
         }
     }
 
-    pub fn double(&self) -> Result<f64, DecodeError> {
+    pub fn double(&self) -> std::result::Result<f64, DecodeError> {
         match self.data {
             ValueData::Double(v) => Ok(v),
             ValueData::Integer(v) => Ok(v as f64),
@@ -44,7 +44,7 @@ impl Value {
         }
     }
 
-    pub fn text(&self) -> Result<&str, DecodeError> {
+    pub fn text(&self) -> std::result::Result<&str, DecodeError> {
         match &self.data {
             ValueData::Text(v) => from_utf8(v).map_err(|e| DecodeError::Conversion(e.to_string())),
             _ => Err(DecodeError::Conversion("not text".into())),

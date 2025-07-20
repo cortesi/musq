@@ -12,7 +12,7 @@ use libsqlite3_sys::{SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_stmt};
 
 use crate::{
     Column, SqliteDataType,
-    error::Error,
+    error::{Error, Result},
     sqlite::{
         connection::ConnectionHandle,
         error::{ExtendedErrCode, PrimaryErrCode},
@@ -53,7 +53,7 @@ pub struct PreparedStatement<'a> {
 }
 
 impl CompoundStatement {
-    pub(crate) fn new(mut query: &str) -> Result<Self, Error> {
+    pub(crate) fn new(mut query: &str) -> Result<Self> {
         query = query.trim();
 
         if query.len() > i32::MAX as usize {
@@ -75,7 +75,7 @@ impl CompoundStatement {
     pub(crate) fn prepare_next(
         &mut self,
         conn: &mut ConnectionHandle,
-    ) -> Result<Option<PreparedStatement<'_>>, Error> {
+    ) -> Result<Option<PreparedStatement<'_>>> {
         // increment `self.index` up to `self.handles.len()`
         self.index = self
             .index
@@ -134,7 +134,7 @@ impl CompoundStatement {
             })
     }
 
-    pub fn reset(&mut self) -> Result<(), Error> {
+    pub fn reset(&mut self) -> Result<()> {
         self.index = None;
 
         for handle in self.handles.iter_mut() {
@@ -147,7 +147,7 @@ impl CompoundStatement {
 }
 
 /// Prepare all statements in the given query.
-fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<StatementHandle>, Error> {
+fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<StatementHandle>> {
     let flags = SQLITE_PREPARE_PERSISTENT;
 
     while !query.is_empty() {

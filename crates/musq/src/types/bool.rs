@@ -13,7 +13,7 @@ impl Encode for bool {
 }
 
 impl<'r> Decode<'r> for bool {
-    fn decode(value: &'r Value) -> Result<bool, DecodeError> {
+    fn decode(value: &'r Value) -> std::result::Result<bool, DecodeError> {
         compatible!(
             value,
             SqliteDataType::Bool | SqliteDataType::Int | SqliteDataType::Int64

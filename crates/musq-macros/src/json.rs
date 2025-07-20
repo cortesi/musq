@@ -31,7 +31,7 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
 
         impl #decode_impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
-            fn decode(value: &'r musq::Value) -> Result<Self, musq::DecodeError> {
+            fn decode(value: &'r musq::Value) -> std::result::Result<Self, musq::DecodeError> {
                 serde_json::from_str(value.text()?).map_err(|x| musq::DecodeError::Conversion(x.to_string().into()))
             }
         }

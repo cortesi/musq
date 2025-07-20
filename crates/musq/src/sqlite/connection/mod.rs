@@ -194,10 +194,11 @@ impl Connection {
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not
     /// return an error, the transaction will be committed.
-    pub async fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> Result<R, E>
+    pub async fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> std::result::Result<R, E>
     where
-        for<'c> F:
-            FnOnce(&'c mut Transaction<&'a mut Self>) -> BoxFuture<'c, Result<R, E>> + Send + Sync,
+        for<'c> F: FnOnce(&'c mut Transaction<&'a mut Self>) -> BoxFuture<'c, std::result::Result<R, E>>
+            + Send
+            + Sync,
         Self: Sized,
         R: Send,
         E: From<Error> + Send,
@@ -234,7 +235,7 @@ impl Connection {
     pub fn fetch_many<'c, 'q: 'c, E>(
         &'c mut self,
         mut query: E,
-    ) -> BoxStream<'c, Result<Either<QueryResult, Row>, Error>>
+    ) -> BoxStream<'c, Result<Either<QueryResult, Row>>>
     where
         E: Execute + 'q,
     {
@@ -252,7 +253,7 @@ impl Connection {
     pub fn fetch_optional<'c, 'q: 'c, E>(
         &'c mut self,
         mut query: E,
-    ) -> BoxFuture<'c, Result<Option<Row>, Error>>
+    ) -> BoxFuture<'c, Result<Option<Row>>>
     where
         E: Execute + 'q,
     {
@@ -281,7 +282,7 @@ impl Connection {
     pub fn prepare_with<'c, 'q: 'c>(
         &'c mut self,
         sql: &'q str,
-    ) -> BoxFuture<'c, Result<Statement, Error>> {
+    ) -> BoxFuture<'c, Result<Statement>> {
         Box::pin(async move {
             let statement = self.worker.prepare(sql).await?;
 
@@ -292,14 +293,11 @@ impl Connection {
         })
     }
 
-    pub fn prepare<'c, 'q: 'c>(
-        &'c mut self,
-        sql: &'q str,
-    ) -> BoxFuture<'c, Result<Statement, Error>> {
+    pub fn prepare<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Statement>> {
         self.prepare_with(sql)
     }
 
-    pub fn fetch<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<Row, Error>>
+    pub fn fetch<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<Row>>
     where
         E: Execute + 'q,
     {
@@ -313,10 +311,7 @@ impl Connection {
             .boxed()
     }
 
-    pub fn execute_many<'c, 'q: 'c, E>(
-        &'c mut self,
-        query: E,
-    ) -> BoxStream<'c, Result<QueryResult, Error>>
+    pub fn execute_many<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
@@ -330,27 +325,21 @@ impl Connection {
             .boxed()
     }
 
-    pub fn execute<'c, 'q: 'c, E>(
-        &'c mut self,
-        query: E,
-    ) -> BoxFuture<'c, Result<QueryResult, Error>>
+    pub fn execute<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
         self.execute_many(query).try_collect().boxed()
     }
 
-    pub fn fetch_all<'c, 'q: 'c, E>(
-        &'c mut self,
-        query: E,
-    ) -> BoxFuture<'c, Result<Vec<Row>, Error>>
+    pub fn fetch_all<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
     where
         E: Execute + 'q,
     {
         self.fetch(query).try_collect().boxed()
     }
 
-    pub fn fetch_one<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Row, Error>>
+    pub fn fetch_one<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Row>>
     where
         E: Execute + 'q,
     {
