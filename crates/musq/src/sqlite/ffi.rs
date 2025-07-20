@@ -66,7 +66,7 @@ pub(crate) fn open_v2(
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
 ///
-/// See <https://www.sqlite.org/c3ref/errcode.html#sqlite3extendedresultcodes>
+/// See <https://www.sqlite.org/c3ref/errcode.html>
 #[inline]
 pub(crate) fn extended_result_codes(
     db: *mut sqlite3,
@@ -147,7 +147,7 @@ pub(crate) fn unlock_notify(
 /// # Safety
 /// - `db` must be a valid SQLite connection handle.
 ///
-/// See <https://www.sqlite.org/c3ref/errcode.html#sqlite3extendederrcode>
+/// See <https://www.sqlite.org/c3ref/errcode.html>
 #[inline]
 pub(crate) fn extended_errcode(db: *mut sqlite3) -> i32 {
     unsafe { ffi_sys::sqlite3_extended_errcode(db) as i32 }
@@ -158,7 +158,7 @@ pub(crate) fn extended_errcode(db: *mut sqlite3) -> i32 {
 /// # Safety
 /// - `db` must be a valid SQLite connection handle.
 ///
-/// See <https://www.sqlite.org/c3ref/errcode.html#sqlite3errmsg>
+/// See <https://www.sqlite.org/c3ref/errcode.html>
 #[inline]
 pub(crate) fn errmsg(db: *mut sqlite3) -> *const c_char {
     unsafe { ffi_sys::sqlite3_errmsg(db) }
