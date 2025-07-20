@@ -53,14 +53,15 @@ impl StatementHandle {
         unsafe { ffi::changes(self.db_handle()) as u64 }
     }
 
-    pub(crate) fn column_name(&self, index: usize) -> Result<&str, SqliteError> {
+    pub(crate) fn column_name(&self, index: usize) -> Result<String, SqliteError> {
         // https://sqlite.org/c3ref/column_name.html
         let name = ffi::column_name(self.0.as_ptr(), index as i32);
         if name.is_null() {
             return Err(self.last_error());
         }
 
-        Ok(unsafe { from_utf8_unchecked(CStr::from_ptr(name).to_bytes()) })
+        let s = unsafe { CStr::from_ptr(name) };
+        Ok(s.to_string_lossy().into_owned())
     }
 
     pub(crate) fn column_type_info(&self, index: usize) -> Option<SqliteDataType> {
@@ -91,14 +92,15 @@ impl StatementHandle {
     // Name Of A Host Parameter
     // NOTE: The first host parameter has an index of 1, not 0.
 
-    pub(crate) fn bind_parameter_name(&self, index: usize) -> Option<&str> {
+    pub(crate) fn bind_parameter_name(&self, index: usize) -> Option<String> {
         // https://www.sqlite.org/c3ref/bind_parameter_name.html
         let name = ffi::bind_parameter_name(self.0.as_ptr(), index as i32);
         if name.is_null() {
             return None;
         }
 
-        Some(unsafe { from_utf8_unchecked(CStr::from_ptr(name).to_bytes()) })
+        let s = unsafe { CStr::from_ptr(name) };
+        Some(s.to_string_lossy().into_owned())
     }
 
     // Binding Values To Prepared Statements
