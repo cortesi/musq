@@ -468,7 +468,12 @@ async fn it_caches_statements() -> anyhow::Result<()> {
 
         assert_eq!(i, val);
     }
-    // Cache can be cleared.
+
+
+    // Cache can be cleared, but this is an internal detail so we simply
+    // ensure queries continue to execute.
+
+
 
     // `Query` is not persistent if `.persistent(false)` is used
     // explicitly.
@@ -494,10 +499,15 @@ async fn it_respects_statement_cache_capacity() -> anyhow::Result<()> {
     let mut conn = pool.acquire().await?;
 
     // first query populates cache
-    conn.fetch_one("SELECT 1 AS val").await?;
+    let row = conn.fetch_one("SELECT 1 AS val").await?;
+    let val: i32 = row.get_value("val").unwrap();
+    assert_eq!(val, 1);
 
-    // second query should evict the first due to capacity of 1
-    conn.fetch_one("SELECT 2 AS val").await?;
+    // second query should also succeed even when the cache evicts the first
+    let row = conn.fetch_one("SELECT 2 AS val").await?;
+    let val: i32 = row.get_value("val").unwrap();
+    assert_eq!(val, 2);
+
 
     Ok(())
 }

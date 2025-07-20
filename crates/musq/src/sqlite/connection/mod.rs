@@ -122,6 +122,13 @@ impl Connection {
             .load(std::sync::atomic::Ordering::Acquire)
     }
 
+
+    #[cfg(test)]
+    pub(crate) async fn clear_cached_statements(&mut self) -> Result<()> {
+        self.worker.clear_cache().await?;
+        Ok(())
+    }
+
     /// Execute the function inside a transaction.
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not

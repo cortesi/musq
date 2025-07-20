@@ -107,6 +107,9 @@ mod tests {
         assert_eq!(v2, 5);
         assert_eq!(conn.cached_statements_size(), initial + 1);
 
+        conn.clear_cached_statements().await?;
+        assert_eq!(conn.cached_statements_size(), 0);
+
         Ok(())
     }
 
