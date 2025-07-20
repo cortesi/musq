@@ -105,9 +105,9 @@ impl Pool {
     /// However, if your workload is sensitive to dropped connections such as using an in-memory
     /// SQLite database with a pool size of 1, care should be taken to avoid cancelling
     /// `acquire()` calls.
-    pub fn acquire(&self) -> impl Future<Output = Result<PoolConnection>> + 'static {
+    pub async fn acquire(&self) -> Result<PoolConnection> {
         let shared = self.0.clone();
-        async move { shared.acquire().await.map(|conn| conn.reattach()) }
+        shared.acquire().await.map(|conn| conn.reattach())
     }
 
     /// Attempts to retrieve a connection from the pool if there is one available.
@@ -141,22 +141,23 @@ impl Pool {
     /// Checked-out connections are unaffected, but will be gracefully closed on-drop
     /// rather than being returned to the pool.
     ///
-    /// Returns a `Future` which can be `.await`ed to ensure all connections are
-    /// gracefully closed. It will first close any idle connections currently waiting in the pool,
-    /// then wait for all checked-out connections to be returned or closed.
+    /// This async method ensures all connections are gracefully closed. It will
+    /// first close any idle connections currently waiting in the pool, then wait
+    /// for all checked-out connections to be returned or closed.
     ///
     /// Waiting for connections to be gracefully closed is optional, but will allow the database
     /// server to clean up the resources sooner rather than later. This is especially important
     /// for tests that create a new pool every time, otherwise you may see errors about connection
     /// limits being exhausted even when running tests in a single thread.
     ///
-    /// If the returned `Future` is not run to completion, any remaining connections will be dropped
-    /// when the last handle for the given pool instance is dropped, which could happen in a task
-    /// spawned by `Pool` internally and so may be unpredictable otherwise.
+    /// If the returned future is not awaited to completion, any remaining
+    /// connections will be dropped when the last handle for the given pool
+    /// instance is dropped, which could happen in a task spawned by `Pool`
+    /// internally and so may be unpredictable otherwise.
     ///
     /// `.close()` may be safely called and `.await`ed on multiple handles concurrently.
-    pub fn close(&self) -> impl Future<Output = ()> + '_ {
-        self.0.close()
+    pub async fn close(&self) {
+        self.0.close().await
     }
 
     /// Returns `true` if [`.close()`][Pool::close] has been called on the pool, `false` otherwise.
