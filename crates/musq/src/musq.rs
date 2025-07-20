@@ -107,6 +107,7 @@ impl Musq {
     /// Construct `Self` with default options.
     ///
     /// See the source of this method for the current defaults.
+    #[must_use]
     pub fn new() -> Self {
         let mut pragmas: IndexMap<String, Option<String>> = IndexMap::new();
 
@@ -179,6 +180,7 @@ impl Musq {
     }
 
     /// Sets the name of the database file.
+    #[must_use]
     pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
         self.filename = filename.as_ref().to_owned();
         self
@@ -188,6 +190,7 @@ impl Musq {
     ///
     /// Musq enables this by default so that foreign keys function as expected,
     /// compared to other database flavors.
+    #[must_use]
     pub fn foreign_keys(self, on: bool) -> Self {
         self.pragma("foreign_keys", if on { "ON" } else { "OFF" })
     }
@@ -195,6 +198,7 @@ impl Musq {
     /// Set the [`SQLITE_OPEN_SHAREDCACHE` flag](https://sqlite.org/sharedcache.html).
     ///
     /// By default, this is disabled.
+    #[must_use]
     pub fn shared_cache(mut self, on: bool) -> Self {
         self.shared_cache = on;
         self
@@ -221,6 +225,7 @@ impl Musq {
     ///
     /// For consistency, any commands in `musq-cli` which create a SQLite database will create it
     /// in WAL mode.
+    #[must_use]
     pub fn journal_mode(self, mode: JournalMode) -> Self {
         self.pragma("journal_mode", mode.as_str())
     }
@@ -228,12 +233,14 @@ impl Musq {
     /// Sets the [locking mode](https://www.sqlite.org/pragma.html#pragma_locking_mode) for the database connection.
     ///
     /// The default locking mode is NORMAL.
+    #[must_use]
     pub fn locking_mode(self, mode: LockingMode) -> Self {
         self.pragma("locking_mode", mode.as_str())
     }
 
     /// Sets the [access mode](https://www.sqlite.org/c3ref/open.html) to open the database
     /// for read-only access.
+    #[must_use]
     pub fn read_only(mut self, read_only: bool) -> Self {
         self.read_only = read_only;
         self
@@ -243,6 +250,7 @@ impl Musq {
     /// if the file does not exist.
     ///
     /// By default, a new file **will not be created** if one is not found.
+    #[must_use]
     pub fn create_if_missing(mut self, create: bool) -> Self {
         self.create_if_missing = create;
         self
@@ -252,6 +260,7 @@ impl Musq {
     /// returning a busy timeout error.
     ///
     /// The default busy timeout is 5 seconds.
+    #[must_use]
     pub fn busy_timeout(mut self, timeout: Duration) -> Self {
         self.busy_timeout = timeout;
         self
@@ -261,6 +270,7 @@ impl Musq {
     ///
     /// The default synchronous settings is FULL. However, if durability is not a concern,
     /// then NORMAL is normally all one needs in WAL mode.
+    #[must_use]
     pub fn synchronous(self, synchronous: Synchronous) -> Self {
         self.pragma("synchronous", synchronous.as_str())
     }
@@ -271,6 +281,7 @@ impl Musq {
     ///
     /// For existing databases, a change to this value does not take effect unless a
     /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
+    #[must_use]
     pub fn auto_vacuum(self, auto_vacuum: AutoVacuum) -> Self {
         self.pragma("auto_vacuum", auto_vacuum.as_str())
     }
@@ -282,11 +293,13 @@ impl Musq {
     /// For existing databases, a change to this value does not take effect unless a
     /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
     /// However, it cannot be changed in WAL mode.
+    #[must_use]
     pub fn page_size(self, page_size: u32) -> Self {
         self.pragma("page_size", &page_size.to_string())
     }
 
     /// Sets custom initial pragma for the database connection.
+    #[must_use]
     pub fn pragma(mut self, key: &str, value: &str) -> Self {
         self.pragmas.insert(key.into(), Some(value.into()));
         self
@@ -305,6 +318,7 @@ impl Musq {
     ///
     /// See [`sqlite3_open`](https://www.sqlite.org/capi3ref.html#sqlite3_open) (subheading
     /// "URI Filenames") for details.
+    #[must_use]
     pub fn immutable(mut self, immutable: bool) -> Self {
         self.immutable = immutable;
         self
@@ -326,6 +340,7 @@ impl Musq {
     /// [open an issue](https://github.com/launchbadge/sqlx/issues/new/choose) as this may indicate
     /// a concurrency bug in Musq. Please provide clear instructions for reproducing the issue,
     /// including a sample database schema if applicable.
+    #[must_use]
     pub fn serialized(mut self, serialized: bool) -> Self {
         self.serialized = serialized;
         self
@@ -334,6 +349,7 @@ impl Musq {
     /// Provide a callback to generate the name of the background worker thread.
     ///
     /// The value passed to the callback is an auto-incremented integer for use as the thread ID.
+    #[must_use]
     pub fn thread_name(
         mut self,
         generator: impl Fn(u64) -> String + Send + Sync + 'static,
@@ -348,6 +364,7 @@ impl Musq {
     /// Given that most commands sent to the worker thread involve waiting for a result,
     /// the command channel is unlikely to fill up unless a lot queries are executed in a short
     /// period but cancelled before their full resultsets are returned.
+    #[must_use]
     pub fn command_buffer_size(mut self, size: usize) -> Self {
         self.command_channel_size = size;
         self
@@ -357,12 +374,14 @@ impl Musq {
     ///
     /// If the calling task cannot keep up, backpressure will be applied to the worker thread
     /// in order to limit CPU and memory usage.
+    #[must_use]
     pub fn row_buffer_size(mut self, size: usize) -> Self {
         self.row_channel_size = size;
         self
     }
 
     /// Set the maximum size of the statement cache for each connection.
+    #[must_use]
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;
         self
@@ -372,6 +391,7 @@ impl Musq {
     ///
     /// The default value is empty, and sqlite will use the default VFS object depending on the
     /// operating system.
+    #[must_use]
     pub fn vfs(mut self, vfs_name: &str) -> Self {
         self.vfs = Some(vfs_name.into());
         self
@@ -396,6 +416,7 @@ impl Musq {
     /// Not enabled by default.
     ///
     /// See [the SQLite manual](https://www.sqlite.org/lang_analyze.html#automatically_running_analyze) for details.
+    #[must_use]
     pub fn optimize_on_close(
         mut self,
         enabled: bool,
@@ -418,6 +439,7 @@ impl Musq {
     /// The value recommended by SQLite is `400`. There is no default.
     ///
     /// See [the SQLite manual](https://www.sqlite.org/lang_analyze.html#approx) for details.
+    #[must_use]
     pub fn analysis_limit(mut self, limit: Option<u32>) -> Self {
         if let Some(limit) = limit {
             return self.pragma("analysis_limit", &limit.to_string());
@@ -426,11 +448,13 @@ impl Musq {
         self
     }
 
+    #[must_use]
     pub fn log_statements(mut self, level: LevelFilter) -> Self {
         self.log_settings.log_statements(level);
         self
     }
 
+    #[must_use]
     pub fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
         self.log_settings.log_slow_statements(level, duration);
         self
@@ -459,6 +483,7 @@ impl Musq {
     /// Be mindful of the connection limits for your database as well as other applications
     /// which may want to connect to the same database (or even multiple instances of the same
     /// application in high-availability deployments).
+    #[must_use]
     pub fn max_connections(mut self, max: u32) -> Self {
         self.pool_max_connections = max;
         self
@@ -475,6 +500,7 @@ impl Musq {
     ///   connection.
     /// * If a new connection needs to be opened, that will obviously require I/O, handshaking,
     ///   and initialization commands.
+    #[must_use]
     pub fn acquire_timeout(mut self, timeout: Duration) -> Self {
         self.pool_acquire_timeout = timeout;
         self
