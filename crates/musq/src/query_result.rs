@@ -1,5 +1,3 @@
-use std::iter::{Extend, IntoIterator};
-
 #[derive(Debug, Default)]
 pub struct QueryResult {
     pub(super) changes: u64,
@@ -13,14 +11,5 @@ impl QueryResult {
 
     pub fn last_insert_rowid(&self) -> i64 {
         self.last_insert_rowid
-    }
-}
-
-impl Extend<QueryResult> for QueryResult {
-    fn extend<T: IntoIterator<Item = QueryResult>>(&mut self, iter: T) {
-        for elem in iter {
-            self.changes += elem.changes;
-            self.last_insert_rowid = elem.last_insert_rowid;
-        }
     }
 }

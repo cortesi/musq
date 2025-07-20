@@ -236,7 +236,13 @@ impl Pool {
     where
         E: Execute + 'q,
     {
-        self.execute_many(query).try_collect().boxed()
+        self.execute_many(query)
+            .try_fold(QueryResult::default(), |mut acc, qr| async move {
+                acc.changes += qr.changes;
+                acc.last_insert_rowid = qr.last_insert_rowid;
+                Ok(acc)
+            })
+            .boxed()
     }
 
     pub fn fetch_all<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
