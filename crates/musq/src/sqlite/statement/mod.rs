@@ -21,7 +21,7 @@ pub(crate) use handle::StatementHandle;
 #[allow(clippy::rc_buffer)]
 pub struct Statement {
     pub(crate) sql: String,
-    pub columns: Arc<Vec<Column>>,
+    pub(crate) columns: Arc<Vec<Column>>,
 }
 
 impl Statement {
