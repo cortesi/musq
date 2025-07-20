@@ -232,6 +232,7 @@ pub(crate) fn bind_text64(
 }
 
 /// Wrapper around [`sqlite3_bind_int`].
+#[allow(dead_code)]
 pub(crate) fn bind_int(
     stmt: *mut sqlite3_stmt,
     index: i32,
@@ -247,6 +248,7 @@ pub(crate) fn bind_int(
 }
 
 /// Wrapper around [`sqlite3_bind_int64`].
+#[allow(dead_code)]
 pub(crate) fn bind_int64(
     stmt: *mut sqlite3_stmt,
     index: i32,

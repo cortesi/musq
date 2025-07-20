@@ -1,4 +1,8 @@
-use crate::{Error, Result, encode::Encode, sqlite::statement::StatementHandle};
+use crate::{
+    Error, Result,
+    encode::Encode,
+    sqlite::{Value, statement::StatementHandle},
+};
 use std::collections::HashMap;
 
 use atoi::atoi;
@@ -17,19 +21,9 @@ pub(crate) fn parse_question_param(name: &str) -> Result<usize> {
     Ok(num)
 }
 
-#[derive(Debug)]
-pub enum ArgumentValue {
-    Null,
-    Text(String),
-    Blob(Vec<u8>),
-    Double(f64),
-    Int(i32),
-    Int64(i64),
-}
-
 #[derive(Default, Debug)]
 pub struct Arguments {
-    pub(crate) values: Vec<ArgumentValue>,
+    pub(crate) values: Vec<Value>,
     /// Mapping from named parameters to their argument indices (1-based).
     pub(crate) named: HashMap<String, usize>,
 }
@@ -133,17 +127,20 @@ impl Arguments {
     }
 }
 
-impl ArgumentValue {
-    fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<()> {
-        use ArgumentValue::*;
-
+impl Value {
+    /// Bind this value to the parameter `i` of the given statement handle.
+    ///
+    /// The binding is performed according to the underlying variant without
+    /// altering the stored value.
+    pub(crate) fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<()> {
         match self {
-            Text(v) => handle.bind_text(i, v.as_str())?,
-            Blob(v) => handle.bind_blob(i, v.as_slice())?,
-            Int(v) => handle.bind_int(i, *v)?,
-            Int64(v) => handle.bind_int64(i, *v)?,
-            Double(v) => handle.bind_double(i, *v)?,
-            Null => handle.bind_null(i)?,
+            Value::Text { value, .. } => {
+                handle.bind_text(i, std::str::from_utf8(value).unwrap())?
+            }
+            Value::Blob { value, .. } => handle.bind_blob(i, value.as_slice())?,
+            Value::Integer { value, .. } => handle.bind_int64(i, *value)?,
+            Value::Double { value, .. } => handle.bind_double(i, *value)?,
+            Value::Null { .. } => handle.bind_null(i)?,
         }
 
         Ok(())

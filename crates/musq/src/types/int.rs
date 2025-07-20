@@ -2,12 +2,15 @@ use crate::{
     decode::Decode,
     encode::Encode,
     error::DecodeError,
-    sqlite::{ArgumentValue, SqliteDataType, Value},
+    sqlite::{SqliteDataType, Value},
 };
 
 impl Encode for i8 {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Int(self as i32)
+    fn encode(self) -> Value {
+        Value::Integer {
+            value: self as i64,
+            type_info: None,
+        }
     }
 }
 
@@ -20,8 +23,11 @@ impl<'r> Decode<'r> for i8 {
 }
 
 impl Encode for i16 {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Int(self as i32)
+    fn encode(self) -> Value {
+        Value::Integer {
+            value: self as i64,
+            type_info: None,
+        }
     }
 }
 
@@ -34,8 +40,11 @@ impl<'r> Decode<'r> for i16 {
 }
 
 impl Encode for i32 {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Int(self)
+    fn encode(self) -> Value {
+        Value::Integer {
+            value: self as i64,
+            type_info: None,
+        }
     }
 }
 
@@ -47,8 +56,11 @@ impl<'r> Decode<'r> for i32 {
 }
 
 impl Encode for i64 {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Int64(self)
+    fn encode(self) -> Value {
+        Value::Integer {
+            value: self,
+            type_info: None,
+        }
     }
 }
 

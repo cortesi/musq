@@ -2,12 +2,15 @@ use crate::{
     decode::Decode,
     encode::Encode,
     error::DecodeError,
-    sqlite::{ArgumentValue, SqliteDataType, Value},
+    sqlite::{SqliteDataType, Value},
 };
 
 impl Encode for bool {
-    fn encode(self) -> ArgumentValue {
-        ArgumentValue::Int(self.into())
+    fn encode(self) -> Value {
+        Value::Integer {
+            value: self.into(),
+            type_info: None,
+        }
     }
 }
 
