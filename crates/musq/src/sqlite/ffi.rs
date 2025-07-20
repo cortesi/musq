@@ -564,3 +564,63 @@ pub(crate) fn finalize(stmt: *mut sqlite3_stmt) -> std::result::Result<(), Sqlit
         Err(SqliteError::new(db))
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::ffi::CString;
+    use std::ptr;
+
+    #[test]
+    fn basic_open_prepare_step_reset_finalize() {
+        let filename = CString::new(":memory:").unwrap();
+        let mut handle = ptr::null_mut();
+        open_v2(
+            filename.as_ptr(),
+            &mut handle,
+            libsqlite3_sys::SQLITE_OPEN_READWRITE
+                | libsqlite3_sys::SQLITE_OPEN_CREATE
+                | libsqlite3_sys::SQLITE_OPEN_MEMORY,
+            ptr::null(),
+        )
+        .unwrap();
+        extended_result_codes(handle, 1).unwrap();
+        busy_timeout(handle, 1000).unwrap();
+
+        let create_sql = CString::new("CREATE TABLE t (val TEXT);").unwrap();
+        exec(handle, create_sql.as_ptr()).unwrap();
+
+        let insert_sql = CString::new("INSERT INTO t (val) VALUES ('foo');").unwrap();
+        let mut stmt = ptr::null_mut();
+        prepare_v3(
+            handle,
+            insert_sql.as_ptr(),
+            -1,
+            0,
+            &mut stmt,
+            ptr::null_mut(),
+        )
+        .unwrap();
+        assert_eq!(step(stmt).unwrap(), libsqlite3_sys::SQLITE_DONE);
+        reset(stmt).unwrap();
+        finalize(stmt).unwrap();
+
+        let count_sql = CString::new("SELECT COUNT(*) FROM t;").unwrap();
+        let mut stmt = ptr::null_mut();
+        prepare_v3(
+            handle,
+            count_sql.as_ptr(),
+            -1,
+            0,
+            &mut stmt,
+            ptr::null_mut(),
+        )
+        .unwrap();
+        assert_eq!(step(stmt).unwrap(), libsqlite3_sys::SQLITE_ROW);
+        let count = unsafe { libsqlite3_sys::sqlite3_column_int(stmt, 0) };
+        finalize(stmt).unwrap();
+        assert_eq!(count, 1);
+
+        close(handle).unwrap();
+    }
+}

@@ -288,10 +288,12 @@ impl SqliteError {
             || self.is_busy()
     }
 
+    #[allow(dead_code)]
     pub(crate) fn primary_code(&self) -> PrimaryErrCode {
         self.primary
     }
 
+    #[allow(dead_code)]
     pub(crate) fn extended_code(&self) -> ExtendedErrCode {
         self.extended
     }
