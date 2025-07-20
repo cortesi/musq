@@ -86,6 +86,7 @@ async fn it_fails_to_open() -> anyhow::Result<()> {
     let res = Connection::connect_with(&options).await;
 
     let err = res.unwrap_err();
+    println!("error: {err:?}");
     assert!(err.into_sqlite_error().is_some());
 
     Ok(())

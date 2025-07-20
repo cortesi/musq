@@ -114,17 +114,17 @@ impl EstablishParams {
         // <https://www.sqlite.org/c3ref/open.html>
         let open_res = ffi::open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null());
 
+        if let Err(e) = open_res {
+            // handle is already closed inside `open_v2`
+            return Err(Error::Sqlite(e));
+        }
+
         if handle.is_null() {
             // Failed to allocate memory
             return Err(Error::Io(io::Error::new(
                 io::ErrorKind::OutOfMemory,
                 "SQLite is unable to allocate memory to hold the sqlite3 object",
             )));
-        }
-
-        if let Err(e) = open_res {
-            // handle may already be closed inside `open_v2`
-            return Err(Error::Sqlite(e));
         }
 
         // SAFE: tested for NULL just above and open_v2 succeeded

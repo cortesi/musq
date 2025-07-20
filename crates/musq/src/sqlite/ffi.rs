@@ -37,12 +37,17 @@ pub(crate) fn open_v2(
                 message: "sqlite3_open_v2 failed".into(),
             })
         } else {
+            // capture the error before closing the handle
+            let err = SqliteError::new(db);
+
             // SAFETY: db is valid when rc != SQLITE_OK and not null
             unsafe {
                 ffi_sys::sqlite3_close(db);
+                // prevent dangling pointer in the caller
+                *handle = std::ptr::null_mut();
             }
 
-            Err(SqliteError::new(db))
+            Err(err)
         }
     }
 }
