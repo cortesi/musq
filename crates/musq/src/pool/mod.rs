@@ -5,16 +5,16 @@
 //! can be difficult to express in Rust.
 //!
 //! A connection pool is a standard technique that can manage opening and re-using connections.
-//! Normally it also enforces a maximum number of connections as these are an expensive resource
-//! on the database server.
+//! Normally it also enforces a maximum number of connections as these are an expensive resource,
+//! even when working with SQLite.
 use std::{fmt, future::Future, sync::Arc};
 
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
+use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
 
 use self::inner::PoolInner;
 use crate::{
-    Error, QueryResult, Result, Row, Statement, executor::Execute, transaction::Transaction,
+    executor::Execute, transaction::Transaction, Error, QueryResult, Result, Row, Statement,
 };
 use either::Either;
 
@@ -123,10 +123,10 @@ impl Pool {
     /// first close any idle connections currently waiting in the pool, then wait
     /// for all checked-out connections to be returned or closed.
     ///
-    /// Waiting for connections to be gracefully closed is optional, but will allow the database
-    /// server to clean up the resources sooner rather than later. This is especially important
-    /// for tests that create a new pool every time, otherwise you may see errors about connection
-    /// limits being exhausted even when running tests in a single thread.
+    /// Waiting for connections to be gracefully closed is optional, but will allow SQLite to
+    /// clean up resources sooner rather than later. This is especially important for tests that
+    /// create a new pool every time, otherwise you may see errors about connection limits being
+    /// exhausted even when running tests in a single thread.
     ///
     /// If the returned future is not awaited to completion, any remaining
     /// connections will be dropped when the last handle for the given pool
