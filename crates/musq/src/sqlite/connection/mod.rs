@@ -83,6 +83,12 @@ impl ConnectionState {
             }
         }
     }
+
+    pub(crate) fn close(&mut self) -> Result<()> {
+        self.statements.clear();
+        self.remove_progress_handler();
+        self.handle.close()
+    }
 }
 
 impl Debug for Connection {

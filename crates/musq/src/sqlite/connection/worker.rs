@@ -60,7 +60,7 @@ enum Command {
         tx: oneshot::Sender<()>,
     },
     Shutdown {
-        tx: oneshot::Sender<()>,
+        tx: oneshot::Sender<Result<()>>,
     },
 }
 
@@ -231,11 +231,10 @@ impl ConnectionWorker {
                             conn = shared.conn.blocking_lock();
                         }
                         Command::Shutdown { tx } => {
-                            // drop the connection references before sending confirmation
-                            // and ending the command loop
+                            let res = conn.close();
                             drop(conn);
                             drop(shared);
-                            let _ = tx.send(());
+                            let _ = tx.send(res);
                             return;
                         }
                     }
@@ -371,14 +370,14 @@ impl ConnectionWorker {
                 return Err(e);
             }
 
-            // wait for the response
-            rx.await.map_err(|_| Error::WorkerCrashed)?;
+            // wait for the response which contains any error from closing
+            let close_res = rx.await.map_err(|_| Error::WorkerCrashed)?;
 
             if let Some(handle) = join_handle {
                 handle.join().map_err(|_| Error::WorkerCrashed)?;
             }
 
-            Ok(())
+            close_res
         }
     }
 }

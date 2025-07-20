@@ -12,7 +12,10 @@ use crate::{
 /// Managed handle to the raw SQLite3 database handle.
 /// The database handle will be closed when this is dropped and no `ConnectionHandleRef`s exist.
 #[derive(Debug)]
-pub(crate) struct ConnectionHandle(NonNull<sqlite3>);
+pub(crate) struct ConnectionHandle {
+    ptr: NonNull<sqlite3>,
+    closed: bool,
+}
 
 // A SQLite3 handle is safe to send between threads, provided not more than
 // one is accessing it at the same time. This is upheld as long as [SQLITE_CONFIG_MULTITHREAD] is
@@ -27,20 +30,38 @@ unsafe impl Send for ConnectionHandle {}
 
 impl ConnectionHandle {
     pub(super) unsafe fn new(ptr: *mut sqlite3) -> Self {
-        Self(unsafe { NonNull::new_unchecked(ptr) })
+        Self {
+            ptr: unsafe { NonNull::new_unchecked(ptr) },
+            closed: false,
+        }
     }
 
     pub(crate) fn as_ptr(&self) -> *mut sqlite3 {
-        self.0.as_ptr()
+        self.ptr.as_ptr()
     }
 
     pub(crate) fn as_non_null_ptr(&self) -> NonNull<sqlite3> {
-        self.0
+        self.ptr
     }
 
     pub(crate) fn last_insert_rowid(&self) -> i64 {
         // SAFETY: we have exclusive access to the database handle
         ffi::last_insert_rowid(self.as_ptr())
+    }
+
+    pub(crate) fn close(&mut self) -> Result<()> {
+        if self.closed {
+            return Ok(());
+        }
+
+        // https://sqlite.org/c3ref/close.html
+        match ffi::close(self.ptr.as_ptr()) {
+            Ok(()) => {
+                self.closed = true;
+                Ok(())
+            }
+            Err(e) => Err(e.into()),
+        }
     }
 
     pub(crate) fn exec(&self, query: impl Into<String>) -> Result<()> {
@@ -68,11 +89,10 @@ impl ConnectionHandle {
 
 impl Drop for ConnectionHandle {
     fn drop(&mut self) {
-        // https://sqlite.org/c3ref/close.html
-        if let Err(e) = ffi::close(self.0.as_ptr()) {
+        if let Err(e) = self.close() {
             // this should *only* happen due to an internal bug in SQLite where we left
             // SQLite handles open
-            panic!("{}", e);
+            tracing::error!("sqlite3_close failed during drop: {}", e);
         }
     }
 }
