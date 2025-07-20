@@ -24,16 +24,16 @@ use crate::{
     Either, Error, QueryResult, Result, Row, Statement, executor::Execute, transaction::Transaction,
 };
 
-#[macro_use]
-pub mod maybe;
+
+mod connection_like;
 
 mod connection;
 mod inner;
 
 pub use self::connection::PoolConnection;
+pub use self::connection_like::ConnectionLike;
 
 #[doc(hidden)]
-pub use self::maybe::MaybePoolConnection;
 
 /// An asynchronous pool of database connections.
 ///
@@ -118,16 +118,14 @@ impl Pool {
     }
 
     /// Retrieves a connection and immediately begins a new transaction.
-    pub async fn begin(&self) -> Result<Transaction<'static>> {
-        Transaction::begin(MaybePoolConnection::PoolConnection(self.acquire().await?)).await
+    pub async fn begin(&self) -> Result<Transaction<PoolConnection>> {
+        Transaction::begin(self.acquire().await?).await
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.
-    pub async fn try_begin(&self) -> Result<Option<Transaction<'static>>> {
+    pub async fn try_begin(&self) -> Result<Option<Transaction<PoolConnection>>> {
         match self.try_acquire() {
-            Some(conn) => Transaction::begin(MaybePoolConnection::PoolConnection(conn))
-                .await
-                .map(Some),
+            Some(conn) => Transaction::begin(conn).await.map(Some),
 
             None => Ok(None),
         }
