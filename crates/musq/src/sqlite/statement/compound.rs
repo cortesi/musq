@@ -139,10 +139,10 @@ impl CompoundStatement {
         let mut first_err: Option<Error> = None;
 
         for handle in self.handles.iter_mut() {
-            if let Err(e) = handle.reset() {
-                if first_err.is_none() {
-                    first_err = Some(e.into());
-                }
+            if let Err(e) = handle.reset()
+                && first_err.is_none()
+            {
+                first_err = Some(e.into());
             }
             handle.clear_bindings();
         }

@@ -2,7 +2,7 @@ use crate::{sqlite::SqliteDataType, ustr::UStr};
 
 use std::fmt::Debug;
 
-#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone)]
 pub struct Column {
     pub(crate) name: UStr,
     pub(crate) ordinal: usize,

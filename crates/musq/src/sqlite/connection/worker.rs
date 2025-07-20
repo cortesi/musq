@@ -207,14 +207,12 @@ impl ConnectionWorker {
 
                             let res_ok = res.is_ok();
 
-                            if let Some(tx) = tx {
-                                if tx.blocking_send(res).is_err() && res_ok {
-                                    // The ROLLBACK was processed but not acknowledged. This means
-                                    // that the `Transaction` doesn't know it was rolled back and
-                                    // will try to rollback again on drop. We need to ignore that
-                                    // rollback.
-                                    ignore_next_start_rollback = true;
-                                }
+                            if let Some(tx) = tx && tx.blocking_send(res).is_err() && res_ok {
+                                // The ROLLBACK was processed but not acknowledged. This means
+                                // that the `Transaction` doesn't know it was rolled back and
+                                // will try to rollback again on drop. We need to ignore that
+                                // rollback.
+                                ignore_next_start_rollback = true;
                             }
                         }
                         Command::ClearCache { tx } => {
