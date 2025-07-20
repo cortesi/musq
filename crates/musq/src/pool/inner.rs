@@ -95,9 +95,9 @@ impl PoolInner {
         }
     }
 
-    /// Attempt to pull a permit from `self.semaphore` or steal one from the parent.
+    /// Attempt to acquire a permit from `self.semaphore`.
     ///
-    /// If we steal a permit from the parent but *don't* open a connection, it should be returned to the parent.
+    /// If the pool is closed while waiting, an error is returned.
     async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<tokio::sync::SemaphorePermit<'a>> {
         tokio::select! {
             permit = self.semaphore.acquire_many(1) => {
@@ -190,8 +190,8 @@ impl PoolInner {
                             // we can open a new connection
                             guard
                         } else {
-                            // This can happen for a child pool that's at its connection limit,
-                            // or if the pool was closed between `acquire_permit()` and
+                            // This can happen if the pool is already at its connection limit
+                            // or if it was closed between `acquire_permit()` and
                             // `try_increment_size()`.
                             tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
                             // If so, we're likely in the current-thread runtime if it's Tokio
@@ -263,8 +263,6 @@ impl DecrementSizeGuard {
     }
 
     /// Release the semaphore permit without decreasing the pool size.
-    ///
-    /// If the permit was stolen from the pool's parent, it will be returned to the child's semaphore.
     fn release_permit(self) {
         self.pool.semaphore.add_permits(1);
         self.cancel();
