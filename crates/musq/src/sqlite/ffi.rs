@@ -83,24 +83,21 @@ pub(crate) fn prepare_v3(
 pub(crate) fn progress_handler(
     db: *mut sqlite3,
     num_ops: i32,
-    callback: Option<unsafe extern "C" fn(*mut c_void) -> i32>,
+    callback: Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
     arg: *mut c_void,
 ) {
     unsafe {
-        let cb: Option<unsafe extern "C" fn(*mut c_void) -> c_int> = std::mem::transmute(callback);
-        ffi_sys::sqlite3_progress_handler(db, num_ops as c_int, cb, arg);
+        ffi_sys::sqlite3_progress_handler(db, num_ops as c_int, callback, arg);
     }
 }
 
 /// Wrapper around [`sqlite3_unlock_notify`].
 pub(crate) fn unlock_notify(
     db: *mut sqlite3,
-    callback: Option<unsafe extern "C" fn(*mut *mut c_void, i32)>,
+    callback: Option<unsafe extern "C" fn(*mut *mut c_void, c_int)>,
     arg: *mut c_void,
 ) -> Result<(), SqliteError> {
-    let cb: Option<unsafe extern "C" fn(*mut *mut c_void, c_int)> =
-        unsafe { std::mem::transmute(callback) };
-    let rc = unsafe { ffi_sys::sqlite3_unlock_notify(db, cb, arg) };
+    let rc = unsafe { ffi_sys::sqlite3_unlock_notify(db, callback, arg) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
