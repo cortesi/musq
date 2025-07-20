@@ -82,7 +82,7 @@ impl PoolConnection {
     ///
     /// This effectively runs the drop handler eagerly instead of spawning a task to do it.
     #[doc(hidden)]
-    pub fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
+    pub(crate) fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
         // float the connection in the pool before we move into the task
         // in case the returned `Future` isn't executed, like if it's spawned into a dying runtime
         // https://github.com/launchbadge/sqlx/issues/1396
