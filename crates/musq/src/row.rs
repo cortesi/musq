@@ -111,16 +111,6 @@ impl Row {
         }
     }
 
-    /// Returns the values for this row.
-    pub fn values(&self) -> &[Value] {
-        self.values.as_ref()
-    }
-
-    /// Returns the column definitions for this row.
-    pub fn columns(&self) -> &[Column] {
-        self.columns.as_ref()
-    }
-
     /// Returns `true` if this row has no columns.
     pub fn is_empty(&self) -> bool {
         self.columns.len() == 0
