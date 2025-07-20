@@ -8,7 +8,14 @@ use std::collections::HashMap;
 use atoi::atoi;
 
 pub(crate) fn parse_question_param(name: &str) -> Result<usize> {
-    let rest = name.trim_start_matches('?');
+    // The parameter must start with exactly one '?'
+    if !name.starts_with('?') || name.as_bytes().get(1) == Some(&b'?') {
+        return Err(Error::Protocol(format!(
+            "invalid numeric SQL parameter: {name}"
+        )));
+    }
+
+    let rest = &name[1..];
 
     // reject if the parameter is empty, contains non-digit characters,
     // or has a leading zero
@@ -160,7 +167,7 @@ impl Value {
 #[cfg(test)]
 mod tests {
     use super::parse_question_param;
-    use crate::{Connection, Error, Musq, query, query_as};
+    use crate::{Arguments, Connection, Error, Musq, query, query_as};
 
     #[test]
     fn test_parse_question_param_invalid() {
@@ -202,6 +209,44 @@ mod tests {
     fn test_parse_question_param_overflow() {
         let big = (usize::MAX as u128 + 1).to_string();
         let param = format!("?{big}");
+        let err = parse_question_param(&param).unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains(&param)),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_question_param_double_question() {
+        let err = parse_question_param("??1").unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("??1")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_question_param_colon_like() {
+        let err = parse_question_param(":1a").unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains(":1a")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_question_param_at_zero() {
+        let err = parse_question_param("@0").unwrap_err();
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("@0")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+    }
+
+    #[test]
+    fn test_parse_question_param_extremely_long() {
+        let digits = "1".repeat(4096);
+        let param = format!("?{digits}");
         let err = parse_question_param(&param).unwrap_err();
         match err {
             Error::Protocol(msg) => assert!(msg.contains(&param)),
@@ -256,6 +301,21 @@ mod tests {
             .await?;
 
         assert_eq!(v, 5);
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_repeated_named_parameters_add_and_named() -> anyhow::Result<()> {
+        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let stmt = conn.prepare("SELECT :a, :a, ?2").await?;
+        let mut args = Arguments::default();
+        args.add_named("a", 7_i32);
+        args.add(9_i32);
+
+        let (x, y, z): (i32, i32, i32) = stmt.query_as_with(args).fetch_one(&mut conn).await?;
+
+        assert_eq!((x, y, z), (7, 7, 9));
 
         Ok(())
     }
