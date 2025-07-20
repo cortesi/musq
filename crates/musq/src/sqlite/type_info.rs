@@ -52,16 +52,16 @@ impl SqliteDataType {
         }
     }
 
-    pub(crate) fn from_code(code: i32) -> Self {
+    pub(crate) fn from_code(code: i32) -> Option<Self> {
         match code {
-            SQLITE_INTEGER => SqliteDataType::Int,
-            SQLITE_FLOAT => SqliteDataType::Float,
-            SQLITE_BLOB => SqliteDataType::Blob,
-            SQLITE_NULL => SqliteDataType::Null,
-            SQLITE_TEXT => SqliteDataType::Text,
+            SQLITE_INTEGER => Some(SqliteDataType::Int),
+            SQLITE_FLOAT => Some(SqliteDataType::Float),
+            SQLITE_BLOB => Some(SqliteDataType::Blob),
+            SQLITE_NULL => Some(SqliteDataType::Null),
+            SQLITE_TEXT => Some(SqliteDataType::Text),
 
             // https://sqlite.org/c3ref/c_blob.html
-            _ => panic!("unknown data type code {code}"),
+            _ => None,
         }
     }
 }
@@ -73,7 +73,8 @@ impl FromStr for SqliteDataType {
     type Err = crate::Error;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let s = s.to_ascii_lowercase();
+        let original = s.to_owned();
+        let s = original.to_ascii_lowercase();
         Ok(match &*s {
             "int4" => SqliteDataType::Int,
             "int8" => SqliteDataType::Int64,
@@ -96,7 +97,9 @@ impl FromStr for SqliteDataType {
             }
 
             _ => {
-                panic!("unknown type");
+                return Err(crate::Error::TypeNotFound {
+                    type_name: original,
+                });
             }
         })
     }
@@ -134,4 +137,19 @@ fn test_data_type_from_str() -> Result<(), crate::Error> {
     assert_eq!(SqliteDataType::Date, "DATE".parse()?);
 
     Ok(())
+}
+
+#[test]
+fn test_unknown_type_from_str() {
+    match "UNKNOWN".parse::<SqliteDataType>() {
+        Err(crate::Error::TypeNotFound { type_name }) => {
+            assert_eq!(type_name, "UNKNOWN");
+        }
+        _ => panic!("expected TypeNotFound error"),
+    }
+}
+
+#[test]
+fn test_from_code_unknown() {
+    assert!(SqliteDataType::from_code(9999).is_none());
 }

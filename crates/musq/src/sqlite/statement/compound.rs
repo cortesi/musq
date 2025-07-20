@@ -2,25 +2,23 @@ use std::{
     cmp,
     collections::HashMap,
     os::raw::c_char,
-    ptr::{null, null_mut, NonNull},
+    ptr::{NonNull, null, null_mut},
     sync::Arc,
 };
 
 use crate::sqlite::ffi;
 use bytes::{Buf, Bytes};
-use libsqlite3_sys::{
-    sqlite3, sqlite3_stmt, SQLITE_PREPARE_PERSISTENT,
-};
+use libsqlite3_sys::{SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_stmt};
 
 use crate::{
+    Column, SqliteDataType,
     error::Error,
     sqlite::{
         connection::ConnectionHandle,
-        statement::{unlock_notify, StatementHandle},
         error::{ExtendedErrCode, PrimaryErrCode},
+        statement::{StatementHandle, unlock_notify},
     },
     ustr::UStr,
-    Column,
 };
 
 // A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
@@ -100,7 +98,8 @@ impl CompoundStatement {
                         let name: UStr = statement.column_name(i)?.to_owned().into();
                         let type_info = statement
                             .column_decltype(i)
-                            .unwrap_or_else(|| statement.column_type_info(i));
+                            .or_else(|| statement.column_type_info(i))
+                            .unwrap_or(SqliteDataType::Null);
 
                         columns.push(Column {
                             ordinal: i,

@@ -63,7 +63,7 @@ impl StatementHandle {
         Ok(unsafe { from_utf8_unchecked(CStr::from_ptr(name).to_bytes()) })
     }
 
-    pub(crate) fn column_type_info(&self, index: usize) -> SqliteDataType {
+    pub(crate) fn column_type_info(&self, index: usize) -> Option<SqliteDataType> {
         SqliteDataType::from_code(self.column_type(index))
     }
 
