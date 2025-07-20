@@ -83,7 +83,7 @@ fn decode_offset_datetime(value: &Value) -> Result<OffsetDateTime, DecodeError> 
     let dt = match value.type_info() {
         SqliteDataType::Text => decode_offset_datetime_from_text(value.text()?),
         SqliteDataType::Int | SqliteDataType::Int64 => Some(
-            OffsetDateTime::from_unix_timestamp(value.int64())
+            OffsetDateTime::from_unix_timestamp(value.int64()?)
                 .map_err(|e| DecodeError::Conversion(e.to_string()))?,
         ),
 
@@ -121,7 +121,7 @@ fn decode_datetime(value: &Value) -> Result<PrimitiveDateTime, DecodeError> {
     let dt = match value.type_info() {
         SqliteDataType::Text => decode_datetime_from_text(value.text()?),
         SqliteDataType::Int | SqliteDataType::Int64 => {
-            let parsed = OffsetDateTime::from_unix_timestamp(value.int64()).unwrap();
+            let parsed = OffsetDateTime::from_unix_timestamp(value.int64()?).unwrap();
             Some(PrimitiveDateTime::new(parsed.date(), parsed.time()))
         }
         _ => None,

@@ -19,21 +19,21 @@ pub(crate) enum ValueData {
 
 impl Value {
     pub fn int(&self) -> Result<i32, DecodeError> {
-        Ok(i32::try_from(self.int64())?)
+        Ok(i32::try_from(self.int64()?)?)
     }
 
-    pub fn int64(&self) -> i64 {
+    pub fn int64(&self) -> Result<i64, DecodeError> {
         match self.data {
-            ValueData::Integer(v) => v,
-            _ => 0,
+            ValueData::Integer(v) => Ok(v),
+            _ => Err(DecodeError::Conversion("not an integer".into())),
         }
     }
 
-    pub fn double(&self) -> f64 {
+    pub fn double(&self) -> Result<f64, DecodeError> {
         match self.data {
-            ValueData::Double(v) => v,
-            ValueData::Integer(v) => v as f64,
-            _ => 0.0,
+            ValueData::Double(v) => Ok(v),
+            ValueData::Integer(v) => Ok(v as f64),
+            _ => Err(DecodeError::Conversion("not a float".into())),
         }
     }
 
