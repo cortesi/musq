@@ -172,7 +172,7 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
                     if e.extended == ExtendedErrCode::LockedSharedCache
                         || e.primary == PrimaryErrCode::Busy =>
                 {
-                    unlock_notify::wait(conn, None, unlock_notify::DEFAULT_MAX_RETRIES)?;
+                    unlock_notify::wait(conn, None)?;
                 }
                 Err(e) => return Err(e.into()),
             }
