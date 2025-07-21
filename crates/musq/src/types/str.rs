@@ -36,9 +36,15 @@ impl<'r> Decode<'r> for String {
 
 impl Encode for Arc<String> {
     fn encode(self) -> Value {
-        Value::Text {
-            value: (*self).clone().into_bytes(),
-            type_info: None,
+        match Arc::try_unwrap(self) {
+            Ok(s) => Value::Text {
+                value: s.into_bytes(),
+                type_info: None,
+            },
+            Err(arc) => Value::Text {
+                value: arc.as_bytes().to_vec(),
+                type_info: None,
+            },
         }
     }
 }
