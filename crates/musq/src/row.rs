@@ -133,6 +133,7 @@ impl Row {
 
         T::decode(value).map_err(|source| Error::ColumnDecode {
             index: format!("{index:?}"),
+            value: value.clone(),
             source,
         })
     }
