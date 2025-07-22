@@ -1,14 +1,21 @@
-use crate::{Value, decode::Decode, encode::Encode, error::{DecodeError, EncodeError}, sqlite::SqliteDataType};
+use crate::{
+    Value,
+    decode::Decode,
+    encode::Encode,
+    error::{DecodeError, EncodeError},
+    sqlite::SqliteDataType,
+};
 use time::format_description::{FormatItem, well_known::Rfc3339};
 use time::macros::format_description as fd;
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Encode for OffsetDateTime {
     fn encode(self) -> Result<Value, EncodeError> {
-        let formatted = self.format(&Rfc3339)
-            .map_err(|e| EncodeError::Conversion(format!("failed to format OffsetDateTime: {}", e)))?;
+        let formatted = self.format(&Rfc3339).map_err(|e| {
+            EncodeError::Conversion(format!("failed to format OffsetDateTime: {e}"))
+        })?;
         Ok(Value::Text {
-            value: formatted.into_bytes(),
+            value: formatted,
             type_info: None,
         })
     }
@@ -17,10 +24,11 @@ impl Encode for OffsetDateTime {
 impl Encode for PrimitiveDateTime {
     fn encode(self) -> Result<Value, EncodeError> {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
-        let formatted = self.format(&format)
-            .map_err(|e| EncodeError::Conversion(format!("failed to format PrimitiveDateTime: {}", e)))?;
+        let formatted = self.format(&format).map_err(|e| {
+            EncodeError::Conversion(format!("failed to format PrimitiveDateTime: {e}"))
+        })?;
         Ok(Value::Text {
-            value: formatted.into_bytes(),
+            value: formatted,
             type_info: None,
         })
     }
@@ -29,10 +37,11 @@ impl Encode for PrimitiveDateTime {
 impl Encode for Date {
     fn encode(self) -> Result<Value, EncodeError> {
         let format = fd!("[year]-[month]-[day]");
-        let formatted = self.format(&format)
-            .map_err(|e| EncodeError::Conversion(format!("failed to format Date: {}", e)))?;
+        let formatted = self
+            .format(&format)
+            .map_err(|e| EncodeError::Conversion(format!("failed to format Date: {e}")))?;
         Ok(Value::Text {
-            value: formatted.into_bytes(),
+            value: formatted,
             type_info: None,
         })
     }
@@ -41,10 +50,11 @@ impl Encode for Date {
 impl Encode for Time {
     fn encode(self) -> Result<Value, EncodeError> {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
-        let formatted = self.format(&format)
-            .map_err(|e| EncodeError::Conversion(format!("failed to format Time: {}", e)))?;
+        let formatted = self
+            .format(&format)
+            .map_err(|e| EncodeError::Conversion(format!("failed to format Time: {e}")))?;
         Ok(Value::Text {
-            value: formatted.into_bytes(),
+            value: formatted,
             type_info: None,
         })
     }

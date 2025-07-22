@@ -73,7 +73,7 @@ impl Row {
                         unsafe { std::slice::from_raw_parts(ptr, len) }
                     };
                     Value::Text {
-                        value: slice.to_vec(),
+                        value: String::from_utf8_lossy(slice).into_owned(),
                         type_info: if columns[i].type_info == SqliteDataType::Null {
                             None
                         } else {

@@ -26,7 +26,7 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
                     .map_err(|e| musq::error::EncodeError::Conversion(
                         format!("failed to encode value as JSON: {}", e)
                     ))?;
-                Ok(musq::Value::Text { value: v.into_bytes(), type_info: None })
+                Ok(musq::Value::Text { value: v, type_info: None })
             }
         }
 

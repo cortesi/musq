@@ -5,7 +5,7 @@ use crate::{SqliteDataType, Value, decode::Decode, encode::Encode, error::{Decod
 impl Encode for &str {
     fn encode(self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self.as_bytes().to_vec(),
+            value: self.to_owned(),
             type_info: None,
         })
     }
@@ -21,7 +21,7 @@ impl<'r> Decode<'r> for &'r str {
 impl Encode for String {
     fn encode(self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self.into_bytes(),
+            value: self,
             type_info: None,
         })
     }
@@ -38,11 +38,11 @@ impl Encode for Arc<String> {
     fn encode(self) -> Result<Value, EncodeError> {
         Ok(match Arc::try_unwrap(self) {
             Ok(s) => Value::Text {
-                value: s.into_bytes(),
+                value: s,
                 type_info: None,
             },
             Err(arc) => Value::Text {
-                value: arc.as_bytes().to_vec(),
+                value: arc.as_ref().clone(),
                 type_info: None,
             },
         })

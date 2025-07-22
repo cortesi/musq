@@ -8,9 +8,10 @@ struct Foo {
 }
 
 impl encode::Encode for Foo {
-    fn encode(self) -> Value {
-        let v = serde_json::to_string(&self).expect("failed to encode");
-        Value::Text { value: v.into_bytes(), type_info: None }
+    fn encode(self) -> Result<Value, EncodeError> {
+        let v = serde_json::to_string(&self)
+            .map_err(|e| EncodeError::Conversion(format!("failed to encode: {}", e)))?;
+        Ok(Value::Text { value: v, type_info: None })
     }
 }
 impl<'r> decode::Decode<'r> for Foo {

@@ -1,5 +1,3 @@
-use std::str::from_utf8;
-
 use crate::{error::DecodeError, sqlite::type_info::SqliteDataType};
 
 /// Owned representation of a SQLite value.
@@ -39,8 +37,8 @@ pub enum Value {
     },
     /// A UTF-8 text value.
     Text {
-        /// Bytes making up the textual value.
-        value: Vec<u8>,
+        /// String value.
+        value: String,
         /// Original declared type, if known.
         type_info: Option<SqliteDataType>,
     },
@@ -86,20 +84,18 @@ impl Value {
     /// For other variants an empty slice is returned.
     pub fn blob(&self) -> &[u8] {
         match self {
-            Value::Blob { value, .. } | Value::Text { value, .. } => value.as_slice(),
+            Value::Blob { value, .. } => value.as_slice(),
+            Value::Text { value, .. } => value.as_bytes(),
             _ => &[],
         }
     }
 
     /// Interprets the value as UTF‑8 encoded text and returns it.
     ///
-    /// Returns an error if the value is not [`Value::Text`] or contains invalid
-    /// UTF‑8 bytes.
+    /// Returns an error if the value is not [`Value::Text`].
     pub fn text(&self) -> std::result::Result<&str, DecodeError> {
         match self {
-            Value::Text { value, .. } => {
-                from_utf8(value).map_err(|e| DecodeError::Conversion(e.to_string()))
-            }
+            Value::Text { value, .. } => Ok(value.as_str()),
             _ => Err(DecodeError::Conversion("not text".into())),
         }
     }

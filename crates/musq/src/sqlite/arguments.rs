@@ -154,7 +154,7 @@ impl Value {
     pub(crate) fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<()> {
         match self {
             Value::Text { value, .. } => {
-                handle.bind_text(i, std::str::from_utf8(value).unwrap())?
+                handle.bind_text(i, value.as_str())?
             }
             Value::Blob { value, .. } => handle.bind_blob(i, value.as_slice())?,
             Value::Integer { value, .. } => handle.bind_int64(i, *value)?,
