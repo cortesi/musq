@@ -116,7 +116,7 @@ impl EstablishParams {
 
         if let Err(e) = open_res {
             // handle is already closed inside `open_v2`
-            return Err(Error::Sqlite(e));
+            return Err(e.into());
         }
 
         if handle.is_null() {
@@ -133,7 +133,7 @@ impl EstablishParams {
         // Enable extended result codes
         // https://www.sqlite.org/c3ref/extended_result_codes.html
         // On failure return the sqlite error for visibility
-        ffi::extended_result_codes(handle.as_ptr(), 1).map_err(Error::Sqlite)?;
+        ffi::extended_result_codes(handle.as_ptr(), 1).map_err(Error::from)?;
 
         // Configure a busy timeout
         // This causes SQLite to automatically sleep in increasing intervals until the time
@@ -146,7 +146,7 @@ impl EstablishParams {
             Err(_) => i32::MAX,
         };
 
-        ffi::busy_timeout(handle.as_ptr(), ms).map_err(Error::Sqlite)?;
+        ffi::busy_timeout(handle.as_ptr(), ms).map_err(Error::from)?;
 
         Ok(ConnectionState {
             handle,

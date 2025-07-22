@@ -6,6 +6,7 @@ use std::sync::PoisonError;
 
 use tokio::sync::TryLockError;
 
+pub use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode};
 use crate::{SqliteDataType, sqlite, sqlite::error::SqliteError};
 
 /// A specialized `Result` type for Musq.
@@ -48,8 +49,14 @@ impl From<String> for EncodeError {
 #[non_exhaustive]
 pub enum Error {
     /// Error returned from the database.
-    #[error("error returned from database: {0}")]
-    Sqlite(#[source] sqlite::error::SqliteError),
+    #[error(
+        "error returned from database (primary: {primary:?}, extended: {extended:?}): {message}"
+    )]
+    Sqlite {
+        primary: PrimaryErrCode,
+        extended: ExtendedErrCode,
+        message: String,
+    },
 
     /// Error communicating with the database backend.
     #[error("error communicating with database: {0}")]
@@ -130,7 +137,15 @@ pub enum Error {
 impl Error {
     pub fn into_sqlite_error(self) -> Option<sqlite::error::SqliteError> {
         match self {
-            Error::Sqlite(err) => Some(err),
+            Error::Sqlite {
+                primary,
+                extended,
+                message,
+            } => Some(sqlite::error::SqliteError {
+                primary,
+                extended,
+                message,
+            }),
             _ => None,
         }
     }
@@ -138,7 +153,11 @@ impl Error {
 
 impl From<SqliteError> for Error {
     fn from(error: SqliteError) -> Self {
-        Error::Sqlite(error)
+        Error::Sqlite {
+            primary: error.primary,
+            extended: error.extended,
+            message: error.message,
+        }
     }
 }
 

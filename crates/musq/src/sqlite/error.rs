@@ -12,7 +12,7 @@ use libsqlite3_sys::{self, sqlite3};
 /// matches as new variants may be introduced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub(crate) enum PrimaryErrCode {
+pub enum PrimaryErrCode {
     Error,
     Internal,
     Perm,
@@ -86,7 +86,7 @@ impl PrimaryErrCode {
 /// matches as new variants may be introduced.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[non_exhaustive]
-pub(crate) enum ExtendedErrCode {
+pub enum ExtendedErrCode {
     ErrorMissingCollseq,
     ErrorRetry,
     ErrorSnapshot,
@@ -262,11 +262,11 @@ impl ExtendedErrCode {
 }
 
 /// An error returned from Sqlite
-#[derive(Debug, thiserror::Error)]
+#[derive(Debug, Clone, thiserror::Error)]
 #[error("(code: {:?}) {message}", .extended)]
 pub struct SqliteError {
-    pub(crate) primary: PrimaryErrCode,
-    pub(crate) extended: ExtendedErrCode,
+    pub primary: PrimaryErrCode,
+    pub extended: ExtendedErrCode,
     pub message: String,
 }
 
