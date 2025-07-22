@@ -50,7 +50,8 @@ impl Arguments {
     where
         T: Encode,
     {
-        self.values.push(value.encode().map_err(crate::Error::Encode)?);
+        self.values
+            .push(value.encode().map_err(crate::Error::Encode)?);
         Ok(())
     }
 
@@ -64,7 +65,8 @@ impl Arguments {
         if let Some(&index) = self.named.get(name) {
             self.values[index - 1] = value.encode().map_err(crate::Error::Encode)?;
         } else {
-            self.values.push(value.encode().map_err(crate::Error::Encode)?);
+            self.values
+                .push(value.encode().map_err(crate::Error::Encode)?);
             let idx = self.values.len();
             self.named.insert(name.to_string(), idx);
         }
@@ -153,9 +155,7 @@ impl Value {
     /// altering the stored value.
     pub(crate) fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<()> {
         match self {
-            Value::Text { value, .. } => {
-                handle.bind_text(i, value.as_str())?
-            }
+            Value::Text { value, .. } => handle.bind_text(i, value.as_str())?,
             Value::Blob { value, .. } => handle.bind_blob(i, value.as_slice())?,
             Value::Integer { value, .. } => handle.bind_int64(i, *value)?,
             Value::Double { value, .. } => handle.bind_double(i, *value)?,

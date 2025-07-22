@@ -56,6 +56,11 @@ mod time_tests {
         "'2013-09-17 23:59-01:00'" == datetime!(2013 - 9 - 17 23:59 -1),
         "'2016-03-07T22:36:55.135+03:30'" == datetime!(2016 - 3 - 7 22:36:55.135 +3:30),
         "'2017-04-11T14:35+02:00'" == datetime!(2017 - 4 - 11 14:35 +2),
+        // Test the specific problematic RFC3339 format that was failing
+        "'2025-07-22T06:20:47.847729Z'" == datetime!(2025 - 7 - 22 6:20:47.847729 UTC),
+        // Test other microsecond precision formats
+        "'2025-01-15T12:30:45.123456Z'" == datetime!(2025 - 1 - 15 12:30:45.123456 UTC),
+        "'2024-12-31T23:59:59.999999Z'" == datetime!(2024 - 12 - 31 23:59:59.999999 UTC),
     ));
 
     test_type!(time_primitive_date_time<PrimitiveDateTime>(

@@ -548,7 +548,6 @@ async fn it_handles_numeric_affinity() -> anyhow::Result<()> {
         .prepare("SELECT price FROM products WHERE product_no = ?")
         .await?;
 
-
     let row = stmt.query().bind(1_i32)?.fetch_one(&mut conn).await?;
     let price: f64 = row.get_value_idx(0)?;
     assert_eq!(price, 9.99_f64);
@@ -607,7 +606,8 @@ async fn it_can_transact() {
     macro_rules! add {
         ($tx: expr, $v:expr) => {
             query("INSERT INTO foo (value) VALUES (?)")
-                .bind($v).unwrap()
+                .bind($v)
+                .unwrap()
                 .execute(&mut *$tx)
                 .await
                 .unwrap();
@@ -617,7 +617,8 @@ async fn it_can_transact() {
     macro_rules! check {
         ($tx: expr, $v:expr) => {
             query_as::<(i64,)>("SELECT count(*) FROM foo WHERE value = ?")
-                .bind($v).unwrap()
+                .bind($v)
+                .unwrap()
                 .fetch_one(&mut *$tx)
                 .await
                 .unwrap()
@@ -673,8 +674,10 @@ async fn concurrent_resets_dont_segfault() {
         for i in 0..1000 {
             pool.execute(
                 query("INSERT INTO stuff (name, value) VALUES (?, ?)")
-                    .bind(i).unwrap()
-                    .bind(0).unwrap(),
+                    .bind(i)
+                    .unwrap()
+                    .bind(0)
+                    .unwrap(),
             )
             .await
             .unwrap();
@@ -786,7 +789,8 @@ async fn concurrent_read_and_write() {
         async move {
             for i in 0u32..n {
                 query("SELECT v FROM kv")
-                    .bind(i).unwrap()
+                    .bind(i)
+                    .unwrap()
                     .fetch_all(&mut conn)
                     .await
                     .unwrap();
@@ -800,8 +804,10 @@ async fn concurrent_read_and_write() {
             for i in 0u32..n {
                 pool.execute(
                     query("INSERT INTO kv (k, v) VALUES (?, ?)")
-                        .bind(i).unwrap()
-                        .bind(i * i).unwrap(),
+                        .bind(i)
+                        .unwrap()
+                        .bind(i * i)
+                        .unwrap(),
                 )
                 .await
                 .unwrap();

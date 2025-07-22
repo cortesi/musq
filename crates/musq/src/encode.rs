@@ -5,7 +5,6 @@ use crate::{Value, error::EncodeError};
 pub trait Encode {
     /// Writes the value of `self` into `buf` in the expected format for the database, consuming the value. Encoders are
     /// implemented for reference counted types where a shift in ownership is not wanted.
-    #[must_use]
     fn encode(self) -> Result<Value, EncodeError>
     where
         Self: Sized;

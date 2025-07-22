@@ -1,6 +1,11 @@
 use std::sync::Arc;
 
-use crate::{SqliteDataType, Value, decode::Decode, encode::Encode, error::{DecodeError, EncodeError}};
+use crate::{
+    SqliteDataType, Value,
+    decode::Decode,
+    encode::Encode,
+    error::{DecodeError, EncodeError},
+};
 
 impl Encode for &[u8] {
     fn encode(self) -> Result<Value, EncodeError> {

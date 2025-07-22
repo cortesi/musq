@@ -1,5 +1,10 @@
 /// Conversions between `bstr` types and SQL types.
-use crate::{SqliteDataType, Value, decode::Decode, encode::Encode, error::{DecodeError, EncodeError}};
+use crate::{
+    SqliteDataType, Value,
+    decode::Decode,
+    encode::Encode,
+    error::{DecodeError, EncodeError},
+};
 
 #[doc(no_inline)]
 pub use bstr::{BStr, BString, ByteSlice};

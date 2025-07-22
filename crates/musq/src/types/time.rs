@@ -102,10 +102,15 @@ impl<'r> Decode<'r> for Time {
 fn decode_offset_datetime(value: &Value) -> std::result::Result<OffsetDateTime, DecodeError> {
     compatible!(
         value,
-        SqliteDataType::Text | SqliteDataType::Int64 | SqliteDataType::Int
+        SqliteDataType::Text
+            | SqliteDataType::Int64
+            | SqliteDataType::Int
+            | SqliteDataType::Datetime
     );
     let dt = match value.type_info() {
-        SqliteDataType::Text => decode_offset_datetime_from_text(value.text()?),
+        SqliteDataType::Text | SqliteDataType::Datetime => {
+            decode_offset_datetime_from_text(value.text()?)
+        }
         SqliteDataType::Int | SqliteDataType::Int64 => Some(
             OffsetDateTime::from_unix_timestamp(value.int64()?)
                 .map_err(|e| DecodeError::Conversion(e.to_string()))?,
@@ -140,10 +145,13 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
 fn decode_datetime(value: &Value) -> std::result::Result<PrimitiveDateTime, DecodeError> {
     compatible!(
         value,
-        SqliteDataType::Text | SqliteDataType::Int64 | SqliteDataType::Int
+        SqliteDataType::Text
+            | SqliteDataType::Int64
+            | SqliteDataType::Int
+            | SqliteDataType::Datetime
     );
     let dt = match value.type_info() {
-        SqliteDataType::Text => decode_datetime_from_text(value.text()?),
+        SqliteDataType::Text | SqliteDataType::Datetime => decode_datetime_from_text(value.text()?),
         SqliteDataType::Int | SqliteDataType::Int64 => {
             let parsed = OffsetDateTime::from_unix_timestamp(value.int64()?)
                 .map_err(|e| DecodeError::Conversion(e.to_string()))?;
@@ -175,6 +183,247 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
     }
 
     None
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::{Value, sqlite::SqliteDataType};
+    use time::macros::{date, datetime, time};
+
+    #[test]
+    fn test_offset_datetime_encode_decode() {
+        let dt = datetime!(2023-12-25 15:30:45.123456789 UTC);
+        let encoded = dt.encode().unwrap();
+        let decoded: OffsetDateTime = Decode::decode(&encoded).unwrap();
+        assert_eq!(dt, decoded);
+    }
+
+    #[test]
+    fn test_offset_datetime_encode_decode_with_offset() {
+        let dt = datetime!(2023-12-25 15:30:45.123456789 +05:30);
+        let encoded = dt.encode().unwrap();
+        let decoded: OffsetDateTime = Decode::decode(&encoded).unwrap();
+        assert_eq!(dt, decoded);
+    }
+
+    #[test]
+    fn test_offset_datetime_decode_from_unix_timestamp() {
+        let timestamp = 1703516445i64; // 2023-12-25 15:00:45 UTC
+        let value = Value::Integer {
+            value: timestamp,
+            type_info: Some(SqliteDataType::Int64),
+        };
+        let decoded: OffsetDateTime = Decode::decode(&value).unwrap();
+        let expected = OffsetDateTime::from_unix_timestamp(timestamp).unwrap();
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn test_offset_datetime_decode_various_text_formats() {
+        // Test RFC3339 format
+        let value = Value::Text {
+            value: "2023-12-25T15:30:45.123Z".to_string(),
+            type_info: Some(SqliteDataType::Text),
+        };
+        let decoded: OffsetDateTime = Decode::decode(&value).unwrap();
+        let expected = datetime!(2023-12-25 15:30:45.123 UTC);
+        assert_eq!(decoded, expected);
+
+        // Test with timezone offset
+        let value = Value::Text {
+            value: "2023-12-25T15:30:45.123+05:30".to_string(),
+            type_info: Some(SqliteDataType::Text),
+        };
+        let decoded: OffsetDateTime = Decode::decode(&value).unwrap();
+        let expected = datetime!(2023-12-25 15:30:45.123 +05:30);
+        assert_eq!(decoded, expected);
+
+        // Test space-separated format
+        let value = Value::Text {
+            value: "2023-12-25 15:30:45.123".to_string(),
+            type_info: Some(SqliteDataType::Text),
+        };
+        let decoded: OffsetDateTime = Decode::decode(&value).unwrap();
+        let expected = datetime!(2023-12-25 15:30:45.123 UTC);
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn test_offset_datetime_decode_edge_cases() {
+        // Test format with space and offset (this might reveal the bug)
+        let value = Value::Text {
+            value: "2023-12-25 15:30:45+05:30".to_string(),
+            type_info: Some(SqliteDataType::Text),
+        };
+        let result: Result<OffsetDateTime, _> = Decode::decode(&value);
+        // This should work but might fail due to the bug
+        match result {
+            Ok(dt) => {
+                let expected = datetime!(2023-12-25 15:30:45 +05:30);
+                assert_eq!(dt, expected);
+            }
+            Err(e) => {
+                println!("Failed to parse '2023-12-25 15:30:45+05:30': {}", e);
+                // This reveals the bug
+            }
+        }
+    }
+
+    #[test]
+    fn test_offset_datetime_format_bug_fixed() {
+        // Test that the bug fix works correctly
+
+        // This should now FAIL to parse (which is correct)
+        let value = Value::Text {
+            value: "2023-12-2515:30:45+05:30".to_string(), // No separator between date and time
+            type_info: Some(SqliteDataType::Text),
+        };
+        let result: Result<OffsetDateTime, _> = Decode::decode(&value);
+
+        match result {
+            Ok(_) => panic!("Bug still exists: invalid format was parsed"),
+            Err(_) => println!("✓ Bug fixed: invalid format correctly rejected"),
+        }
+
+        // These should still work correctly
+        let valid_formats = vec![
+            "2023-12-25 15:30:45+05:30", // Space separator
+            "2023-12-25T15:30:45+05:30", // T separator
+        ];
+
+        for format_str in valid_formats {
+            let value = Value::Text {
+                value: format_str.to_string(),
+                type_info: Some(SqliteDataType::Text),
+            };
+            let result: Result<OffsetDateTime, _> = Decode::decode(&value);
+
+            match result {
+                Ok(_) => println!("✓ Valid format correctly parsed: {}", format_str),
+                Err(e) => panic!("Valid format failed to parse {}: {}", format_str, e),
+            }
+        }
+    }
+
+    #[test]
+    fn test_specific_rfc3339_failure() {
+        // Test the exact failing format from the error message
+        let problematic_format = "2025-07-22T06:20:47.847729Z";
+
+        let value = Value::Text {
+            value: problematic_format.to_string(),
+            type_info: Some(SqliteDataType::Datetime),
+        };
+        let result: Result<OffsetDateTime, _> = Decode::decode(&value);
+
+        match result {
+            Ok(dt) => {
+                // Verify it parsed correctly
+                assert_eq!(dt.year(), 2025);
+                assert_eq!(dt.month() as u8, 7);
+                assert_eq!(dt.day(), 22);
+                assert_eq!(dt.hour(), 6);
+                assert_eq!(dt.minute(), 20);
+                assert_eq!(dt.second(), 47);
+                assert_eq!(dt.offset(), time::UtcOffset::UTC);
+            }
+            Err(e) => {
+                panic!(
+                    "Failed to parse valid RFC3339 format '{}': {}",
+                    problematic_format, e
+                );
+            }
+        }
+
+        // Test similar formats that might also fail
+        let similar_formats = vec![
+            "2025-07-22T06:20:47Z",        // No microseconds
+            "2025-07-22T06:20:47.123456Z", // 6 digit microseconds
+            "2025-07-22T06:20:47.1Z",      // Single digit subseconds
+            "2025-07-22T06:20:47.123Z",    // 3 digit subseconds
+        ];
+
+        for format_str in similar_formats {
+            let value = Value::Text {
+                value: format_str.to_string(),
+                type_info: Some(SqliteDataType::Datetime),
+            };
+            let result: Result<OffsetDateTime, _> = Decode::decode(&value);
+
+            match result {
+                Ok(_) => {} // Success is expected
+                Err(e) => panic!("Failed to parse valid format '{}': {}", format_str, e),
+            }
+        }
+    }
+
+    #[test]
+    fn test_primitive_datetime_encode_decode() {
+        let dt = datetime!(2023-12-25 15:30:45.123456789);
+        let encoded = dt.encode().unwrap();
+        let decoded: PrimitiveDateTime = Decode::decode(&encoded).unwrap();
+        assert_eq!(dt, decoded);
+    }
+
+    #[test]
+    fn test_primitive_datetime_decode_from_unix_timestamp() {
+        let timestamp = 1703516445i64;
+        let value = Value::Integer {
+            value: timestamp,
+            type_info: Some(SqliteDataType::Int64),
+        };
+        let decoded: PrimitiveDateTime = Decode::decode(&value).unwrap();
+        let expected_dt = OffsetDateTime::from_unix_timestamp(timestamp).unwrap();
+        let expected = PrimitiveDateTime::new(expected_dt.date(), expected_dt.time());
+        assert_eq!(decoded, expected);
+    }
+
+    #[test]
+    fn test_date_encode_decode() {
+        let d = date!(2023 - 12 - 25);
+        let encoded = d.encode().unwrap();
+        let decoded: Date = Decode::decode(&encoded).unwrap();
+        assert_eq!(d, decoded);
+    }
+
+    #[test]
+    fn test_time_encode_decode() {
+        let t = time!(15:30:45.123456789);
+        let encoded = t.encode().unwrap();
+        let decoded: Time = Decode::decode(&encoded).unwrap();
+        assert_eq!(t, decoded);
+    }
+
+    #[test]
+    fn test_time_decode_various_formats() {
+        // Test with subseconds
+        let value = Value::Text {
+            value: "15:30:45.123".to_string(),
+            type_info: Some(SqliteDataType::Text),
+        };
+        let decoded: Time = Decode::decode(&value).unwrap();
+        let expected = time!(15:30:45.123);
+        assert_eq!(decoded, expected);
+
+        // Test without subseconds
+        let value = Value::Text {
+            value: "15:30:45".to_string(),
+            type_info: Some(SqliteDataType::Text),
+        };
+        let decoded: Time = Decode::decode(&value).unwrap();
+        let expected = time!(15:30:45);
+        assert_eq!(decoded, expected);
+
+        // Test without seconds
+        let value = Value::Text {
+            value: "15:30".to_string(),
+            type_info: Some(SqliteDataType::Text),
+        };
+        let decoded: Time = Decode::decode(&value).unwrap();
+        let expected = time!(15:30);
+        assert_eq!(decoded, expected);
+    }
 }
 
 mod formats {
@@ -248,8 +497,7 @@ mod formats {
             MONTH,
             Literal(b"-"),
             DAY,
-            Optional(&Literal(b" ")),
-            Optional(&Literal(b"T")),
+            First(&[Literal(b" "), Literal(b"T")]),
             HOUR,
             Literal(b":"),
             MINUTE,
