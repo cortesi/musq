@@ -75,7 +75,7 @@ impl Value {
         match self {
             Value::Double { value, .. } => Ok(*value),
             Value::Integer { value, .. } => Ok(*value as f64),
-            _ => Err(DecodeError::Conversion("not a float".into())),
+            _ => Err(DecodeError::Conversion("not a double".into())),
         }
     }
 

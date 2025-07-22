@@ -83,9 +83,12 @@ pub enum Error {
     UnknownColumnType(i32),
 
     /// Error occurred while decoding a value from a specific column.
-    #[error("error occurred while decoding column {index} (value: {value:?}): {source}")]
+    #[error(
+        "error occurred while decoding column {column_name} at index {index} (value: {value:?}): {source}"
+    )]
     ColumnDecode {
         index: String,
+        column_name: String,
         value: crate::sqlite::Value,
 
         #[source]

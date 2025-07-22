@@ -131,10 +131,20 @@ impl Row {
             });
         };
 
-        T::decode(value).map_err(|source| Error::ColumnDecode {
-            index: format!("{index:?}"),
-            value: value.clone(),
-            source,
+        T::decode(value).map_err(|source| {
+            let column_name = self
+                .column_names
+                .iter()
+                .find_map(|(name, &idx)| if idx == index { Some(&**name) } else { None })
+                .unwrap_or("unknown")
+                .to_string();
+
+            Error::ColumnDecode {
+                index: format!("{index:?}"),
+                column_name,
+                value: value.clone(),
+                source,
+            }
         })
     }
 
