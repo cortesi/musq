@@ -43,7 +43,7 @@ macro_rules! compatible {
     ($x:expr, $($y:path)|+) => {
         let t = $x.type_info();
         if !t.is_null() && !matches!(t, $($y)|+) {
-            return Err(DecodeError::DataType(t))
+            return Err(DecodeError::IncompatibleDataType(t))
         }
     };
 }
