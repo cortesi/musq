@@ -1,44 +1,52 @@
-use crate::{Value, decode::Decode, encode::Encode, error::DecodeError, sqlite::SqliteDataType};
+use crate::{Value, decode::Decode, encode::Encode, error::{DecodeError, EncodeError}, sqlite::SqliteDataType};
 use time::format_description::{FormatItem, well_known::Rfc3339};
 use time::macros::format_description as fd;
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Encode for OffsetDateTime {
-    fn encode(self) -> Value {
-        Value::Text {
-            value: self.format(&Rfc3339).unwrap().into_bytes(),
+    fn encode(self) -> Result<Value, EncodeError> {
+        let formatted = self.format(&Rfc3339)
+            .map_err(|e| EncodeError::Conversion(format!("failed to format OffsetDateTime: {}", e)))?;
+        Ok(Value::Text {
+            value: formatted.into_bytes(),
             type_info: None,
-        }
+        })
     }
 }
 
 impl Encode for PrimitiveDateTime {
-    fn encode(self) -> Value {
+    fn encode(self) -> Result<Value, EncodeError> {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
-        Value::Text {
-            value: self.format(&format).unwrap().into_bytes(),
+        let formatted = self.format(&format)
+            .map_err(|e| EncodeError::Conversion(format!("failed to format PrimitiveDateTime: {}", e)))?;
+        Ok(Value::Text {
+            value: formatted.into_bytes(),
             type_info: None,
-        }
+        })
     }
 }
 
 impl Encode for Date {
-    fn encode(self) -> Value {
+    fn encode(self) -> Result<Value, EncodeError> {
         let format = fd!("[year]-[month]-[day]");
-        Value::Text {
-            value: self.format(&format).unwrap().into_bytes(),
+        let formatted = self.format(&format)
+            .map_err(|e| EncodeError::Conversion(format!("failed to format Date: {}", e)))?;
+        Ok(Value::Text {
+            value: formatted.into_bytes(),
             type_info: None,
-        }
+        })
     }
 }
 
 impl Encode for Time {
-    fn encode(self) -> Value {
+    fn encode(self) -> Result<Value, EncodeError> {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
-        Value::Text {
-            value: self.format(&format).unwrap().into_bytes(),
+        let formatted = self.format(&format)
+            .map_err(|e| EncodeError::Conversion(format!("failed to format Time: {}", e)))?;
+        Ok(Value::Text {
+            value: formatted.into_bytes(),
             type_info: None,
-        }
+        })
     }
 }
 
@@ -127,7 +135,8 @@ fn decode_datetime(value: &Value) -> std::result::Result<PrimitiveDateTime, Deco
     let dt = match value.type_info() {
         SqliteDataType::Text => decode_datetime_from_text(value.text()?),
         SqliteDataType::Int | SqliteDataType::Int64 => {
-            let parsed = OffsetDateTime::from_unix_timestamp(value.int64()?).unwrap();
+            let parsed = OffsetDateTime::from_unix_timestamp(value.int64()?)
+                .map_err(|e| DecodeError::Conversion(e.to_string()))?;
             Some(PrimitiveDateTime::new(parsed.date(), parsed.time()))
         }
         _ => None,

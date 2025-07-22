@@ -19,6 +19,12 @@ pub enum DecodeError {
     Conversion(String),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum EncodeError {
+    #[error("encoding conversion error: {0}")]
+    Conversion(String),
+}
+
 impl From<TryFromIntError> for DecodeError {
     fn from(err: TryFromIntError) -> Self {
         DecodeError::Conversion(err.to_string())
@@ -28,6 +34,12 @@ impl From<TryFromIntError> for DecodeError {
 impl From<String> for DecodeError {
     fn from(err: String) -> Self {
         DecodeError::Conversion(err)
+    }
+}
+
+impl From<String> for EncodeError {
+    fn from(err: String) -> Self {
+        EncodeError::Conversion(err)
     }
 }
 
@@ -83,6 +95,10 @@ pub enum Error {
     /// Error occurred while decoding a value.
     #[error("error occurred while decoding: {0}")]
     Decode(#[source] DecodeError),
+
+    /// Error occurred while encoding a value.
+    #[error("error occurred while encoding: {0}")]
+    Encode(#[source] EncodeError),
 
     /// A [`Pool::acquire`] timed out due to connections not becoming available or
     /// because another task encountered too many errors while trying to open a new connection.

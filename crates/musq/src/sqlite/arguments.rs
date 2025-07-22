@@ -46,27 +46,29 @@ pub struct Arguments {
 }
 
 impl Arguments {
-    pub fn add<T>(&mut self, value: T)
+    pub fn add<T>(&mut self, value: T) -> Result<()>
     where
         T: Encode,
     {
-        self.values.push(value.encode());
+        self.values.push(value.encode().map_err(crate::Error::Encode)?);
+        Ok(())
     }
 
     /// Add a bind parameter by name. The provided `name` may include the
     /// SQLite prefix (`:`, `@`, or `$`) but it is not required.
-    pub fn add_named<T>(&mut self, name: &str, value: T)
+    pub fn add_named<T>(&mut self, name: &str, value: T) -> Result<()>
     where
         T: Encode,
     {
         let name = name.trim_start_matches([':', '@', '$', '?']);
         if let Some(&index) = self.named.get(name) {
-            self.values[index - 1] = value.encode();
+            self.values[index - 1] = value.encode().map_err(crate::Error::Encode)?;
         } else {
-            self.values.push(value.encode());
+            self.values.push(value.encode().map_err(crate::Error::Encode)?);
             let idx = self.values.len();
             self.named.insert(name.to_string(), idx);
         }
+        Ok(())
     }
 
     pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize> {
@@ -259,9 +261,9 @@ mod tests {
         let mut conn = Connection::connect_with(&Musq::new()).await?;
 
         let (a, b, c): (i32, i32, i32) = query_as("SELECT ?1, :b, :a")
-            .bind(7_i32)
-            .bind_named("b", 8_i32)
-            .bind_named("a", 9_i32)
+            .bind(7_i32)?
+            .bind_named("b", 8_i32)?
+            .bind_named("a", 9_i32)?
             .fetch_one(&mut conn)
             .await?;
 
@@ -275,7 +277,7 @@ mod tests {
         let mut conn = Connection::connect_with(&Musq::new()).await?;
 
         let res = query("select ?1, ?2")
-            .bind(5_i32)
+            .bind(5_i32)?
             .fetch_one(&mut conn)
             .await;
 
@@ -295,8 +297,8 @@ mod tests {
         let mut conn = Connection::connect_with(&Musq::new()).await?;
 
         let (v,): (i32,) = query_as("SELECT ?1")
-            .bind(5_i32)
-            .bind(15_i32)
+            .bind(5_i32)?
+            .bind(15_i32)?
             .fetch_one(&mut conn)
             .await?;
 
@@ -310,8 +312,8 @@ mod tests {
         let mut conn = Connection::connect_with(&Musq::new()).await?;
         let stmt = conn.prepare("SELECT :a, :a, ?2").await?;
         let mut args = Arguments::default();
-        args.add_named("a", 7_i32);
-        args.add(9_i32);
+        args.add_named("a", 7_i32)?;
+        args.add(9_i32)?;
 
         let (x, y, z): (i32, i32, i32) = stmt.query_as_with(args).fetch_one(&mut conn).await?;
 

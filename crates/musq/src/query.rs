@@ -48,31 +48,31 @@ impl Query {
     ///
     /// If the number of times this is called does not match the number of bind parameters that appear in the query then
     /// an error will be returned when this query is executed.
-    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Self {
+    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
         if let Some(arguments) = &mut self.arguments {
-            arguments.add(value);
+            arguments.add(value)?;
         }
-        self
+        Ok(self)
     }
 
     /// Bind a value to a named parameter.
-    pub fn bind_named<'q, T: 'q + Send + Encode>(mut self, name: &str, value: T) -> Self {
+    pub fn bind_named<'q, T: 'q + Send + Encode>(mut self, name: &str, value: T) -> Result<Self> {
         if let Some(arguments) = &mut self.arguments {
-            arguments.add_named(name, value);
+            arguments.add_named(name, value)?;
         }
-        self
+        Ok(self)
     }
 }
 
 impl<F> Map<F> {
-    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Self {
-        self.inner = self.inner.bind(value);
-        self
+    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
+        self.inner = self.inner.bind(value)?;
+        Ok(self)
     }
 
-    pub fn bind_named<'q, T: 'q + Send + Encode>(mut self, name: &str, value: T) -> Self {
-        self.inner = self.inner.bind_named(name, value);
-        self
+    pub fn bind_named<'q, T: 'q + Send + Encode>(mut self, name: &str, value: T) -> Result<Self> {
+        self.inner = self.inner.bind_named(name, value)?;
+        Ok(self)
     }
 }
 

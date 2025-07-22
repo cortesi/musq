@@ -73,15 +73,15 @@ async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
         ? as prefix_g
     ",
     )
-    .bind("one")
-    .bind(2)
-    .bind(3)
-    .bind(1)
-    .bind("foobar")
-    .bind("foo")
-    .bind(4)
-    .bind("nest")
-    .bind(5)
+    .bind("one")?
+    .bind(2)?
+    .bind(3)?
+    .bind(1)?
+    .bind("foobar")?
+    .bind("foo")?
+    .bind(4)?
+    .bind("nest")?
+    .bind(5)?
     .fetch_one(&mut conn)
     .await?;
     assert_eq!(

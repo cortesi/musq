@@ -9,7 +9,7 @@ mod column;
 mod debugfn;
 pub mod decode;
 pub mod encode;
-mod error;
+pub mod error;
 mod executor;
 mod from_row;
 #[macro_use]
@@ -25,7 +25,7 @@ mod transaction;
 pub mod types;
 
 pub use crate::{
-    error::{DecodeError, Error, Result},
+    error::{DecodeError, EncodeError, Error, Result},
     executor::Execute,
     from_row::FromRow,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},

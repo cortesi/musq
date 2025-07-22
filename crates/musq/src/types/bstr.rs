@@ -1,5 +1,5 @@
 /// Conversions between `bstr` types and SQL types.
-use crate::{SqliteDataType, Value, decode::Decode, encode::Encode, error::DecodeError};
+use crate::{SqliteDataType, Value, decode::Decode, encode::Encode, error::{DecodeError, EncodeError}};
 
 #[doc(no_inline)]
 pub use bstr::{BStr, BString, ByteSlice};
@@ -12,19 +12,19 @@ impl<'r> Decode<'r> for BString {
 }
 
 impl Encode for &BStr {
-    fn encode(self) -> Value {
-        Value::Blob {
+    fn encode(self) -> Result<Value, EncodeError> {
+        Ok(Value::Blob {
             value: self.as_bytes().to_owned(),
             type_info: None,
-        }
+        })
     }
 }
 
 impl Encode for BString {
-    fn encode(self) -> Value {
-        Value::Blob {
+    fn encode(self) -> Result<Value, EncodeError> {
+        Ok(Value::Blob {
             value: self.as_bytes().to_vec(),
             type_info: None,
-        }
+        })
     }
 }

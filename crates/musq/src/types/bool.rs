@@ -1,16 +1,16 @@
 use crate::{
     decode::Decode,
     encode::Encode,
-    error::DecodeError,
+    error::{DecodeError, EncodeError},
     sqlite::{SqliteDataType, Value},
 };
 
 impl Encode for bool {
-    fn encode(self) -> Value {
-        Value::Integer {
+    fn encode(self) -> Result<Value, EncodeError> {
+        Ok(Value::Integer {
             value: self.into(),
             type_info: None,
-        }
+        })
     }
 }
 

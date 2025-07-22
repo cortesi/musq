@@ -29,7 +29,7 @@ fn expand_enum(
         #[automatically_derived]
         impl musq::encode::Encode for #ident
         {
-            fn encode(self) -> musq::Value {
+            fn encode(self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
                 let val = match self {
                     #(#value_arms)*
                 };
@@ -58,7 +58,7 @@ fn expand_repr_enum(
         where
             #repr: musq::encode::Encode,
         {
-            fn encode(self) -> musq::Value {
+            fn encode(self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
                 let value = match self {
                     #(#values)*
                 };
@@ -94,7 +94,7 @@ fn expand_struct(
         impl #impl_generics musq::encode::Encode for #ident #ty_generics
         #where_clause
         {
-            fn encode(self) -> musq::Value {
+            fn encode(self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
                 <#ty as musq::encode::Encode>::encode(self.0)
             }
         }

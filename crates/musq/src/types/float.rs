@@ -1,16 +1,16 @@
 use crate::{
     decode::Decode,
     encode::Encode,
-    error::DecodeError,
+    error::{DecodeError, EncodeError},
     sqlite::{SqliteDataType, Value},
 };
 
 impl Encode for f32 {
-    fn encode(self) -> Value {
-        Value::Double {
+    fn encode(self) -> Result<Value, EncodeError> {
+        Ok(Value::Double {
             value: self.into(),
             type_info: None,
-        }
+        })
     }
 }
 
@@ -22,11 +22,11 @@ impl<'r> Decode<'r> for f32 {
 }
 
 impl Encode for f64 {
-    fn encode(self) -> Value {
-        Value::Double {
+    fn encode(self) -> Result<Value, EncodeError> {
+        Ok(Value::Double {
             value: self,
             type_info: None,
-        }
+        })
     }
 }
 
