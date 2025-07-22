@@ -54,7 +54,13 @@ pub enum Value {
 impl Value {
     /// Returns the value as `i32` if it is an integer and fits in the range.
     pub fn int(&self) -> std::result::Result<i32, DecodeError> {
-        Ok(i32::try_from(self.int64()?)?)
+        match self {
+            Value::Integer { value, .. } => Ok(i32::try_from(*value)?),
+            Value::Null { .. } => Ok(0),
+            _ => Err(DecodeError::Conversion(
+                "not an integer or out of range".into(),
+            )),
+        }
     }
 
     /// Returns the value as `i64` if it is stored as an integer.
@@ -63,6 +69,7 @@ impl Value {
     pub fn int64(&self) -> std::result::Result<i64, DecodeError> {
         match self {
             Value::Integer { value, .. } => Ok(*value),
+            Value::Null { .. } => Ok(0),
             _ => Err(DecodeError::Conversion("not an integer".into())),
         }
     }
@@ -75,6 +82,7 @@ impl Value {
         match self {
             Value::Double { value, .. } => Ok(*value),
             Value::Integer { value, .. } => Ok(*value as f64),
+            Value::Null { .. } => Ok(0.0),
             _ => Err(DecodeError::Conversion("not a double".into())),
         }
     }
@@ -86,6 +94,7 @@ impl Value {
         match self {
             Value::Blob { value, .. } => value.as_slice(),
             Value::Text { value, .. } => value.as_bytes(),
+            Value::Null { .. } => &[],
             _ => &[],
         }
     }
@@ -96,6 +105,7 @@ impl Value {
     pub fn text(&self) -> std::result::Result<&str, DecodeError> {
         match self {
             Value::Text { value, .. } => Ok(value.as_str()),
+            Value::Null { .. } => Ok(""),
             _ => Err(DecodeError::Conversion("not text".into())),
         }
     }
