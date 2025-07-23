@@ -96,6 +96,33 @@ pub struct RowField {
     pub skip: bool,
 }
 
+pub(crate) fn check_row_field_attrs(field: &RowField) -> syn::Result<()> {
+    if field.flatten {
+        if field.skip {
+            span_err!(&field.ty, "`flatten` cannot be combined with `skip`")?;
+        }
+        if field.try_from.is_some() {
+            span_err!(&field.ty, "`flatten` cannot be combined with `try_from`")?;
+        }
+        if !field.prefix.is_empty() {
+            span_err!(&field.ty, "`flatten` cannot be combined with `prefix`")?;
+        }
+        if field.rename.is_some() {
+            span_err!(&field.ty, "`flatten` cannot be combined with `rename`")?;
+        }
+    }
+    Ok(())
+}
+
+pub(crate) fn check_row_attrs(container: &RowContainer) -> syn::Result<()> {
+    if let ast::Data::Struct(fields) = &container.data {
+        for f in fields.iter() {
+            check_row_field_attrs(f)?;
+        }
+    }
+    Ok(())
+}
+
 #[derive(Debug, FromDeriveInput)]
 #[darling(attributes(musq))]
 pub struct TypeContainer {

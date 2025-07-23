@@ -1,0 +1,5 @@
+error: `flatten` cannot be combined with `skip`
+  --> tests/trybuild/fail_row_flatten_skip.rs:11:10
+   |
+11 |     foo: Foo,
+   |          ^^^
