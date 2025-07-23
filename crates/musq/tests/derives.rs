@@ -52,7 +52,7 @@ pub struct FromRowPlain {
     e: LowerCaseEnum,
     #[musq(flatten)]
     f: Flattened,
-    #[musq(prefix = "prefix_")]
+    #[musq(flatten, prefix = "prefix_")]
     g: Flattened,
 }
 

@@ -1,0 +1,5 @@
+error: `prefix` requires `flatten`
+  --> tests/trybuild/fail_row_prefix_without_flatten.rs:11:10
+   |
+11 |     foo: Foo,
+   |          ^^^
