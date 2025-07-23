@@ -316,6 +316,69 @@ let (name,): (String,) = query_as("SELECT name FROM users WHERE id = :id")
 assert_eq!(name, "Bob");
 ```
 
+## `sql!` and `sql_as!`
+
+The `sql!` macro builds a [`Query`](#) while `sql_as!` produces a mapped query
+similar to [`query_as`](#). The format string accepts a variety of placeholders
+inspired by `format!`.
+
+### Examples
+
+**Positional and named arguments**
+
+```rust
+let id = 1;
+let name = "Bob";
+sql!("INSERT INTO users (id, name) VALUES ({}, {name})", id)?;
+```
+
+**Dynamic identifiers**
+
+```rust
+let table = "user-data";
+sql!("SELECT * FROM {ident:table}")?;
+```
+
+**Lists for IN clauses**
+
+```rust
+let ids = vec![1, 2, 3];
+sql!("DELETE FROM users WHERE id IN ({values:ids})")?;
+
+let cols = ["id", "name"];
+sql!("SELECT {idents:cols} FROM users")?;
+```
+
+**Raw fragments**
+
+```rust
+let q = sql!("SELECT * FROM users {raw:\"ORDER BY id DESC\"}")?;
+assert!(q.is_tainted());
+```
+
+`sql_as!` maps rows directly to a type implementing `FromRow`:
+
+```rust
+#[derive(musq::FromRow)]
+struct User { id: i32, name: String }
+
+let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}", id = 1)?
+    .fetch_one(&mut conn)
+    .await?;
+```
+
+The resulting [`Query`] can be further composed using
+`Query::into_builder()`.
+
+```rust
+let base = sql!("SELECT * FROM users WHERE active = 1")?;
+let final_query = {
+    let mut b = base.into_builder();
+    b.push_sql(" ORDER BY name ASC");
+    b.build()
+};
+```
+
 # Development
 
 

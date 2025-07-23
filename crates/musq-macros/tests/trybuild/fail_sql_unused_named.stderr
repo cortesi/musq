@@ -1,0 +1,7 @@
+error: unused named arguments
+ --> tests/trybuild/fail_sql_unused_named.rs:4:13
+  |
+4 |     let _ = sql!("SELECT 1", id = 5)?;
+  |             ^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the macro `sql` (in Nightly builds, run with -Z macro-backtrace for more info)

@@ -1,0 +1,242 @@
+// Procedural macros for sql! and sql_as!
+
+use proc_macro::TokenStream;
+use quote::quote;
+use syn::punctuated::Punctuated;
+use syn::{
+    Expr, Ident, LitStr, Result as SynResult, Token,
+    parse::{Parse, ParseStream},
+};
+
+fn ensure_non_empty(expr: &Expr) -> SynResult<()> {
+    match expr {
+        Expr::Array(arr) if arr.elems.is_empty() => {
+            Err(syn::Error::new_spanned(expr, "empty list"))
+        }
+        Expr::Reference(r) => ensure_non_empty(&r.expr),
+        Expr::Macro(m) if m.mac.path.is_ident("vec") && m.mac.tokens.is_empty() => {
+            Err(syn::Error::new_spanned(expr, "empty list"))
+        }
+        _ => Ok(()),
+    }
+}
+
+struct SqlMacroInput {
+    fmt: LitStr,
+    args: Punctuated<SqlArg, Token![,]>,
+}
+
+enum SqlArg {
+    Positional(Expr),
+    Named(Ident, Expr),
+}
+
+impl Parse for SqlMacroInput {
+    fn parse(input: ParseStream) -> SynResult<Self> {
+        let fmt: LitStr = input.parse()?;
+        let mut args = Punctuated::new();
+        if input.is_empty() {
+            return Ok(Self { fmt, args });
+        }
+        input.parse::<Token![,]>()?;
+        while !input.is_empty() {
+            if input.peek(Ident) && input.peek2(Token![=]) {
+                let id: Ident = input.parse()?;
+                input.parse::<Token![=]>()?;
+                let expr: Expr = input.parse()?;
+                args.push(SqlArg::Named(id, expr));
+            } else {
+                let expr: Expr = input.parse()?;
+                args.push(SqlArg::Positional(expr));
+            }
+            if input.is_empty() {
+                break;
+            }
+            input.parse::<Token![,]>()?;
+        }
+        Ok(Self { fmt, args })
+    }
+}
+
+#[derive(Debug)]
+enum Segment {
+    Lit(String),
+    Positional,
+    Named(String),
+    Ident(Expr),
+    Values(Expr),
+    Idents(Expr),
+    Raw(Expr),
+}
+
+fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
+    let mut out = Vec::new();
+    let mut cur = String::new();
+    let mut chars = s.chars().peekable();
+    while let Some(c) = chars.next() {
+        match c {
+            '{' => {
+                if matches!(chars.peek(), Some('{')) {
+                    chars.next();
+                    cur.push('{');
+                    continue;
+                }
+                if !cur.is_empty() {
+                    out.push(Segment::Lit(cur.clone()));
+                    cur.clear();
+                }
+                let mut ph = String::new();
+                let mut closed = false;
+                for ch in chars.by_ref() {
+                    if ch == '}' {
+                        closed = true;
+                        break;
+                    }
+                    ph.push(ch);
+                }
+                if !closed {
+                    return Err(syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        "unmatched `{`",
+                    ));
+                }
+                let (kind, expr) = if let Some(idx) = ph.find(':') {
+                    let (k, e) = ph.split_at(idx);
+                    (k.trim(), Some(e[1..].trim()))
+                } else {
+                    (ph.trim(), None)
+                };
+                match (kind, expr) {
+                    ("", None) => out.push(Segment::Positional),
+                    ("ident", None) | ("values", None) | ("idents", None) | ("raw", None) => {
+                        return Err(syn::Error::new(
+                            proc_macro2::Span::call_site(),
+                            "malformed placeholder",
+                        ));
+                    }
+                    (name, None) => out.push(Segment::Named(name.to_string())),
+                    ("ident", Some(e)) => out.push(Segment::Ident(syn::parse_str(e)?)),
+                    ("values", Some(e)) => {
+                        let expr = syn::parse_str::<Expr>(e)?;
+                        ensure_non_empty(&expr)?;
+                        out.push(Segment::Values(expr));
+                    }
+                    ("idents", Some(e)) => {
+                        let expr = syn::parse_str::<Expr>(e)?;
+                        ensure_non_empty(&expr)?;
+                        out.push(Segment::Idents(expr));
+                    }
+                    ("raw", Some(e)) => out.push(Segment::Raw(syn::parse_str(e)?)),
+                    _ => {
+                        return Err(syn::Error::new(
+                            proc_macro2::Span::call_site(),
+                            "malformed placeholder",
+                        ));
+                    }
+                }
+            }
+            '}' => {
+                if matches!(chars.peek(), Some('}')) {
+                    chars.next();
+                    cur.push('}');
+                } else {
+                    return Err(syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        "unmatched `}`",
+                    ));
+                }
+            }
+            _ => cur.push(c),
+        }
+    }
+    if !cur.is_empty() {
+        out.push(Segment::Lit(cur));
+    }
+    Ok(out)
+}
+
+fn build_sql(
+    tokens: Vec<Segment>,
+    input: SqlMacroInput,
+    as_query_as: bool,
+) -> SynResult<proc_macro2::TokenStream> {
+    let mut positional = Vec::new();
+    let mut named = std::collections::HashMap::new();
+    for arg in input.args {
+        match arg {
+            SqlArg::Positional(e) => positional.push(e),
+            SqlArg::Named(id, e) => {
+                named.insert(id.to_string(), e);
+            }
+        }
+    }
+    let mut sql_parts = Vec::<proc_macro2::TokenStream>::new();
+    let mut pos_index = 0usize;
+    for seg in tokens {
+        match seg {
+            Segment::Lit(l) => sql_parts.push(quote! { _builder.push_sql(#l); }),
+            Segment::Positional => {
+                let expr = positional.get(pos_index).cloned().ok_or_else(|| {
+                    syn::Error::new(
+                        proc_macro2::Span::call_site(),
+                        "missing positional argument",
+                    )
+                })?;
+                pos_index += 1;
+                sql_parts.push(quote! { _builder.push_bind(#expr)?; });
+            }
+            Segment::Named(name) => {
+                let name_lit = syn::LitStr::new(&name, proc_macro2::Span::call_site());
+                if let Some(expr) = named.remove(&name) {
+                    sql_parts.push(quote! { _builder.push_bind_named(#name_lit, #expr)?; });
+                } else {
+                    let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
+                    sql_parts.push(quote! { _builder.push_bind_named(#name_lit, #ident)?; });
+                }
+            }
+            Segment::Ident(expr) => {
+                sql_parts.push(quote! { _builder.push_sql(&musq::quote_identifier(&(#expr))); })
+            }
+            Segment::Values(expr) => sql_parts.push(quote! { _builder.push_values(#expr)?; }),
+            Segment::Idents(expr) => sql_parts.push(quote! { _builder.push_idents(#expr)?; }),
+            Segment::Raw(expr) => sql_parts.push(quote! { _builder.push_raw(#expr); }),
+        }
+    }
+    if pos_index != positional.len() {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "unused positional arguments",
+        ));
+    }
+    if !named.is_empty() {
+        return Err(syn::Error::new(
+            proc_macro2::Span::call_site(),
+            "unused named arguments",
+        ));
+    }
+    let builder_inits = quote! { let mut _builder = musq::QueryBuilder::new(); };
+    let collects = quote! { #(#sql_parts)* };
+    let build = if as_query_as {
+        quote! { Ok::<_, musq::Error>(_builder.build().try_map(|row| musq::FromRow::from_row("", &row))) }
+    } else {
+        quote! { Ok::<_, musq::Error>(_builder.build()) }
+    };
+    Ok(quote! {{ #builder_inits #collects #build }})
+}
+
+pub fn expand_sql(input: TokenStream, as_query_as: bool) -> TokenStream {
+    let input = syn::parse_macro_input!(input as SqlMacroInput);
+    let fmt = &input.fmt;
+    match parse_fmt(&fmt.value()).and_then(|tokens| build_sql(tokens, input, as_query_as)) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
+pub fn sql(input: TokenStream) -> TokenStream {
+    expand_sql(input, false)
+}
+
+pub fn sql_as(input: TokenStream) -> TokenStream {
+    expand_sql(input, true)
+}

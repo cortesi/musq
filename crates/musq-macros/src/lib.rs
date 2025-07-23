@@ -3,6 +3,7 @@ mod decode;
 mod encode;
 mod json;
 mod row;
+mod sql;
 
 #[proc_macro_derive(Json, attributes(musq))]
 pub fn derive_json(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
@@ -58,3 +59,13 @@ pub fn derive_from_row(input: proc_macro::TokenStream) -> proc_macro::TokenStrea
 
 #[cfg(test)]
 mod tests;
+
+#[proc_macro]
+pub fn sql(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    sql::sql(item)
+}
+
+#[proc_macro]
+pub fn sql_as(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
+    sql::sql_as(item)
+}

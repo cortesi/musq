@@ -1,0 +1,11 @@
+error[E0425]: cannot find value `id` in this scope
+ --> tests/trybuild/fail_sql_missing_named.rs:4:13
+  |
+4 |     let _ = sql!("SELECT {id}")?;
+  |             ^^^^^^^^^^^^^^^^^^^ not found in this scope
+  |
+  = note: this error originates in the macro `sql` (in Nightly builds, run with -Z macro-backtrace for more info)
+help: consider importing this function
+  |
+1 + use std::process::id;
+  |
