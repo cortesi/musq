@@ -264,7 +264,7 @@ mod tests {
                 assert_eq!(dt, expected);
             }
             Err(e) => {
-                println!("Failed to parse '2023-12-25 15:30:45+05:30': {}", e);
+                println!("Failed to parse '2023-12-25 15:30:45+05:30': {e}");
                 // This reveals the bug
             }
         }
@@ -300,8 +300,8 @@ mod tests {
             let result: Result<OffsetDateTime, _> = Decode::decode(&value);
 
             match result {
-                Ok(_) => println!("✓ Valid format correctly parsed: {}", format_str),
-                Err(e) => panic!("Valid format failed to parse {}: {}", format_str, e),
+                Ok(_) => println!("✓ Valid format correctly parsed: {format_str}"),
+                Err(e) => panic!("Valid format failed to parse {format_str}: {e}"),
             }
         }
     }
@@ -329,10 +329,7 @@ mod tests {
                 assert_eq!(dt.offset(), time::UtcOffset::UTC);
             }
             Err(e) => {
-                panic!(
-                    "Failed to parse valid RFC3339 format '{}': {}",
-                    problematic_format, e
-                );
+                panic!("Failed to parse valid RFC3339 format '{problematic_format}': {e}");
             }
         }
 
@@ -353,7 +350,7 @@ mod tests {
 
             match result {
                 Ok(_) => {} // Success is expected
-                Err(e) => panic!("Failed to parse valid format '{}': {}", format_str, e),
+                Err(e) => panic!("Failed to parse valid format '{format_str}': {e}"),
             }
         }
     }

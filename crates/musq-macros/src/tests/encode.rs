@@ -12,6 +12,14 @@ fn derive_enum() {
 }
 
 #[test]
+fn derive_enum_generic() {
+    let input = parse_str("enum Foo<T> { One(T), Two }").unwrap();
+    let tokens = expand_derive_encode(&input).unwrap();
+    let s = tokens.to_string();
+    assert!(s.contains("impl < T > musq :: encode :: Encode for Foo < T >"));
+}
+
+#[test]
 fn derive_enum_with_repr() {
     let input = parse_str("#[musq(repr = \"i32\")] enum Foo { One, Two }").unwrap();
     let tokens = expand_derive_encode(&input).unwrap();
