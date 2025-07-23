@@ -27,7 +27,7 @@ pub mod types;
 pub use crate::{
     error::{DecodeError, EncodeError, Error, Result},
     executor::Execute,
-    from_row::FromRow,
+    from_row::{AllNull, FromRow},
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::{Pool, PoolConnection},
     query::{query, query_as, query_as_with, query_scalar, query_scalar_with, query_with},

@@ -105,6 +105,103 @@ async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[derive(Debug, PartialEq, FromRow)]
+struct Address {
+    street: String,
+    city: String,
+    country: String,
+}
+
+#[derive(Debug, PartialEq, FromRow)]
+struct UserOpt {
+    id: i32,
+    name: String,
+    #[musq(flatten)]
+    address: Option<Address>,
+}
+
+#[derive(Debug, PartialEq, FromRow)]
+struct UserOptPref {
+    id: i32,
+    name: String,
+    #[musq(flatten, prefix = "addr_")]
+    address: Option<Address>,
+}
+
+#[tokio::test]
+async fn flatten_option_all_null() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+    let user: UserOpt =
+        musq::query_as("SELECT ? as id, ? as name, NULL as street, NULL as city, NULL as country")
+            .bind(1i32)?
+            .bind("Bob")?
+            .fetch_one(&mut conn)
+            .await?;
+    assert_eq!(user.address, None);
+    Ok(())
+}
+
+#[tokio::test]
+async fn flatten_option_some() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+    let user: UserOpt =
+        musq::query_as("SELECT ? as id, ? as name, ? as street, ? as city, ? as country")
+            .bind(1i32)?
+            .bind("Bob")?
+            .bind("Main")?
+            .bind("NYC")?
+            .bind("US")?
+            .fetch_one(&mut conn)
+            .await?;
+    assert_eq!(
+        user.address,
+        Some(Address {
+            street: "Main".into(),
+            city: "NYC".into(),
+            country: "US".into(),
+        })
+    );
+    Ok(())
+}
+
+#[tokio::test]
+async fn flatten_option_prefix_all_null() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+    let user: UserOptPref = musq::query_as(
+        "SELECT ? as id, ? as name, NULL as addr_street, NULL as addr_city, NULL as addr_country",
+    )
+    .bind(1i32)?
+    .bind("Bob")?
+    .fetch_one(&mut conn)
+    .await?;
+    assert_eq!(user.address, None);
+    Ok(())
+}
+
+#[tokio::test]
+async fn flatten_option_prefix_some() -> anyhow::Result<()> {
+    let mut conn = connection().await?;
+    let user: UserOptPref = musq::query_as(
+        "SELECT ? as id, ? as name, ? as addr_street, ? as addr_city, ? as addr_country",
+    )
+    .bind(1i32)?
+    .bind("Bob")?
+    .bind("Main")?
+    .bind("NYC")?
+    .bind("US")?
+    .fetch_one(&mut conn)
+    .await?;
+    assert_eq!(
+        user.address,
+        Some(Address {
+            street: "Main".into(),
+            city: "NYC".into(),
+            country: "US".into(),
+        })
+    );
+    Ok(())
+}
+
 test_type!(plain_enum<PlainEnum>(
     "\"foo\"" == PlainEnum::Foo,
     "\"foo_bar\"" == PlainEnum::FooBar,

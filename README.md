@@ -86,6 +86,21 @@ struct User {
 }
 ```
 
+If the field type is wrapped in `Option`, it will be set to `None` when all
+columns of the nested struct are `NULL`:
+
+```rust
+#[derive(FromRow)]
+struct User {
+    id: i32,
+    name: String,
+    #[musq(flatten)]
+    address: Option<Address>,
+}
+```
+
+This also works together with the `prefix` attribute.
+
 #### `#[musq(flatten, prefix = "prefix_")]`
 Adds a prefix to column names when using nested structures:
 

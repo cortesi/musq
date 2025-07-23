@@ -73,6 +73,7 @@ fn expand_struct(
 
             let expr: Expr = if field.flatten {
                 predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
+                predicates.push(parse_quote!(#ty: musq::AllNull<#lifetime>));
                 if field.prefix.is_empty() {
                     parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row("", row))
                 } else {
@@ -116,6 +117,56 @@ fn expand_struct(
         })
         .collect();
 
+    let null_checks: Vec<Expr> = fields
+        .iter()
+        .filter_map(|field| -> Option<Expr> {
+            let id = field.ident.as_ref()?;
+
+            let column_name = field
+                .rename
+                .clone()
+                .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
+                .map(|s| container.rename_all.rename(&s))
+                .unwrap();
+
+            let ty = &field.ty;
+
+            if field.skip {
+                return None;
+            }
+
+            let expr: Expr = if field.flatten {
+                predicates.push(parse_quote!(#ty: musq::AllNull<#lifetime>));
+                if field.prefix.is_empty() {
+                    parse_quote!(<#ty as musq::AllNull<#lifetime>>::all_null("", row)?)
+                } else {
+                    let prefix = &field.prefix;
+                    parse_quote!(<#ty as musq::AllNull<#lifetime>>::all_null(#prefix, row)?)
+                }
+            } else if let Some(try_from) = &field.try_from {
+                predicates.push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
+                parse_quote!({
+                    match row.get_value::<Option<#try_from>>(&format!("{}{}", prefix, #column_name)) {
+                        ::std::result::Result::Ok(v) => v.is_none(),
+                        ::std::result::Result::Err(musq::Error::ColumnNotFound(_)) => true,
+                        ::std::result::Result::Err(e) => return ::std::result::Result::Err(e),
+                    }
+                })
+            } else {
+                predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
+                parse_quote!({
+                    match row.get_value::<Option<#ty>>(&format!("{}{}", prefix, #column_name)) {
+                        ::std::result::Result::Ok(v) => v.is_none(),
+                        ::std::result::Result::Err(musq::Error::ColumnNotFound(_)) => true,
+                        ::std::result::Result::Err(e) => return ::std::result::Result::Err(e),
+                    }
+                })
+            };
+
+            Some(expr)
+        })
+        .collect();
+
     let (impl_generics, _, where_clause) = generics.split_for_impl();
     let names = fields.iter().map(|field| &field.ident);
 
@@ -128,6 +179,13 @@ fn expand_struct(
                 ::std::result::Result::Ok(#ident {
                     #(#names),*
                 })
+            }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics musq::AllNull<#lifetime> for #ident #ty_generics #where_clause {
+            fn all_null(prefix: &str, row: &#lifetime musq::Row) -> musq::Result<bool> {
+                Ok(true #(&& (#null_checks))* )
             }
         }
     ))
@@ -176,6 +234,11 @@ fn expand_tuple_struct(
         .enumerate()
         .map(|(idx, _)| quote!(row.get_value_idx(#idx)?));
 
+    let null_gets = fields.iter().enumerate().map(|(idx, field)| {
+        let ty = &field.ty;
+        quote!(row.get_value_idx::<Option<#ty>>(#idx)?.is_none())
+    });
+
     Ok(quote!(
         #[automatically_derived]
         impl #impl_generics musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
@@ -183,6 +246,14 @@ fn expand_tuple_struct(
                 ::std::result::Result::Ok(#ident (
                     #(#gets),*
                 ))
+            }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics musq::AllNull<#lifetime> for #ident #ty_generics #where_clause {
+            fn all_null(prefix: &str, row: &#lifetime musq::Row) -> musq::Result<bool> {
+                let _ = prefix;
+                Ok(true #(&& (#null_gets))* )
             }
         }
     ))
