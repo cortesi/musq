@@ -11,7 +11,7 @@ async fn insert_and_select_arc_blob() -> anyhow::Result<()> {
     let arc = Arc::new(data.clone());
 
     query("INSERT INTO blob_test (data) VALUES (?)")
-        .bind(Arc::clone(&arc))?
+        .bind(Arc::clone(&arc))
         .execute(&mut conn)
         .await?;
 

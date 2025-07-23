@@ -34,9 +34,7 @@ fn setup() -> musq::Pool {
         let p = pool().await;
         musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
             .bind(1)
-            .unwrap()
             .bind("two")
-            .unwrap()
             .execute(&mut p.acquire().await.unwrap())
             .await
             .unwrap();
@@ -53,9 +51,7 @@ async fn writes(pool: musq::Pool) {
             let mut conn = pool.acquire().await.unwrap();
             musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
                 .bind(1)
-                .unwrap()
                 .bind("two")
-                .unwrap()
                 .execute(&mut conn)
                 .await
         });

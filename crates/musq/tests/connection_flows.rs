@@ -10,7 +10,7 @@ async fn basic_statement_flow() -> anyhow::Result<()> {
         .await?;
 
     let stmt = conn.prepare("INSERT INTO t (val) VALUES (?1)").await?;
-    stmt.query().bind("hello")?.execute(&mut conn).await?;
+    stmt.query().bind("hello").execute(&mut conn).await?;
     drop(stmt);
 
     let count: i64 = query_scalar("SELECT COUNT(*) FROM t")

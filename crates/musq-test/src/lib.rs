@@ -79,8 +79,8 @@ macro_rules! __test_prepared_type {
                     println!("{query} bound to {:?}", $value);
 
                     let row = musq::query(&query)
-                        .bind($value)?
-                        .bind($value)?
+                        .bind($value)
+                        .bind($value)
                         .fetch_one(&mut conn)
                         .await?;
 

@@ -44,35 +44,69 @@ impl Execute for Query {
 }
 
 impl Query {
-    /// Bind a value for use with this SQL query.
+    /// Attempt to bind a value for use with this SQL query.
     ///
-    /// If the number of times this is called does not match the number of bind parameters that appear in the query then
-    /// an error will be returned when this query is executed.
-    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
+    /// If the number of times this is called does not match the number of bind parameters that
+    /// appear in the query then an error will be returned when this query is executed.
+    pub fn try_bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(value)?;
         }
         Ok(self)
     }
 
-    /// Bind a value to a named parameter.
-    pub fn bind_named<'q, T: 'q + Send + Encode>(mut self, name: &str, value: T) -> Result<Self> {
+    /// Bind a value for use with this SQL query.
+    ///
+    /// This will panic if [`try_bind`](Self::try_bind) returns an error.
+    pub fn bind<'q, T: 'q + Send + Encode>(self, value: T) -> Self {
+        self.try_bind(value)
+            .expect("failed to bind query parameter")
+    }
+
+    /// Attempt to bind a value to a named parameter.
+    pub fn try_bind_named<'q, T: 'q + Send + Encode>(
+        mut self,
+        name: &str,
+        value: T,
+    ) -> Result<Self> {
         if let Some(arguments) = &mut self.arguments {
             arguments.add_named(name, value)?;
         }
         Ok(self)
     }
+
+    /// Bind a value to a named parameter.
+    ///
+    /// This will panic if [`try_bind_named`](Self::try_bind_named) returns an error.
+    pub fn bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Self {
+        self.try_bind_named(name, value)
+            .expect("failed to bind named query parameter")
+    }
 }
 
 impl<F> Map<F> {
-    pub fn bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
-        self.inner = self.inner.bind(value)?;
+    pub fn try_bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
+        self.inner = self.inner.try_bind(value)?;
         Ok(self)
     }
 
-    pub fn bind_named<'q, T: 'q + Send + Encode>(mut self, name: &str, value: T) -> Result<Self> {
-        self.inner = self.inner.bind_named(name, value)?;
+    pub fn bind<'q, T: 'q + Send + Encode>(self, value: T) -> Self {
+        self.try_bind(value)
+            .expect("failed to bind query parameter")
+    }
+
+    pub fn try_bind_named<'q, T: 'q + Send + Encode>(
+        mut self,
+        name: &str,
+        value: T,
+    ) -> Result<Self> {
+        self.inner = self.inner.try_bind_named(name, value)?;
         Ok(self)
+    }
+
+    pub fn bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Self {
+        self.try_bind_named(name, value)
+            .expect("failed to bind named query parameter")
     }
 }
 

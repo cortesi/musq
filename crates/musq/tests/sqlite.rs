@@ -76,7 +76,7 @@ async fn it_maths() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let value = query("select 1 + ?1")
-        .bind(5_i32)?
+        .bind(5_i32)
         .try_map(|row: Row| row.get_value_idx::<i32>(0))
         .fetch_one(&mut conn)
         .await?;
@@ -91,8 +91,8 @@ async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let values: Vec<i32> = musq::query_scalar::<i32>("select ?; select ?")
-        .bind(5_i32)?
-        .bind(15_i32)?
+        .bind(5_i32)
+        .bind(15_i32)
         .fetch_all(&mut conn)
         .await?;
 
@@ -108,7 +108,7 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let values: Vec<i32> = musq::query_scalar::<i32>("select ?1; select ?1")
-        .bind(25_i32)?
+        .bind(25_i32)
         .fetch_all(&mut conn)
         .await?;
 
@@ -139,9 +139,9 @@ async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let row: (i32, i32, i32, i32) = musq::query_as("select ?1, ?1, ?3, ?2")
-        .bind(5_i32)?
-        .bind(500_i32)?
-        .bind(1020_i32)?
+        .bind(5_i32)
+        .bind(500_i32)
+        .bind(1020_i32)
         .fetch_one(&mut conn)
         .await?;
 
@@ -216,14 +216,14 @@ async fn it_binds_parameters() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let v: i32 = query_scalar("SELECT ?")
-        .bind(10_i32)?
+        .bind(10_i32)
         .fetch_one(&mut conn)
         .await?;
 
     assert_eq!(v, 10);
 
     let v: (i32, i32) = query_as("SELECT ?1, ?")
-        .bind(10_i32)?
+        .bind(10_i32)
         .fetch_one(&mut conn)
         .await?;
 
@@ -238,8 +238,8 @@ async fn it_binds_dollar_parameters() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let v: (i32, i32) = query_as("SELECT $1, $2")
-        .bind(10_i32)?
-        .bind(11_i32)?
+        .bind(10_i32)
+        .bind(11_i32)
         .fetch_one(&mut conn)
         .await?;
 
@@ -254,8 +254,8 @@ async fn it_binds_named_parameters() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let v: (i32, i32) = query_as("SELECT :a, @b")
-        .bind_named(":a", 10_i32)?
-        .bind_named("@b", 11_i32)?
+        .bind_named(":a", 10_i32)
+        .bind_named("@b", 11_i32)
         .fetch_one(&mut conn)
         .await?;
 
@@ -270,7 +270,7 @@ async fn it_binds_duplicate_named_parameters() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let v: (i32, i32) = query_as("SELECT :x, :x")
-        .bind_named("x", 7_i32)?
+        .bind_named("x", 7_i32)
         .fetch_one(&mut conn)
         .await?;
 
@@ -288,13 +288,13 @@ async fn it_uses_named_parameters_in_sql() -> anyhow::Result<()> {
         .await?;
 
     query("INSERT INTO np (id, val) VALUES (:id, :val)")
-        .bind_named("id", 1_i32)?
-        .bind_named("val", "alpha")?
+        .bind_named("id", 1_i32)
+        .bind_named("val", "alpha")
         .execute(&mut conn)
         .await?;
 
     let (val,): (String,) = query_as("SELECT val FROM np WHERE id = :id")
-        .bind_named("id", 1_i32)?
+        .bind_named("id", 1_i32)
         .fetch_one(&mut conn)
         .await?;
 
@@ -308,9 +308,9 @@ async fn it_mixes_named_and_positional_parameters() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let (sum,): (i32,) = query_as("SELECT :a + ?2 + ?3")
-        .bind_named("a", 2_i32)? // :a
-        .bind(3_i32)? // ?2
-        .bind(4_i32)? // ?3
+        .bind_named("a", 2_i32) // :a
+        .bind(3_i32) // ?2
+        .bind(4_i32) // ?3
         .fetch_one(&mut conn)
         .await?;
 
@@ -324,8 +324,8 @@ async fn it_supports_named_only_binding() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let (a, b): (i32, i32) = query_as("SELECT :first, :second")
-        .bind_named("second", 42_i32)?
-        .bind_named("first", 7_i32)?
+        .bind_named("second", 42_i32)
+        .bind_named("first", 7_i32)
         .fetch_one(&mut conn)
         .await?;
 
@@ -340,8 +340,8 @@ async fn it_combines_named_and_positional_binds() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let (sum,): (i32,) = query_as("SELECT :v + ?2 + :v")
-        .bind_named("v", 5_i32)?
-        .bind(3_i32)?
+        .bind_named("v", 5_i32)
+        .bind(3_i32)
         .fetch_one(&mut conn)
         .await?;
 
@@ -364,7 +364,7 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 
     for index in 1..=10_i32 {
         let done = query("INSERT INTO users (id) VALUES (?)")
-            .bind(index * 2)?
+            .bind(index * 2)
             .execute(&mut conn)
             .await?;
 
@@ -403,7 +403,7 @@ INSERT INTO users (other) VALUES (?);
 SELECT id, other FROM users WHERE id = last_insert_rowid();
             "#,
         )
-        .bind(index)?
+        .bind(index)
         .fetch_one(&mut conn)
         .await?;
 
@@ -460,7 +460,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     for i in 0..2 {
         let row = query("SELECT ? AS val")
-            .bind(i)?
+            .bind(i)
             .fetch_one(&mut conn)
             .await?;
 
@@ -477,7 +477,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     for i in 0..2 {
         let row = query("SELECT ? AS val")
-            .bind(i)?
+            .bind(i)
             .fetch_one(&mut conn)
             .await?;
 
@@ -521,7 +521,7 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
 
     let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
 
-    let row = statement.query().bind(tweet_id)?.fetch_one(&mut tx).await?;
+    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
     let tweet_text: &str = row.get_value("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
@@ -538,9 +538,9 @@ async fn it_handles_numeric_affinity() -> anyhow::Result<()> {
         .await?;
 
     query("INSERT INTO products (product_no, name, price) VALUES (?, ?, ?)")
-        .bind(2_i32)?
-        .bind("Prod 2")?
-        .bind(19.95_f64)?
+        .bind(2_i32)
+        .bind("Prod 2")
+        .bind(19.95_f64)
         .execute(&mut conn)
         .await?;
 
@@ -548,11 +548,11 @@ async fn it_handles_numeric_affinity() -> anyhow::Result<()> {
         .prepare("SELECT price FROM products WHERE product_no = ?")
         .await?;
 
-    let row = stmt.query().bind(1_i32)?.fetch_one(&mut conn).await?;
+    let row = stmt.query().bind(1_i32).fetch_one(&mut conn).await?;
     let price: f64 = row.get_value_idx(0)?;
     assert_eq!(price, 9.99_f64);
 
-    let row = stmt.query().bind(2_i32)?.fetch_one(&mut conn).await?;
+    let row = stmt.query().bind(2_i32).fetch_one(&mut conn).await?;
     let price: f64 = row.get_value_idx(0)?;
     assert_eq!(price, 19.95_f64);
 
@@ -607,7 +607,6 @@ async fn it_can_transact() {
         ($tx: expr, $v:expr) => {
             query("INSERT INTO foo (value) VALUES (?)")
                 .bind($v)
-                .unwrap()
                 .execute(&mut *$tx)
                 .await
                 .unwrap();
@@ -618,7 +617,6 @@ async fn it_can_transact() {
         ($tx: expr, $v:expr) => {
             query_as::<(i64,)>("SELECT count(*) FROM foo WHERE value = ?")
                 .bind($v)
-                .unwrap()
                 .fetch_one(&mut *$tx)
                 .await
                 .unwrap()
@@ -675,9 +673,7 @@ async fn concurrent_resets_dont_segfault() {
             pool.execute(
                 query("INSERT INTO stuff (name, value) VALUES (?, ?)")
                     .bind(i)
-                    .unwrap()
-                    .bind(0)
-                    .unwrap(),
+                    .bind(0),
             )
             .await
             .unwrap();
@@ -736,7 +732,7 @@ async fn issue_1467() -> anyhow::Result<()> {
     // hex::decode_to_slice(
     //     "135234871d03fc0479e22f2f06395b6074761bac5fe7dcf205dbe01eef9f7794",
     //     &mut seed,
-    // )?;
+    // );
 
     // reproducible RNG for testing
     let mut rng = Xoshiro256PlusPlus::from_seed(seed);
@@ -751,19 +747,19 @@ async fn issue_1467() -> anyhow::Result<()> {
         let mut tx = conn.begin().await?;
 
         let exists = query("SELECT 1 FROM kv WHERE k = ?")
-            .bind(key)?
+            .bind(key)
             .fetch_optional(&mut tx)
             .await?;
         if exists.is_some() {
             query("UPDATE kv SET v = ? WHERE k = ?")
-                .bind(value)?
-                .bind(key)?
+                .bind(value)
+                .bind(key)
                 .execute(&mut tx)
                 .await?;
         } else {
             query("INSERT INTO kv(k, v) VALUES (?, ?)")
-                .bind(key)?
-                .bind(value)?
+                .bind(key)
+                .bind(value)
                 .execute(&mut tx)
                 .await?;
         }
@@ -790,7 +786,6 @@ async fn concurrent_read_and_write() {
             for i in 0u32..n {
                 query("SELECT v FROM kv")
                     .bind(i)
-                    .unwrap()
                     .fetch_all(&mut conn)
                     .await
                     .unwrap();
@@ -805,9 +800,7 @@ async fn concurrent_read_and_write() {
                 pool.execute(
                     query("INSERT INTO kv (k, v) VALUES (?, ?)")
                         .bind(i)
-                        .unwrap()
-                        .bind(i * i)
-                        .unwrap(),
+                        .bind(i * i),
                 )
                 .await
                 .unwrap();
@@ -824,9 +817,9 @@ async fn it_binds_strings() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let row: (String, String, String) = musq::query_as("select ?1, ?2, ?3")
-        .bind("1")?
-        .bind("2".to_string())?
-        .bind(Arc::new("3".to_string()))?
+        .bind("1")
+        .bind("2".to_string())
+        .bind(Arc::new("3".to_string()))
         .fetch_one(&mut conn)
         .await?;
 
@@ -842,8 +835,8 @@ async fn it_fails_on_missing_bind() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     let res = musq::query("select ?1, ?2, ?4")
-        .bind(10_i32)?
-        .bind(11_i32)?
+        .bind(10_i32)
+        .bind(11_i32)
         .fetch_one(&mut conn)
         .await;
 

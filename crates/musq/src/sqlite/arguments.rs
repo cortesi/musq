@@ -261,9 +261,9 @@ mod tests {
         let mut conn = Connection::connect_with(&Musq::new()).await?;
 
         let (a, b, c): (i32, i32, i32) = query_as("SELECT ?1, :b, :a")
-            .bind(7_i32)?
-            .bind_named("b", 8_i32)?
-            .bind_named("a", 9_i32)?
+            .bind(7_i32)
+            .bind_named("b", 8_i32)
+            .bind_named("a", 9_i32)
             .fetch_one(&mut conn)
             .await?;
 
@@ -277,7 +277,7 @@ mod tests {
         let mut conn = Connection::connect_with(&Musq::new()).await?;
 
         let res = query("select ?1, ?2")
-            .bind(5_i32)?
+            .bind(5_i32)
             .fetch_one(&mut conn)
             .await;
 
@@ -297,8 +297,8 @@ mod tests {
         let mut conn = Connection::connect_with(&Musq::new()).await?;
 
         let (v,): (i32,) = query_as("SELECT ?1")
-            .bind(5_i32)?
-            .bind(15_i32)?
+            .bind(5_i32)
+            .bind(15_i32)
             .fetch_one(&mut conn)
             .await?;
 
