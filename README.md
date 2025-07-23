@@ -4,6 +4,25 @@
 
 Musq is an async SQLite crate library for Rust.
 
+## SQL Macros
+
+Musq provides the `sql!` and `sql_as!` macros for ergonomic query construction.
+These macros use a familiar `format!` style syntax while binding parameters
+safely under the hood.
+
+```rust
+use musq::{sql, sql_as, FromRow};
+
+#[derive(FromRow)]
+struct User { id: i32, name: String }
+
+let id = 42;
+let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}")?
+    .fetch_one(&mut conn)
+    .await?;
+```
+
+
 # Rows
 
 ## #[derive(FromRow)]

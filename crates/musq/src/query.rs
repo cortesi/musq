@@ -12,6 +12,7 @@ use crate::{
 pub struct Query {
     pub(crate) statement: Either<String, Statement>,
     pub(crate) arguments: Option<Arguments>,
+    pub(crate) tainted: bool,
 }
 
 /// SQL query that will map its results to owned Rust types.
@@ -81,6 +82,16 @@ impl Query {
     pub fn bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Self {
         self.try_bind_named(name, value)
             .expect("failed to bind named query parameter")
+    }
+
+    /// Returns true if the query contains raw SQL fragments.
+    pub fn is_tainted(&self) -> bool {
+        self.tainted
+    }
+
+    /// Convert this query into a [`QueryBuilder`] for further composition.
+    pub fn into_builder(self) -> crate::QueryBuilder {
+        crate::QueryBuilder::from_query(self)
     }
 }
 
@@ -312,6 +323,7 @@ pub(crate) fn query_statement(statement: &Statement) -> Query {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Right(statement.clone()),
+        tainted: false,
     }
 }
 
@@ -320,6 +332,7 @@ pub(crate) fn query_statement_with(statement: &Statement, arguments: Arguments) 
     Query {
         arguments: Some(arguments),
         statement: Either::Right(statement.clone()),
+        tainted: false,
     }
 }
 
@@ -328,6 +341,7 @@ pub fn query(sql: &str) -> Query {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Left(sql.to_string()),
+        tainted: false,
     }
 }
 
@@ -336,6 +350,7 @@ pub fn query_with(sql: &str, arguments: Arguments) -> Query {
     Query {
         arguments: Some(arguments),
         statement: Either::Left(sql.to_string()),
+        tainted: false,
     }
 }
 

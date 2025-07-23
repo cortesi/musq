@@ -1,0 +1,5 @@
+error: too many positional arguments
+ --> tests/trybuild/fail_sql.rs:4:18
+  |
+4 |     let _ = sql!("SELECT * FROM users WHERE id = {}", 1, 2);
+  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
