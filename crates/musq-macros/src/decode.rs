@@ -108,13 +108,8 @@ fn expand_enum(
 
     let value_arms = variants.iter().map(|v| -> Arm {
         let id = &v.ident;
-        if let Some(rename) = &v.rename {
-            parse_quote!(#rename => ::std::result::Result::Ok(#ident :: #id),)
-        } else {
-            let name = container.rename_all.rename(&id.to_string());
-
-            parse_quote!(#name => ::std::result::Result::Ok(#ident :: #id),)
-        }
+        let name = core::variant_name(container, v);
+        parse_quote!(#name => ::std::result::Result::Ok(#ident :: #id),)
     });
 
     let values = quote! {

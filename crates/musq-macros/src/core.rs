@@ -117,6 +117,15 @@ pub struct TypeVariant {
     pub rename: Option<String>,
 }
 
+/// Returns the canonical name of an enum variant after applying any
+/// `rename` attribute or container level `rename_all` rule.
+pub(crate) fn variant_name(container: &TypeContainer, variant: &TypeVariant) -> String {
+    variant
+        .rename
+        .clone()
+        .unwrap_or_else(|| container.rename_all.rename(&variant.ident.to_string()))
+}
+
 #[derive(Debug, FromField)]
 #[darling(attributes(musq))]
 pub struct TypeField {
