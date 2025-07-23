@@ -195,6 +195,36 @@ pub trait FromRow<'r>: Sized {
     fn from_row(prefix: &str, row: &'r Row) -> Result<Self>;
 }
 
+/// Helper trait used internally to determine if all columns belonging to a
+/// record are `NULL` in a given row.
+pub trait AllNull<'r> {
+    fn all_null(prefix: &str, row: &'r Row) -> Result<bool>;
+}
+
+impl<'r, T> AllNull<'r> for Option<T>
+where
+    T: AllNull<'r>,
+{
+    fn all_null(prefix: &str, row: &'r Row) -> Result<bool> {
+        T::all_null(prefix, row)
+    }
+}
+
+/// Implementation of [`FromRow`] for optional nested records. The value is set
+/// to `None` if [`AllNull::all_null`] returns `true` for the inner type.
+impl<'r, T> FromRow<'r> for Option<T>
+where
+    T: FromRow<'r> + AllNull<'r>,
+{
+    fn from_row(prefix: &str, row: &'r Row) -> Result<Self> {
+        if <T as AllNull>::all_null(prefix, row)? {
+            Ok(None)
+        } else {
+            Ok(Some(T::from_row(prefix, row)?))
+        }
+    }
+}
+
 // implement FromRow for tuples of types that implement Decode
 // up to tuples of 9 values
 
