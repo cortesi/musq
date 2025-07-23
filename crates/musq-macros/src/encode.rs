@@ -15,17 +15,11 @@ fn expand_enum(
     let ident = &container.ident;
     let generics = &container.generics;
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
-    let mut value_arms = Vec::new();
-
-    for v in variants {
+    let value_arms = variants.iter().map(|v| {
         let id = &v.ident;
-        if let Some(rename) = &v.rename {
-            value_arms.push(quote!(#ident :: #id => #rename,));
-        } else {
-            let name = container.rename_all.rename(&id.to_string());
-            value_arms.push(quote!(#ident :: #id => #name,));
-        }
-    }
+        let name = core::variant_name(container, v);
+        quote!(#ident :: #id => #name,)
+    });
 
     Ok(quote!(
         #[automatically_derived]
