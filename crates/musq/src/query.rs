@@ -12,6 +12,7 @@ use crate::{
 pub struct Query {
     pub(crate) statement: Either<String, Statement>,
     pub(crate) arguments: Option<Arguments>,
+    pub(crate) tainted: bool,
 }
 
 /// SQL query that will map its results to owned Rust types.
@@ -44,6 +45,18 @@ impl Execute for Query {
 }
 
 impl Query {
+    pub fn is_tainted(&self) -> bool {
+        self.tainted
+    }
+
+    pub fn into_builder(self) -> crate::QueryBuilder {
+        crate::QueryBuilder::from_parts(
+            self.sql().to_string(),
+            self.arguments.unwrap_or_default(),
+            self.tainted,
+        )
+    }
+
     /// Attempt to bind a value for use with this SQL query.
     ///
     /// If the number of times this is called does not match the number of bind parameters that
@@ -312,6 +325,7 @@ pub(crate) fn query_statement(statement: &Statement) -> Query {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Right(statement.clone()),
+        tainted: false,
     }
 }
 
@@ -320,6 +334,7 @@ pub(crate) fn query_statement_with(statement: &Statement, arguments: Arguments) 
     Query {
         arguments: Some(arguments),
         statement: Either::Right(statement.clone()),
+        tainted: false,
     }
 }
 
@@ -328,6 +343,7 @@ pub fn query(sql: &str) -> Query {
     Query {
         arguments: Some(Default::default()),
         statement: Either::Left(sql.to_string()),
+        tainted: false,
     }
 }
 
@@ -336,6 +352,7 @@ pub fn query_with(sql: &str, arguments: Arguments) -> Query {
     Query {
         arguments: Some(arguments),
         statement: Either::Left(sql.to_string()),
+        tainted: false,
     }
 }
 
@@ -415,4 +432,10 @@ where
     O: Send + Unpin,
 {
     query_statement_as_with(statement, arguments).map(|(o,)| o)
+}
+
+/// Quote an identifier for use in a SQL statement.
+pub fn quote_identifier(ident: &str) -> String {
+    let escaped = ident.replace('"', "\"\"");
+    format!("\"{escaped}\"")
 }
