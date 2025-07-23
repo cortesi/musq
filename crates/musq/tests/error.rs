@@ -4,7 +4,7 @@ use musq_test::tdb;
 #[tokio::test]
 async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
-    let mut tx = conn.begin().await?;
+    let tx = conn.begin().await?;
 
     let res: Result<_> = query("INSERT INTO tweet VALUES (1, 'Foo', true, 1);")
         .execute(&tx)
@@ -19,7 +19,7 @@ async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
-    let mut tx = conn.begin().await?;
+    let tx = conn.begin().await?;
 
     let res: Result<_> =
         query("INSERT INTO tweet_reply (id, tweet_id, text) VALUES (2, 2, 'Reply!');")
@@ -37,7 +37,7 @@ async fn it_fails_with_foreign_key_violation() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
-    let mut tx = conn.begin().await?;
+    let tx = conn.begin().await?;
 
     let res: Result<_> = query("INSERT INTO tweet (text) VALUES (null);")
         .execute(&tx)
@@ -54,7 +54,7 @@ async fn it_fails_with_not_null_violation() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_fails_with_check_violation() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
-    let mut tx = conn.begin().await?;
+    let tx = conn.begin().await?;
 
     let res: Result<_> = query("INSERT INTO products VALUES (1, 'Product 1', 0);")
         .execute(&tx)

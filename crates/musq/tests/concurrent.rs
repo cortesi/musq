@@ -13,7 +13,7 @@ async fn test_concurrent_reads() -> anyhow::Result<()> {
     for i in 0..10 {
         conn.execute(query("INSERT INTO test_concurrent_reads (id, value) VALUES (?, ?)")
             .bind(i)
-            .bind(format!("value_{}", i))).await?;
+            .bind(format!("value_{i}"))).await?;
     }
     
     // Run multiple concurrent queries
@@ -91,7 +91,7 @@ async fn test_concurrent_prepared_statements() -> anyhow::Result<()> {
     for i in 0..100 {
         conn.execute(query("INSERT INTO test_concurrent_prepared (id, data) VALUES (?, ?)")
             .bind(i)
-            .bind(format!("data_{}", i))).await?;
+            .bind(format!("data_{i}"))).await?;
     }
     
     // Run multiple concurrent queries using the same SQL (should use prepared statement cache)
@@ -236,13 +236,11 @@ async fn test_concurrent_statement_cache() -> anyhow::Result<()> {
     let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
     
     // Create different SQL statements that should be cached
-    let statements = vec![
-        "SELECT 1 as num",
+    let statements = ["SELECT 1 as num",
         "SELECT 2 as num", 
         "SELECT 3 as num",
         "SELECT 4 as num",
-        "SELECT 5 as num",
-    ];
+        "SELECT 5 as num"];
     
     // Run concurrent queries using different statements
     let mut handles = vec![];
@@ -288,7 +286,7 @@ async fn test_connection_thread_safety() -> anyhow::Result<()> {
         let conn_clone = Arc::clone(&conn);
         let handle = tokio::task::spawn_blocking(move || {
             tokio::runtime::Handle::current().block_on(async move {
-                let thread_name = format!("thread_{}", i);
+                let thread_name = format!("thread_{i}");
                 
                 // Insert data
                 conn_clone.execute(query("INSERT INTO test_thread_safety (id, thread_name) VALUES (?, ?)")
@@ -317,7 +315,7 @@ async fn test_connection_thread_safety() -> anyhow::Result<()> {
         assert!(inner_result.is_ok());
         let (id, thread_name) = inner_result.unwrap();
         assert_eq!(id, i as i32);
-        assert_eq!(thread_name, format!("thread_{}", i));
+        assert_eq!(thread_name, format!("thread_{i}"));
     }
     
     Ok(())

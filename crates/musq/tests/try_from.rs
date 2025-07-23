@@ -10,7 +10,7 @@ struct Foo {
 
 #[tokio::test]
 async fn try_from_failure_maps_error() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
 
     let res: musq::Result<Foo> = query_as::<Foo>("SELECT -1 as value")
         .fetch_one(&conn)

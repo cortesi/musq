@@ -4,7 +4,7 @@ use tokio::time::{Duration, Instant, sleep};
 
 #[tokio::test]
 async fn basic_statement_flow() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
 
     query("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)")
         .execute(&conn)
@@ -25,8 +25,8 @@ async fn basic_statement_flow() -> anyhow::Result<()> {
 #[tokio::test]
 async fn retry_on_busy_lock() -> anyhow::Result<()> {
     let pool = Musq::new().max_connections(2).open_in_memory().await?;
-    let mut c1 = pool.acquire().await?;
-    let mut c2 = pool.acquire().await?;
+    let c1 = pool.acquire().await?;
+    let c2 = pool.acquire().await?;
 
     query("CREATE TABLE t (val TEXT)").execute(&c1).await?;
 
@@ -45,7 +45,7 @@ async fn retry_on_busy_lock() -> anyhow::Result<()> {
     insert.await??;
     assert!(start.elapsed() >= Duration::from_millis(100));
 
-    let mut conn = pool.acquire().await?;
+    let conn = pool.acquire().await?;
     let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
         .fetch_one(&conn)
         .await?;

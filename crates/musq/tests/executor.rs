@@ -3,7 +3,7 @@ use musq::{Musq, Pool, PoolConnection, query};
 // Helper function to create a test database
 async fn setup_test_db() -> musq::Result<PoolConnection> {
     let pool = Musq::new().open_in_memory().await?;
-    let mut conn = pool.acquire().await?;
+    let conn = pool.acquire().await?;
 
     // Create a test table
     query("CREATE TABLE test_table (id INTEGER PRIMARY KEY, value TEXT)")
@@ -28,7 +28,7 @@ async fn setup_test_db() -> musq::Result<PoolConnection> {
 async fn setup_test_pool() -> musq::Result<Pool> {
     let pool = Musq::new().open_in_memory().await?;
 
-    let mut conn = pool.acquire().await?;
+    let conn = pool.acquire().await?;
 
     // Create a test table
     query("CREATE TABLE test_table (id INTEGER PRIMARY KEY, value TEXT)")
@@ -55,7 +55,7 @@ mod connection_executor {
 
     #[tokio::test]
     async fn test_execute_with_connection() -> musq::Result<()> {
-        let mut conn = setup_test_db().await?;
+        let conn = setup_test_db().await?;
 
         let result = query("INSERT INTO test_table (value) VALUES (?)")
             .bind("new_value")
@@ -69,7 +69,7 @@ mod connection_executor {
 
     #[tokio::test]
     async fn test_fetch_one_with_connection() -> musq::Result<()> {
-        let mut conn = setup_test_db().await?;
+        let conn = setup_test_db().await?;
 
         let row: Row = query("SELECT value FROM test_table WHERE id = ?")
             .bind(1)
@@ -83,7 +83,7 @@ mod connection_executor {
 
     #[tokio::test]
     async fn test_fetch_optional_with_connection() -> musq::Result<()> {
-        let mut conn = setup_test_db().await?;
+        let conn = setup_test_db().await?;
 
         let row: Option<Row> = query("SELECT value FROM test_table WHERE id = ?")
             .bind(999)
@@ -96,7 +96,7 @@ mod connection_executor {
 
     #[tokio::test]
     async fn test_fetch_all_with_connection() -> musq::Result<()> {
-        let mut conn = setup_test_db().await?;
+        let conn = setup_test_db().await?;
 
         let rows: Vec<Row> = query("SELECT value FROM test_table ORDER BY id")
             .fetch_all(&conn)
@@ -114,7 +114,7 @@ mod connection_executor {
     async fn test_fetch_stream_with_connection() -> musq::Result<()> {
         use futures_util::TryStreamExt;
 
-        let mut conn = setup_test_db().await?;
+        let conn = setup_test_db().await?;
 
         let rows: Vec<Row> = query("SELECT value FROM test_table ORDER BY id")
             .fetch(&conn)
@@ -266,7 +266,7 @@ mod pool_execution {
         // Test concurrent access to the pool
         let futures = (0..5).map(|i| {
             let pool = pool.clone();
-            let value = format!("concurrent_value_{}", i);
+            let value = format!("concurrent_value_{i}");
             async move {
                 pool.execute(query("INSERT INTO test_table (value) VALUES (?)").bind(&value))
                     .await
@@ -297,7 +297,7 @@ mod error_handling {
 
     #[tokio::test]
     async fn test_execute_invalid_sql_with_connection() -> musq::Result<()> {
-        let mut conn = setup_test_db().await?;
+        let conn = setup_test_db().await?;
 
         let result = query("INVALID SQL STATEMENT").execute(&conn).await;
 
@@ -307,7 +307,7 @@ mod error_handling {
 
     #[tokio::test]
     async fn test_fetch_one_not_found_with_connection() -> musq::Result<()> {
-        let mut conn = setup_test_db().await?;
+        let conn = setup_test_db().await?;
 
         let result = query("SELECT value FROM test_table WHERE id = ?")
             .bind(999)

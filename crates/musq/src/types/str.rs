@@ -63,6 +63,13 @@ impl Encode for Arc<String> {
     }
 }
 
+impl<'r> Decode<'r> for Arc<String> {
+    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
+        compatible!(value, SqliteDataType::Text);
+        value.text().map(|x| Arc::new(x.to_owned()))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -91,12 +98,5 @@ mod tests {
         } else {
             panic!("Expected Text value");
         }
-    }
-}
-
-impl<'r> Decode<'r> for Arc<String> {
-    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
-        compatible!(value, SqliteDataType::Text);
-        value.text().map(|x| Arc::new(x.to_owned()))
     }
 }

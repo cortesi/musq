@@ -14,7 +14,7 @@ macro_rules! bind_check {
     ($name:ident: $ty:ty = $value:expr) => {
         #[tokio::test]
         async fn $name() -> anyhow::Result<()> {
-            let mut conn = connection().await?;
+            let conn = connection().await?;
             let val: $ty = $value;
 
             let row = sql!("SELECT {}", val.clone())?.fetch_one(&conn).await?;
@@ -40,7 +40,7 @@ macro_rules! bind_check {
 
 #[tokio::test]
 async fn test_placeholders() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     sql!("CREATE TABLE users (id INTEGER, name TEXT, status TEXT)")?
         .execute(&conn)
         .await?;
@@ -65,7 +65,7 @@ async fn test_placeholders() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_ident_and_lists() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     let table = "user-data";
     sql!("CREATE TABLE {ident:table} (id INTEGER, name TEXT)")?
         .execute(&conn)
@@ -84,7 +84,7 @@ async fn test_ident_and_lists() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_raw_and_taint() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     sql!("CREATE TABLE t (id INTEGER)")?.execute(&conn).await?;
     sql!("INSERT INTO t (id) VALUES (1), (2)")?
         .execute(&conn)
@@ -98,7 +98,7 @@ async fn test_raw_and_taint() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn test_sql_as_and_builder() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     sql!("CREATE TABLE users (id INTEGER, name TEXT, status TEXT)")?
         .execute(&conn)
         .await?;

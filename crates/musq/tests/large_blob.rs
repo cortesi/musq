@@ -4,7 +4,7 @@ use std::sync::Arc;
 
 #[tokio::test]
 async fn insert_and_select_arc_blob() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     query("CREATE TABLE blob_test (data BLOB)")
         .execute(&conn)
         .await?;

@@ -10,7 +10,7 @@ async fn no_values_query() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn no_values_execute() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     musq::query("CREATE TABLE users (id INTEGER)")
         .execute(&conn)
         .await?;
@@ -21,7 +21,7 @@ async fn no_values_execute() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn single_value_insert() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     musq::query("CREATE TABLE t (id INTEGER)")
         .execute(&conn)
         .await?;
@@ -37,7 +37,7 @@ async fn single_value_insert() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn multiple_values_insert() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     musq::query("CREATE TABLE stuff (a INTEGER, b TEXT, c BOOLEAN, d BLOB)")
         .execute(&conn)
         .await?;
@@ -60,7 +60,7 @@ async fn multiple_values_insert() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn quoted_identifiers() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     musq::query("CREATE TABLE \"user-data\" (\"from-column\" INTEGER)")
         .execute(&conn)
         .await?;
@@ -86,7 +86,7 @@ async fn execute_on_pool() -> anyhow::Result<()> {
         .value("id", 1)
         .execute_on_pool(&pool)
         .await?;
-    let mut conn = pool.acquire().await?;
+    let conn = pool.acquire().await?;
     let id: i32 = query_scalar("SELECT id FROM pool_t")
         .fetch_one(&conn)
         .await?;

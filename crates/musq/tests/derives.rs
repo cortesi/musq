@@ -58,7 +58,7 @@ pub struct FromRowPlain {
 
 #[tokio::test]
 async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     let row: FromRowPlain = musq::query_as(
         r"
         SELECT
@@ -130,7 +130,7 @@ struct UserOptPref {
 
 #[tokio::test]
 async fn flatten_option_all_null() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     let user: UserOpt =
         musq::query_as("SELECT ? as id, ? as name, NULL as street, NULL as city, NULL as country")
             .bind(1i32)
@@ -143,7 +143,7 @@ async fn flatten_option_all_null() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn flatten_option_some() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     let user: UserOpt =
         musq::query_as("SELECT ? as id, ? as name, ? as street, ? as city, ? as country")
             .bind(1i32)
@@ -166,7 +166,7 @@ async fn flatten_option_some() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn flatten_option_prefix_all_null() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     let user: UserOptPref = musq::query_as(
         "SELECT ? as id, ? as name, NULL as addr_street, NULL as addr_city, NULL as addr_country",
     )
@@ -180,7 +180,7 @@ async fn flatten_option_prefix_all_null() -> anyhow::Result<()> {
 
 #[tokio::test]
 async fn flatten_option_prefix_some() -> anyhow::Result<()> {
-    let mut conn = connection().await?;
+    let conn = connection().await?;
     let user: UserOptPref = musq::query_as(
         "SELECT ? as id, ? as name, ? as addr_street, ? as addr_city, ? as addr_country",
     )
