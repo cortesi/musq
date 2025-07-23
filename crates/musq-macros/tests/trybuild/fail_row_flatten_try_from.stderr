@@ -1,0 +1,5 @@
+error: `flatten` cannot be combined with `try_from`
+  --> tests/trybuild/fail_row_flatten_try_from.rs:11:12
+   |
+11 |     inner: Inner,
+   |            ^^^^^

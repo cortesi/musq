@@ -7,6 +7,7 @@ use super::core;
 
 pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<TokenStream> {
     let container = core::RowContainer::from_derive_input(input)?;
+    core::check_row_attrs(&container)?;
     Ok(match &container.data {
         ast::Data::Struct(fields) => {
             // We know it's either a named struct or a tuple struct from darling restrictions.
