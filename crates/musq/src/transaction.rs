@@ -5,7 +5,7 @@ use std::{
 
 use futures_core::future::BoxFuture;
 
-use crate::{Connection, Result};
+use crate::{Connection, Result, executor::Executor};
 
 /// An in-progress database transaction or savepoint.
 ///
@@ -136,5 +136,48 @@ pub(crate) fn rollback_ansi_transaction_sql(depth: usize) -> String {
         "ROLLBACK".into()
     } else {
         format!("ROLLBACK TO SAVEPOINT _musq_savepoint_{}", depth - 1)
+    }
+}
+
+impl<'c, C> Executor<'c> for Transaction<C>
+where
+    C: DerefMut<Target = Connection> + Send,
+{
+    fn execute<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, crate::Result<crate::QueryResult>>
+    where
+        'c: 'q,
+        E: crate::executor::Execute + 'q,
+    {
+        let conn: &'c mut Connection = self.deref_mut();
+        conn.execute(query)
+    }
+
+    fn fetch_many<'q, E>(
+        &'c mut self,
+        query: E,
+    ) -> futures_core::stream::BoxStream<'q, crate::Result<either::Either<crate::QueryResult, crate::Row>>>
+    where
+        'c: 'q,
+        E: crate::executor::Execute + 'q,
+    {
+        let conn: &'c mut Connection = self.deref_mut();
+        conn.fetch_many(query)
+    }
+
+    fn fetch_optional<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, crate::Result<Option<crate::Row>>>
+    where
+        'c: 'q,
+        E: crate::executor::Execute + 'q,
+    {
+        let conn: &'c mut Connection = self.deref_mut();
+        conn.fetch_optional(query)
+    }
+
+    fn prepare_with<'q>(&'c mut self, sql: &'q str) -> BoxFuture<'q, crate::Result<crate::sqlite::statement::Prepared>>
+    where
+        'c: 'q,
+    {
+        let conn: &'c mut Connection = self.deref_mut();
+        conn.prepare_with(sql)
     }
 }

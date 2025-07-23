@@ -1,4 +1,4 @@
-use musq::{Musq, query, query_scalar};
+use musq::{Musq, query, query_scalar, Executor};
 use musq_test::connection;
 use tokio::time::{Duration, Instant, sleep};
 
@@ -6,7 +6,8 @@ use tokio::time::{Duration, Instant, sleep};
 async fn basic_statement_flow() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    conn.execute("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)")
+    query("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)")
+        .execute(&mut conn)
         .await?;
 
     let stmt = conn.prepare("INSERT INTO t (val) VALUES (?1)").await?;
@@ -27,7 +28,7 @@ async fn retry_on_busy_lock() -> anyhow::Result<()> {
     let mut c1 = pool.acquire().await?;
     let mut c2 = pool.acquire().await?;
 
-    c1.execute("CREATE TABLE t (val TEXT)").await?;
+    query("CREATE TABLE t (val TEXT)").execute(&mut c1).await?;
 
     query("BEGIN IMMEDIATE").execute(&mut c1).await?;
 

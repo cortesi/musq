@@ -9,7 +9,7 @@ use either::Either;
 use crate::{
     QueryResult, Result, Row,
     error::Error,
-    executor::Execute,
+    executor::{Execute, Executor},
     logger::LogSettings,
     musq::{Musq, OptimizeOnClose},
     sqlite::connection::{establish::EstablishParams, worker::ConnectionWorker},
@@ -171,7 +171,7 @@ impl Connection {
 }
 
 impl Connection {
-    pub fn fetch_many<'c, 'q: 'c, E>(
+    pub(crate) fn fetch_many<'c, 'q: 'c, E>(
         &'c mut self,
         mut query: E,
     ) -> BoxStream<'c, Result<Either<QueryResult, Row>>>
@@ -189,7 +189,7 @@ impl Connection {
         )
     }
 
-    pub fn fetch_optional<'c, 'q: 'c, E>(
+    pub(crate) fn fetch_optional<'c, 'q: 'c, E>(
         &'c mut self,
         mut query: E,
     ) -> BoxFuture<'c, Result<Option<Row>>>
@@ -218,7 +218,7 @@ impl Connection {
         })
     }
 
-    pub fn prepare_with<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
+    pub(crate) fn prepare_with<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         Box::pin(async move {
             self.worker.prepare(sql).await?;
 
@@ -228,11 +228,11 @@ impl Connection {
         })
     }
 
-    pub fn prepare<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
+    pub(crate) fn prepare<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         self.prepare_with(sql)
     }
 
-    pub fn fetch<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<Row>>
+    pub(crate) fn fetch<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<Row>>
     where
         E: Execute + 'q,
     {
@@ -246,7 +246,7 @@ impl Connection {
             .boxed()
     }
 
-    pub fn execute_many<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<QueryResult>>
+    pub(crate) fn execute_many<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
@@ -260,7 +260,7 @@ impl Connection {
             .boxed()
     }
 
-    pub fn execute<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<QueryResult>>
+    pub(crate) fn execute<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
@@ -273,14 +273,14 @@ impl Connection {
             .boxed()
     }
 
-    pub fn fetch_all<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
+    pub(crate) fn fetch_all<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
     where
         E: Execute + 'q,
     {
         self.fetch(query).try_collect().boxed()
     }
 
-    pub fn fetch_one<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Row>>
+    pub(crate) fn fetch_one<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Row>>
     where
         E: Execute + 'q,
     {
@@ -306,5 +306,41 @@ impl Drop for ConnectionState {
     fn drop(&mut self) {
         // explicitly drop statements before the connection handle is dropped
         self.statements.clear();
+    }
+}
+
+impl<'c> Executor<'c> for Connection {
+    fn execute<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, Result<QueryResult>>
+    where
+        'c: 'q,
+        E: Execute + 'q,
+    {
+        self.execute(query)
+    }
+
+    fn fetch_many<'q, E>(
+        &'c mut self,
+        query: E,
+    ) -> BoxStream<'q, Result<Either<QueryResult, Row>>>
+    where
+        'c: 'q,
+        E: Execute + 'q,
+    {
+        self.fetch_many(query)
+    }
+
+    fn fetch_optional<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, Result<Option<Row>>>
+    where
+        'c: 'q,
+        E: Execute + 'q,
+    {
+        self.fetch_optional(query)
+    }
+
+    fn prepare_with<'q>(&'c mut self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
+    where
+        'c: 'q,
+    {
+        self.prepare_with(sql)
     }
 }

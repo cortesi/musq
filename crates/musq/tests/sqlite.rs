@@ -1,5 +1,5 @@
 use futures::TryStreamExt;
-use musq::{Connection, Error, Musq, Row, query, query_as, query_scalar};
+use musq::{Connection, Error, Executor, Musq, Row, query, query_as, query_scalar};
 use musq_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -21,7 +21,7 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
     {
         let expected = [15, 39, 51];
         let mut i = 0;
-        let mut s = conn.fetch("SELECT 15 UNION SELECT 51 UNION SELECT 39");
+        let mut s = query("SELECT 15 UNION SELECT 51 UNION SELECT 39").fetch(&mut conn);
 
         while let Some(row) = s.try_next().await? {
             let v1 = row.get_value_idx::<i32>(0).unwrap();
@@ -190,7 +190,7 @@ async fn it_opens_in_memory() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_fails_to_parse() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    let res = conn.execute("SEELCT 1").await;
+    let res = query("SEELCT 1").execute(&mut conn).await;
 
     assert!(res.is_err());
 
@@ -284,7 +284,7 @@ async fn it_binds_duplicate_named_parameters() -> anyhow::Result<()> {
 async fn it_uses_named_parameters_in_sql() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    conn.execute("CREATE TEMP TABLE np (id INTEGER PRIMARY KEY, val TEXT);")
+    query("CREATE TEMP TABLE np (id INTEGER PRIMARY KEY, val TEXT);").execute(&mut conn)
         .await?;
 
     query("INSERT INTO np (id, val) VALUES (:id, :val)")
@@ -452,7 +452,7 @@ SELECT id, text FROM _musq_test;
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    let row = conn.fetch_one("SELECT 100 AS val").await?;
+    let row = query("SELECT 100 AS val").fetch_one(&mut conn).await?;
     let val: i32 = row.get_value("val").unwrap();
     assert_eq!(val, 100);
 
@@ -496,12 +496,12 @@ async fn it_respects_statement_cache_capacity() -> anyhow::Result<()> {
     let mut conn = pool.acquire().await?;
 
     // first query populates cache
-    let row = conn.fetch_one("SELECT 1 AS val").await?;
+    let row = query("SELECT 1 AS val").fetch_one(&mut conn).await?;
     let val: i32 = row.get_value("val").unwrap();
     assert_eq!(val, 1);
 
     // second query should also succeed even when the cache evicts the first
-    let row = conn.fetch_one("SELECT 2 AS val").await?;
+    let row = query("SELECT 2 AS val").fetch_one(&mut conn).await?;
     let val: i32 = row.get_value("val").unwrap();
     assert_eq!(val, 2);
 
@@ -563,15 +563,15 @@ async fn it_handles_numeric_affinity() -> anyhow::Result<()> {
 async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    conn.execute("CREATE TEMPORARY TABLE foobar (id INTEGER)")
+    query("CREATE TEMPORARY TABLE foobar (id INTEGER)").execute(&mut conn)
         .await?;
-    conn.execute("INSERT INTO foobar VALUES (42)").await?;
+    query("INSERT INTO foobar VALUES (42)").execute(&mut conn).await?;
 
     let r = query("SELECT id FROM foobar").fetch_one(&mut conn).await?;
     let x: i32 = r.get_value("id")?;
     assert_eq!(x, 42);
 
-    conn.execute("DROP TABLE foobar").await?;
+    query("DROP TABLE foobar").execute(&mut conn).await?;
 
     Ok(())
 }
@@ -580,10 +580,10 @@ async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
 async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    conn.execute("CREATE TEMPORARY TABLE foobar (id INTEGER)")
+    query("CREATE TEMPORARY TABLE foobar (id INTEGER)").execute(&mut conn)
         .await?;
-    conn.execute("INSERT INTO foobar VALUES (42)").await?;
-    conn.execute("INSERT INTO foobar VALUES (43)").await?;
+    query("INSERT INTO foobar VALUES (42)").execute(&mut conn).await?;
+    query("INSERT INTO foobar VALUES (43)").execute(&mut conn).await?;
 
     let mut rows = query("SELECT id FROM foobar").fetch(&mut conn);
     let row = rows.try_next().await?.unwrap();
@@ -591,7 +591,7 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
     assert_eq!(x, 42);
     drop(rows);
 
-    conn.execute("DROP TABLE foobar").await?;
+    query("DROP TABLE foobar").execute(&mut conn).await?;
 
     Ok(())
 }

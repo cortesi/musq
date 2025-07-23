@@ -5,7 +5,7 @@ use std::sync::Arc;
 #[tokio::test]
 async fn insert_and_select_arc_blob() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    conn.execute("CREATE TABLE blob_test (data BLOB)").await?;
+    query("CREATE TABLE blob_test (data BLOB)").execute(&mut conn).await?;
 
     let data: Vec<u8> = vec![0x42; 16 * 1024];
     let arc = Arc::new(data.clone());

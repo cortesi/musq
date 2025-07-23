@@ -28,7 +28,7 @@ pub mod types;
 
 pub use crate::{
     error::{DecodeError, EncodeError, Error, Result},
-    executor::Execute,
+    executor::{Execute, Executor},
     from_row::{AllNull, FromRow},
     insert_builder::insert_into,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},

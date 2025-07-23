@@ -2,7 +2,7 @@ use std::fmt::{self, Debug, Formatter};
 use std::ops::{Deref, DerefMut};
 use std::sync::Arc;
 
-use crate::{Connection, Result};
+use crate::{Connection, Result, executor::Executor};
 
 use super::inner::{DecrementSizeGuard, PoolInner};
 use std::future::Future;
@@ -213,5 +213,54 @@ impl<C> Deref for Floating<C> {
 impl<C> DerefMut for Floating<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.inner
+    }
+}
+
+impl<'c> Executor<'c> for PoolConnection {
+    fn execute<'q, E>(
+        &'c mut self,
+        query: E,
+    ) -> futures_core::future::BoxFuture<'q, Result<crate::QueryResult>>
+    where
+        'c: 'q,
+        E: crate::executor::Execute + 'q,
+    {
+        let conn: &'c mut Connection = self.deref_mut();
+        conn.execute(query)
+    }
+
+    fn fetch_many<'q, E>(
+        &'c mut self,
+        query: E,
+    ) -> futures_core::stream::BoxStream<'q, Result<either::Either<crate::QueryResult, crate::Row>>>
+    where
+        'c: 'q,
+        E: crate::executor::Execute + 'q,
+    {
+        let conn: &'c mut Connection = self.deref_mut();
+        conn.fetch_many(query)
+    }
+
+    fn fetch_optional<'q, E>(
+        &'c mut self,
+        query: E,
+    ) -> futures_core::future::BoxFuture<'q, Result<Option<crate::Row>>>
+    where
+        'c: 'q,
+        E: crate::executor::Execute + 'q,
+    {
+        let conn: &'c mut Connection = self.deref_mut();
+        conn.fetch_optional(query)
+    }
+
+    fn prepare_with<'q>(
+        &'c mut self,
+        sql: &'q str,
+    ) -> futures_core::future::BoxFuture<'q, Result<crate::sqlite::statement::Prepared>>
+    where
+        'c: 'q,
+    {
+        let conn: &'c mut Connection = self.deref_mut();
+        conn.prepare_with(sql)
     }
 }

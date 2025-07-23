@@ -11,7 +11,7 @@ async fn no_values_query() -> anyhow::Result<()> {
 #[tokio::test]
 async fn no_values_execute() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    conn.execute("CREATE TABLE users (id INTEGER)").await?;
+    musq::query("CREATE TABLE users (id INTEGER)").execute(&mut conn).await?;
     let res = insert_into("users").execute(&mut conn).await;
     assert!(res.is_err());
     Ok(())
@@ -20,7 +20,7 @@ async fn no_values_execute() -> anyhow::Result<()> {
 #[tokio::test]
 async fn single_value_insert() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    conn.execute("CREATE TABLE t (id INTEGER)").await?;
+    musq::query("CREATE TABLE t (id INTEGER)").execute(&mut conn).await?;
     let query = insert_into("t").value("id", 5).query()?;
     assert_eq!(query.sql(), "INSERT INTO \"t\" (\"id\") VALUES (?)");
     insert_into("t").value("id", 5).execute(&mut conn).await?;
@@ -34,7 +34,8 @@ async fn single_value_insert() -> anyhow::Result<()> {
 #[tokio::test]
 async fn multiple_values_insert() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    conn.execute("CREATE TABLE stuff (a INTEGER, b TEXT, c BOOLEAN, d BLOB)")
+    musq::query("CREATE TABLE stuff (a INTEGER, b TEXT, c BOOLEAN, d BLOB)")
+        .execute(&mut conn)
         .await?;
     insert_into("stuff")
         .value("a", 1_i32)
@@ -56,7 +57,8 @@ async fn multiple_values_insert() -> anyhow::Result<()> {
 #[tokio::test]
 async fn quoted_identifiers() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    conn.execute("CREATE TABLE \"user-data\" (\"from-column\" INTEGER)")
+    musq::query("CREATE TABLE \"user-data\" (\"from-column\" INTEGER)")
+        .execute(&mut conn)
         .await?;
     let q = insert_into("user-data").value("from-column", 10).query()?;
     assert_eq!(
@@ -91,7 +93,7 @@ async fn execute_on_pool() -> anyhow::Result<()> {
 #[tokio::test]
 async fn transaction_insert() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    conn.execute("CREATE TABLE tx_t (id INTEGER)").await?;
+    musq::query("CREATE TABLE tx_t (id INTEGER)").execute(&mut conn).await?;
     let mut tx = conn.begin().await?;
     insert_into("tx_t").value("id", 7).execute(&mut tx).await?;
     tx.commit().await?;

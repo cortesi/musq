@@ -10,11 +10,11 @@
 use std::{fmt, future::Future, sync::Arc};
 
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
+use futures_util::TryStreamExt;
 
 use self::inner::PoolInner;
 use crate::{
-    Error, QueryResult, Result, Row, executor::Execute, sqlite::statement::Prepared,
+    QueryResult, Result, Row, executor::Execute, sqlite::statement::Prepared,
     transaction::Transaction,
 };
 use either::Either;
@@ -195,13 +195,19 @@ impl Pool {
     {
         let pool = self.clone();
 
-        Box::pin(async move { pool.acquire().await?.fetch_optional(query).await })
+        Box::pin(async move {
+            let mut conn = pool.acquire().await?;
+            conn.fetch_optional(query).await
+        })
     }
 
     pub fn prepare_with<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         let pool = self.clone();
 
-        Box::pin(async move { pool.acquire().await?.prepare_with(sql).await })
+        Box::pin(async move {
+            let mut conn = pool.acquire().await?;
+            conn.prepare_with(sql).await
+        })
     }
 
     pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
@@ -212,60 +218,68 @@ impl Pool {
     where
         E: Execute + 'q,
     {
-        self.fetch_many(query)
-            .try_filter_map(|step| async move {
-                Ok(match step {
-                    Either::Left(_) => None,
-                    Either::Right(row) => Some(row),
-                })
-            })
-            .boxed()
+        let pool = self.clone();
+
+        Box::pin(async_stream::try_stream! {
+            let mut conn = pool.acquire().await?;
+            let mut s = conn.fetch(query);
+
+            while let Some(v) = s.try_next().await? {
+                yield v;
+            }
+        })
     }
 
     pub fn execute_many<'c, 'q: 'c, E>(&'c self, query: E) -> BoxStream<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
-        self.fetch_many(query)
-            .try_filter_map(|step| async move {
-                Ok(match step {
-                    Either::Left(rows) => Some(rows),
-                    Either::Right(_) => None,
-                })
-            })
-            .boxed()
+        let pool = self.clone();
+
+        Box::pin(async_stream::try_stream! {
+            let mut conn = pool.acquire().await?;
+            let mut s = conn.execute_many(query);
+
+            while let Some(v) = s.try_next().await? {
+                yield v;
+            }
+        })
     }
 
     pub fn execute<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
-        self.execute_many(query)
-            .try_fold(QueryResult::default(), |mut acc, qr| async move {
-                acc.changes += qr.changes;
-                acc.last_insert_rowid = qr.last_insert_rowid;
-                Ok(acc)
-            })
-            .boxed()
+        let pool = self.clone();
+
+        Box::pin(async move {
+            let mut conn = pool.acquire().await?;
+            conn.execute(query).await
+        })
     }
 
     pub fn fetch_all<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
     where
         E: Execute + 'q,
     {
-        self.fetch(query).try_collect().boxed()
+        let pool = self.clone();
+
+        Box::pin(async move {
+            let mut conn = pool.acquire().await?;
+            conn.fetch_all(query).await
+        })
     }
 
     pub fn fetch_one<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Row>>
     where
         E: Execute + 'q,
     {
-        self.fetch_optional(query)
-            .and_then(|row| match row {
-                Some(row) => future::ok(row),
-                None => future::err(Error::RowNotFound),
-            })
-            .boxed()
+        let pool = self.clone();
+
+        Box::pin(async move {
+            let mut conn = pool.acquire().await?;
+            conn.fetch_one(query).await
+        })
     }
 }
 
