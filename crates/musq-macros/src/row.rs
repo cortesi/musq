@@ -80,11 +80,17 @@ fn expand_struct(
             } else if let Some(try_from) = &field.try_from {
                 predicates.push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
                 parse_quote!(
-                    row.get_value(&format!("{}{}", prefix, #column_name)).and_then(
-                        |v| <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(v).map_err(
-                            |e| musq::Error::ColumnNotFound("FromRow: try_from failed".to_string())
-                        )
-                    )
+                    {
+                        let column_name = format!("{}{}", prefix, #column_name);
+                        let value: musq::Value = row.get_value(&column_name)?;
+                        let decoded: #try_from = row.get_value(&column_name)?;
+                        <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(decoded).map_err(|e| musq::Error::ColumnDecode {
+                            index: String::new(),
+                            column_name,
+                            value,
+                            source: musq::error::DecodeError::Conversion(e.to_string()),
+                        })
+                    }
                 )
             } else {
                 predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));

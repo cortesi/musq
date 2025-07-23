@@ -1,4 +1,4 @@
-use crate::{error::DecodeError, sqlite::type_info::SqliteDataType};
+use crate::{decode::Decode, error::DecodeError, sqlite::type_info::SqliteDataType};
 
 /// Owned representation of a SQLite value.
 ///
@@ -127,5 +127,11 @@ impl Value {
     /// Returns `true` if the value is [`Value::Null`].
     pub fn is_null(&self) -> bool {
         matches!(self, Value::Null { .. })
+    }
+}
+
+impl<'r> Decode<'r> for Value {
+    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
+        Ok(value.clone())
     }
 }
