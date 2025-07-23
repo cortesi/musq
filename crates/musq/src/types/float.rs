@@ -36,3 +36,27 @@ impl<'r> Decode<'r> for f64 {
         value.double()
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_reference_encode() {
+        let value = 3.14f32;
+        let result = (&value).encode().unwrap();
+        if let Value::Double { value: encoded, .. } = result {
+            assert!((encoded - value as f64).abs() < 1e-6);
+        } else {
+            panic!("Expected Double value");
+        }
+
+        let value_f64 = 2.718f64;
+        let result = (&value_f64).encode().unwrap();
+        if let Value::Double { value: encoded, .. } = result {
+            assert!((encoded - 2.718).abs() < f64::EPSILON);
+        } else {
+            panic!("Expected Double value");
+        }
+    }
+}
