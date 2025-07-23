@@ -133,8 +133,8 @@ async fn flatten_option_all_null() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     let user: UserOpt =
         musq::query_as("SELECT ? as id, ? as name, NULL as street, NULL as city, NULL as country")
-            .bind(1i32)?
-            .bind("Bob")?
+            .bind(1i32)
+            .bind("Bob")
             .fetch_one(&mut conn)
             .await?;
     assert_eq!(user.address, None);
@@ -146,11 +146,11 @@ async fn flatten_option_some() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     let user: UserOpt =
         musq::query_as("SELECT ? as id, ? as name, ? as street, ? as city, ? as country")
-            .bind(1i32)?
-            .bind("Bob")?
-            .bind("Main")?
-            .bind("NYC")?
-            .bind("US")?
+            .bind(1i32)
+            .bind("Bob")
+            .bind("Main")
+            .bind("NYC")
+            .bind("US")
             .fetch_one(&mut conn)
             .await?;
     assert_eq!(
@@ -170,8 +170,8 @@ async fn flatten_option_prefix_all_null() -> anyhow::Result<()> {
     let user: UserOptPref = musq::query_as(
         "SELECT ? as id, ? as name, NULL as addr_street, NULL as addr_city, NULL as addr_country",
     )
-    .bind(1i32)?
-    .bind("Bob")?
+    .bind(1i32)
+    .bind("Bob")
     .fetch_one(&mut conn)
     .await?;
     assert_eq!(user.address, None);
@@ -184,11 +184,11 @@ async fn flatten_option_prefix_some() -> anyhow::Result<()> {
     let user: UserOptPref = musq::query_as(
         "SELECT ? as id, ? as name, ? as addr_street, ? as addr_city, ? as addr_country",
     )
-    .bind(1i32)?
-    .bind("Bob")?
-    .bind("Main")?
-    .bind("NYC")?
-    .bind("US")?
+    .bind(1i32)
+    .bind("Bob")
+    .bind("Main")
+    .bind("NYC")
+    .bind("US")
     .fetch_one(&mut conn)
     .await?;
     assert_eq!(
