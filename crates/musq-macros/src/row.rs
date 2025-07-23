@@ -1,7 +1,7 @@
 use darling::{FromDeriveInput, ast};
 use proc_macro2::{Span, TokenStream};
 use quote::quote;
-use syn::{DeriveInput, Expr, Lifetime, Stmt, parse_quote};
+use syn::{DeriveInput, Expr, GenericParam, Lifetime, Stmt, parse_quote};
 
 use super::core;
 
@@ -40,7 +40,12 @@ fn expand_struct(
     let (_, ty_generics, _) = generics.split_for_impl();
     let mut generics = generics.clone();
     if provided {
-        generics.params.insert(0, parse_quote!(#lifetime));
+        let pos = generics
+            .params
+            .iter()
+            .position(|p| !matches!(p, GenericParam::Lifetime(_)))
+            .unwrap_or(generics.params.len());
+        generics.params.insert(pos, parse_quote!(#lifetime));
     }
 
     let predicates = &mut generics.make_where_clause().predicates;
@@ -136,11 +141,17 @@ fn expand_tuple_struct(
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!(R: musq::Row));
-
     if provided {
-        generics.params.insert(0, parse_quote!(#lifetime));
+        let pos = generics
+            .params
+            .iter()
+            .position(|p| !matches!(p, GenericParam::Lifetime(_)))
+            .unwrap_or(generics.params.len());
+        generics.params.insert(pos, parse_quote!(#lifetime));
     }
+
+    let row_pos = generics.lifetimes().count();
+    generics.params.insert(row_pos, parse_quote!(R: musq::Row));
 
     let predicates = &mut generics.make_where_clause().predicates;
 

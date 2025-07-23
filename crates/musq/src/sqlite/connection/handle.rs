@@ -84,13 +84,13 @@ impl ConnectionHandle {
 impl Drop for ConnectionHandle {
     fn drop(&mut self) {
         // https://sqlite.org/c3ref/close.html
-        if !self.closed {
-            if let Err(e) = ffi::close(self.ptr.as_ptr()) {
-                // This should only happen if SQLite has leaked handles internally
-                // or we misused the API. Log the error and the connection pointer
-                // so that we can troubleshoot the issue if it happens in the wild.
-                tracing::error!(db_ptr = ?self.ptr, "sqlite3_close failed: {}", e);
-            }
+        if !self.closed
+            && let Err(e) = ffi::close(self.ptr.as_ptr())
+        {
+            // This should only happen if SQLite has leaked handles internally
+            // or we misused the API. Log the error and the connection pointer
+            // so that we can troubleshoot the issue if it happens in the wild.
+            tracing::error!(db_ptr = ?self.ptr, "sqlite3_close failed: {}", e);
         }
     }
 }
