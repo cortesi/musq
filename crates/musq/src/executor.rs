@@ -119,6 +119,7 @@ impl Execute for &str {
 mod sealed_executor {
     pub trait Sealed {}
     impl Sealed for crate::Connection {}
+    impl Sealed for crate::Pool {}
     impl Sealed for crate::pool::PoolConnection {}
     impl<C> Sealed for crate::Transaction<C> where
         C: std::ops::DerefMut<Target = crate::Connection> + Send
@@ -128,7 +129,7 @@ mod sealed_executor {
 
 /// A type that can directly execute queries against the database.
 ///
-/// This trait is implemented by [`Connection`] and [`Transaction`].
+/// This trait is implemented by [`Connection`], [`Pool`], [`PoolConnection`], and [`Transaction`].
 /// It is sealed and cannot be implemented for types outside of `musq`.
 pub trait Executor<'c>: sealed_executor::Sealed {
     fn execute<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<QueryResult>>

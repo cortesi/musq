@@ -14,7 +14,7 @@ use futures_util::TryStreamExt;
 
 use self::inner::PoolInner;
 use crate::{
-    QueryResult, Result, Row, executor::Execute, sqlite::statement::Prepared,
+    QueryResult, Result, Row, executor::{Execute, Executor}, sqlite::statement::Prepared,
     transaction::Transaction,
 };
 use either::Either;
@@ -298,5 +298,38 @@ impl fmt::Debug for Pool {
             .field("is_closed", &self.0.is_closed())
             .field("options", &self.0.options)
             .finish()
+    }
+}
+
+impl<'c> Executor<'c> for Pool {
+    fn execute<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<QueryResult>>
+    where
+        'c: 'q,
+        E: Execute + 'q,
+    {
+        self.execute(query)
+    }
+
+    fn fetch_many<'q, E>(&'c self, query: E) -> BoxStream<'q, Result<Either<QueryResult, Row>>>
+    where
+        'c: 'q,
+        E: Execute + 'q,
+    {
+        self.fetch_many(query)
+    }
+
+    fn fetch_optional<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<Option<Row>>>
+    where
+        'c: 'q,
+        E: Execute + 'q,
+    {
+        self.fetch_optional(query)
+    }
+
+    fn prepare_with<'q>(&'c self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
+    where
+        'c: 'q,
+    {
+        self.prepare_with(sql)
     }
 }
