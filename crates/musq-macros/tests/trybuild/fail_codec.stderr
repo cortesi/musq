@@ -1,0 +1,5 @@
+error: structs must have exactly one unnamed field
+ --> tests/trybuild/fail_codec.rs:4:1
+  |
+4 | struct Bad { a: i32 }
+  | ^^^^^^^^^^^^^^^^^^^^^
