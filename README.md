@@ -272,7 +272,10 @@ let blob: Arc<Vec<u8>> = query_scalar("SELECT data FROM blob_test")
 
 Musq supports the standard SQLite parameter syntax with `:name` and `@name` in
 addition to positional placeholders. Values can be supplied positionally using
-[`bind`](#) or directly by name with [`bind_named`]:
+[`bind`](#) or directly by name with [`bind_named`].
+
+`bind()` will panic if the value cannot be bound. Use `try_bind()` or
+`try_bind_named()` when you need to handle binding errors explicitly:
 
 ```rust
 query("SELECT :foo, @bar")

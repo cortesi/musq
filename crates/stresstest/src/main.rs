@@ -191,7 +191,7 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<()> 
 
     // Insert into A
     musq::query("INSERT INTO a (data) VALUES (?)")
-        .bind(a_data)?
+        .bind(a_data)
         .execute(&mut tx)
         .await?;
 
@@ -203,8 +203,8 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<()> 
 
     // Insert into B
     musq::query("INSERT INTO b (a_id, data) VALUES (?, ?)")
-        .bind(a_id)?
-        .bind(b_data)?
+        .bind(a_id)
+        .bind(b_data)
         .execute(&mut tx)
         .await?;
 
@@ -218,13 +218,13 @@ async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row)> {
     let random_id = rand::rng().random_range(1..=max_id) as i64;
 
     let b_row = pool
-        .fetch_one(musq::query("SELECT * FROM b WHERE id = ?").bind(random_id)?)
+        .fetch_one(musq::query("SELECT * FROM b WHERE id = ?").bind(random_id))
         .await?;
 
     let a_id: i64 = b_row.get_value("a_id")?;
 
     let a_row = pool
-        .fetch_one(musq::query("SELECT * FROM a WHERE id = ?").bind(a_id)?)
+        .fetch_one(musq::query("SELECT * FROM a WHERE id = ?").bind(a_id))
         .await?;
 
     Ok((a_row, b_row))
