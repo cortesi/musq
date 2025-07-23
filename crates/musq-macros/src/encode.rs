@@ -13,6 +13,8 @@ fn expand_enum(
     variants: &[core::TypeVariant],
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
+    let generics = &container.generics;
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let mut value_arms = Vec::new();
 
     for v in variants {
@@ -27,8 +29,7 @@ fn expand_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl musq::encode::Encode for #ident
-        {
+        impl #impl_generics musq::encode::Encode for #ident #ty_generics #where_clause {
             fn encode(self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
                 let val = match self {
                     #(#value_arms)*
@@ -45,6 +46,13 @@ fn expand_repr_enum(
     repr: &Type,
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
+    let generics = &container.generics;
+    let mut generics = generics.clone();
+    generics
+        .make_where_clause()
+        .predicates
+        .push(parse_quote!(#repr: musq::encode::Encode));
+    let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let mut values = Vec::new();
     for v in variants {
@@ -54,10 +62,7 @@ fn expand_repr_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl musq::encode::Encode for #ident
-        where
-            #repr: musq::encode::Encode,
-        {
+        impl #impl_generics musq::encode::Encode for #ident #ty_generics #where_clause {
             fn encode(self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
                 let value = match self {
                     #(#values)*

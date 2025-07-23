@@ -53,6 +53,16 @@ fn expand_repr_enum(
     let ident = &container.ident;
     let ident_s = ident.to_string();
 
+    let generics = &container.generics;
+    let (_, ty_generics, _) = generics.split_for_impl();
+    let mut generics = generics.clone();
+    generics.params.insert(0, parse_quote!('r));
+    generics
+        .make_where_clause()
+        .predicates
+        .push(parse_quote!(#repr: musq::decode::Decode<'r>));
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
+
     let arms = variants
         .iter()
         .map(|v| {
@@ -65,10 +75,7 @@ fn expand_repr_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl<'r> musq::decode::Decode<'r> for #ident
-        where
-            #repr: musq::decode::Decode<'r>,
-        {
+        impl #impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
             fn decode(
                 value: &'r musq::Value,
             ) -> ::std::result::Result<
@@ -93,6 +100,11 @@ fn expand_enum(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ident_s = ident.to_string();
+    let generics = &container.generics;
+    let (_, ty_generics, _) = generics.split_for_impl();
+    let mut generics = generics.clone();
+    generics.params.insert(0, parse_quote!('r));
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let value_arms = variants.iter().map(|v| -> Arm {
         let id = &v.ident;
@@ -116,7 +128,7 @@ fn expand_enum(
 
     tts.extend(quote!(
         #[automatically_derived]
-        impl<'r> musq::decode::Decode<'r> for #ident {
+        impl #impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
             fn decode(
                 value: &'r ::musq::Value,
             ) -> ::std::result::Result<
