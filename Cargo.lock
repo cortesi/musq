@@ -1153,6 +1153,7 @@ version = "0.0.1"
 dependencies = [
  "darling",
  "heck",
+ "musq",
  "proc-macro2",
  "quote",
  "serde",
