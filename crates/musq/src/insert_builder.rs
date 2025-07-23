@@ -47,7 +47,7 @@ impl InsertInto {
     }
 
     /// Build and execute the query using a [`Connection`].
-    pub async fn execute(self, conn: &mut Connection) -> Result<QueryResult> {
+    pub async fn execute(self, conn: &Connection) -> Result<QueryResult> {
         let q = self.query()?;
         conn.execute(q).await
     }

@@ -3,12 +3,16 @@ use futures_core::stream::BoxStream;
 use futures_util::{StreamExt, TryFutureExt, TryStreamExt, future};
 
 use crate::{
-    Arguments, QueryResult, Result, Row, encode::Encode, error::Error,
-    executor::{Execute, Executor}, sqlite::statement::Statement,
+    Arguments, QueryResult, Result, Row,
+    encode::Encode,
+    error::Error,
+    executor::{Execute, Executor},
+    sqlite::statement::Statement,
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
+#[derive(Clone)]
 pub struct Query {
     pub(crate) statement: Either<String, Statement>,
     pub(crate) arguments: Option<Arguments>,
@@ -39,8 +43,8 @@ impl Execute for Query {
         }
     }
 
-    fn take_arguments(&mut self) -> Option<Arguments> {
-        self.arguments.take()
+    fn arguments(&self) -> Option<Arguments> {
+        self.arguments.clone()
     }
 }
 
@@ -154,7 +158,7 @@ impl Query {
     }
 
     /// Execute the query and return the total number of rows affected.
-    pub async fn execute<'c, E>(self, executor: &'c mut E) -> Result<QueryResult>
+    pub async fn execute<'c, E>(self, executor: &'c E) -> Result<QueryResult>
     where
         E: Executor<'c>,
     {
@@ -162,10 +166,7 @@ impl Query {
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    pub fn execute_many<'c, E>(
-        self,
-        executor: &'c mut E,
-    ) -> BoxStream<'c, Result<QueryResult>>
+    pub fn execute_many<'c, E>(self, executor: &'c E) -> BoxStream<'c, Result<QueryResult>>
     where
         E: Executor<'c>,
     {
@@ -173,7 +174,7 @@ impl Query {
     }
 
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'c, E>(self, executor: &'c mut E) -> BoxStream<'c, Result<Row>>
+    pub fn fetch<'c, E>(self, executor: &'c E) -> BoxStream<'c, Result<Row>>
     where
         E: Executor<'c>,
     {
@@ -184,7 +185,7 @@ impl Query {
     /// from each query, in a stream.
     pub fn fetch_many<'c, E>(
         self,
-        executor: &'c mut E,
+        executor: &'c E,
     ) -> BoxStream<'c, Result<Either<QueryResult, Row>>>
     where
         E: Executor<'c>,
@@ -193,7 +194,7 @@ impl Query {
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'c, E>(self, executor: &'c mut E) -> Result<Vec<Row>>
+    pub async fn fetch_all<'c, E>(self, executor: &'c E) -> Result<Vec<Row>>
     where
         E: Executor<'c>,
     {
@@ -201,7 +202,7 @@ impl Query {
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'c, E>(self, executor: &'c mut E) -> Result<Row>
+    pub async fn fetch_one<'c, E>(self, executor: &'c E) -> Result<Row>
     where
         E: Executor<'c>,
     {
@@ -209,7 +210,7 @@ impl Query {
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'c, E>(self, executor: &'c mut E) -> Result<Option<Row>>
+    pub async fn fetch_optional<'c, E>(self, executor: &'c E) -> Result<Option<Row>>
     where
         E: Executor<'c>,
     {
@@ -222,8 +223,8 @@ impl<F: Send> Execute for Map<F> {
         self.inner.sql()
     }
 
-    fn take_arguments(&mut self) -> Option<Arguments> {
-        self.inner.take_arguments()
+    fn arguments(&self) -> Option<Arguments> {
+        self.inner.arguments()
     }
 }
 
@@ -263,11 +264,11 @@ where
     }
 
     /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'c, E>(self, executor: &'c mut E) -> BoxStream<'c, Result<O>>
+    pub fn fetch<'c, E>(self, executor: &'c E) -> BoxStream<'c, Result<O>>
     where
         F: 'c,
         O: 'c,
-        E: Executor<'c> + Send,
+        E: Executor<'c> + Send + Sync,
     {
         self.fetch_many(executor)
             .try_filter_map(|step| async move {
@@ -283,12 +284,12 @@ where
     /// from each query, in a stream.
     pub fn fetch_many<'c, E>(
         mut self,
-        executor: &'c mut E,
+        executor: &'c E,
     ) -> BoxStream<'c, Result<Either<QueryResult, O>>>
     where
         F: 'c + Send,
         O: 'c,
-        E: Executor<'c> + Send,
+        E: Executor<'c> + Send + Sync,
     {
         Box::pin(async_stream::try_stream! {
             let mut s = executor.fetch_many(self.inner);
@@ -305,21 +306,21 @@ where
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'c, E>(self, executor: &'c mut E) -> Result<Vec<O>>
+    pub async fn fetch_all<'c, E>(self, executor: &'c E) -> Result<Vec<O>>
     where
         F: 'c,
         O: 'c,
-        E: Executor<'c> + Send,
+        E: Executor<'c> + Send + Sync,
     {
         self.fetch(executor).try_collect().await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'c, E>(self, executor: &'c mut E) -> Result<O>
+    pub async fn fetch_one<'c, E>(self, executor: &'c E) -> Result<O>
     where
         F: 'c,
         O: 'c,
-        E: Executor<'c> + Send,
+        E: Executor<'c> + Send + Sync,
     {
         self.fetch_optional(executor)
             .and_then(|row| match row {
@@ -330,11 +331,11 @@ where
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'c, E>(mut self, executor: &'c mut E) -> Result<Option<O>>
+    pub async fn fetch_optional<'c, E>(mut self, executor: &'c E) -> Result<Option<O>>
     where
         F: 'c,
         O: 'c,
-        E: Executor<'c> + Send,
+        E: Executor<'c> + Send + Sync,
     {
         let row = executor.fetch_optional(self.inner).await?;
 

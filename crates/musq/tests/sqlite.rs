@@ -21,7 +21,7 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
     {
         let expected = [15, 39, 51];
         let mut i = 0;
-        let mut s = query("SELECT 15 UNION SELECT 51 UNION SELECT 39").fetch(&mut conn);
+        let mut s = query("SELECT 15 UNION SELECT 51 UNION SELECT 39").fetch(&conn);
 
         while let Some(row) = s.try_next().await? {
             let v1 = row.get_value_idx::<i32>(0).unwrap();
@@ -78,7 +78,7 @@ async fn it_maths() -> anyhow::Result<()> {
     let value = query("select 1 + ?1")
         .bind(5_i32)
         .try_map(|row: Row| row.get_value_idx::<i32>(0))
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(6i32, value);
@@ -93,7 +93,7 @@ async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
     let values: Vec<i32> = musq::query_scalar::<i32>("select ?; select ?")
         .bind(5_i32)
         .bind(15_i32)
-        .fetch_all(&mut conn)
+        .fetch_all(&conn)
         .await?;
 
     assert_eq!(values.len(), 2);
@@ -109,7 +109,7 @@ async fn test_bind_multiple_statements_same_value() -> anyhow::Result<()> {
 
     let values: Vec<i32> = musq::query_scalar::<i32>("select ?1; select ?1")
         .bind(25_i32)
-        .fetch_all(&mut conn)
+        .fetch_all(&conn)
         .await?;
 
     assert_eq!(values.len(), 2);
@@ -127,7 +127,7 @@ async fn it_can_describe_with_pragma() -> anyhow::Result<()> {
             let val: Option<String> = row.get_value("dflt_value")?;
             Ok(val)
         })
-        .fetch_all(&mut conn)
+        .fetch_all(&conn)
         .await?;
     assert_eq!(defaults[0], None);
     assert_eq!(defaults[2], Some("TRUE".to_string()));
@@ -142,7 +142,7 @@ async fn it_binds_positional_parameters_issue_467() -> anyhow::Result<()> {
         .bind(5_i32)
         .bind(500_i32)
         .bind(1020_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(row.0, 5);
@@ -159,7 +159,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
     // there were a few that triggered *sometimes* while building out StatementWorker
     for _ in 0..1000_usize {
         let mut conn = connection().await?;
-        let v: Vec<(i32,)> = query_as("SELECT 1").fetch_all(&mut conn).await?;
+        let v: Vec<(i32,)> = query_as("SELECT 1").fetch_all(&conn).await?;
 
         assert_eq!(v[0].0, 1);
     }
@@ -190,7 +190,7 @@ async fn it_opens_in_memory() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_fails_to_parse() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    let res = query("SEELCT 1").execute(&mut conn).await;
+    let res = query("SEELCT 1").execute(&conn).await;
 
     assert!(res.is_err());
 
@@ -217,14 +217,14 @@ async fn it_binds_parameters() -> anyhow::Result<()> {
 
     let v: i32 = query_scalar("SELECT ?")
         .bind(10_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(v, 10);
 
     let v: (i32, i32) = query_as("SELECT ?1, ?")
         .bind(10_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(v.0, 10);
@@ -240,7 +240,7 @@ async fn it_binds_dollar_parameters() -> anyhow::Result<()> {
     let v: (i32, i32) = query_as("SELECT $1, $2")
         .bind(10_i32)
         .bind(11_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(v.0, 10);
@@ -256,7 +256,7 @@ async fn it_binds_named_parameters() -> anyhow::Result<()> {
     let v: (i32, i32) = query_as("SELECT :a, @b")
         .bind_named(":a", 10_i32)
         .bind_named("@b", 11_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(v.0, 10);
@@ -271,7 +271,7 @@ async fn it_binds_duplicate_named_parameters() -> anyhow::Result<()> {
 
     let v: (i32, i32) = query_as("SELECT :x, :x")
         .bind_named("x", 7_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(v.0, 7);
@@ -284,18 +284,19 @@ async fn it_binds_duplicate_named_parameters() -> anyhow::Result<()> {
 async fn it_uses_named_parameters_in_sql() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    query("CREATE TEMP TABLE np (id INTEGER PRIMARY KEY, val TEXT);").execute(&mut conn)
+    query("CREATE TEMP TABLE np (id INTEGER PRIMARY KEY, val TEXT);")
+        .execute(&conn)
         .await?;
 
     query("INSERT INTO np (id, val) VALUES (:id, :val)")
         .bind_named("id", 1_i32)
         .bind_named("val", "alpha")
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
 
     let (val,): (String,) = query_as("SELECT val FROM np WHERE id = :id")
         .bind_named("id", 1_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(val, "alpha");
@@ -311,7 +312,7 @@ async fn it_mixes_named_and_positional_parameters() -> anyhow::Result<()> {
         .bind_named("a", 2_i32) // :a
         .bind(3_i32) // ?2
         .bind(4_i32) // ?3
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(sum, 9);
@@ -326,7 +327,7 @@ async fn it_supports_named_only_binding() -> anyhow::Result<()> {
     let (a, b): (i32, i32) = query_as("SELECT :first, :second")
         .bind_named("second", 42_i32)
         .bind_named("first", 7_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(a, 7);
@@ -342,7 +343,7 @@ async fn it_combines_named_and_positional_binds() -> anyhow::Result<()> {
     let (sum,): (i32,) = query_as("SELECT :v + ?2 + :v")
         .bind_named("v", 5_i32)
         .bind(3_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(sum, 13);
@@ -365,14 +366,14 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
     for index in 1..=10_i32 {
         let done = query("INSERT INTO users (id) VALUES (?)")
             .bind(index * 2)
-            .execute(&mut conn)
+            .execute(&conn)
             .await?;
 
         assert_eq!(done.rows_affected(), 1);
     }
 
     let sum: i32 = query_as("SELECT id FROM users")
-        .fetch(&mut conn)
+        .fetch(&conn)
         .try_fold(0_i32, |acc, (x,): (i32,)| async move { Ok(acc + x) })
         .await?;
 
@@ -404,7 +405,7 @@ SELECT id, other FROM users WHERE id = last_insert_rowid();
             "#,
         )
         .bind(index)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
         assert_eq!(id, index);
@@ -452,7 +453,7 @@ SELECT id, text FROM _musq_test;
 async fn it_caches_statements() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    let row = query("SELECT 100 AS val").fetch_one(&mut conn).await?;
+    let row = query("SELECT 100 AS val").fetch_one(&conn).await?;
     let val: i32 = row.get_value("val").unwrap();
     assert_eq!(val, 100);
 
@@ -461,7 +462,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     for i in 0..2 {
         let row = query("SELECT ? AS val")
             .bind(i)
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await?;
 
         let val: i32 = row.get_value("val").unwrap();
@@ -478,7 +479,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     for i in 0..2 {
         let row = query("SELECT ? AS val")
             .bind(i)
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await?;
 
         let val: i32 = row.get_value("val").unwrap();
@@ -496,12 +497,12 @@ async fn it_respects_statement_cache_capacity() -> anyhow::Result<()> {
     let mut conn = pool.acquire().await?;
 
     // first query populates cache
-    let row = query("SELECT 1 AS val").fetch_one(&mut conn).await?;
+    let row = query("SELECT 1 AS val").fetch_one(&conn).await?;
     let val: i32 = row.get_value("val").unwrap();
     assert_eq!(val, 1);
 
     // second query should also succeed even when the cache evicts the first
-    let row = query("SELECT 2 AS val").fetch_one(&mut conn).await?;
+    let row = query("SELECT 2 AS val").fetch_one(&conn).await?;
     let val: i32 = row.get_value("val").unwrap();
     assert_eq!(val, 2);
 
@@ -514,14 +515,14 @@ async fn it_can_prepare_then_execute() -> anyhow::Result<()> {
     let mut tx = conn.begin().await?;
 
     let _ = query("INSERT INTO tweet ( id, text ) VALUES ( 2, 'Hello, World' )")
-        .execute(&mut tx)
+        .execute(&tx)
         .await?;
 
     let tweet_id: i32 = 2;
 
     let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
 
-    let row = statement.query().bind(tweet_id).fetch_one(&mut tx).await?;
+    let row = statement.query().bind(tweet_id).fetch_one(&tx).await?;
     let tweet_text: &str = row.get_value("text")?;
 
     assert_eq!(tweet_text, "Hello, World");
@@ -534,25 +535,25 @@ async fn it_handles_numeric_affinity() -> anyhow::Result<()> {
     let mut conn = tdb().await?;
 
     query("INSERT INTO products (product_no, name, price) VALUES (1, 'Prod 1', 9.99)")
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
 
     query("INSERT INTO products (product_no, name, price) VALUES (?, ?, ?)")
         .bind(2_i32)
         .bind("Prod 2")
         .bind(19.95_f64)
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
 
     let stmt = conn
         .prepare("SELECT price FROM products WHERE product_no = ?")
         .await?;
 
-    let row = stmt.query().bind(1_i32).fetch_one(&mut conn).await?;
+    let row = stmt.query().bind(1_i32).fetch_one(&conn).await?;
     let price: f64 = row.get_value_idx(0)?;
     assert_eq!(price, 9.99_f64);
 
-    let row = stmt.query().bind(2_i32).fetch_one(&mut conn).await?;
+    let row = stmt.query().bind(2_i32).fetch_one(&conn).await?;
     let price: f64 = row.get_value_idx(0)?;
     assert_eq!(price, 19.95_f64);
 
@@ -563,15 +564,18 @@ async fn it_handles_numeric_affinity() -> anyhow::Result<()> {
 async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    query("CREATE TEMPORARY TABLE foobar (id INTEGER)").execute(&mut conn)
+    query("CREATE TEMPORARY TABLE foobar (id INTEGER)")
+        .execute(&conn)
         .await?;
-    query("INSERT INTO foobar VALUES (42)").execute(&mut conn).await?;
+    query("INSERT INTO foobar VALUES (42)")
+        .execute(&conn)
+        .await?;
 
-    let r = query("SELECT id FROM foobar").fetch_one(&mut conn).await?;
+    let r = query("SELECT id FROM foobar").fetch_one(&conn).await?;
     let x: i32 = r.get_value("id")?;
     assert_eq!(x, 42);
 
-    query("DROP TABLE foobar").execute(&mut conn).await?;
+    query("DROP TABLE foobar").execute(&conn).await?;
 
     Ok(())
 }
@@ -580,18 +584,23 @@ async fn it_resets_prepared_statement_after_fetch_one() -> anyhow::Result<()> {
 async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
-    query("CREATE TEMPORARY TABLE foobar (id INTEGER)").execute(&mut conn)
+    query("CREATE TEMPORARY TABLE foobar (id INTEGER)")
+        .execute(&conn)
         .await?;
-    query("INSERT INTO foobar VALUES (42)").execute(&mut conn).await?;
-    query("INSERT INTO foobar VALUES (43)").execute(&mut conn).await?;
+    query("INSERT INTO foobar VALUES (42)")
+        .execute(&conn)
+        .await?;
+    query("INSERT INTO foobar VALUES (43)")
+        .execute(&conn)
+        .await?;
 
-    let mut rows = query("SELECT id FROM foobar").fetch(&mut conn);
+    let mut rows = query("SELECT id FROM foobar").fetch(&conn);
     let row = rows.try_next().await?.unwrap();
     let x: i32 = row.get_value("id")?;
     assert_eq!(x, 42);
     drop(rows);
 
-    query("DROP TABLE foobar").execute(&mut conn).await?;
+    query("DROP TABLE foobar").execute(&conn).await?;
 
     Ok(())
 }
@@ -607,7 +616,7 @@ async fn it_can_transact() {
         ($tx: expr, $v:expr) => {
             query("INSERT INTO foo (value) VALUES (?)")
                 .bind($v)
-                .execute(&mut *$tx)
+                .execute(&*$tx)
                 .await
                 .unwrap();
         };
@@ -617,7 +626,7 @@ async fn it_can_transact() {
         ($tx: expr, $v:expr) => {
             query_as::<(i64,)>("SELECT count(*) FROM foo WHERE value = ?")
                 .bind($v)
-                .fetch_one(&mut *$tx)
+                .fetch_one(&*$tx)
                 .await
                 .unwrap()
                 .0
@@ -691,7 +700,7 @@ async fn row_dropped_after_connection_doesnt_panic() {
     let mut conn = Connection::connect_with(&Musq::new()).await.unwrap();
 
     let books = query("SELECT 'hello' AS title")
-        .fetch_all(&mut conn)
+        .fetch_all(&conn)
         .await
         .unwrap();
 
@@ -748,19 +757,19 @@ async fn issue_1467() -> anyhow::Result<()> {
 
         let exists = query("SELECT 1 FROM kv WHERE k = ?")
             .bind(key)
-            .fetch_optional(&mut tx)
+            .fetch_optional(&tx)
             .await?;
         if exists.is_some() {
             query("UPDATE kv SET v = ? WHERE k = ?")
                 .bind(value)
                 .bind(key)
-                .execute(&mut tx)
+                .execute(&tx)
                 .await?;
         } else {
             query("INSERT INTO kv(k, v) VALUES (?, ?)")
                 .bind(key)
                 .bind(value)
-                .execute(&mut tx)
+                .execute(&tx)
                 .await?;
         }
         tx.commit().await?;
@@ -786,7 +795,7 @@ async fn concurrent_read_and_write() {
             for i in 0u32..n {
                 query("SELECT v FROM kv")
                     .bind(i)
-                    .fetch_all(&mut conn)
+                    .fetch_all(&conn)
                     .await
                     .unwrap();
             }
@@ -820,7 +829,7 @@ async fn it_binds_strings() -> anyhow::Result<()> {
         .bind("1")
         .bind("2".to_string())
         .bind(Arc::new("3".to_string()))
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(row.0, "1");
@@ -837,7 +846,7 @@ async fn it_fails_on_missing_bind() -> anyhow::Result<()> {
     let res = musq::query("select ?1, ?2, ?4")
         .bind(10_i32)
         .bind(11_i32)
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await;
 
     assert!(res.is_err());

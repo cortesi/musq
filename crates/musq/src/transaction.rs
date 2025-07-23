@@ -35,12 +35,12 @@ where
     C: DerefMut<Target = Connection> + Send,
 {
     /// Begin a nested transaction
-    pub fn begin<'c>(mut conn: C) -> BoxFuture<'c, Result<Self>>
+    pub fn begin<'c>(conn: C) -> BoxFuture<'c, Result<Self>>
     where
         C: 'c,
     {
         Box::pin(async move {
-            conn.deref_mut().worker.begin().await?;
+            conn.deref().worker.begin().await?;
             Ok(Self {
                 connection: conn,
                 open: true,
@@ -50,14 +50,14 @@ where
 
     /// Commits this transaction or savepoint.
     pub async fn commit(&mut self) -> Result<()> {
-        self.connection.deref_mut().worker.commit().await?;
+        self.connection.deref().worker.commit().await?;
         self.open = false;
         Ok(())
     }
 
     /// Aborts this transaction or savepoint.
     pub async fn rollback(&mut self) -> Result<()> {
-        self.connection.deref_mut().worker.rollback().await?;
+        self.connection.deref().worker.rollback().await?;
         self.open = false;
         Ok(())
     }
@@ -117,7 +117,7 @@ where
 {
     fn drop(&mut self) {
         if self.open {
-            self.connection.deref_mut().worker.start_rollback().ok();
+            self.connection.deref().worker.start_rollback().ok();
         }
     }
 }
@@ -143,41 +143,50 @@ impl<'c, C> Executor<'c> for Transaction<C>
 where
     C: DerefMut<Target = Connection> + Send,
 {
-    fn execute<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, crate::Result<crate::QueryResult>>
+    fn execute<'q, E>(&'c self, query: E) -> BoxFuture<'q, crate::Result<crate::QueryResult>>
     where
         'c: 'q,
         E: crate::executor::Execute + 'q,
     {
-        let conn: &'c mut Connection = self.deref_mut();
+        let conn: &'c Connection = self.deref();
         conn.execute(query)
     }
 
     fn fetch_many<'q, E>(
-        &'c mut self,
+        &'c self,
         query: E,
-    ) -> futures_core::stream::BoxStream<'q, crate::Result<either::Either<crate::QueryResult, crate::Row>>>
+    ) -> futures_core::stream::BoxStream<
+        'q,
+        crate::Result<either::Either<crate::QueryResult, crate::Row>>,
+    >
     where
         'c: 'q,
         E: crate::executor::Execute + 'q,
     {
-        let conn: &'c mut Connection = self.deref_mut();
+        let conn: &'c Connection = self.deref();
         conn.fetch_many(query)
     }
 
-    fn fetch_optional<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, crate::Result<Option<crate::Row>>>
+    fn fetch_optional<'q, E>(
+        &'c self,
+        query: E,
+    ) -> BoxFuture<'q, crate::Result<Option<crate::Row>>>
     where
         'c: 'q,
         E: crate::executor::Execute + 'q,
     {
-        let conn: &'c mut Connection = self.deref_mut();
+        let conn: &'c Connection = self.deref();
         conn.fetch_optional(query)
     }
 
-    fn prepare_with<'q>(&'c mut self, sql: &'q str) -> BoxFuture<'q, crate::Result<crate::sqlite::statement::Prepared>>
+    fn prepare_with<'q>(
+        &'c self,
+        sql: &'q str,
+    ) -> BoxFuture<'q, crate::Result<crate::sqlite::statement::Prepared>>
     where
         'c: 'q,
     {
-        let conn: &'c mut Connection = self.deref_mut();
+        let conn: &'c Connection = self.deref();
         conn.prepare_with(sql)
     }
 }

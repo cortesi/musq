@@ -472,7 +472,7 @@ impl Musq {
     }
 
     pub(crate) async fn connect(&self) -> Result<Connection> {
-        let mut conn = Connection::establish(self).await?;
+        let conn = Connection::establish(self).await?;
         // Execute PRAGMAs
         conn.execute(crate::query(&self.pragma_string())).await?;
         Ok(conn)

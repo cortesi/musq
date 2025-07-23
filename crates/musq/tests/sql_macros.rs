@@ -17,18 +17,18 @@ macro_rules! bind_check {
             let mut conn = connection().await?;
             let val: $ty = $value;
 
-            let row = sql!("SELECT {}", val.clone())?.fetch_one(&mut conn).await?;
+            let row = sql!("SELECT {}", val.clone())?.fetch_one(&conn).await?;
             let out: $ty = row.get_value_idx(0)?;
             assert_eq!(out, val);
 
             let row = sql!("SELECT {v}", v = val.clone())?
-                .fetch_one(&mut conn)
+                .fetch_one(&conn)
                 .await?;
             let out: $ty = row.get_value_idx(0)?;
             assert_eq!(out, val);
 
             let list = vec![val.clone(), val.clone()];
-            let row = sql!("SELECT {values:list}")?.fetch_one(&mut conn).await?;
+            let row = sql!("SELECT {values:list}")?.fetch_one(&conn).await?;
             let out0: $ty = row.get_value_idx(0)?;
             let out1: $ty = row.get_value_idx(1)?;
             assert_eq!(out0, val);
@@ -42,7 +42,7 @@ macro_rules! bind_check {
 async fn test_placeholders() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     sql!("CREATE TABLE users (id INTEGER, name TEXT, status TEXT)")?
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
 
     let id = 1;
@@ -54,10 +54,10 @@ async fn test_placeholders() -> anyhow::Result<()> {
         name
     )?;
     println!("insert sql: {}", insert.sql());
-    insert.execute(&mut conn).await?;
+    insert.execute(&conn).await?;
 
     let row = sql!("SELECT name FROM users WHERE id = {id}")?
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
     assert_eq!(row.get_value_idx::<String>(0)?, "Alice");
     Ok(())
@@ -68,15 +68,15 @@ async fn test_ident_and_lists() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     let table = "user-data";
     sql!("CREATE TABLE {ident:table} (id INTEGER, name TEXT)")?
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
     sql!("INSERT INTO {ident:table} (id, name) VALUES (1, 'a'), (2, 'b')")?
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
     let ids = [1, 2];
     let cols = ["id", "name"];
     let rows = sql!("SELECT {idents:cols} FROM {ident:table} WHERE id IN ({values:ids})")?
-        .fetch_all(&mut conn)
+        .fetch_all(&conn)
         .await?;
     assert_eq!(rows.len(), 2);
     Ok(())
@@ -85,15 +85,13 @@ async fn test_ident_and_lists() -> anyhow::Result<()> {
 #[tokio::test]
 async fn test_raw_and_taint() -> anyhow::Result<()> {
     let mut conn = connection().await?;
-    sql!("CREATE TABLE t (id INTEGER)")?
-        .execute(&mut conn)
-        .await?;
+    sql!("CREATE TABLE t (id INTEGER)")?.execute(&conn).await?;
     sql!("INSERT INTO t (id) VALUES (1), (2)")?
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
     let q = sql!("SELECT * FROM t {raw:\"ORDER BY id DESC\"}")?;
     assert!(q.is_tainted());
-    let rows = q.fetch_all(&mut conn).await?;
+    let rows = q.fetch_all(&conn).await?;
     assert_eq!(rows.len(), 2);
     Ok(())
 }
@@ -102,13 +100,13 @@ async fn test_raw_and_taint() -> anyhow::Result<()> {
 async fn test_sql_as_and_builder() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     sql!("CREATE TABLE users (id INTEGER, name TEXT, status TEXT)")?
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
     sql!("INSERT INTO users (id, name, status) VALUES (1, 'Alice', 'active')")?
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
     let user: User = sql_as!("SELECT id, name, status FROM users WHERE id = {id}", id = 1)?
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
     assert_eq!(
         user,
@@ -119,7 +117,7 @@ async fn test_sql_as_and_builder() -> anyhow::Result<()> {
         }
     );
     let tuple: (i32, String) = sql_as!("SELECT id, name FROM users WHERE id = {id}", id = 1)?
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
     assert_eq!(tuple, (1, "Alice".into()));
 
@@ -134,7 +132,7 @@ async fn test_sql_as_and_builder() -> anyhow::Result<()> {
     };
     let ids: Vec<i32> = final_q
         .try_map(|row| row.get_value_idx::<i32>(0))
-        .fetch_all(&mut conn)
+        .fetch_all(&conn)
         .await?;
     assert_eq!(ids, vec![1]);
     Ok(())

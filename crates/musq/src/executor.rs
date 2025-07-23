@@ -1,10 +1,9 @@
 use crate::{
-    error::Result, query_result::QueryResult, row::Row, sqlite::statement::Prepared,
-    Arguments,
+    Arguments, error::Result, query_result::QueryResult, row::Row, sqlite::statement::Prepared,
 };
 use either::Either;
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{future, FutureExt, StreamExt, TryFutureExt, TryStreamExt};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 
 // Private module that defines the `Sealed` trait used to prevent external
 // implementations of [`Execute`].
@@ -36,10 +35,10 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
-    fn take_arguments(&mut self) -> Option<Arguments>;
+    fn arguments(&self) -> Option<Arguments>;
 
     /// Execute the query and return the total number of rows affected.
-    fn execute<'c, E>(self, executor: &'c mut E) -> BoxFuture<'c, Result<QueryResult>>
+    fn execute<'c, E>(self, executor: &'c E) -> BoxFuture<'c, Result<QueryResult>>
     where
         E: Executor<'c>,
         Self: 'c,
@@ -48,10 +47,7 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     }
 
     /// Execute multiple queries and return the rows affected from each query, in a stream.
-    fn execute_many<'c, E>(
-        self,
-        executor: &'c mut E,
-    ) -> BoxStream<'c, Result<QueryResult>>
+    fn execute_many<'c, E>(self, executor: &'c E) -> BoxStream<'c, Result<QueryResult>>
     where
         E: Executor<'c>,
         Self: 'c,
@@ -60,7 +56,7 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     }
 
     /// Execute the query and return the generated results as a stream.
-    fn fetch<'c, E>(self, executor: &'c mut E) -> BoxStream<'c, Result<Row>>
+    fn fetch<'c, E>(self, executor: &'c E) -> BoxStream<'c, Result<Row>>
     where
         E: Executor<'c>,
         Self: 'c,
@@ -72,7 +68,7 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     /// from each query, in a stream.
     fn fetch_many<'c, E>(
         self,
-        executor: &'c mut E,
+        executor: &'c E,
     ) -> BoxStream<'c, Result<Either<QueryResult, Row>>>
     where
         E: Executor<'c>,
@@ -82,7 +78,7 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    fn fetch_all<'c, E>(self, executor: &'c mut E) -> BoxFuture<'c, Result<Vec<Row>>>
+    fn fetch_all<'c, E>(self, executor: &'c E) -> BoxFuture<'c, Result<Vec<Row>>>
     where
         E: Executor<'c>,
         Self: 'c,
@@ -91,7 +87,7 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     }
 
     /// Execute the query and returns exactly one row.
-    fn fetch_one<'c, E>(self, executor: &'c mut E) -> BoxFuture<'c, Result<Row>>
+    fn fetch_one<'c, E>(self, executor: &'c E) -> BoxFuture<'c, Result<Row>>
     where
         E: Executor<'c>,
         Self: 'c,
@@ -100,7 +96,7 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     }
 
     /// Execute the query and returns at most one row.
-    fn fetch_optional<'c, E>(self, executor: &'c mut E) -> BoxFuture<'c, Result<Option<Row>>>
+    fn fetch_optional<'c, E>(self, executor: &'c E) -> BoxFuture<'c, Result<Option<Row>>>
     where
         E: Executor<'c>,
         Self: 'c,
@@ -114,7 +110,7 @@ impl Execute for &str {
         self
     }
 
-    fn take_arguments(&mut self) -> Option<Arguments> {
+    fn arguments(&self) -> Option<Arguments> {
         None
     }
 }
@@ -125,7 +121,7 @@ mod sealed_executor {
     impl Sealed for crate::Connection {}
     impl Sealed for crate::pool::PoolConnection {}
     impl<C> Sealed for crate::Transaction<C> where
-        C: std::ops::DerefMut<Target = crate::Connection> + Send,
+        C: std::ops::DerefMut<Target = crate::Connection> + Send
     {
     }
 }
@@ -135,30 +131,27 @@ mod sealed_executor {
 /// This trait is implemented by [`Connection`] and [`Transaction`].
 /// It is sealed and cannot be implemented for types outside of `musq`.
 pub trait Executor<'c>: sealed_executor::Sealed {
-    fn execute<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, Result<QueryResult>>
+    fn execute<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<QueryResult>>
     where
         'c: 'q,
         E: Execute + 'q;
 
-    fn fetch_many<'q, E>(
-        &'c mut self,
-        query: E,
-    ) -> BoxStream<'q, Result<Either<QueryResult, Row>>>
+    fn fetch_many<'q, E>(&'c self, query: E) -> BoxStream<'q, Result<Either<QueryResult, Row>>>
     where
         'c: 'q,
         E: Execute + 'q;
 
-    fn fetch_optional<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, Result<Option<Row>>>
+    fn fetch_optional<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<Option<Row>>>
     where
         'c: 'q,
         E: Execute + 'q;
 
-    fn prepare_with<'q>(&'c mut self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
+    fn prepare_with<'q>(&'c self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
     where
         'c: 'q;
 
     // Default methods
-    fn execute_many<'q, E>(&'c mut self, query: E) -> BoxStream<'q, Result<QueryResult>>
+    fn execute_many<'q, E>(&'c self, query: E) -> BoxStream<'q, Result<QueryResult>>
     where
         'c: 'q,
         E: Execute + 'q,
@@ -173,7 +166,7 @@ pub trait Executor<'c>: sealed_executor::Sealed {
             .boxed()
     }
 
-    fn fetch<'q, E>(&'c mut self, query: E) -> BoxStream<'q, Result<Row>>
+    fn fetch<'q, E>(&'c self, query: E) -> BoxStream<'q, Result<Row>>
     where
         'c: 'q,
         E: Execute + 'q,
@@ -188,7 +181,7 @@ pub trait Executor<'c>: sealed_executor::Sealed {
             .boxed()
     }
 
-    fn fetch_all<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, Result<Vec<Row>>>
+    fn fetch_all<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<Vec<Row>>>
     where
         'c: 'q,
         E: Execute + 'q,
@@ -196,7 +189,7 @@ pub trait Executor<'c>: sealed_executor::Sealed {
         self.fetch(query).try_collect().boxed()
     }
 
-    fn fetch_one<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, Result<Row>>
+    fn fetch_one<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<Row>>
     where
         'c: 'q,
         E: Execute + 'q,
@@ -209,7 +202,7 @@ pub trait Executor<'c>: sealed_executor::Sealed {
             .boxed()
     }
 
-    fn prepare<'q>(&'c mut self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
+    fn prepare<'q>(&'c self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
     where
         'c: 'q,
     {

@@ -180,7 +180,7 @@ impl Pool {
         let pool = self.clone();
 
         Box::pin(async_stream::try_stream! {
-            let mut conn = pool.acquire().await?;
+            let conn = pool.acquire().await?;
             let mut s = conn.fetch_many(query);
 
             while let Some(v) = s.try_next().await? {
@@ -196,7 +196,7 @@ impl Pool {
         let pool = self.clone();
 
         Box::pin(async move {
-            let mut conn = pool.acquire().await?;
+            let conn = pool.acquire().await?;
             conn.fetch_optional(query).await
         })
     }
@@ -205,7 +205,7 @@ impl Pool {
         let pool = self.clone();
 
         Box::pin(async move {
-            let mut conn = pool.acquire().await?;
+            let conn = pool.acquire().await?;
             conn.prepare_with(sql).await
         })
     }
@@ -221,7 +221,7 @@ impl Pool {
         let pool = self.clone();
 
         Box::pin(async_stream::try_stream! {
-            let mut conn = pool.acquire().await?;
+            let conn = pool.acquire().await?;
             let mut s = conn.fetch(query);
 
             while let Some(v) = s.try_next().await? {
@@ -237,7 +237,7 @@ impl Pool {
         let pool = self.clone();
 
         Box::pin(async_stream::try_stream! {
-            let mut conn = pool.acquire().await?;
+            let conn = pool.acquire().await?;
             let mut s = conn.execute_many(query);
 
             while let Some(v) = s.try_next().await? {
@@ -253,7 +253,7 @@ impl Pool {
         let pool = self.clone();
 
         Box::pin(async move {
-            let mut conn = pool.acquire().await?;
+            let conn = pool.acquire().await?;
             conn.execute(query).await
         })
     }
@@ -265,7 +265,7 @@ impl Pool {
         let pool = self.clone();
 
         Box::pin(async move {
-            let mut conn = pool.acquire().await?;
+            let conn = pool.acquire().await?;
             conn.fetch_all(query).await
         })
     }
@@ -277,7 +277,7 @@ impl Pool {
         let pool = self.clone();
 
         Box::pin(async move {
-            let mut conn = pool.acquire().await?;
+            let conn = pool.acquire().await?;
             conn.fetch_one(query).await
         })
     }

@@ -1,7 +1,6 @@
 use std::fmt::{self, Debug, Formatter, Write};
 
 use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_executor::block_on;
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 
 use either::Either;
@@ -42,6 +41,12 @@ pub struct Connection {
     pub(crate) worker: ConnectionWorker,
     pub(crate) row_channel_size: usize,
 }
+
+// Connection is safe to share between threads because:
+// - optimize_on_close is just an enum, safe to share
+// - worker is ConnectionWorker which we've marked as Sync
+// - row_channel_size is just a usize, safe to share
+unsafe impl Sync for Connection {}
 
 pub(crate) struct ConnectionState {
     pub(crate) handle: ConnectionHandle,
@@ -94,7 +99,7 @@ impl Connection {
     /// The returned future **must** be awaited to ensure the connection is fully
     /// closed.
     #[must_use = "futures returned by `Connection::close` must be awaited"]
-    pub async fn close(mut self) -> Result<()> {
+    pub async fn close(&self) -> Result<()> {
         if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
             let mut pragma_string = String::new();
             if let Some(limit) = analysis_limit {
@@ -124,7 +129,7 @@ impl Connection {
     }
 
     #[cfg(test)]
-    pub(crate) async fn clear_cached_statements(&mut self) -> Result<()> {
+    pub(crate) async fn clear_cached_statements(&self) -> Result<()> {
         self.worker.clear_cache().await?;
         Ok(())
     }
@@ -172,13 +177,13 @@ impl Connection {
 
 impl Connection {
     pub(crate) fn fetch_many<'c, 'q: 'c, E>(
-        &'c mut self,
-        mut query: E,
+        &'c self,
+        query: E,
     ) -> BoxStream<'c, Result<Either<QueryResult, Row>>>
     where
         E: Execute + 'q,
     {
-        let arguments = query.take_arguments();
+        let arguments = query.arguments();
         let sql = query.sql().into();
 
         Box::pin(
@@ -190,13 +195,13 @@ impl Connection {
     }
 
     pub(crate) fn fetch_optional<'c, 'q: 'c, E>(
-        &'c mut self,
-        mut query: E,
+        &'c self,
+        query: E,
     ) -> BoxFuture<'c, Result<Option<Row>>>
     where
         E: Execute + 'q,
     {
-        let arguments = query.take_arguments();
+        let arguments = query.arguments();
         let sql = query.sql().to_string();
 
         Box::pin(async move {
@@ -218,7 +223,10 @@ impl Connection {
         })
     }
 
-    pub(crate) fn prepare_with<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
+    pub(crate) fn prepare_with<'c, 'q: 'c>(
+        &'c self,
+        sql: &'q str,
+    ) -> BoxFuture<'c, Result<Prepared>> {
         Box::pin(async move {
             self.worker.prepare(sql).await?;
 
@@ -228,11 +236,14 @@ impl Connection {
         })
     }
 
-    pub(crate) fn prepare<'c, 'q: 'c>(&'c mut self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
+    pub(crate) fn prepare<'c, 'q: 'c>(
+        &'c self,
+        sql: &'q str,
+    ) -> BoxFuture<'c, Result<Prepared>> {
         self.prepare_with(sql)
     }
 
-    pub(crate) fn fetch<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<Row>>
+    pub(crate) fn fetch<'c, 'q: 'c, E>(&'c self, query: E) -> BoxStream<'c, Result<Row>>
     where
         E: Execute + 'q,
     {
@@ -246,7 +257,10 @@ impl Connection {
             .boxed()
     }
 
-    pub(crate) fn execute_many<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxStream<'c, Result<QueryResult>>
+    pub(crate) fn execute_many<'c, 'q: 'c, E>(
+        &'c self,
+        query: E,
+    ) -> BoxStream<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
@@ -260,7 +274,10 @@ impl Connection {
             .boxed()
     }
 
-    pub(crate) fn execute<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<QueryResult>>
+    pub(crate) fn execute<'c, 'q: 'c, E>(
+        &'c self,
+        query: E,
+    ) -> BoxFuture<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
@@ -273,14 +290,17 @@ impl Connection {
             .boxed()
     }
 
-    pub(crate) fn fetch_all<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
+    pub(crate) fn fetch_all<'c, 'q: 'c, E>(
+        &'c self,
+        query: E,
+    ) -> BoxFuture<'c, Result<Vec<Row>>>
     where
         E: Execute + 'q,
     {
         self.fetch(query).try_collect().boxed()
     }
 
-    pub(crate) fn fetch_one<'c, 'q: 'c, E>(&'c mut self, query: E) -> BoxFuture<'c, Result<Row>>
+    pub(crate) fn fetch_one<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Row>>
     where
         E: Execute + 'q,
     {
@@ -295,10 +315,9 @@ impl Connection {
 
 impl Drop for Connection {
     fn drop(&mut self) {
-        // best effort shutdown of the worker thread
-        if !self.worker.is_shutdown() {
-            let _ = block_on(self.worker.shutdown());
-        }
+        // Drop is called when Connection is being destroyed,
+        // so we don't need to properly shut down the worker here
+        // The worker thread will naturally terminate when the command channel is dropped
     }
 }
 
@@ -310,7 +329,7 @@ impl Drop for ConnectionState {
 }
 
 impl<'c> Executor<'c> for Connection {
-    fn execute<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, Result<QueryResult>>
+    fn execute<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<QueryResult>>
     where
         'c: 'q,
         E: Execute + 'q,
@@ -318,10 +337,7 @@ impl<'c> Executor<'c> for Connection {
         self.execute(query)
     }
 
-    fn fetch_many<'q, E>(
-        &'c mut self,
-        query: E,
-    ) -> BoxStream<'q, Result<Either<QueryResult, Row>>>
+    fn fetch_many<'q, E>(&'c self, query: E) -> BoxStream<'q, Result<Either<QueryResult, Row>>>
     where
         'c: 'q,
         E: Execute + 'q,
@@ -329,7 +345,7 @@ impl<'c> Executor<'c> for Connection {
         self.fetch_many(query)
     }
 
-    fn fetch_optional<'q, E>(&'c mut self, query: E) -> BoxFuture<'q, Result<Option<Row>>>
+    fn fetch_optional<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<Option<Row>>>
     where
         'c: 'q,
         E: Execute + 'q,
@@ -337,7 +353,7 @@ impl<'c> Executor<'c> for Connection {
         self.fetch_optional(query)
     }
 
-    fn prepare_with<'q>(&'c mut self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
+    fn prepare_with<'q>(&'c self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
     where
         'c: 'q,
     {

@@ -218,49 +218,49 @@ impl<C> DerefMut for Floating<C> {
 
 impl<'c> Executor<'c> for PoolConnection {
     fn execute<'q, E>(
-        &'c mut self,
+        &'c self,
         query: E,
     ) -> futures_core::future::BoxFuture<'q, Result<crate::QueryResult>>
     where
         'c: 'q,
         E: crate::executor::Execute + 'q,
     {
-        let conn: &'c mut Connection = self.deref_mut();
+        let conn: &'c Connection = self.deref();
         conn.execute(query)
     }
 
     fn fetch_many<'q, E>(
-        &'c mut self,
+        &'c self,
         query: E,
     ) -> futures_core::stream::BoxStream<'q, Result<either::Either<crate::QueryResult, crate::Row>>>
     where
         'c: 'q,
         E: crate::executor::Execute + 'q,
     {
-        let conn: &'c mut Connection = self.deref_mut();
+        let conn: &'c Connection = self.deref();
         conn.fetch_many(query)
     }
 
     fn fetch_optional<'q, E>(
-        &'c mut self,
+        &'c self,
         query: E,
     ) -> futures_core::future::BoxFuture<'q, Result<Option<crate::Row>>>
     where
         'c: 'q,
         E: crate::executor::Execute + 'q,
     {
-        let conn: &'c mut Connection = self.deref_mut();
+        let conn: &'c Connection = self.deref();
         conn.fetch_optional(query)
     }
 
     fn prepare_with<'q>(
-        &'c mut self,
+        &'c self,
         sql: &'q str,
     ) -> futures_core::future::BoxFuture<'q, Result<crate::sqlite::statement::Prepared>>
     where
         'c: 'q,
     {
-        let conn: &'c mut Connection = self.deref_mut();
+        let conn: &'c Connection = self.deref();
         conn.prepare_with(sql)
     }
 }

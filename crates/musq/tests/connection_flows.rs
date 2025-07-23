@@ -1,4 +1,4 @@
-use musq::{Musq, query, query_scalar, Executor};
+use musq::{Executor, Musq, query, query_scalar};
 use musq_test::connection;
 use tokio::time::{Duration, Instant, sleep};
 
@@ -7,15 +7,15 @@ async fn basic_statement_flow() -> anyhow::Result<()> {
     let mut conn = connection().await?;
 
     query("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)")
-        .execute(&mut conn)
+        .execute(&conn)
         .await?;
 
     let stmt = conn.prepare("INSERT INTO t (val) VALUES (?1)").await?;
-    stmt.query().bind("hello").execute(&mut conn).await?;
+    stmt.query().bind("hello").execute(&conn).await?;
     drop(stmt);
 
     let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
     assert_eq!(count, 1);
 
@@ -28,26 +28,26 @@ async fn retry_on_busy_lock() -> anyhow::Result<()> {
     let mut c1 = pool.acquire().await?;
     let mut c2 = pool.acquire().await?;
 
-    query("CREATE TABLE t (val TEXT)").execute(&mut c1).await?;
+    query("CREATE TABLE t (val TEXT)").execute(&c1).await?;
 
-    query("BEGIN IMMEDIATE").execute(&mut c1).await?;
+    query("BEGIN IMMEDIATE").execute(&c1).await?;
 
     let start = Instant::now();
     let insert = tokio::spawn(async move {
         query("INSERT INTO t (val) VALUES ('foo')")
-            .execute(&mut c2)
+            .execute(&c2)
             .await
     });
 
     sleep(Duration::from_millis(100)).await;
-    query("COMMIT").execute(&mut c1).await?;
+    query("COMMIT").execute(&c1).await?;
 
     insert.await??;
     assert!(start.elapsed() >= Duration::from_millis(100));
 
     let mut conn = pool.acquire().await?;
     let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
-        .fetch_one(&mut conn)
+        .fetch_one(&conn)
         .await?;
     assert_eq!(count, 1);
 

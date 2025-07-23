@@ -9,8 +9,8 @@ pub async fn connection() -> anyhow::Result<Connection> {
 
 /// Return a connection to a database pre-configured with our test schema.
 pub async fn tdb() -> anyhow::Result<Connection> {
-    let mut conn = connection().await?;
-    musq::query::query(TEST_SCHEMA).execute(&mut conn).await?;
+    let conn = connection().await?;
+    musq::query::query(TEST_SCHEMA).execute(&conn).await?;
     Ok(conn)
 }
 
@@ -81,7 +81,7 @@ macro_rules! __test_prepared_type {
                     let row = musq::query(&query)
                         .bind($value)
                         .bind($value)
-                        .fetch_one(&mut conn)
+                        .fetch_one(&conn)
                         .await?;
 
                     let matches: i32 = row.get_value_idx(0)?;

@@ -38,7 +38,7 @@ pub(crate) fn parse_question_param(name: &str) -> Result<usize> {
     Ok(num)
 }
 
-#[derive(Default, Debug)]
+#[derive(Default, Debug, Clone)]
 pub struct Arguments {
     pub(crate) values: Vec<Value>,
     /// Mapping from named parameters to their argument indices (1-based).

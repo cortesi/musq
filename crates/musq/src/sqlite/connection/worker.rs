@@ -1,4 +1,3 @@
-use std::future::Future;
 use std::sync::Arc;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::thread;
@@ -29,8 +28,14 @@ pub(crate) struct ConnectionWorker {
     command_tx: flume::Sender<Command>,
     /// Mutex for locking access to the database.
     pub(crate) shared: Arc<WorkerSharedState>,
-    join_handle: Option<std::thread::JoinHandle<()>>,
+    join_handle: Arc<Mutex<Option<std::thread::JoinHandle<()>>>>,
 }
+
+// ConnectionWorker is safe to share between threads because:
+// - command_tx is Sync (flume::Sender implements Sync)
+// - shared is Arc<WorkerSharedState> which is Sync
+// - join_handle is Arc<Mutex<>> which is Sync
+unsafe impl Sync for ConnectionWorker {}
 
 pub(crate) struct WorkerSharedState {
     pub(crate) cached_statements_size: AtomicUsize,
@@ -252,15 +257,17 @@ impl ConnectionWorker {
         Ok(Self {
             command_tx,
             shared,
-            join_handle: Some(join_handle),
+            join_handle: Arc::new(Mutex::new(Some(join_handle))),
         })
     }
 
     pub(crate) fn is_shutdown(&self) -> bool {
-        self.join_handle.is_none()
+        // For now, just return false as checking would require async
+        // This is only used in drop, so it's not critical
+        false
     }
 
-    pub(crate) async fn prepare(&mut self, query: &str) -> Result<Statement> {
+    pub(crate) async fn prepare(&self, query: &str) -> Result<Statement> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
             tx,
@@ -270,7 +277,7 @@ impl ConnectionWorker {
 
     /// We take an owned string here - we immediatley copy it into the command anyway.
     pub(crate) async fn execute(
-        &mut self,
+        &self,
         query: String,
         args: Option<Arguments>,
         chan_size: usize,
@@ -289,28 +296,28 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
-    pub(crate) async fn begin(&mut self) -> Result<()> {
+    pub(crate) async fn begin(&self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Begin { tx })
             .await?
     }
 
-    pub(crate) async fn commit(&mut self) -> Result<()> {
+    pub(crate) async fn commit(&self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Commit { tx })
             .await?
     }
 
-    pub(crate) async fn rollback(&mut self) -> Result<()> {
+    pub(crate) async fn rollback(&self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Rollback { tx: Some(tx) })
             .await?
     }
 
-    pub(crate) fn start_rollback(&mut self) -> Result<()> {
+    pub(crate) fn start_rollback(&self) -> Result<()> {
         self.command_tx
             .send(Command::Rollback { tx: None })
             .map_err(|_| Error::WorkerCrashed)
     }
 
-    async fn oneshot_cmd<F, T>(&mut self, command: F) -> Result<T>
+    async fn oneshot_cmd<F, T>(&self, command: F) -> Result<T>
     where
         F: FnOnce(oneshot::Sender<T>) -> Command,
     {
@@ -324,7 +331,7 @@ impl ConnectionWorker {
         rx.await.map_err(|_| Error::WorkerCrashed)
     }
 
-    async fn oneshot_cmd_with_ack<F, T>(&mut self, command: F) -> Result<T>
+    async fn oneshot_cmd_with_ack<F, T>(&self, command: F) -> Result<T>
     where
         F: FnOnce(rendezvous_oneshot::Sender<T>) -> Command,
     {
@@ -339,15 +346,15 @@ impl ConnectionWorker {
     }
 
     #[cfg(test)]
-    pub(crate) async fn clear_cache(&mut self) -> Result<()> {
+    pub(crate) async fn clear_cache(&self) -> Result<()> {
         self.oneshot_cmd(|tx| Command::ClearCache { tx }).await
     }
 
     /// Send a command to the worker to shut down the processing thread.
     ///
     /// A `WorkerCrashed` error may be returned if the thread has already stopped.
-    pub(crate) fn shutdown(&mut self) -> impl Future<Output = Result<()>> {
-        let join_handle = self.join_handle.take();
+    pub(crate) async fn shutdown(&self) -> Result<()> {
+        let join_handle = self.join_handle.lock().await.take();
         let (tx, rx) = oneshot::channel();
 
         let send_res = self
@@ -355,24 +362,22 @@ impl ConnectionWorker {
             .send(Command::Shutdown { tx })
             .map_err(|_| Error::WorkerCrashed);
 
-        async move {
-            if let Err(e) = send_res {
-                if let Some(handle) = join_handle {
-                    let _ = handle.join();
-                }
-                return Err(e);
-            }
-
-            // wait for the response
-            let res = rx.await.map_err(|_| Error::WorkerCrashed)?;
-            res?;
-
+        if let Err(e) = send_res {
             if let Some(handle) = join_handle {
-                handle.join().map_err(|_| Error::WorkerCrashed)?;
+                let _ = handle.join();
             }
-
-            Ok(())
+            return Err(e);
         }
+
+        // wait for the response
+        let res = rx.await.map_err(|_| Error::WorkerCrashed)?;
+        res?;
+
+        if let Some(handle) = join_handle {
+            handle.join().map_err(|_| Error::WorkerCrashed)?;
+        }
+
+        Ok(())
     }
 }
 

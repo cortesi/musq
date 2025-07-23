@@ -82,7 +82,7 @@ async fn it_derives_fromrow_plain() -> anyhow::Result<()> {
     .bind(4)
     .bind("nest")
     .bind(5)
-    .fetch_one(&mut conn)
+    .fetch_one(&conn)
     .await?;
     assert_eq!(
         row,
@@ -135,7 +135,7 @@ async fn flatten_option_all_null() -> anyhow::Result<()> {
         musq::query_as("SELECT ? as id, ? as name, NULL as street, NULL as city, NULL as country")
             .bind(1i32)
             .bind("Bob")
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await?;
     assert_eq!(user.address, None);
     Ok(())
@@ -151,7 +151,7 @@ async fn flatten_option_some() -> anyhow::Result<()> {
             .bind("Main")
             .bind("NYC")
             .bind("US")
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await?;
     assert_eq!(
         user.address,
@@ -172,7 +172,7 @@ async fn flatten_option_prefix_all_null() -> anyhow::Result<()> {
     )
     .bind(1i32)
     .bind("Bob")
-    .fetch_one(&mut conn)
+    .fetch_one(&conn)
     .await?;
     assert_eq!(user.address, None);
     Ok(())
@@ -189,7 +189,7 @@ async fn flatten_option_prefix_some() -> anyhow::Result<()> {
     .bind("Main")
     .bind("NYC")
     .bind("US")
-    .fetch_one(&mut conn)
+    .fetch_one(&conn)
     .await?;
     assert_eq!(
         user.address,
