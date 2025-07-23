@@ -6,6 +6,145 @@ Musq is an async SQLite crate library for Rust.
 
 # Rows
 
+## #[derive(FromRow)]
+
+The `FromRow` derive macro automatically generates an implementation of the `FromRow` trait for structs, enabling type-safe deserialization from SQL query results. This allows you to map database rows directly to Rust structs.
+
+### Basic Usage
+
+```rust
+#[derive(musq::FromRow)]
+struct User {
+    id: i32,
+    name: String,
+    email: String,
+}
+
+// Query directly into your struct
+let user: User = query_as("SELECT id, name, email FROM users WHERE id = ?")
+    .bind(1)
+    .fetch_one(&mut conn)
+    .await?;
+```
+
+### Field Attributes
+
+#### `#[musq(rename = "column_name")]`
+Maps a struct field to a database column with a different name:
+
+```rust
+#[derive(FromRow)]
+struct User {
+    id: i32,
+    #[musq(rename = "full_name")]
+    name: String,
+}
+```
+
+#### `#[musq(rename_all = "case_style")]` (struct-level)
+Automatically converts all field names to a specific case style. Supported values: `snake_case` (default), `lowercase`, `UPPERCASE`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE`, `kebab-case`, `verbatim`:
+
+```rust
+#[derive(FromRow)]
+#[musq(rename_all = "camelCase")]
+struct UserPost {
+    user_id: i32,  // maps to "userId" column
+    post_title: String,  // maps to "postTitle" column
+}
+```
+
+#### `#[musq(default)]`
+Uses `Default::default()` if the column is missing:
+
+```rust
+#[derive(FromRow)]
+struct User {
+    id: i32,
+    name: String,
+    #[musq(default)]
+    bio: Option<String>,  // Will be None if column missing
+}
+```
+
+#### `#[musq(flatten)]`
+Embeds another struct that implements `FromRow`:
+
+```rust
+#[derive(FromRow)]
+struct Address {
+    street: String,
+    city: String,
+    country: String,
+}
+
+#[derive(FromRow)]
+struct User {
+    id: i32,
+    name: String,
+    #[musq(flatten)]
+    address: Address,  // Uses Address::from_row()
+}
+```
+
+#### `#[musq(prefix = "prefix_")]`
+Adds a prefix to column names when using nested structures:
+
+```rust
+#[derive(FromRow)]
+struct User {
+    id: i32,
+    #[musq(prefix = "billing_")]
+    billing_address: Address,  // Looks for "billing_street", "billing_city", etc.
+    #[musq(prefix = "shipping_")]
+    shipping_address: Address,
+}
+```
+
+#### `#[musq(skip)]`
+Always uses `Default::default()`, ignoring database columns:
+
+```rust
+#[derive(FromRow)]
+struct User {
+    name: String,
+    #[musq(skip)]
+    cached_data: Vec<String>,  // Always empty
+}
+```
+
+#### `#[musq(try_from = "database_type")]`
+Converts from a database type using `TryFrom`:
+
+```rust
+#[derive(FromRow)]
+struct User {
+    id: i32,
+    #[musq(try_from = "i64")]
+    score: u32,  // Converts i64 from DB to u32
+}
+```
+
+### Complex Example
+
+```rust
+#[derive(FromRow)]
+#[musq(rename_all = "camelCase")]
+struct ComplexUser {
+    id: i32,
+    #[musq(rename = "full_name")]
+    display_name: String,
+    #[musq(default)]
+    bio: Option<String>,
+    #[musq(flatten)]
+    address: Address,
+    #[musq(prefix = "work_")]
+    work_address: Address,
+    #[musq(skip)]
+    metadata: HashMap<String, String>,
+    #[musq(try_from = "i64")]
+    score: u32,
+}
+```
 
 # Types
 
