@@ -73,11 +73,12 @@ fn expand_struct(
 
             let expr: Expr = if field.flatten {
                 predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
-                parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row("", row))
-            } else if !field.prefix.is_empty() {
-                predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
-                let prefix = &field.prefix;
-                parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row(#prefix, row))
+                if field.prefix.is_empty() {
+                    parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row("", row))
+                } else {
+                    let prefix = &field.prefix;
+                    parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row(#prefix, row))
+                }
             } else if let Some(try_from) = &field.try_from {
                 predicates.push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
                 parse_quote!(

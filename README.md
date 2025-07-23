@@ -86,16 +86,16 @@ struct User {
 }
 ```
 
-#### `#[musq(prefix = "prefix_")]`
+#### `#[musq(flatten, prefix = "prefix_")]`
 Adds a prefix to column names when using nested structures:
 
 ```rust
 #[derive(FromRow)]
 struct User {
     id: i32,
-    #[musq(prefix = "billing_")]
+    #[musq(flatten, prefix = "billing_")]
     billing_address: Address,  // Looks for "billing_street", "billing_city", etc.
-    #[musq(prefix = "shipping_")]
+    #[musq(flatten, prefix = "shipping_")]
     shipping_address: Address,
 }
 ```
@@ -137,7 +137,7 @@ struct ComplexUser {
     bio: Option<String>,
     #[musq(flatten)]
     address: Address,
-    #[musq(prefix = "work_")]
+    #[musq(flatten, prefix = "work_")]
     work_address: Address,
     #[musq(skip)]
     metadata: HashMap<String, String>,

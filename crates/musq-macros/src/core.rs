@@ -104,12 +104,11 @@ pub(crate) fn check_row_field_attrs(field: &RowField) -> syn::Result<()> {
         if field.try_from.is_some() {
             span_err!(&field.ty, "`flatten` cannot be combined with `try_from`")?;
         }
-        if !field.prefix.is_empty() {
-            span_err!(&field.ty, "`flatten` cannot be combined with `prefix`")?;
-        }
         if field.rename.is_some() {
             span_err!(&field.ty, "`flatten` cannot be combined with `rename`")?;
         }
+    } else if !field.prefix.is_empty() {
+        span_err!(&field.ty, "`prefix` requires `flatten`")?;
     }
     Ok(())
 }
