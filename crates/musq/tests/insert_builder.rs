@@ -1,9 +1,9 @@
-use musq::{Execute, InsertInto, query_scalar};
+use musq::{Execute, insert_into, query_scalar};
 use musq_test::connection;
 
 #[tokio::test]
 async fn no_values_query() -> anyhow::Result<()> {
-    let builder = InsertInto("users");
+    let builder = insert_into("users");
     assert!(builder.query().is_err());
     Ok(())
 }
@@ -12,7 +12,7 @@ async fn no_values_query() -> anyhow::Result<()> {
 async fn no_values_execute() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     conn.execute("CREATE TABLE users (id INTEGER)").await?;
-    let res = InsertInto("users").execute(&mut conn).await;
+    let res = insert_into("users").execute(&mut conn).await;
     assert!(res.is_err());
     Ok(())
 }
@@ -21,9 +21,9 @@ async fn no_values_execute() -> anyhow::Result<()> {
 async fn single_value_insert() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     conn.execute("CREATE TABLE t (id INTEGER)").await?;
-    let query = InsertInto("t").value("id", 5).query()?;
+    let query = insert_into("t").value("id", 5).query()?;
     assert_eq!(query.sql(), "INSERT INTO \"t\" (\"id\") VALUES (?)");
-    InsertInto("t").value("id", 5).execute(&mut conn).await?;
+    insert_into("t").value("id", 5).execute(&mut conn).await?;
     let id: i32 = query_scalar("SELECT id FROM t")
         .fetch_one(&mut conn)
         .await?;
@@ -36,7 +36,7 @@ async fn multiple_values_insert() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     conn.execute("CREATE TABLE stuff (a INTEGER, b TEXT, c BOOLEAN, d BLOB)")
         .await?;
-    InsertInto("stuff")
+    insert_into("stuff")
         .value("a", 1_i32)
         .value("b", "hi")
         .value("c", true)
@@ -58,7 +58,7 @@ async fn quoted_identifiers() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     conn.execute("CREATE TABLE \"user-data\" (\"from-column\" INTEGER)")
         .await?;
-    let q = InsertInto("user-data").value("from-column", 10).query()?;
+    let q = insert_into("user-data").value("from-column", 10).query()?;
     assert_eq!(
         q.sql(),
         "INSERT INTO \"user-data\" (\"from-column\") VALUES (?)"
@@ -76,7 +76,7 @@ async fn execute_on_pool() -> anyhow::Result<()> {
     let pool = musq::Musq::new().open_in_memory().await?;
     pool.execute(musq::query("CREATE TABLE pool_t (id INTEGER)"))
         .await?;
-    InsertInto("pool_t")
+    insert_into("pool_t")
         .value("id", 1)
         .execute_on_pool(&pool)
         .await?;
@@ -93,7 +93,7 @@ async fn transaction_insert() -> anyhow::Result<()> {
     let mut conn = connection().await?;
     conn.execute("CREATE TABLE tx_t (id INTEGER)").await?;
     let mut tx = conn.begin().await?;
-    InsertInto("tx_t").value("id", 7).execute(&mut tx).await?;
+    insert_into("tx_t").value("id", 7).execute(&mut tx).await?;
     tx.commit().await?;
     drop(tx);
     let id: i32 = query_scalar("SELECT id FROM tx_t")

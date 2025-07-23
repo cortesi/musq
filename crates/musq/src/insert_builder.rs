@@ -13,7 +13,7 @@ pub struct InsertInto {
 
 /// Create a new [`InsertInto`] builder for the given table.
 #[allow(non_snake_case)]
-pub fn InsertInto(table: &str) -> InsertInto {
+pub fn insert_into(table: &str) -> InsertInto {
     InsertInto {
         table: quote_identifier(table),
         columns: Vec::new(),

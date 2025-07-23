@@ -30,7 +30,7 @@ pub use crate::{
     error::{DecodeError, EncodeError, Error, Result},
     executor::Execute,
     from_row::{AllNull, FromRow},
-    insert_builder::InsertInto,
+    insert_builder::insert_into,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::{Pool, PoolConnection},
     query::quote_identifier,
