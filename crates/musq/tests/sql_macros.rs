@@ -154,3 +154,184 @@ bind_check!(bind_offset_datetime: OffsetDateTime = datetime!(2025 - 7 - 22 6:20:
 bind_check!(bind_primitive_datetime: PrimitiveDateTime = datetime!(2025 - 1 - 15 12:30:45));
 bind_check!(bind_date: Date = date!(2025 - 1 - 1));
 bind_check!(bind_time: Time = time!(23:59:59));
+
+#[tokio::test]
+async fn test_sql_non_result_context() -> anyhow::Result<()> {
+    let conn = connection().await?;
+
+    // Test sql! macro in non-result context with unwrap()
+    let query = sql!("SELECT 1 as value").unwrap();
+    let row = query.fetch_one(&conn).await?;
+    let value: i32 = row.get_value_idx(0)?;
+    assert_eq!(value, 1);
+
+    // Test sql! macro with parameters in non-result context
+    let test_value = 42;
+    let query = sql!("SELECT {} as value", test_value).unwrap();
+    let row = query.fetch_one(&conn).await?;
+    let value: i32 = row.get_value_idx(0)?;
+    assert_eq!(value, 42);
+
+    // Test sql! macro with named parameters in non-result context
+    let query = sql!("SELECT {val} as value", val = 123).unwrap();
+    let row = query.fetch_one(&conn).await?;
+    let value: i32 = row.get_value_idx(0)?;
+    assert_eq!(value, 123);
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_sql_as_non_result_context() -> anyhow::Result<()> {
+    let conn = connection().await?;
+    sql!("CREATE TABLE test_table (id INTEGER, name TEXT)")
+        .unwrap()
+        .execute(&conn)
+        .await?;
+    sql!("INSERT INTO test_table (id, name) VALUES (1, 'test')")
+        .unwrap()
+        .execute(&conn)
+        .await?;
+
+    // Test sql_as! macro in non-result context with unwrap()
+    let query = sql_as!("SELECT id, name FROM test_table WHERE id = {}", 1).unwrap();
+    let row: (i32, String) = query.fetch_one(&conn).await?;
+    assert_eq!(row, (1, "test".to_string()));
+
+    // Test sql_as! macro with named parameters in non-result context
+    let query = sql_as!(
+        "SELECT id, name FROM test_table WHERE id = {test_id}",
+        test_id = 1
+    )
+    .unwrap();
+    let row: (i32, String) = query.fetch_one(&conn).await?;
+    assert_eq!(row, (1, "test".to_string()));
+
+    Ok(())
+}
+
+#[tokio::test]
+async fn test_sql_result_methods() -> anyhow::Result<()> {
+    let conn = connection().await?;
+
+    // Test unwrap_or method
+    let query = sql!("SELECT 'default' as value")
+        .unwrap_or_else(|_| panic!("Should not error for valid SQL"));
+    let row = query.fetch_one(&conn).await?;
+    let value: String = row.get_value_idx(0)?;
+    assert_eq!(value, "default");
+
+    Ok(())
+}
+
+// Helper functions that don't return Results - these are true non-Result contexts
+// The fact that these compile proves the macros work in non-Result contexts
+fn create_simple_query() {
+    let _query = sql!("SELECT 42 as answer").unwrap();
+}
+
+fn create_parameterized_query() {
+    let value = 42;
+    let _query = sql!("SELECT {} as value", value).unwrap();
+}
+
+fn create_named_query() {
+    let name = "test";
+    let _query = sql!("SELECT {name} as greeting", name = name).unwrap();
+}
+
+// Test sql_as! in non-result context - provide concrete return types
+fn create_sql_as_simple() -> musq::query::Map<impl FnMut(musq::Row) -> musq::Result<(i32, String)>>
+{
+    sql_as!("SELECT 1 as id, 'hello' as name").unwrap()
+}
+
+fn create_sql_as_with_params()
+-> musq::query::Map<impl FnMut(musq::Row) -> musq::Result<(i32, String)>> {
+    let id = 42;
+    let name = "world";
+    sql_as!("SELECT {id} as id, {name} as name", id = id, name = name).unwrap()
+}
+
+// Alternative approach using a struct that implements FromRow
+#[derive(musq::FromRow, Debug, PartialEq)]
+struct TestRecord {
+    id: i32,
+    message: String,
+}
+
+fn create_sql_as_with_struct() -> musq::query::Map<impl FnMut(musq::Row) -> musq::Result<TestRecord>>
+{
+    sql_as!("SELECT 999 as id, 'struct test' as message").unwrap()
+}
+
+// Additional test showing sql_as! parameters in non-result context
+fn create_sql_as_with_complex_params()
+-> musq::query::Map<impl FnMut(musq::Row) -> musq::Result<(i32, String, bool)>> {
+    let user_id = 123;
+    let status = "active";
+    let is_admin = true;
+    sql_as!(
+        "SELECT {user_id} as id, {status} as status, {is_admin} as is_admin",
+        user_id = user_id,
+        status = status,
+        is_admin = is_admin
+    )
+    .unwrap()
+}
+
+#[tokio::test]
+async fn test_sql_macros_compilation_in_non_result_context() -> anyhow::Result<()> {
+    // Test sql! macros in non-result contexts
+    create_simple_query();
+    create_parameterized_query();
+    create_named_query();
+
+    // Test sql_as! macros in non-result contexts - these compile successfully
+    let query1 = create_sql_as_simple();
+    let query2 = create_sql_as_with_params();
+    let query3 = create_sql_as_with_struct();
+    let query4 = create_sql_as_with_complex_params();
+
+    // Now test that the queries actually work
+    let conn = connection().await?;
+
+    // Test basic sql! macro with unwrap
+    let query = sql!("SELECT 123 as test_value").unwrap();
+    let row = query.fetch_one(&conn).await?;
+    let value: i32 = row.get_value_idx(0)?;
+    assert_eq!(value, 123);
+
+    // Test the sql_as! queries created in non-result contexts
+    let rows: Vec<(i32, String)> = query1.fetch_all(&conn).await?;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0], (1, "hello".to_string()));
+
+    let rows: Vec<(i32, String)> = query2.fetch_all(&conn).await?;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0], (42, "world".to_string()));
+
+    let rows: Vec<TestRecord> = query3.fetch_all(&conn).await?;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(
+        rows[0],
+        TestRecord {
+            id: 999,
+            message: "struct test".to_string()
+        }
+    );
+
+    let rows: Vec<(i32, String, bool)> = query4.fetch_all(&conn).await?;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0], (123, "active".to_string(), true));
+
+    // Test sql_as! with direct unwrap() and immediate usage
+    let rows: Vec<(i32, String)> = sql_as!("SELECT 1 as id, 'direct' as name")
+        .unwrap()
+        .fetch_all(&conn)
+        .await?;
+    assert_eq!(rows.len(), 1);
+    assert_eq!(rows[0], (1, "direct".to_string()));
+
+    Ok(())
+}

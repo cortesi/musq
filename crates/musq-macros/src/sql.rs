@@ -217,11 +217,14 @@ fn build_sql(
     let builder_inits = quote! { let mut _builder = musq::QueryBuilder::new(); };
     let collects = quote! { #(#sql_parts)* };
     let build = if as_query_as {
-        quote! { Ok::<_, musq::Error>(_builder.build().try_map(|row| musq::FromRow::from_row("", &row))) }
+        quote! { _builder.build().try_map(|row| musq::FromRow::from_row("", &row)) }
     } else {
-        quote! { Ok::<_, musq::Error>(_builder.build()) }
+        quote! { _builder.build() }
     };
-    Ok(quote! {{ #builder_inits #collects #build }})
+    Ok(quote! {{
+        #builder_inits
+        (|| -> musq::Result<_> { #collects Ok(#build) })()
+    }})
 }
 
 pub fn expand_sql(input: TokenStream, as_query_as: bool) -> TokenStream {
