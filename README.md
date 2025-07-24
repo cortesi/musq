@@ -88,7 +88,7 @@ let id = 1;
 let name = "Bob";
 
 // Positional and named arguments
-sql!("INSERT INTO users (id, name) VALUES ({}, {name})", id)?;
+sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?;
 
 // Map results directly to a struct
 #[derive(FromRow)]
@@ -304,8 +304,7 @@ struct Address {
 }
 
 #[derive(FromRow)]
-#[musq(rename_all = "camelCase")]
-struct ComplexUser {
+struct User {
     id: i32,
     #[musq(rename = "fullName")]
     display_name: String,
@@ -315,15 +314,7 @@ struct ComplexUser {
     
     // Looks for `street` and `city`.
     #[musq(flatten)]
-    home_address: Address,
-    
-    // Looks for `work_street` and `work_city`.
-    // Will be `None` if both columns are NULL.
-    #[musq(flatten, prefix = "work_")]
-    work_address: Option<Address>,
-    
-    #[musq(try_from = "i64")]
-    score: u32, // Converts i64 from DB to u32
+    address: Address,
 }
 ```
 
@@ -349,7 +340,7 @@ let insert_query = insert_into("users")
 insert_into("users")
     .value("id", 3)
     .value("name", "Carol")
-    .execute(&pool)
+    .execute_on_pool(&pool)
     .await?;
 ```
 

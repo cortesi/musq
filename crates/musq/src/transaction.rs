@@ -11,12 +11,13 @@ use crate::{Connection, Result};
 ///
 /// A transaction starts with a call to [`Pool::begin`] or [`Connection::begin`].
 ///
-/// A transaction should end with a call to [`commit`] or [`rollback`]. If neither are called before the transaction
-/// goes out-of-scope, [`rollback`] is called. In other words, [`rollback`] is called on `drop` if the transaction is
-/// still in-progress.
+/// A transaction should end with a call to [`commit`] or [`rollback`]. If neither are called
+/// before the transaction goes out-of-scope, [`rollback`] is called. In other words, [`rollback`]
+/// is called on `drop` if the transaction is still in-progress.
 ///
-/// A savepoint is a special mark inside a transaction that allows all commands that are executed after it was
-/// established to be rolled back, restoring the transaction state to what it was at the time of the savepoint.
+/// A savepoint is a special mark inside a transaction that allows all commands that are executed
+/// after it was established to be rolled back, restoring the transaction state to what it was at
+/// the time of the savepoint.
 ///
 /// [`Connection::begin`]: crate::connection::Connection::begin()
 /// [`Pool::begin`]: crate::Pool::begin()
