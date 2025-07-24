@@ -1,11 +1,10 @@
+use async_trait::async_trait;
 use either::Either;
-use std::ops::Deref;
 use futures_core::stream::BoxStream;
+use std::ops::Deref;
 
 use crate::{
-    Arguments, QueryResult, Result, Row,
-    encode::Encode,
-    executor::Execute,
+    Arguments, QueryResult, Result, Row, encode::Encode, executor::Execute,
     sqlite::statement::Statement,
 };
 
@@ -35,6 +34,7 @@ pub struct Map<F> {
 }
 
 // Trait to handle query execution without exposing the old Executor trait
+#[async_trait]
 pub trait QueryExecutor {
     async fn execute_query(self, query: Query) -> Result<QueryResult>;
     fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
@@ -46,6 +46,7 @@ pub trait QueryExecutor {
 }
 
 // Implement QueryExecutor for &Pool
+#[async_trait]
 impl QueryExecutor for &crate::Pool {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         let conn = self.acquire().await?;
@@ -83,6 +84,7 @@ impl QueryExecutor for &crate::Pool {
 }
 
 // Implement QueryExecutor for &Connection
+#[async_trait]
 impl QueryExecutor for &crate::Connection {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         self.execute(query).await
@@ -109,6 +111,7 @@ impl QueryExecutor for &crate::Connection {
 }
 
 // Implement QueryExecutor for &PoolConnection
+#[async_trait]
 impl QueryExecutor for &crate::pool::PoolConnection {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         self.execute(query).await
@@ -135,6 +138,7 @@ impl QueryExecutor for &crate::pool::PoolConnection {
 }
 
 // Implement QueryExecutor for &Transaction<C>
+#[async_trait]
 impl<C> QueryExecutor for &crate::Transaction<C>
 where
     C: std::ops::DerefMut<Target = crate::Connection> + Send + Sync,
@@ -175,6 +179,7 @@ where
 }
 
 // Implement QueryExecutor for &mut Transaction<C>
+#[async_trait]
 impl<C> QueryExecutor for &mut crate::Transaction<C>
 where
     C: std::ops::DerefMut<Target = crate::Connection> + Send + Sync,

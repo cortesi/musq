@@ -215,4 +215,3 @@ impl<C> DerefMut for Floating<C> {
         &mut self.inner
     }
 }
-

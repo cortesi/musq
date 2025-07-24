@@ -28,9 +28,7 @@ async fn single_value_insert() -> anyhow::Result<()> {
     let query = insert_into("t").value("id", 5).query()?;
     assert_eq!(query.sql(), "INSERT INTO \"t\" (\"id\") VALUES (?)");
     insert_into("t").value("id", 5).execute(&conn).await?;
-    let id: i32 = query_scalar("SELECT id FROM t")
-        .fetch_one(&conn)
-        .await?;
+    let id: i32 = query_scalar("SELECT id FROM t").fetch_one(&conn).await?;
     assert_eq!(id, 5);
     Ok(())
 }
@@ -105,9 +103,7 @@ async fn transaction_insert() -> anyhow::Result<()> {
     insert_into("tx_t").value("id", 7).execute(&tx).await?;
     tx.commit().await?;
     drop(tx);
-    let id: i32 = query_scalar("SELECT id FROM tx_t")
-        .fetch_one(&conn)
-        .await?;
+    let id: i32 = query_scalar("SELECT id FROM tx_t").fetch_one(&conn).await?;
     assert_eq!(id, 7);
     Ok(())
 }

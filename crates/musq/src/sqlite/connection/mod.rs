@@ -223,6 +223,7 @@ impl Connection {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn prepare_with<'c, 'q: 'c>(
         &'c self,
         sql: &'q str,
@@ -236,10 +237,8 @@ impl Connection {
         })
     }
 
-    pub(crate) fn prepare<'c, 'q: 'c>(
-        &'c self,
-        sql: &'q str,
-    ) -> BoxFuture<'c, Result<Prepared>> {
+    #[allow(dead_code)]
+    pub(crate) fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         self.prepare_with(sql)
     }
 
@@ -274,10 +273,7 @@ impl Connection {
             .boxed()
     }
 
-    pub(crate) fn execute<'c, 'q: 'c, E>(
-        &'c self,
-        query: E,
-    ) -> BoxFuture<'c, Result<QueryResult>>
+    pub(crate) fn execute<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
     {
@@ -290,10 +286,7 @@ impl Connection {
             .boxed()
     }
 
-    pub(crate) fn fetch_all<'c, 'q: 'c, E>(
-        &'c self,
-        query: E,
-    ) -> BoxFuture<'c, Result<Vec<Row>>>
+    pub(crate) fn fetch_all<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
     where
         E: Execute + 'q,
     {
@@ -327,4 +320,3 @@ impl Drop for ConnectionState {
         self.statements.clear();
     }
 }
-

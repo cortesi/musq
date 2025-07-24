@@ -12,9 +12,7 @@ struct Foo {
 async fn try_from_failure_maps_error() -> anyhow::Result<()> {
     let conn = connection().await?;
 
-    let res: musq::Result<Foo> = query_as::<Foo>("SELECT -1 as value")
-        .fetch_one(&conn)
-        .await;
+    let res: musq::Result<Foo> = query_as::<Foo>("SELECT -1 as value").fetch_one(&conn).await;
 
     let err = res.expect_err("expected failure");
     if let Error::ColumnDecode {

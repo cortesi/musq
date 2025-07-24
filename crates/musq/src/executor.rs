@@ -31,7 +31,6 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
     fn arguments(&self) -> Option<Arguments>;
-
 }
 
 impl Execute for &str {
@@ -43,4 +42,3 @@ impl Execute for &str {
         None
     }
 }
-

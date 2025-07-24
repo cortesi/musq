@@ -42,6 +42,7 @@ pub(crate) struct WorkerSharedState {
     pub(crate) conn: Mutex<ConnectionState>,
 }
 
+#[allow(dead_code)]
 enum Command {
     Prepare {
         query: Box<str>,
@@ -261,12 +262,14 @@ impl ConnectionWorker {
         })
     }
 
+    #[allow(dead_code)]
     pub(crate) fn is_shutdown(&self) -> bool {
         // For now, just return false as checking would require async
         // This is only used in drop, so it's not critical
         false
     }
 
+    #[allow(dead_code)]
     pub(crate) async fn prepare(&self, query: &str) -> Result<Statement> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
@@ -317,6 +320,7 @@ impl ConnectionWorker {
             .map_err(|_| Error::WorkerCrashed)
     }
 
+    #[allow(dead_code)]
     async fn oneshot_cmd<F, T>(&self, command: F) -> Result<T>
     where
         F: FnOnce(oneshot::Sender<T>) -> Command,

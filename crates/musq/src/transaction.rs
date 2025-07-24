@@ -138,4 +138,3 @@ pub(crate) fn rollback_ansi_transaction_sql(depth: usize) -> String {
         format!("ROLLBACK TO SAVEPOINT _musq_savepoint_{}", depth - 1)
     }
 }
-

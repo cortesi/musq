@@ -179,11 +179,9 @@ async fn create_schema(pool: &Pool) -> Result<()> {
     .await?;
 
     // Create index on B's foreign key
-    musq::query(
-        "CREATE INDEX IF NOT EXISTS idx_b_a_id ON b (a_id)",
-    )
-    .execute(pool)
-    .await?;
+    musq::query("CREATE INDEX IF NOT EXISTS idx_b_a_id ON b (a_id)")
+        .execute(pool)
+        .await?;
 
     Ok(())
 }

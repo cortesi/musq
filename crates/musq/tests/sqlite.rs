@@ -460,10 +460,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     // `Query` is persistent by default.
     let conn = connection().await?;
     for i in 0..2 {
-        let row = query("SELECT ? AS val")
-            .bind(i)
-            .fetch_one(&conn)
-            .await?;
+        let row = query("SELECT ? AS val").bind(i).fetch_one(&conn).await?;
 
         let val: i32 = row.get_value("val").unwrap();
 
@@ -477,10 +474,7 @@ async fn it_caches_statements() -> anyhow::Result<()> {
     // explicitly.
     let conn = connection().await?;
     for i in 0..2 {
-        let row = query("SELECT ? AS val")
-            .bind(i)
-            .fetch_one(&conn)
-            .await?;
+        let row = query("SELECT ? AS val").bind(i).fetch_one(&conn).await?;
 
         let val: i32 = row.get_value("val").unwrap();
 

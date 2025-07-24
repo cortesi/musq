@@ -9,12 +9,8 @@
 //! even when working with SQLite.
 use std::{fmt, future::Future, sync::Arc};
 
-
 use self::inner::PoolInner;
-use crate::{
-    Result,
-    transaction::Transaction,
-};
+use crate::{Result, transaction::Transaction};
 
 mod connection;
 mod inner;
@@ -166,7 +162,6 @@ impl Pool {
         // be in a consistent state, which may never happen at high levels of churn.
         self.0.num_idle()
     }
-
 }
 
 /// Returns a new [Pool] tied to the same shared connection pool.
@@ -186,4 +181,3 @@ impl fmt::Debug for Pool {
             .finish()
     }
 }
-

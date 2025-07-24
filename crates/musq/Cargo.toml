@@ -44,6 +44,7 @@ libsqlite3-sys = { version = "0.35", features = [
     "unlock_notify",
 ] }
 atoi = "2.0.0"
+async-trait = "0.1"
 
 [dev-dependencies]
 musq-test = { path = "../musq-test" }
