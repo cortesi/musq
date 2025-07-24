@@ -1,5 +1,3 @@
-Certainly. Here is the final README, rendered as markdown and wrapped to 100 characters.
-
 # Musq
 
 **Musq is an asynchronous SQLite toolkit for Rust.**
@@ -15,7 +13,7 @@ Here's a brief example of using `musq` to connect to a database, run a query, an
 result to a struct using the `sql!` and `sql_as!` macros.
 
 ```rust
-use musq::{Musq, sql, sql_as, FromRow};
+use musq::{FromRow, Musq, sql, sql_as};
 
 #[derive(Debug, FromRow)]
 struct User {
@@ -45,7 +43,7 @@ async fn main() -> musq::Result<()> {
         .fetch_one(&pool)
         .await?;
 
-    println!("Fetched user: {:?}", user);
+    println!("Fetched user: {user:?}");
 
     Ok(())
 }
@@ -63,7 +61,7 @@ connections for you. Queries can be executed directly on the pool.
 ```rust
 use musq::Musq;
 
-let pool = Musq::new()
+let _pool = Musq::new()
     .max_connections(10)
     .open_in_memory()
     .await?;
@@ -84,16 +82,21 @@ named arguments, and even dynamic identifiers.
 ```rust
 use musq::{sql, sql_as, FromRow};
 
+#[derive(FromRow, Debug)]
+struct User { 
+    id: i32, 
+    name: String 
+}
+
 let id = 1;
 let name = "Bob";
 
 // Positional and named arguments
-sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?;
+sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
+    .execute(&pool)
+    .await?;
 
 // Map results directly to a struct
-#[derive(FromRow)]
-struct User { id: i32, name: String }
-
 let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}")?
     .fetch_one(&pool)
     .await?;
@@ -180,7 +183,7 @@ newtype structs.
 Stores the enum as a snake-cased string (e.g., `"open"`, `"closed"`).
 
 ```rust
-#[derive(musq::Codec)]
+#[derive(musq::Codec, Debug, PartialEq)]
 enum Status {
     Open,
     Closed,
@@ -191,11 +194,12 @@ enum Status {
 Stores the enum as its integer representation.
 
 ```rust
-#[derive(musq::Codec)]
+#[derive(musq::Codec, Debug, PartialEq)]
 #[musq(repr = "i32")]
-enum Status {
-    Open = 1,
-    Closed = 2,
+enum Priority {
+    Low = 1,
+    Medium = 2,
+    High = 3,
 }
 ```
 
@@ -203,7 +207,7 @@ enum Status {
 Stores the newtype as its inner value.
 
 ```rust
-#[derive(musq::Codec)]
+#[derive(musq::Codec, Debug, PartialEq)]
 struct UserId(i32);
 ```
 
@@ -212,7 +216,7 @@ struct UserId(i32);
 Stores any `serde`-compatible type as a JSON string in a `TEXT` column.
 
 ```rust
-#[derive(musq::Json, serde::Serialize, serde::Deserialize)]
+#[derive(musq::Json, serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 struct Metadata {
     tags: Vec<String>,
     version: i32,
@@ -228,7 +232,7 @@ The `FromRow` derive macro provides powerful options for mapping query results t
 ### Basic Usage
 
 ```rust
-#[derive(musq::FromRow)]
+#[derive(musq::FromRow, Debug)]
 struct User {
     id: i32,
     name: String,
@@ -297,17 +301,16 @@ struct User {
 ### Example
 
 ```rust
-#[derive(FromRow)]
+#[derive(FromRow, Debug)]
 struct Address {
     street: String,
     city: String,
 }
 
-#[derive(FromRow)]
+#[derive(FromRow, Debug)]
 struct User {
     id: i32,
-    #[musq(rename = "fullName")]
-    display_name: String,
+    full_name: String,
     
     #[musq(default)]
     bio: Option<String>,
@@ -332,13 +335,13 @@ use musq::insert_into;
 
 // Construct the query
 let insert_query = insert_into("users")
-    .value("id", 2)
+    .value("id", 4)
     .value("name", "Bob")
     .query()?;
 
 // The builder can also execute directly
 insert_into("users")
-    .value("id", 3)
+    .value("id", 5)
     .value("name", "Carol")
     .execute_on_pool(&pool)
     .await?;
