@@ -1,4 +1,4 @@
-use crate::{Arguments, Result, encode::Encode, query::Query};
+use crate::{Arguments, Result, encode::Encode, executor::Execute, query::Query};
 use either::Either;
 
 #[derive(Default)]
@@ -80,6 +80,31 @@ impl QueryBuilder {
             return Err(crate::Error::Protocol("empty idents".into()));
         }
         Ok(())
+    }
+
+    /// Appends another [`Query`] to this builder.
+    ///
+    /// The SQL of the provided query is appended to this builder with a single
+    /// space in between if needed. All arguments from the other query are
+    /// merged and indices for named parameters are re-based to ensure they
+    /// refer to the correct values.
+    pub fn push_query(&mut self, query: Query) {
+        if !query.sql().is_empty() {
+            if !self.sql.is_empty() {
+                self.sql.push(' ');
+            }
+            self.sql.push_str(query.sql());
+
+            if let Some(other_args) = query.arguments {
+                let base_index = self.arguments.values.len();
+                self.arguments.values.extend(other_args.values);
+                for (name, index) in other_args.named {
+                    self.arguments.named.insert(name, base_index + index);
+                }
+            }
+
+            self.tainted |= query.tainted;
+        }
     }
 
     pub fn build(self) -> Query {

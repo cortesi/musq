@@ -110,7 +110,6 @@ impl QueryExecutor for &crate::Connection {
     }
 }
 
-
 // Implement QueryExecutor for &PoolConnection
 #[async_trait]
 impl QueryExecutor for &crate::pool::PoolConnection {
@@ -244,6 +243,16 @@ impl Query {
             self.arguments.unwrap_or_default(),
             self.tainted,
         )
+    }
+
+    /// Joins this query with another [`Query`].
+    ///
+    /// The SQL and arguments from `other` are appended to this query and a new
+    /// combined query is returned.
+    pub fn join(self, other: Query) -> Query {
+        let mut builder = self.into_builder();
+        builder.push_query(other);
+        builder.build()
     }
 
     /// Attempt to bind a value for use with this SQL query.
