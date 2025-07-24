@@ -67,28 +67,3 @@ impl Display for UStr {
         f.pad(self)
     }
 }
-
-// manual impls because otherwise things get a little screwy with lifetimes
-
-impl<'de> serde::Deserialize<'de> for UStr {
-    fn deserialize<D>(
-        deserializer: D,
-    ) -> std::result::Result<Self, <D as serde::Deserializer<'de>>::Error>
-    where
-        D: serde::Deserializer<'de>,
-    {
-        Ok(String::deserialize(deserializer)?.into())
-    }
-}
-
-impl serde::Serialize for UStr {
-    fn serialize<S>(
-        &self,
-        serializer: S,
-    ) -> std::result::Result<<S as serde::Serializer>::Ok, <S as serde::Serializer>::Error>
-    where
-        S: serde::Serializer,
-    {
-        serializer.serialize_str(self)
-    }
-}

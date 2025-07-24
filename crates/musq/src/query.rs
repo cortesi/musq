@@ -57,9 +57,10 @@ fn write_query_debug(
         let mut debug_struct = f.debug_struct("Query");
         debug_struct.field("statement", &sql);
         if let Some(args) = arguments
-            && !args.values.is_empty() {
-                debug_struct.field("arguments", &format_args!("{}", FormatArguments(args)));
-            }
+            && !args.values.is_empty()
+        {
+            debug_struct.field("arguments", &format_args!("{}", FormatArguments(args)));
+        }
         if tainted {
             debug_struct.field("tainted", &tainted);
         }
@@ -75,15 +76,16 @@ fn write_optional_fields(
     suffix: &str,
 ) -> std::fmt::Result {
     if let Some(args) = arguments
-        && !args.values.is_empty() {
-            write!(
-                f,
-                "{}arguments: {}{}",
-                prefix,
-                FormatArguments(args),
-                suffix
-            )?;
-        }
+        && !args.values.is_empty()
+    {
+        write!(
+            f,
+            "{}arguments: {}{}",
+            prefix,
+            FormatArguments(args),
+            suffix
+        )?;
+    }
     if tainted {
         write!(f, "{prefix}tainted: {tainted}{suffix}")?;
     }
