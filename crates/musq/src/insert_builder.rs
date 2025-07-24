@@ -49,12 +49,12 @@ impl InsertInto {
     /// Build and execute the query using a [`Connection`].
     pub async fn execute(self, conn: &Connection) -> Result<QueryResult> {
         let q = self.query()?;
-        conn.execute(q).await
+        q.execute(conn).await
     }
 
     /// Build and execute the query using a [`Pool`].
     pub async fn execute_on_pool(self, pool: &Pool) -> Result<QueryResult> {
         let q = self.query()?;
-        pool.execute(q).await
+        q.execute(pool).await
     }
 }

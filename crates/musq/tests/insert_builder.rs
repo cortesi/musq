@@ -80,7 +80,8 @@ async fn quoted_identifiers() -> anyhow::Result<()> {
 #[tokio::test]
 async fn execute_on_pool() -> anyhow::Result<()> {
     let pool = musq::Musq::new().open_in_memory().await?;
-    pool.execute(musq::query("CREATE TABLE pool_t (id INTEGER)"))
+    musq::query("CREATE TABLE pool_t (id INTEGER)")
+        .execute(&pool)
         .await?;
     insert_into("pool_t")
         .value("id", 1)

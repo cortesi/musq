@@ -157,29 +157,32 @@ async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool> {
 
 async fn create_schema(pool: &Pool) -> Result<()> {
     // Create table A
-    pool.execute(musq::query(
+    musq::query(
         "CREATE TABLE IF NOT EXISTS a (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             data BLOB NOT NULL
         )",
-    ))
+    )
+    .execute(pool)
     .await?;
 
     // Create table B with a foreign key to A
-    pool.execute(musq::query(
+    musq::query(
         "CREATE TABLE IF NOT EXISTS b (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             a_id INTEGER NOT NULL,
             data BLOB NOT NULL,
             FOREIGN KEY (a_id) REFERENCES a(id)
         )",
-    ))
+    )
+    .execute(pool)
     .await?;
 
     // Create index on B's foreign key
-    pool.execute(musq::query(
+    musq::query(
         "CREATE INDEX IF NOT EXISTS idx_b_a_id ON b (a_id)",
-    ))
+    )
+    .execute(pool)
     .await?;
 
     Ok(())
@@ -217,27 +220,29 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<()> 
 async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row)> {
     let random_id = rand::rng().random_range(1..=max_id) as i64;
 
-    let b_row = pool
-        .fetch_one(musq::query("SELECT * FROM b WHERE id = ?").bind(random_id))
+    let b_row = musq::query("SELECT * FROM b WHERE id = ?")
+        .bind(random_id)
+        .fetch_one(pool)
         .await?;
 
     let a_id: i64 = b_row.get_value("a_id")?;
 
-    let a_row = pool
-        .fetch_one(musq::query("SELECT * FROM a WHERE id = ?").bind(a_id))
+    let a_row = musq::query("SELECT * FROM a WHERE id = ?")
+        .bind(a_id)
+        .fetch_one(pool)
         .await?;
 
     Ok((a_row, b_row))
 }
 
 async fn count_records(pool: &Pool) -> Result<(i64, i64)> {
-    let a_count: i64 = pool
-        .fetch_one(musq::query("SELECT COUNT(*) FROM a"))
+    let a_count: i64 = musq::query("SELECT COUNT(*) FROM a")
+        .fetch_one(pool)
         .await?
         .get_value_idx(0)?;
 
-    let b_count: i64 = pool
-        .fetch_one(musq::query("SELECT COUNT(*) FROM b"))
+    let b_count: i64 = musq::query("SELECT COUNT(*) FROM b")
+        .fetch_one(pool)
         .await?
         .get_value_idx(0)?;
 

@@ -9,15 +9,12 @@
 //! even when working with SQLite.
 use std::{fmt, future::Future, sync::Arc};
 
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::TryStreamExt;
 
 use self::inner::PoolInner;
 use crate::{
-    QueryResult, Result, Row, executor::{Execute, Executor}, sqlite::statement::Prepared,
+    Result,
     transaction::Transaction,
 };
-use either::Either;
 
 mod connection;
 mod inner;
@@ -170,117 +167,6 @@ impl Pool {
         self.0.num_idle()
     }
 
-    pub fn fetch_many<'c, 'q: 'c, E>(
-        &'c self,
-        query: E,
-    ) -> BoxStream<'c, Result<Either<QueryResult, Row>>>
-    where
-        E: Execute + 'q,
-    {
-        let pool = self.clone();
-
-        Box::pin(async_stream::try_stream! {
-            let conn = pool.acquire().await?;
-            let mut s = conn.fetch_many(query);
-
-            while let Some(v) = s.try_next().await? {
-                yield v;
-            }
-        })
-    }
-
-    pub fn fetch_optional<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Option<Row>>>
-    where
-        E: Execute + 'q,
-    {
-        let pool = self.clone();
-
-        Box::pin(async move {
-            let conn = pool.acquire().await?;
-            conn.fetch_optional(query).await
-        })
-    }
-
-    pub fn prepare_with<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
-        let pool = self.clone();
-
-        Box::pin(async move {
-            let conn = pool.acquire().await?;
-            conn.prepare_with(sql).await
-        })
-    }
-
-    pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
-        self.prepare_with(sql)
-    }
-
-    pub fn fetch<'c, 'q: 'c, E>(&'c self, query: E) -> BoxStream<'c, Result<Row>>
-    where
-        E: Execute + 'q,
-    {
-        let pool = self.clone();
-
-        Box::pin(async_stream::try_stream! {
-            let conn = pool.acquire().await?;
-            let mut s = conn.fetch(query);
-
-            while let Some(v) = s.try_next().await? {
-                yield v;
-            }
-        })
-    }
-
-    pub fn execute_many<'c, 'q: 'c, E>(&'c self, query: E) -> BoxStream<'c, Result<QueryResult>>
-    where
-        E: Execute + 'q,
-    {
-        let pool = self.clone();
-
-        Box::pin(async_stream::try_stream! {
-            let conn = pool.acquire().await?;
-            let mut s = conn.execute_many(query);
-
-            while let Some(v) = s.try_next().await? {
-                yield v;
-            }
-        })
-    }
-
-    pub fn execute<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<QueryResult>>
-    where
-        E: Execute + 'q,
-    {
-        let pool = self.clone();
-
-        Box::pin(async move {
-            let conn = pool.acquire().await?;
-            conn.execute(query).await
-        })
-    }
-
-    pub fn fetch_all<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
-    where
-        E: Execute + 'q,
-    {
-        let pool = self.clone();
-
-        Box::pin(async move {
-            let conn = pool.acquire().await?;
-            conn.fetch_all(query).await
-        })
-    }
-
-    pub fn fetch_one<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Row>>
-    where
-        E: Execute + 'q,
-    {
-        let pool = self.clone();
-
-        Box::pin(async move {
-            let conn = pool.acquire().await?;
-            conn.fetch_one(query).await
-        })
-    }
 }
 
 /// Returns a new [Pool] tied to the same shared connection pool.
@@ -301,35 +187,3 @@ impl fmt::Debug for Pool {
     }
 }
 
-impl<'c> Executor<'c> for Pool {
-    fn execute<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<QueryResult>>
-    where
-        'c: 'q,
-        E: Execute + 'q,
-    {
-        self.execute(query)
-    }
-
-    fn fetch_many<'q, E>(&'c self, query: E) -> BoxStream<'q, Result<Either<QueryResult, Row>>>
-    where
-        'c: 'q,
-        E: Execute + 'q,
-    {
-        self.fetch_many(query)
-    }
-
-    fn fetch_optional<'q, E>(&'c self, query: E) -> BoxFuture<'q, Result<Option<Row>>>
-    where
-        'c: 'q,
-        E: Execute + 'q,
-    {
-        self.fetch_optional(query)
-    }
-
-    fn prepare_with<'q>(&'c self, sql: &'q str) -> BoxFuture<'q, Result<Prepared>>
-    where
-        'c: 'q,
-    {
-        self.prepare_with(sql)
-    }
-}

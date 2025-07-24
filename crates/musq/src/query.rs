@@ -1,12 +1,10 @@
 use either::Either;
-use futures_core::stream::BoxStream;
-use futures_util::{StreamExt, TryFutureExt, TryStreamExt, future};
+use std::ops::Deref;
 
 use crate::{
     Arguments, QueryResult, Result, Row,
     encode::Encode,
-    error::Error,
-    executor::{Execute, Executor},
+    executor::Execute,
     sqlite::statement::Statement,
 };
 
@@ -33,6 +31,127 @@ pub struct Query {
 pub struct Map<F> {
     inner: Query,
     mapper: F,
+}
+
+// Trait to handle query execution without exposing the old Executor trait
+pub trait QueryExecutor {
+    async fn execute_query(self, query: Query) -> Result<QueryResult>;
+    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>>;
+    async fn fetch_one_query(self, query: Query) -> Result<Row>;
+    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>>;
+}
+
+// Implement QueryExecutor for &Pool
+impl QueryExecutor for &crate::Pool {
+    async fn execute_query(self, query: Query) -> Result<QueryResult> {
+        let conn = self.acquire().await?;
+        conn.execute(query).await
+    }
+
+    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
+        let conn = self.acquire().await?;
+        conn.fetch_all(query).await
+    }
+
+    async fn fetch_one_query(self, query: Query) -> Result<Row> {
+        let conn = self.acquire().await?;
+        conn.fetch_one(query).await
+    }
+
+    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
+        let conn = self.acquire().await?;
+        conn.fetch_optional(query).await
+    }
+}
+
+// Implement QueryExecutor for &Connection
+impl QueryExecutor for &crate::Connection {
+    async fn execute_query(self, query: Query) -> Result<QueryResult> {
+        self.execute(query).await
+    }
+
+    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
+        self.fetch_all(query).await
+    }
+
+    async fn fetch_one_query(self, query: Query) -> Result<Row> {
+        self.fetch_one(query).await
+    }
+
+    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
+        self.fetch_optional(query).await
+    }
+}
+
+// Implement QueryExecutor for &PoolConnection
+impl QueryExecutor for &crate::pool::PoolConnection {
+    async fn execute_query(self, query: Query) -> Result<QueryResult> {
+        self.execute(query).await
+    }
+
+    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
+        self.fetch_all(query).await
+    }
+
+    async fn fetch_one_query(self, query: Query) -> Result<Row> {
+        self.fetch_one(query).await
+    }
+
+    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
+        self.fetch_optional(query).await
+    }
+}
+
+// Implement QueryExecutor for &Transaction<C>
+impl<C> QueryExecutor for &crate::Transaction<C>
+where
+    C: std::ops::DerefMut<Target = crate::Connection> + Send,
+{
+    async fn execute_query(self, query: Query) -> Result<QueryResult> {
+        let conn: &crate::Connection = self.deref();
+        conn.execute(query).await
+    }
+
+    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
+        let conn: &crate::Connection = self.deref();
+        conn.fetch_all(query).await
+    }
+
+    async fn fetch_one_query(self, query: Query) -> Result<Row> {
+        let conn: &crate::Connection = self.deref();
+        conn.fetch_one(query).await
+    }
+
+    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
+        let conn: &crate::Connection = self.deref();
+        conn.fetch_optional(query).await
+    }
+}
+
+// Implement QueryExecutor for &mut Transaction<C>
+impl<C> QueryExecutor for &mut crate::Transaction<C>
+where
+    C: std::ops::DerefMut<Target = crate::Connection> + Send,
+{
+    async fn execute_query(self, query: Query) -> Result<QueryResult> {
+        let conn: &crate::Connection = self.deref();
+        conn.execute(query).await
+    }
+
+    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
+        let conn: &crate::Connection = self.deref();
+        conn.fetch_all(query).await
+    }
+
+    async fn fetch_one_query(self, query: Query) -> Result<Row> {
+        let conn: &crate::Connection = self.deref();
+        conn.fetch_one(query).await
+    }
+
+    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
+        let conn: &crate::Connection = self.deref();
+        conn.fetch_optional(query).await
+    }
 }
 
 impl Execute for Query {
@@ -158,63 +277,35 @@ impl Query {
     }
 
     /// Execute the query and return the total number of rows affected.
-    pub async fn execute<'c, E>(self, executor: &'c E) -> Result<QueryResult>
+    pub async fn execute<E>(self, executor: E) -> Result<QueryResult>
     where
-        E: Executor<'c>,
+        E: QueryExecutor,
     {
-        executor.execute(self).await
-    }
-
-    /// Execute multiple queries and return the rows affected from each query, in a stream.
-    pub fn execute_many<'c, E>(self, executor: &'c E) -> BoxStream<'c, Result<QueryResult>>
-    where
-        E: Executor<'c>,
-    {
-        executor.execute_many(self)
-    }
-
-    /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'c, E>(self, executor: &'c E) -> BoxStream<'c, Result<Row>>
-    where
-        E: Executor<'c>,
-    {
-        executor.fetch(self)
-    }
-
-    /// Execute multiple queries and return the generated results as a stream
-    /// from each query, in a stream.
-    pub fn fetch_many<'c, E>(
-        self,
-        executor: &'c E,
-    ) -> BoxStream<'c, Result<Either<QueryResult, Row>>>
-    where
-        E: Executor<'c>,
-    {
-        executor.fetch_many(self)
+        executor.execute_query(self).await
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'c, E>(self, executor: &'c E) -> Result<Vec<Row>>
+    pub async fn fetch_all<E>(self, executor: E) -> Result<Vec<Row>>
     where
-        E: Executor<'c>,
+        E: QueryExecutor,
     {
-        executor.fetch_all(self).await
+        executor.fetch_all_query(self).await
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'c, E>(self, executor: &'c E) -> Result<Row>
+    pub async fn fetch_one<E>(self, executor: E) -> Result<Row>
     where
-        E: Executor<'c>,
+        E: QueryExecutor,
     {
-        executor.fetch_one(self).await
+        executor.fetch_one_query(self).await
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'c, E>(self, executor: &'c E) -> Result<Option<Row>>
+    pub async fn fetch_optional<E>(self, executor: E) -> Result<Option<Row>>
     where
-        E: Executor<'c>,
+        E: QueryExecutor,
     {
-        executor.fetch_optional(self).await
+        executor.fetch_optional_query(self).await
     }
 }
 
@@ -263,81 +354,36 @@ where
         }
     }
 
-    /// Execute the query and return the generated results as a stream.
-    pub fn fetch<'c, E>(self, executor: &'c E) -> BoxStream<'c, Result<O>>
-    where
-        F: 'c,
-        O: 'c,
-        E: Executor<'c> + Send + Sync,
-    {
-        self.fetch_many(executor)
-            .try_filter_map(|step| async move {
-                Ok(match step {
-                    Either::Left(_) => None,
-                    Either::Right(o) => Some(o),
-                })
-            })
-            .boxed()
-    }
-
-    /// Execute multiple queries and return the generated results as a stream
-    /// from each query, in a stream.
-    pub fn fetch_many<'c, E>(
-        mut self,
-        executor: &'c E,
-    ) -> BoxStream<'c, Result<Either<QueryResult, O>>>
-    where
-        F: 'c + Send,
-        O: 'c,
-        E: Executor<'c> + Send + Sync,
-    {
-        Box::pin(async_stream::try_stream! {
-            let mut s = executor.fetch_many(self.inner);
-
-            while let Some(v) = s.try_next().await? {
-                yield match v {
-                    Either::Left(v) => Either::Left(v),
-                    Either::Right(row) => {
-                        Either::Right((self.mapper)(row)?)
-                    }
-                };
-            }
-        })
-    }
-
     /// Execute the query and return all the generated results, collected into a [`Vec`].
-    pub async fn fetch_all<'c, E>(self, executor: &'c E) -> Result<Vec<O>>
+    pub async fn fetch_all<E>(mut self, executor: E) -> Result<Vec<O>>
     where
-        F: 'c,
-        O: 'c,
-        E: Executor<'c> + Send + Sync,
+        E: QueryExecutor,
     {
-        self.fetch(executor).try_collect().await
+        let rows = self.inner.fetch_all(executor).await?;
+        let mut results = Vec::with_capacity(rows.len());
+        for row in rows {
+            results.push((self.mapper)(row)?);
+        }
+        Ok(results)
     }
 
     /// Execute the query and returns exactly one row.
-    pub async fn fetch_one<'c, E>(self, executor: &'c E) -> Result<O>
+    pub async fn fetch_one<E>(self, executor: E) -> Result<O>
     where
-        F: 'c,
-        O: 'c,
-        E: Executor<'c> + Send + Sync,
+        E: QueryExecutor,
     {
-        self.fetch_optional(executor)
-            .and_then(|row| match row {
-                Some(row) => future::ok(row),
-                None => future::err(Error::RowNotFound),
-            })
-            .await
+        match self.fetch_optional(executor).await? {
+            Some(row) => Ok(row),
+            None => Err(crate::Error::RowNotFound),
+        }
     }
 
     /// Execute the query and returns at most one row.
-    pub async fn fetch_optional<'c, E>(mut self, executor: &'c E) -> Result<Option<O>>
+    pub async fn fetch_optional<E>(mut self, executor: E) -> Result<Option<O>>
     where
-        F: 'c,
-        O: 'c,
-        E: Executor<'c> + Send + Sync,
+        E: QueryExecutor,
     {
-        let row = executor.fetch_optional(self.inner).await?;
+        let row = self.inner.fetch_optional(executor).await?;
 
         if let Some(row) = row {
             (self.mapper)(row).map(Some)

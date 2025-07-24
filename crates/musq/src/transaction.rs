@@ -5,7 +5,7 @@ use std::{
 
 use futures_core::future::BoxFuture;
 
-use crate::{Connection, Result, executor::Executor};
+use crate::{Connection, Result};
 
 /// An in-progress database transaction or savepoint.
 ///
@@ -139,54 +139,3 @@ pub(crate) fn rollback_ansi_transaction_sql(depth: usize) -> String {
     }
 }
 
-impl<'c, C> Executor<'c> for Transaction<C>
-where
-    C: DerefMut<Target = Connection> + Send,
-{
-    fn execute<'q, E>(&'c self, query: E) -> BoxFuture<'q, crate::Result<crate::QueryResult>>
-    where
-        'c: 'q,
-        E: crate::executor::Execute + 'q,
-    {
-        let conn: &'c Connection = self.deref();
-        conn.execute(query)
-    }
-
-    fn fetch_many<'q, E>(
-        &'c self,
-        query: E,
-    ) -> futures_core::stream::BoxStream<
-        'q,
-        crate::Result<either::Either<crate::QueryResult, crate::Row>>,
-    >
-    where
-        'c: 'q,
-        E: crate::executor::Execute + 'q,
-    {
-        let conn: &'c Connection = self.deref();
-        conn.fetch_many(query)
-    }
-
-    fn fetch_optional<'q, E>(
-        &'c self,
-        query: E,
-    ) -> BoxFuture<'q, crate::Result<Option<crate::Row>>>
-    where
-        'c: 'q,
-        E: crate::executor::Execute + 'q,
-    {
-        let conn: &'c Connection = self.deref();
-        conn.fetch_optional(query)
-    }
-
-    fn prepare_with<'q>(
-        &'c self,
-        sql: &'q str,
-    ) -> BoxFuture<'q, crate::Result<crate::sqlite::statement::Prepared>>
-    where
-        'c: 'q,
-    {
-        let conn: &'c Connection = self.deref();
-        conn.prepare_with(sql)
-    }
-}

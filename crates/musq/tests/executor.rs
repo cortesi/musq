@@ -1,4 +1,4 @@
-use musq::{Musq, Pool, PoolConnection, query};
+use musq::{Musq, Pool, PoolConnection, query, Executor};
 
 // Helper function to create a test database
 async fn setup_test_db() -> musq::Result<PoolConnection> {
