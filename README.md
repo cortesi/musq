@@ -1,14 +1,229 @@
-<b>Hello curious person - musq is not yet ready for use! Please check back later.</b>
+Certainly. Here is the final README, rendered as markdown and wrapped to 100 characters.
 
-<h1 align="center">Musq</h1>
+# Musq
 
-Musq is an async SQLite crate library for Rust.
+**Musq is an asynchronous SQLite toolkit for Rust.**
 
-# Rows
+It provides a set of tools to help you build applications that interact with a SQLite database,
+with a strong focus on performance, correctness, and ergonomics.
 
-## #[derive(FromRow)]
+-----
 
-The `FromRow` derive macro automatically generates an implementation of the `FromRow` trait for structs, enabling type-safe deserialization from SQL query results. This allows you to map database rows directly to Rust structs.
+## Quickstart
+
+Here's a brief example of using `musq` to connect to a database, run a query, and map the
+result to a struct using the `sql!` and `sql_as!` macros.
+
+```rust
+use musq::{Musq, sql, sql_as, FromRow};
+
+#[derive(Debug, FromRow)]
+struct User {
+    id: i32,
+    name: String,
+}
+
+#[tokio::main]
+async fn main() -> musq::Result<()> {
+    // Create an in-memory database pool
+    let pool = Musq::new().open_in_memory().await?;
+
+    // Create a table
+    sql!("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);")?
+        .execute(&pool)
+        .await?;
+
+    // Insert a user
+    let id = 1;
+    let name = "Alice";
+    sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
+        .execute(&pool)
+        .await?;
+
+    // Fetch the user and map it to our struct
+    let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}")?
+        .fetch_one(&pool)
+        .await?;
+
+    println!("Fetched user: {:?}", user);
+
+    Ok(())
+}
+```
+
+-----
+
+## Core Features
+
+### Connection Pooling
+
+Use `Musq::open()` or `Musq::open_in_memory()` to create a `Pool`, which manages multiple
+connections for you. Queries can be executed directly on the pool.
+
+```rust
+use musq::Musq;
+
+let pool = Musq::new()
+    .max_connections(10)
+    .open_in_memory()
+    .await?;
+
+// `pool` can now be shared across your application
+```
+
+### Querying
+
+The recommended way to build queries in `musq` is with the `sql!` and `sql_as!` macros. For
+dynamic queries, you can combine queries created with `sql!` using `Query::join`.
+
+#### `sql!` and `sql_as!` Macros
+
+These macros offer a flexible, `format!`-like syntax for building queries with positional or
+named arguments, and even dynamic identifiers.
+
+```rust
+use musq::{sql, sql_as, FromRow};
+
+let id = 1;
+let name = "Bob";
+
+// Positional and named arguments
+sql!("INSERT INTO users (id, name) VALUES ({}, {name})", id)?;
+
+// Map results directly to a struct
+#[derive(FromRow)]
+struct User { id: i32, name: String }
+
+let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}")?
+    .fetch_one(&pool)
+    .await?;
+```
+
+The `sql!` macro also supports dynamic identifiers and lists for `IN` clauses:
+
+```rust
+let table_name = "users";
+let user_ids = vec![1, 2, 3];
+let columns = ["id", "name"];
+
+// Dynamic table and column identifiers
+let users: Vec<User> = sql_as!(
+    "SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})"
+)?.fetch_all(&pool).await?;
+```
+
+#### Dynamic Query Composition
+
+For dynamic queries, `musq` encourages a compositional approach. Start with a base query from
+`sql!` and join additional clauses as needed using `Query::join`.
+
+```rust
+use musq::sql;
+
+let mut query = sql!("SELECT * FROM products WHERE 1 = 1")?;
+
+if let Some(category) = &params.category {
+    query = query.join(sql!("AND category = {category}")?);
+}
+
+if let Some(min_price) = params.min_price {
+    query = query.join(sql!("AND price >= {min_price}")?);
+}
+```
+
+For the most complex scenarios, you can drop down to the `QueryBuilder` for fine-grained
+control over the generated SQL.
+
+-----
+
+## Type Handling (`Encode` and `Decode`)
+
+Musq uses the `Encode` and `Decode` traits to convert between Rust types and SQLite types.
+
+### Built-in Types
+
+Support for common Rust types is included out-of-the-box.
+
+| Rust type                           | SQLite type(s) |
+| ----------------------------------- | -------------- |
+| `bool`                              | BOOLEAN        |
+| `i8`, `i16`, `i32`, `i64`           | INTEGER        |
+| `u8`, `u16`, `u32`                  | INTEGER        |
+| `f32`, `f64`                        | REAL           |
+| `&str`, `String`, `Arc<String>`     | TEXT           |
+| `&[u8]`, `Vec<u8>`, `Arc<Vec<u8>>` | BLOB           |
+| `time::PrimitiveDateTime`           | DATETIME       |
+| `time::OffsetDateTime`              | DATETIME       |
+| `time::Date`                        | DATE           |
+| `time::Time`                        | TIME           |
+| `bstr::BString`                     | BLOB           |
+
+**Note on Large Values:** When passing large string or byte values to queries, consider using
+owned types like `String`, `Vec<u8>`, or `Arc<T>` to avoid unnecessary copies. Similarly, you
+can decode large blobs directly into `Arc<Vec<u8>>` for efficient, shared access to the
+data.
+
+**Note on `bstr`:** Use `bstr::BString` when you need to handle byte data from a `BLOB` column
+that is text-like but may not contain valid UTF-8. It provides string-like operations without
+enforcing UTF-8 validity.
+
+### Derivable Traits for Custom Types
+
+You can easily implement `Encode` and `Decode` for your own types using derive macros.
+
+#### `#[derive(musq::Codec)]`
+
+The `Codec` derive implements both `Encode` and `Decode`. It's suitable for simple enums and
+newtype structs.
+
+**For Enums (as TEXT):**
+Stores the enum as a snake-cased string (e.g., `"open"`, `"closed"`).
+
+```rust
+#[derive(musq::Codec)]
+enum Status {
+    Open,
+    Closed,
+}
+```
+
+**For Enums (as INTEGER):**
+Stores the enum as its integer representation.
+
+```rust
+#[derive(musq::Codec)]
+#[musq(repr = "i32")]
+enum Status {
+    Open = 1,
+    Closed = 2,
+}
+```
+
+**For Newtype Structs:**
+Stores the newtype as its inner value.
+
+```rust
+#[derive(musq::Codec)]
+struct UserId(i32);
+```
+
+#### `#[derive(musq::Json)]`
+
+Stores any `serde`-compatible type as a JSON string in a `TEXT` column.
+
+```rust
+#[derive(musq::Json, serde::Serialize, serde::Deserialize)]
+struct Metadata {
+    tags: Vec<String>,
+    version: i32,
+}
+```
+
+-----
+
+## Mapping Rows to Structs with `#[derive(FromRow)]`
+
+The `FromRow` derive macro provides powerful options for mapping query results to your structs.
 
 ### Basic Usage
 
@@ -19,399 +234,129 @@ struct User {
     name: String,
     email: String,
 }
-
-// Query directly into your struct
-let user: User = query_as("SELECT id, name, email FROM users WHERE id = ?")
-    .bind(1)
-    .fetch_one(&conn)
-    .await?;
 ```
 
 ### Field Attributes
 
-#### `#[musq(rename = "column_name")]`
-Maps a struct field to a database column with a different name:
+  - `#[musq(rename = "column_name")]`: Maps a field to a column with a different name.
 
-```rust
-#[derive(FromRow)]
-struct User {
-    id: i32,
-    #[musq(rename = "full_name")]
-    name: String,
-}
-```
+  - `#[musq(rename_all = "...")]`: (On struct) Converts all field names to a specific case
+    style (e.g., `"camelCase"`, `"snake_case"`).
 
-#### `#[musq(rename_all = "case_style")]` (struct-level)
-Automatically converts all field names to a specific case style. Supported values: `snake_case` (default), `lowercase`, `UPPERCASE`, `camelCase`, `PascalCase`, `SCREAMING_SNAKE_CASE`, `kebab-case`, `verbatim`:
+  - `#[musq(default)]`: Uses the field type's `Default::default()` value if the column is missing
+    from the result set.
 
-```rust
-#[derive(FromRow)]
-#[musq(rename_all = "camelCase")]
-struct UserPost {
-    user_id: i32,  // maps to "userId" column
-    post_title: String,  // maps to "postTitle" column
-}
-```
+  - `#[musq(flatten)]`: Embeds another struct that also implements `FromRow`. This is useful for
+    mapping columns to a nested struct, especially from `JOIN`s.
 
-#### `#[musq(default)]`
-Uses `Default::default()` if the column is missing:
+    If the flattened field is wrapped in an `Option`, it will be `None` if and only if **all**
+    columns for the nested struct are `NULL`.
 
-```rust
-#[derive(FromRow)]
-struct User {
-    id: i32,
-    name: String,
-    #[musq(default)]
-    bio: Option<String>,  // Will be None if column missing
-}
-```
+    ```rust
+    #[derive(FromRow)]
+    struct Address {
+        street: String,
+        city: String,
+    }
 
-#### `#[musq(flatten)]`
-Embeds another struct that implements `FromRow`:
+    #[derive(FromRow)]
+    struct User {
+        id: i32,
+        name: String,
+        // `address` will be `Some` if either `street` or `city` is not NULL.
+        // It will be `None` only if both `street` and `city` are NULL.
+        #[musq(flatten)]
+        address: Option<Address>,
+    }
+    ```
+
+  - `#[musq(flatten, prefix = "prefix_")]`: Adds a prefix to all column names when
+    flattening a nested struct. This is useful for avoiding name collisions and can be
+    combined with `Option`.
+
+    ```rust
+    #[derive(FromRow)]
+    struct UserWithAddresses {
+        id: i32,
+        // Looks for `billing_street` and `billing_city`.
+        #[musq(flatten, prefix = "billing_")]
+        billing_address: Address,
+
+        // Looks for `shipping_street` and `shipping_city`.
+        // Will be `None` if both are NULL.
+        #[musq(flatten, prefix = "shipping_")]
+        shipping_address: Option<Address>,
+    }
+    ```
+
+  - `#[musq(skip)]`: Always uses `Default::default()` for the field, ignoring the database.
+
+  - `#[musq(try_from = "database_type")]`: Converts a column from a specific database type
+    using `TryFrom`.
+
+### Example
 
 ```rust
 #[derive(FromRow)]
 struct Address {
     street: String,
     city: String,
-    country: String,
 }
 
-#[derive(FromRow)]
-struct User {
-    id: i32,
-    name: String,
-    #[musq(flatten)]
-    address: Address,  // Uses Address::from_row()
-}
-```
-
-If the field type is wrapped in `Option`, it will be set to `None` when all
-columns of the nested struct are `NULL`:
-
-```rust
-#[derive(FromRow)]
-struct User {
-    id: i32,
-    name: String,
-    #[musq(flatten)]
-    address: Option<Address>,
-}
-```
-
-This also works together with the `prefix` attribute.
-
-#### `#[musq(flatten, prefix = "prefix_")]`
-Adds a prefix to column names when using nested structures:
-
-```rust
-#[derive(FromRow)]
-struct User {
-    id: i32,
-    #[musq(flatten, prefix = "billing_")]
-    billing_address: Address,  // Looks for "billing_street", "billing_city", etc.
-    #[musq(flatten, prefix = "shipping_")]
-    shipping_address: Address,
-}
-```
-
-#### `#[musq(skip)]`
-Always uses `Default::default()`, ignoring database columns:
-
-```rust
-#[derive(FromRow)]
-struct User {
-    name: String,
-    #[musq(skip)]
-    cached_data: Vec<String>,  // Always empty
-}
-```
-
-#### `#[musq(try_from = "database_type")]`
-Converts from a database type using `TryFrom`:
-
-```rust
-#[derive(FromRow)]
-struct User {
-    id: i32,
-    #[musq(try_from = "i64")]
-    score: u32,  // Converts i64 from DB to u32
-}
-```
-
-### Complex Example
-
-```rust
 #[derive(FromRow)]
 #[musq(rename_all = "camelCase")]
 struct ComplexUser {
     id: i32,
-    #[musq(rename = "full_name")]
+    #[musq(rename = "fullName")]
     display_name: String,
+    
     #[musq(default)]
     bio: Option<String>,
+    
+    // Looks for `street` and `city`.
     #[musq(flatten)]
-    address: Address,
+    home_address: Address,
+    
+    // Looks for `work_street` and `work_city`.
+    // Will be `None` if both columns are NULL.
     #[musq(flatten, prefix = "work_")]
-    work_address: Address,
-    #[musq(skip)]
-    metadata: HashMap<String, String>,
+    work_address: Option<Address>,
+    
     #[musq(try_from = "i64")]
-    score: u32,
+    score: u32, // Converts i64 from DB to u32
 }
 ```
 
-# Types
+-----
 
-Types are discrete values that can be stored in a table column or appear in SQL expressions. Supported types implement
-one or both of the `Encode` and `Decode` traits. `Encode` is used to convert a Rust value into a SQLite value, and
-`Decode` is used to convert a SQLite value into a Rust value.
+## Helpers
 
-## Built-in type support
+### `insert_into` Builder
 
-`Encode` and `Decode` are implemented for a set of standard types.
-
-| Rust type                             | SQLite type(s)      |
-|---------------------------------------|---------------------|
-| `bool`                                | BOOLEAN             |
-| `i8`, `i16`, `i32`, `i64`             | INTEGER             |
-| `u8`, `u16`, `u32`                    | INTEGER             |
-| `f32`, `f64`                          | REAL                |
-| `&str`, `String`, `Arc<String>`       | TEXT                |
-| `&[u8]`, `Vec<u8>`, `Arc<Vec<u8>`     | BLOB                |
-| `time::PrimitiveDateTime`             | DATETIME            |
-| `time::OffsetDateTime`                | DATETIME            |
-| `time::Date`                          | DATE                |
-| `time::Time`                          | TIME                |
-| `bstr::BString`                       | BLOB                |
-
-
-## Deriving types
-
-You can derive `Encode` and `Decode` for a set of common custom type formats, or derive both at once with the `Codec`
-derive.
-
-<table>
-<tr>
-<td>
+For programmatic `INSERT` statements, the `insert_into` builder provides a convenient fluent
+API.
 
 ```rust
-#[derive(musq::Codec)]
-enum Foo {OneTwo, ThreeFour}
-```
+use musq::insert_into;
 
-Enum stored as a string in snake case (the default): "one_two", "three_four".
+// Construct the query
+let insert_query = insert_into("users")
+    .value("id", 2)
+    .value("name", "Bob")
+    .query()?;
 
-</td>
-
-<td>
-
-```rust
-#[derive(musq::Codec)]
-#[musq(rename_all = "lower_case")]
-enum Foo {OneTwo, ThreeFour}
-```
-
-Enum stored as a lowercase string: "onetwo", "threefour".
-
-</td>
-
-</tr>
-
-<tr>
-
-<td>
-
-```rust
-#[derive(musq::Codec)]
-#[musq(repr = "i32")]
-enum Foo {One, Two}
-```
-
-Enum stored as an **i32**: 0, 1.
-
-</td>
-
-<td>
-
-```rust
-#[derive(musq::Codec)]
-struct Foo(i32)
-```
-
-A ["newtype"](https://doc.rust-lang.org/rust-by-example/generics/new_types.html) struct stored as an **i32**.
-
-</td>
-
-</tr>
-</table>
-
-
-## #[derive(Json)]
-
-The `musq::Json` derive implements `Encode` and `Decode` for any type that implements `serde::Serialize` and
-`serde::Deserialize`.
-
-```rust
-#[derive(musq::Json, serde::Serialize, serde::Deserialize)]
-struct Foo {
-    id: i32,
-    name: String,
-}
-```
-
-
-# Handling large blobs
-
-Musq fans out inserts into a pool of workers, so it must be able to share query arguments between threads. Say we're
-trying to construct an insert as follows:
-
-```rust
-query("INSERT INTO docs (txt) VALUES (?)").bind(s)
-```
-
-If `s` is a `&str` reference, Musq has to clone the value into an owned structure so it can control the lifetime and
-thread sharing. This is usually fine, but if `s` is large, we can avoid the copy by passing an owned `String` or an
-`Arc<String>` instead. The same idea holds for the reference `&[u8]` and its counterparts `Vec<u8>` and `Arc<Vec<u8>>`.
-
-When fetching large blobs you can decode directly into an `Arc<Vec<u8>>` to
-reduce copying and easily share the data:
-
-```rust
-let blob: Arc<Vec<u8>> = query_scalar("SELECT data FROM blob_test")
-    .fetch_one(&conn)
+// The builder can also execute directly
+insert_into("users")
+    .value("id", 3)
+    .value("name", "Carol")
+    .execute(&pool)
     .await?;
 ```
 
-## Named parameters
-
-Musq supports the standard SQLite parameter syntax with `:name` and `@name` in
-addition to positional placeholders. Values can be supplied positionally using
-[`bind`](#) or directly by name with [`bind_named`].
-
-`bind()` will panic if the value cannot be bound. Use `try_bind()` or
-`try_bind_named()` when you need to handle binding errors explicitly:
-
-```rust
-query("SELECT :foo, @bar")
-    .bind_named(":foo", 1)
-    .bind_named("@bar", 2);
-```
-
-If the same name appears multiple times it is bound from the first matching
-value.
-
-Named parameters can be mixed freely with positional placeholders and used in
-normal SQL statements:
-
-```rust
-query("INSERT INTO users (id, name) VALUES (:id, ?)")
-    .bind_named("id", 5_i32)
-    .bind("Bob");
-
-let (name,): (String,) = query_as("SELECT name FROM users WHERE id = :id")
-    .bind_named("id", 5_i32)
-    .fetch_one(&conn)
-    .await?;
-assert_eq!(name, "Bob");
-```
-
-## `sql!` and `sql_as!`
-
-The `sql!` macro builds a [`Query`](#) while `sql_as!` produces a mapped query
-similar to [`query_as`](#). The format string accepts a variety of placeholders
-inspired by `format!`.
-
-### Examples
-
-**Positional and named arguments**
-
-```rust
-let id = 1;
-let name = "Bob";
-sql!("INSERT INTO users (id, name) VALUES ({}, {name})", id)?;
-```
-
-**Dynamic identifiers**
-
-```rust
-let table = "user-data";
-sql!("SELECT * FROM {ident:table}")?;
-```
-
-**Lists for IN clauses**
-
-```rust
-let ids = vec![1, 2, 3];
-sql!("DELETE FROM users WHERE id IN ({values:ids})")?;
-
-let cols = ["id", "name"];
-sql!("SELECT {idents:cols} FROM users")?;
-```
-
-**Raw fragments**
-
-```rust
-let q = sql!("SELECT * FROM users {raw:\"ORDER BY id DESC\"}")?;
-assert!(q.is_tainted());
-```
-
-`sql_as!` maps rows directly to a type implementing `FromRow`:
-
-```rust
-#[derive(musq::FromRow)]
-struct User { id: i32, name: String }
-
-let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}", id = 1)?
-    .fetch_one(&conn)
-    .await?;
-```
-
-The resulting [`Query`] can be further composed using
-`Query::into_builder()`.
-
-```rust
-let base = sql!("SELECT * FROM users WHERE active = 1")?;
-let final_query = {
-    let mut b = base.into_builder();
-    b.push_sql(" ORDER BY name ASC");
-    b.build()
-};
-```
-
-### Dynamic query composition
-
-`Query` objects can be combined using [`Query::join`], which appends the SQL and
-parameters from one query to another. This is handy for building queries from
-optional fragments.
-
-```rust
-let mut query = sql!("SELECT * FROM products WHERE 1 = 1")?;
-
-if let Some(category) = &params.category {
-    query = query.join(sql!("AND category = {}", category)?);
-}
-
-if let Some(min_price) = params.min_price {
-    query = query.join(sql!("AND price >= {}", min_price)?);
-}
-```
-
-# Development
+-----
 
 
-## Why?
+## Development
 
-Musq is a SQLite-focused fork of SQLx. The aims are to simplify and clean up the codebase, strip out un-needed features and complexity, add new features, improve testing and ergonomics, and support WASM.
-
-
-## Profiling
-
-Run the benchmarks with profiling enabled:
-
-```sh
-cargo bench --bench benchmark -- --profile-time 10
-```
-
-The resulting flamegraphs are in `./targets/criterion/*/profile`. At the moment, the benchmarks are only supported on
-Linux.
+Musq started life as a focused fork of the
+[SQLx](https://github.com/launchbadge/sqlx) project.
