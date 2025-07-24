@@ -17,6 +17,145 @@ pub struct Query {
     pub(crate) tainted: bool,
 }
 
+impl std::fmt::Debug for Query {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write_query_debug(f, self.sql(), &self.arguments, self.tainted)
+    }
+}
+
+fn write_query_debug(
+    f: &mut std::fmt::Formatter<'_>,
+    sql: &str,
+    arguments: &Option<Arguments>,
+    tainted: bool,
+) -> std::fmt::Result {
+    let multi_line = sql.contains('\n');
+
+    if multi_line && f.alternate() {
+        // Pretty multi-line format
+        writeln!(f, "Query {{")?;
+        writeln!(f, "    statement:")?;
+        for line in sql.lines() {
+            writeln!(f, "        {line}")?;
+        }
+        write_optional_fields(f, arguments, tainted, "    ", ",\n")?;
+        write!(f, "}}")
+    } else if multi_line {
+        // Compact multi-line format
+        write!(f, "Query {{ statement: ")?;
+        for (i, line) in sql.lines().enumerate() {
+            if i == 0 {
+                writeln!(f, "{line}")?
+            } else {
+                writeln!(f, "    {line}")?
+            }
+        }
+        write_optional_fields(f, arguments, tainted, ", ", " ")?;
+        write!(f, "}}")
+    } else {
+        // Single-line format
+        let mut debug_struct = f.debug_struct("Query");
+        debug_struct.field("statement", &sql);
+        if let Some(args) = arguments
+            && !args.values.is_empty() {
+                debug_struct.field("arguments", &format_args!("{}", FormatArguments(args)));
+            }
+        if tainted {
+            debug_struct.field("tainted", &tainted);
+        }
+        debug_struct.finish()
+    }
+}
+
+fn write_optional_fields(
+    f: &mut std::fmt::Formatter<'_>,
+    arguments: &Option<Arguments>,
+    tainted: bool,
+    prefix: &str,
+    suffix: &str,
+) -> std::fmt::Result {
+    if let Some(args) = arguments
+        && !args.values.is_empty() {
+            write!(
+                f,
+                "{}arguments: {}{}",
+                prefix,
+                FormatArguments(args),
+                suffix
+            )?;
+        }
+    if tainted {
+        write!(f, "{prefix}tainted: {tainted}{suffix}")?;
+    }
+    Ok(())
+}
+
+struct FormatArguments<'a>(&'a Arguments);
+
+impl<'a> std::fmt::Display for FormatArguments<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let named_indices: std::collections::HashSet<_> = self.0.named.values().copied().collect();
+        let mut first = true;
+
+        write!(f, "[")?;
+
+        // Positional parameters (excluding named ones)
+        for (i, value) in self.0.values.iter().enumerate() {
+            if !named_indices.contains(&(i + 1)) {
+                if !first {
+                    write!(f, ", ")?
+                }
+                write!(f, "{}", FormatValue(value))?;
+                first = false;
+            }
+        }
+
+        // Named parameters
+        let mut named: Vec<_> = self.0.named.iter().collect();
+        named.sort_by_key(|&(_, &idx)| idx);
+
+        for (name, &idx) in named {
+            if !first {
+                write!(f, ", ")?
+            }
+            if let Some(value) = self.0.values.get(idx - 1) {
+                write!(f, "{}={}", name, FormatValue(value))?;
+                first = false;
+            }
+        }
+
+        write!(f, "]")
+    }
+}
+
+struct FormatValue<'a>(&'a crate::sqlite::Value);
+
+impl<'a> std::fmt::Display for FormatValue<'a> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        use crate::sqlite::Value;
+        match self.0 {
+            Value::Null { .. } => write!(f, "NULL"),
+            Value::Integer { value, .. } => write!(f, "{value}"),
+            Value::Double { value, .. } => write!(f, "{value}"),
+            Value::Text { value, .. } => write!(f, "{value:?}"),
+            Value::Blob { value, .. } => {
+                write!(f, "0x")?;
+                let display_bytes =
+                    value
+                        .iter()
+                        .take(if value.len() <= 16 { value.len() } else { 8 });
+                for byte in display_bytes {
+                    write!(f, "{byte:02x}")?;
+                }
+                if value.len() > 16 {
+                    write!(f, "...({} bytes)", value.len())?;
+                }
+                Ok(())
+            }
+        }
+    }
+}
+
 /// SQL query that will map its results to owned Rust types.
 ///
 /// Returned by [`Query::try_map`], `query!()`, etc. Has most of the same methods as [`Query`] but
