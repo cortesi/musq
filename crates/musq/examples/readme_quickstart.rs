@@ -36,4 +36,3 @@ async fn main() -> musq::Result<()> {
     Ok(())
 }
 // END - Quickstart section full example
-

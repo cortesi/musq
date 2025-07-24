@@ -94,11 +94,7 @@ async fn test_executor_interchangeability() -> anyhow::Result<()> {
 /// Test that Pool can be used in generic functions that accept Executor
 #[tokio::test]
 async fn test_pool_in_generic_function() -> anyhow::Result<()> {
-    async fn insert_and_count(
-        pool: &musq::Pool,
-        table: &str,
-        value: &str,
-    ) -> anyhow::Result<i64> {
+    async fn insert_and_count(pool: &musq::Pool, table: &str, value: &str) -> anyhow::Result<i64> {
         query(&format!("INSERT INTO {table} (value) VALUES (?)"))
             .bind(value)
             .execute(pool)

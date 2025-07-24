@@ -209,7 +209,8 @@ mod pool_execution {
     async fn test_execute_with_pool() -> musq::Result<()> {
         let pool = setup_test_pool().await?;
 
-        let result = query("INSERT INTO test_table (value) VALUES (?)").bind("pool_value")
+        let result = query("INSERT INTO test_table (value) VALUES (?)")
+            .bind("pool_value")
             .execute(&pool)
             .await?;
 
@@ -222,7 +223,8 @@ mod pool_execution {
     async fn test_fetch_one_with_pool() -> musq::Result<()> {
         let pool = setup_test_pool().await?;
 
-        let row: Row = query("SELECT value FROM test_table WHERE id = ?").bind(1)
+        let row: Row = query("SELECT value FROM test_table WHERE id = ?")
+            .bind(1)
             .fetch_one(&pool)
             .await?;
 
@@ -235,7 +237,8 @@ mod pool_execution {
     async fn test_fetch_optional_with_pool() -> musq::Result<()> {
         let pool = setup_test_pool().await?;
 
-        let row: Option<Row> = query("SELECT value FROM test_table WHERE id = ?").bind(999)
+        let row: Option<Row> = query("SELECT value FROM test_table WHERE id = ?")
+            .bind(999)
             .fetch_optional(&pool)
             .await?;
 
@@ -268,7 +271,9 @@ mod pool_execution {
             let pool = pool.clone();
             let value = format!("concurrent_value_{i}");
             async move {
-                query("INSERT INTO test_table (value) VALUES (?)").bind(&value).execute(&pool)
+                query("INSERT INTO test_table (value) VALUES (?)")
+                    .bind(&value)
+                    .execute(&pool)
                     .await
             }
         });

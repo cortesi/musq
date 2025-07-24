@@ -1,16 +1,13 @@
 #![allow(dead_code)]
 
-use musq::{Musq, sql, sql_as, FromRow, insert_into};
+use musq::{FromRow, Musq, insert_into, sql, sql_as};
 
 #[tokio::main]
 async fn main() -> musq::Result<()> {
     // START - Connection Pooling section
     // Connection pooling example
     {
-        let _pool = Musq::new()
-            .max_connections(10)
-            .open_in_memory()
-            .await?;
+        let _pool = Musq::new().max_connections(10).open_in_memory().await?;
 
         // `pool` can now be shared across your application
         println!("Created pool with max 10 connections");
@@ -24,7 +21,7 @@ async fn main() -> musq::Result<()> {
     sql!("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, name TEXT NOT NULL);")?
         .execute(&pool)
         .await?;
-    
+
     sql!("CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, name TEXT, category TEXT, price REAL);")?
         .execute(&pool)
         .await?;
@@ -33,9 +30,9 @@ async fn main() -> musq::Result<()> {
     // Basic querying with sql! and sql_as! macros
     {
         #[derive(FromRow, Debug)]
-        struct User { 
-            id: i32, 
-            name: String 
+        struct User {
+            id: i32,
+            name: String,
         }
 
         let id = 1;
@@ -59,9 +56,9 @@ async fn main() -> musq::Result<()> {
     // Dynamic identifiers and lists
     {
         #[derive(FromRow, Debug)]
-        struct User { 
-            id: i32, 
-            name: String 
+        struct User {
+            id: i32,
+            name: String,
         }
 
         // Insert more test data
@@ -79,7 +76,9 @@ async fn main() -> musq::Result<()> {
         // Dynamic table and column identifiers
         let users: Vec<User> = sql_as!(
             "SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})"
-        )?.fetch_all(&pool).await?;
+        )?
+        .fetch_all(&pool)
+        .await?;
 
         println!("Retrieved {} users with dynamic query", users.len());
     }
@@ -92,9 +91,11 @@ async fn main() -> musq::Result<()> {
         sql!("INSERT INTO products (id, name, category, price) VALUES (1, 'Laptop', 'electronics', 999.99)")?
             .execute(&pool)
             .await?;
-        sql!("INSERT INTO products (id, name, category, price) VALUES (2, 'Book', 'books', 19.99)")?
-            .execute(&pool)
-            .await?;
+        sql!(
+            "INSERT INTO products (id, name, category, price) VALUES (2, 'Book', 'books', 19.99)"
+        )?
+        .execute(&pool)
+        .await?;
         sql!("INSERT INTO products (id, name, category, price) VALUES (3, 'Phone', 'electronics', 599.99)")?
             .execute(&pool)
             .await?;
@@ -139,7 +140,7 @@ async fn main() -> musq::Result<()> {
         insert_into("users")
             .value("id", 5)
             .value("name", "Carol")
-            .execute_on_pool(&pool)
+            .execute(&pool)
             .await?;
 
         println!("Inserted users using builder pattern");

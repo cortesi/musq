@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use musq::{Musq, sql, sql_as, FromRow};
+use musq::{FromRow, Musq, sql, sql_as};
 
 // START - Type Handling section (Codec derive)
 // Enum as TEXT (snake_case strings)
@@ -38,13 +38,15 @@ async fn main() -> musq::Result<()> {
     let pool = Musq::new().open_in_memory().await?;
 
     // Create table
-    sql!("CREATE TABLE tasks (
+    sql!(
+        "CREATE TABLE tasks (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
         status TEXT NOT NULL,
         priority INTEGER NOT NULL,
         user_id INTEGER NOT NULL
-    );")?
+    );"
+    )?
     .execute(&pool)
     .await?;
 
@@ -55,15 +57,18 @@ async fn main() -> musq::Result<()> {
     let priority = Priority::High;
     let user_id = UserId(42);
 
-    sql!("INSERT INTO tasks (id, title, status, priority, user_id) 
-          VALUES ({task_id}, {title}, {status}, {priority}, {user_id})")?
-        .execute(&pool)
-        .await?;
+    sql!(
+        "INSERT INTO tasks (id, title, status, priority, user_id) 
+          VALUES ({task_id}, {title}, {status}, {priority}, {user_id})"
+    )?
+    .execute(&pool)
+    .await?;
 
     // Query back and verify the types work correctly
-    let task: Task = sql_as!("SELECT id, title, status, priority, user_id FROM tasks WHERE id = {task_id}")?
-        .fetch_one(&pool)
-        .await?;
+    let task: Task =
+        sql_as!("SELECT id, title, status, priority, user_id FROM tasks WHERE id = {task_id}")?
+            .fetch_one(&pool)
+            .await?;
 
     println!("Retrieved task: {task:?}");
 

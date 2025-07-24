@@ -276,10 +276,7 @@ mod tests {
     async fn test_error_on_missing_parameter() -> anyhow::Result<()> {
         let conn = Connection::connect_with(&Musq::new()).await?;
 
-        let res = query("select ?1, ?2")
-            .bind(5_i32)
-            .fetch_one(&conn)
-            .await;
+        let res = query("select ?1, ?2").bind(5_i32).fetch_one(&conn).await;
 
         assert!(res.is_err());
 

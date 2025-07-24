@@ -9,16 +9,15 @@ async fn test_concurrent_reads() -> anyhow::Result<()> {
     let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
 
     // Setup test data
-    query(
-        "CREATE TABLE test_concurrent_reads (id INTEGER, value TEXT)",
-    ).execute(&*conn)
-    .await?;
+    query("CREATE TABLE test_concurrent_reads (id INTEGER, value TEXT)")
+        .execute(&*conn)
+        .await?;
     for i in 0..10 {
         query("INSERT INTO test_concurrent_reads (id, value) VALUES (?, ?)")
-                .bind(i)
-                .bind(format!("value_{i}"))
-                .execute(&*conn)
-        .await?;
+            .bind(i)
+            .bind(format!("value_{i}"))
+            .execute(&*conn)
+            .await?;
     }
 
     // Run multiple concurrent queries
@@ -56,10 +55,9 @@ async fn test_concurrent_executes() -> anyhow::Result<()> {
     let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
 
     // Setup test table
-    query(
-        "CREATE TABLE test_concurrent_executes (id INTEGER, thread_id INTEGER)",
-    ).execute(&*conn)
-    .await?;
+    query("CREATE TABLE test_concurrent_executes (id INTEGER, thread_id INTEGER)")
+        .execute(&*conn)
+        .await?;
 
     // Run multiple concurrent inserts
     let mut handles = vec![];
@@ -67,11 +65,12 @@ async fn test_concurrent_executes() -> anyhow::Result<()> {
         let conn_clone = Arc::clone(&conn);
         let handle = tokio::spawn(async move {
             for i in 0..5 {
-                let result = query("INSERT INTO test_concurrent_executes (id, thread_id) VALUES (?, ?)")
-                            .bind(thread_id * 5 + i)
-                            .bind(thread_id)
-                            .execute(&*conn_clone)
-                    .await;
+                let result =
+                    query("INSERT INTO test_concurrent_executes (id, thread_id) VALUES (?, ?)")
+                        .bind(thread_id * 5 + i)
+                        .bind(thread_id)
+                        .execute(&*conn_clone)
+                        .await;
                 assert!(result.is_ok());
             }
         });
@@ -96,18 +95,17 @@ async fn test_concurrent_prepared_statements() -> anyhow::Result<()> {
     let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
 
     // Setup test table
-    query(
-        "CREATE TABLE test_concurrent_prepared (id INTEGER, data TEXT)",
-    ).execute(&*conn)
-    .await?;
+    query("CREATE TABLE test_concurrent_prepared (id INTEGER, data TEXT)")
+        .execute(&*conn)
+        .await?;
 
     // Insert some test data
     for i in 0..100 {
         query("INSERT INTO test_concurrent_prepared (id, data) VALUES (?, ?)")
-                .bind(i)
-                .bind(format!("data_{i}"))
-                .execute(&*conn)
-        .await?;
+            .bind(i)
+            .bind(format!("data_{i}"))
+            .execute(&*conn)
+            .await?;
     }
 
     // Run multiple concurrent queries using the same SQL (should use prepared statement cache)
@@ -149,14 +147,15 @@ async fn test_concurrent_read_write_mix() -> anyhow::Result<()> {
     let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
 
     // Setup test table
-    query(
-        "CREATE TABLE test_concurrent_mix (id INTEGER PRIMARY KEY, counter INTEGER DEFAULT 0)",
-    ).execute(&*conn)
-    .await?;
+    query("CREATE TABLE test_concurrent_mix (id INTEGER PRIMARY KEY, counter INTEGER DEFAULT 0)")
+        .execute(&*conn)
+        .await?;
 
     // Insert initial data
     for i in 0..10 {
-        query("INSERT INTO test_concurrent_mix (id, counter) VALUES (?, 0)").bind(i).execute(&*conn)
+        query("INSERT INTO test_concurrent_mix (id, counter) VALUES (?, 0)")
+            .bind(i)
+            .execute(&*conn)
             .await?;
     }
 
@@ -187,8 +186,8 @@ async fn test_concurrent_read_write_mix() -> anyhow::Result<()> {
             for _ in 0..10 {
                 let id = writer_id % 10;
                 query("UPDATE test_concurrent_mix SET counter = counter + 1 WHERE id = ?")
-                            .bind(id)
-                            .execute(&*conn_clone)
+                    .bind(id)
+                    .execute(&*conn_clone)
                     .await
                     .unwrap();
                 sleep(Duration::from_millis(2)).await;
@@ -302,11 +301,9 @@ async fn test_connection_thread_safety() -> anyhow::Result<()> {
     let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
 
     // Setup test table
-    query(
-        "CREATE TABLE test_thread_safety (id INTEGER, thread_name TEXT)",
-    )
-    .execute(&*conn)
-    .await?;
+    query("CREATE TABLE test_thread_safety (id INTEGER, thread_name TEXT)")
+        .execute(&*conn)
+        .await?;
 
     // Spawn tasks on different threads
     let mut handles = vec![];
@@ -318,9 +315,9 @@ async fn test_connection_thread_safety() -> anyhow::Result<()> {
 
                 // Insert data
                 query("INSERT INTO test_thread_safety (id, thread_name) VALUES (?, ?)")
-                            .bind(i as i32)
-                            .bind(&thread_name)
-                            .execute(&*conn_clone)
+                    .bind(i as i32)
+                    .bind(&thread_name)
+                    .execute(&*conn_clone)
                     .await?;
 
                 // Read it back

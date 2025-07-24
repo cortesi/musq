@@ -1,4 +1,4 @@
-use musq::{Connection, Musq, Pool, query, query_as, query::QueryExecutor};
+use musq::{Connection, Musq, Pool, query, query::QueryExecutor, query_as};
 use std::sync::Arc;
 
 /// This example demonstrates that query.execute() now accepts
@@ -57,11 +57,7 @@ async fn setup_schema<E: QueryExecutor>(executor: E) -> musq::Result<()> {
 }
 
 /// Generic function that works with any QueryExecutor
-async fn insert_user<E: QueryExecutor>(
-    executor: E,
-    id: i32,
-    name: &str,
-) -> musq::Result<()> {
+async fn insert_user<E: QueryExecutor>(executor: E, id: i32, name: &str) -> musq::Result<()> {
     query("INSERT INTO users (id, name) VALUES (?, ?)")
         .bind(id)
         .bind(name)
@@ -71,9 +67,7 @@ async fn insert_user<E: QueryExecutor>(
 }
 
 /// Generic function that works with any QueryExecutor
-async fn get_users<E: QueryExecutor>(
-    executor: E,
-) -> musq::Result<Vec<(i32, String)>> {
+async fn get_users<E: QueryExecutor>(executor: E) -> musq::Result<Vec<(i32, String)>> {
     query_as("SELECT id, name FROM users ORDER BY id")
         .fetch_all(executor)
         .await

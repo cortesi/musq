@@ -63,10 +63,6 @@ Want to contribute? Have ideas or feature requests? Come tell us about it on
 [Discord](https://discord.gg/fHmRmuBDxF). 
 
 
----
-
-
-
 ## Core Features
 
 ### Connection Pooling
@@ -355,11 +351,13 @@ let insert_query = insert_into("users")
     .value("name", "Bob")
     .query()?;
 
-// The builder can also execute directly
+insert_query.execute(&pool).await?;
+
+// The builder can also execute directly on any executor (pool, connection, transaction, etc.)
 insert_into("users")
     .value("id", 5)
     .value("name", "Carol")
-    .execute_on_pool(&pool)
+    .execute(&pool)
     .await?;
 ```
 

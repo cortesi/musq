@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use musq::{Musq, sql, sql_as, FromRow};
+use musq::{FromRow, Musq, sql, sql_as};
 
 // START - FromRow section (basic usage)
 // Basic FromRow usage
@@ -25,10 +25,10 @@ struct Address {
 struct SimpleUser {
     id: i32,
     full_name: String,
-    
+
     #[musq(default)]
     bio: Option<String>,
-    
+
     // Looks for `street` and `city`.
     #[musq(flatten)]
     address: Address,
@@ -57,32 +57,38 @@ async fn main() -> musq::Result<()> {
     let pool = Musq::new().open_in_memory().await?;
 
     // Set up tables
-    sql!("CREATE TABLE users (
+    sql!(
+        "CREATE TABLE users (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         email TEXT NOT NULL
-    );")?
+    );"
+    )?
     .execute(&pool)
     .await?;
 
-    sql!("CREATE TABLE simple_users (
+    sql!(
+        "CREATE TABLE simple_users (
         id INTEGER PRIMARY KEY,
         full_name TEXT NOT NULL,
         bio TEXT,
         street TEXT NOT NULL,
         city TEXT NOT NULL
-    );")?
+    );"
+    )?
     .execute(&pool)
     .await?;
 
-    sql!("CREATE TABLE user_addresses (
+    sql!(
+        "CREATE TABLE user_addresses (
         id INTEGER PRIMARY KEY,
         name TEXT NOT NULL,
         billing_street TEXT NOT NULL,
         billing_city TEXT NOT NULL,
         shipping_street TEXT,
         shipping_city TEXT
-    );")?
+    );"
+    )?
     .execute(&pool)
     .await?;
 
@@ -101,16 +107,20 @@ async fn main() -> musq::Result<()> {
 
     // Test simple FromRow with common features
     {
-        sql!("INSERT INTO simple_users 
+        sql!(
+            "INSERT INTO simple_users 
               (id, full_name, bio, street, city)
-              VALUES (1, 'John Doe', 'Software Developer', '123 Main St', 'Springfield')")?
-            .execute(&pool)
-            .await?;
+              VALUES (1, 'John Doe', 'Software Developer', '123 Main St', 'Springfield')"
+        )?
+        .execute(&pool)
+        .await?;
 
         let simple_user: SimpleUser = sql_as!(
             "SELECT id, full_name, bio, street, city 
              FROM simple_users WHERE id = 1"
-        )?.fetch_one(&pool).await?;
+        )?
+        .fetch_one(&pool)
+        .await?;
 
         println!("Simple FromRow with common features: {simple_user:?}");
 
@@ -123,16 +133,20 @@ async fn main() -> musq::Result<()> {
 
     // Test optional flattened struct (None case)
     {
-        sql!("INSERT INTO user_addresses 
+        sql!(
+            "INSERT INTO user_addresses 
               (id, name, billing_street, billing_city, shipping_street, shipping_city)
-              VALUES (1, 'Jane Smith', '789 Bill St', 'Bill City', NULL, NULL)")?
-            .execute(&pool)
-            .await?;
+              VALUES (1, 'Jane Smith', '789 Bill St', 'Bill City', NULL, NULL)"
+        )?
+        .execute(&pool)
+        .await?;
 
         let user_with_addr: UserWithAddresses = sql_as!(
             "SELECT id, name, billing_street, billing_city, shipping_street, shipping_city
              FROM user_addresses WHERE id = 1"
-        )?.fetch_one(&pool).await?;
+        )?
+        .fetch_one(&pool)
+        .await?;
 
         println!("User with optional address (None case): {user_with_addr:?}");
 
@@ -153,7 +167,9 @@ async fn main() -> musq::Result<()> {
         let user_with_addr: UserWithAddresses = sql_as!(
             "SELECT id, name, billing_street, billing_city, shipping_street, shipping_city
              FROM user_addresses WHERE id = 2"
-        )?.fetch_one(&pool).await?;
+        )?
+        .fetch_one(&pool)
+        .await?;
 
         println!("User with optional address (Some case): {user_with_addr:?}");
 

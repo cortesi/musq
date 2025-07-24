@@ -81,10 +81,7 @@ async fn execute_on_pool() -> anyhow::Result<()> {
     musq::query("CREATE TABLE pool_t (id INTEGER)")
         .execute(&pool)
         .await?;
-    insert_into("pool_t")
-        .value("id", 1)
-        .execute_on_pool(&pool)
-        .await?;
+    insert_into("pool_t").value("id", 1).execute(&pool).await?;
     let conn = pool.acquire().await?;
     let id: i32 = query_scalar("SELECT id FROM pool_t")
         .fetch_one(&conn)

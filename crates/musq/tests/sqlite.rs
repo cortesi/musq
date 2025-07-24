@@ -1,4 +1,4 @@
-use futures::{TryStreamExt, StreamExt};
+use futures::{StreamExt, TryStreamExt};
 use musq::{Connection, Error, Musq, Row, query, query_as, query_scalar};
 use musq_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
@@ -356,12 +356,12 @@ async fn it_executes_queries() -> anyhow::Result<()> {
     let conn = connection().await?;
 
     let _ = query(
-            r#"
+        r#"
 CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
             "#,
-        )
-        .execute(&conn)
-        .await?;
+    )
+    .execute(&conn)
+    .await?;
 
     for index in 1..=10_i32 {
         let done = query("INSERT INTO users (id) VALUES (?)")
@@ -388,13 +388,13 @@ async fn it_can_execute_multiple_statements() -> anyhow::Result<()> {
     let conn = connection().await?;
 
     let done = query(
-            r#"
+        r#"
 CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, other INTEGER);
 INSERT INTO users DEFAULT VALUES;
             "#,
-        )
-        .execute(&conn)
-        .await?;
+    )
+    .execute(&conn)
+    .await?;
 
     assert_eq!(done.rows_affected(), 1);
 
@@ -432,8 +432,9 @@ SELECT 'Hello World' as _1;
 INSERT INTO _musq_test (text) VALUES ('this is a test');
 
 SELECT id, text FROM _musq_test;
-    "
-    ).fetch(&conn);
+    ",
+    )
+    .fetch(&conn);
 
     let row = cursor.try_next().await?.unwrap();
 
@@ -603,7 +604,8 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_can_transact() {
     let pool = Musq::new().open_in_memory().await.unwrap();
-    query("CREATE TABLE foo (value INTEGER)").execute(&pool)
+    query("CREATE TABLE foo (value INTEGER)")
+        .execute(&pool)
         .await
         .unwrap();
 
@@ -668,18 +670,19 @@ async fn concurrent_resets_dont_segfault() {
 
     let pool = Musq::new().open_in_memory().await.unwrap();
 
-    query("CREATE TABLE stuff (name INTEGER, value INTEGER)").execute(&pool)
+    query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
+        .execute(&pool)
         .await
         .unwrap();
 
     tokio::task::spawn(async move {
         for i in 0..1000 {
             query("INSERT INTO stuff (name, value) VALUES (?, ?)")
-                    .bind(i)
-                    .bind(0)
-                    .execute(&pool)
-            .await
-            .unwrap();
+                .bind(i)
+                .bind(0)
+                .execute(&pool)
+                .await
+                .unwrap();
         }
     });
 
@@ -723,7 +726,8 @@ async fn issue_1467() -> anyhow::Result<()> {
     CREATE TABLE kv (k PRIMARY KEY, v);
     CREATE INDEX idx_kv ON kv (v);
     "#,
-    ).execute(&pool)
+    )
+    .execute(&pool)
     .await?;
 
     // Random seed:
@@ -776,7 +780,8 @@ async fn issue_1467() -> anyhow::Result<()> {
 async fn concurrent_read_and_write() {
     let pool = Musq::new().open_in_memory().await.unwrap();
 
-    query("CREATE TABLE kv (k PRIMARY KEY, v)").execute(&pool)
+    query("CREATE TABLE kv (k PRIMARY KEY, v)")
+        .execute(&pool)
         .await
         .unwrap();
 
@@ -801,11 +806,11 @@ async fn concurrent_read_and_write() {
         async move {
             for i in 0u32..n {
                 query("INSERT INTO kv (k, v) VALUES (?, ?)")
-                        .bind(i)
-                        .bind(i * i)
-                        .execute(&pool)
-                .await
-                .unwrap();
+                    .bind(i)
+                    .bind(i * i)
+                    .execute(&pool)
+                    .await
+                    .unwrap();
             }
         }
     });

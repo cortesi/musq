@@ -1,6 +1,6 @@
 #![allow(dead_code)]
 
-use musq::{Musq, sql, sql_as, FromRow};
+use musq::{FromRow, Musq, sql, sql_as};
 
 // START - Type Handling section (Json derive)
 #[derive(musq::Json, serde::Serialize, serde::Deserialize, Debug, PartialEq)]
@@ -22,17 +22,23 @@ async fn main() -> musq::Result<()> {
     let pool = Musq::new().open_in_memory().await?;
 
     // Create table with JSON column stored as TEXT
-    sql!("CREATE TABLE documents (
+    sql!(
+        "CREATE TABLE documents (
         id INTEGER PRIMARY KEY,
         title TEXT NOT NULL,
         metadata TEXT NOT NULL
-    );")?
+    );"
+    )?
     .execute(&pool)
     .await?;
 
     // Create test data
     let metadata = Metadata {
-        tags: vec!["rust".to_string(), "database".to_string(), "async".to_string()],
+        tags: vec![
+            "rust".to_string(),
+            "database".to_string(),
+            "async".to_string(),
+        ],
         version: 1,
     };
 
@@ -45,9 +51,10 @@ async fn main() -> musq::Result<()> {
         .await?;
 
     // Query back and verify JSON serialization/deserialization works
-    let document: Document = sql_as!("SELECT id, title, metadata FROM documents WHERE id = {doc_id}")?
-        .fetch_one(&pool)
-        .await?;
+    let document: Document =
+        sql_as!("SELECT id, title, metadata FROM documents WHERE id = {doc_id}")?
+            .fetch_one(&pool)
+            .await?;
 
     println!("Retrieved document: {document:?}");
 

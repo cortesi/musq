@@ -1,8 +1,5 @@
-use crate::query::Query;
-use crate::{
-    Arguments, Connection, Pool, QueryResult, Result, encode::Encode, query::query_with,
-    quote_identifier,
-};
+use crate::query::{Query, QueryExecutor};
+use crate::{Arguments, QueryResult, Result, encode::Encode, query::query_with, quote_identifier};
 
 /// Builder for constructing `INSERT INTO` queries.
 pub struct InsertInto {
@@ -46,15 +43,12 @@ impl InsertInto {
         Ok(query_with(&sql, self.arguments))
     }
 
-    /// Build and execute the query using a [`Connection`].
-    pub async fn execute(self, conn: &Connection) -> Result<QueryResult> {
+    /// Execute the query and return the total number of rows affected.
+    pub async fn execute<E>(self, executor: E) -> Result<QueryResult>
+    where
+        E: QueryExecutor,
+    {
         let q = self.query()?;
-        q.execute(conn).await
-    }
-
-    /// Build and execute the query using a [`Pool`].
-    pub async fn execute_on_pool(self, pool: &Pool) -> Result<QueryResult> {
-        let q = self.query()?;
-        q.execute(pool).await
+        q.execute(executor).await
     }
 }
