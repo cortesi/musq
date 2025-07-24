@@ -16,39 +16,33 @@ mod connection;
 mod inner;
 
 pub use self::connection::PoolConnection;
+
 /// An asynchronous pool of database connections.
 ///
-/// Create a pool with [`Musq::open`] or [`Musq::open_in_memory`] and then call [`Pool::acquire`] to get a connection
-/// from the pool; when the connection is dropped it will return to the pool so it can be reused.
+/// The `Pool` is the main entry point for interacting with a SQLite database. It manages a set
+/// of connections, allowing multiple asynchronous tasks to execute queries concurrently.
 ///
-/// You can also execute queries directly on `&Pool`; this will automatically checkout a connection
-/// for you.
+/// For most use cases, you can execute queries directly on a shared reference to the pool (`&Pool`).
+/// This is ideal for stateless, one-off queries, as the pool will handle acquiring and releasing
+/// a connection for you.
 ///
-/// See [the module documentation](crate::pool) for examples.
+/// The `Pool` is `Send`, `Sync`, and cheap to clone. It should be created once when your
+/// application starts and then shared across all tasks.
 ///
-/// The pool has a maximum connection limit that it will not exceed; if `acquire()` is called when at this limit and all
-/// connections are checked out, the task will be made to wait until a connection becomes available.
+/// ## Transactions
 ///
-/// You can configure the connection limit, and other parameters, using the
-/// [`Musq`](crate::Musq) configuration API.
+/// To run a series of queries within a transaction, call [`pool.begin()`][Pool::begin] to acquire
+/// a [`Transaction`] object. All operations on the `Transaction` object are guaranteed to run
+/// on the same underlying connection.
 ///
-/// Calls to `acquire()` are fair, i.e. fulfilled on a first-come, first-serve basis.
+/// ## Connection-Specific State
 ///
-/// `Pool` is `Send`, `Sync` and `Clone`. It is intended to be created once at the start of your program and then shared
-/// with all tasks throughout the process' lifetime. How best to accomplish this depends on your program architecture.
+/// In rare cases, you may need to run a series of non-transactional queries that rely on
+/// connection-specific state, such as temporary tables. For these scenarios, you can manually
+/// acquire a [`PoolConnection`] from the pool using [`pool.acquire()`][Pool::acquire].
 ///
-/// Cloning `Pool` is cheap as it is simply a reference-counted handle to the inner pool state. When the last remaining
-/// handle to the pool is dropped, the connections owned by the pool are immediately closed (also by dropping).
-/// `PoolConnection` returned by [Pool::acquire] and `Transaction` returned by [Pool::begin] both implicitly hold a
-/// reference to the pool for their lifetimes.
+/// See [`PoolConnection`] for more details on this advanced use case.
 ///
-/// We recommend calling [`.close().await`] to gracefully close the pool and its connections when you are done using it.
-/// This will also wake any tasks that are waiting on an `.acquire()` call, so for long-lived applications it's a good
-/// idea to call `.close()` during shutdown.
-///
-/// If you're writing tests, consider using `#[test]` which handles the lifetime of the pool for you.
-///
-/// [`.close().await`]: Pool::close
 pub struct Pool(pub(crate) Arc<PoolInner>);
 
 impl Pool {

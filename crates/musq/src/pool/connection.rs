@@ -7,9 +7,43 @@ use crate::{Connection, Result};
 use super::inner::{DecrementSizeGuard, PoolInner};
 use std::future::Future;
 
-/// A connection managed by a [`Pool`][crate::Pool].
+/// A single database connection acquired from a [`Pool`].
 ///
-/// Will be returned to the pool on-drop.
+/// A `PoolConnection` represents exclusive access to a single physical database connection.
+/// Its primary purpose is to handle sequences of operations that must run on the same
+/// connection but are not part of a formal transaction.
+///
+/// For most database interactions, it is more convenient to execute queries directly on a
+/// [`&Pool`] or to use a [`Transaction`].
+///
+/// A `PoolConnection` is automatically returned to the pool when it is dropped.
+///
+/// ### Use Case: Temporary Tables
+///
+/// The most common reason to manually acquire a `PoolConnection` is to work with temporary
+/// tables, which are only visible to the connection that created them.
+///
+/// ```rust,ignore
+/// use musq::{sql, Pool};
+///
+/// async fn work_with_temp_table(pool: &Pool) -> musq::Result<()> {
+///     // Acquire a single connection to ensure all commands see the temp table.
+///     let mut conn = pool.acquire().await?;
+///
+///     sql!("CREATE TEMP TABLE temp_users (id INTEGER);")
+///         .execute(&mut conn)
+///         .await?;
+///
+///     sql!("INSERT INTO temp_users (id) VALUES (1), (2);")
+///         .execute(&mut conn)
+///         .await?;
+///
+///     // If these queries were run directly on the pool, they might be assigned
+///     // different connections and fail to see `temp_users`.
+///
+///     Ok(())
+/// } // conn is dropped here and returned to the pool.
+/// ```
 pub struct PoolConnection {
     live: Option<Live>,
     pool: Arc<PoolInner>,

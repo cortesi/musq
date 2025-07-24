@@ -365,5 +365,5 @@ insert_into("users")
 
 ## Development
 
-Just like whales once used to be a land-dwelling quadrupeds, Musq started as a
+Just like whales once used to be land-dwelling quadrupeds, Musq started life as a
 focused fork of [SQLx](https://github.com/launchbadge/sqlx).

@@ -9,20 +9,22 @@ use crate::{Connection, Result};
 
 /// An in-progress database transaction or savepoint.
 ///
-/// A transaction starts with a call to [`Pool::begin`] or [`Connection::begin`].
+/// A transaction is a sequence of operations performed as a single logical unit of work. All
+/// commands within a transaction are guaranteed to execute on the same database connection.
 ///
-/// A transaction should end with a call to [`commit`] or [`rollback`]. If neither are called
-/// before the transaction goes out-of-scope, [`rollback`] is called. In other words, [`rollback`]
-/// is called on `drop` if the transaction is still in-progress.
+/// A transaction is started by calling [`Pool::begin()`] or [`Connection::begin()`]. It must be
+/// concluded by calling either [`commit()`] or [`rollback()`].
 ///
-/// A savepoint is a special mark inside a transaction that allows all commands that are executed
-/// after it was established to be rolled back, restoring the transaction state to what it was at
-/// the time of the savepoint.
+/// If a `Transaction` object is dropped without being explicitly committed or rolled back, it
+/// will automatically be rolled back.
 ///
-/// [`Connection::begin`]: crate::connection::Connection::begin()
-/// [`Pool::begin`]: crate::Pool::begin()
-/// [`commit`]: Self::commit()
-/// [`rollback`]: Self::rollback()
+/// ### Savepoints (Nested Transactions)
+///
+/// A `Transaction` can also represent a savepoint within a larger transaction. Calling `begin()`
+/// on an existing `Transaction` will create a new savepoint.
+///
+/// [`commit()`]: Self::commit()
+/// [`rollback()`]: Self::rollback()
 pub struct Transaction<C>
 where
     C: DerefMut<Target = Connection> + Send,

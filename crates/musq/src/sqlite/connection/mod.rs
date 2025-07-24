@@ -25,17 +25,27 @@ pub(crate) mod execute;
 mod handle;
 mod worker;
 
-/// A connection to an open [Sqlite] database.
+/// A single, standalone connection to a SQLite database.
 ///
-/// Because SQLite is an in-process database accessed by blocking API calls, Musq uses a background
-/// thread and communicates with it via channels to allow non-blocking access to the database.
+/// This represents a single physical connection and is the fundamental primitive for database
+/// interaction. It is created by calling [`Connection::connect_with()`].
 ///
-/// Dropping this struct closes the connection immediately by signalling the worker thread to
-/// quit and close the database. If an error occurs there is no way to pass it back to the
-/// user this way.
+/// For applications with concurrent database access, it is recommended to use a [`Pool`]
+/// instead of managing `Connection` objects directly. The `Pool` provides managed, reusable
+/// connections via [`PoolConnection`].
 ///
-/// You can explicitly call [`.close()`][Self::close] to ensure the database is closed successfully
-/// or get an error otherwise.
+/// However, for simple applications, scripts, or any scenario where connection pooling is
+/// unnecessary, a standalone `Connection` is the most direct way to interact with the database.
+///
+/// ### Transactions
+///
+/// A `Connection` can be used to start a new transaction by calling
+/// [`connection.begin()`][Connection::begin].
+///
+/// ### Closing
+///
+/// When a `Connection` is dropped, it is closed. To handle potential errors on close, it is
+/// recommended to explicitly call the [`close()`] method.
 pub struct Connection {
     optimize_on_close: OptimizeOnClose,
     pub(crate) worker: ConnectionWorker,
