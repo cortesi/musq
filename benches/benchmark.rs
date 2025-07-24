@@ -48,11 +48,11 @@ async fn writes(pool: musq::Pool) {
     for _ in 0..CONCURRENCY {
         let pool = pool.clone();
         futs.push(async move {
-            let mut conn = pool.acquire().await.unwrap();
+            let conn = pool.acquire().await.unwrap();
             musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
                 .bind(1)
                 .bind("two")
-                .execute(&mut conn)
+                .execute(&conn)
                 .await
         });
     }
@@ -64,9 +64,9 @@ async fn reads(pool: musq::Pool) {
     for _ in 0..CONCURRENCY {
         let pool = pool.clone();
         futs.push(async move {
-            let mut conn = pool.acquire().await.unwrap();
+            let conn = pool.acquire().await.unwrap();
             musq::query_as::<Data>("SELECT * from DATA")
-                .fetch_one(&mut conn)
+                .fetch_one(&conn)
                 .await
         });
     }

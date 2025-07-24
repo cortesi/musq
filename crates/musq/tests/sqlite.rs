@@ -1,5 +1,5 @@
-use futures::TryStreamExt;
-use musq::{Connection, Error, Executor, Musq, Row, query, query_as, query_scalar};
+use futures::{TryStreamExt, StreamExt};
+use musq::{Connection, Error, Musq, Row, query, query_as, query_scalar};
 use musq_test::{connection, tdb};
 use rand::{Rng, SeedableRng};
 use rand_xoshiro::Xoshiro256PlusPlus;
@@ -33,8 +33,8 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
     // same query, but fetch all rows at once
     // this triggers the internal inflation
 
-    let rows = conn
-        .fetch_all("SELECT 15 UNION SELECT 51 UNION SELECT 39")
+    let rows = query("SELECT 15 UNION SELECT 51 UNION SELECT 39")
+        .fetch_all(&conn)
         .await?;
 
     assert_eq!(rows.len(), 3);
@@ -42,27 +42,27 @@ async fn it_fetches_and_inflates_row() -> anyhow::Result<()> {
     assert_eq!(rows[1].get_value_idx::<i32>(0).unwrap(), 39);
     assert_eq!(rows[2].get_value_idx::<i32>(0).unwrap(), 51);
 
-    let row1 = conn
-        .fetch_one("SELECT 15 UNION SELECT 51 UNION SELECT 39")
+    let row1 = query("SELECT 15 UNION SELECT 51 UNION SELECT 39")
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
 
-    let row2 = conn
-        .fetch_one("SELECT 15 UNION SELECT 51 UNION SELECT 39")
+    let row2 = query("SELECT 15 UNION SELECT 51 UNION SELECT 39")
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
     assert_eq!(row2.get_value_idx::<i32>(0).unwrap(), 15);
 
-    let row1 = conn
-        .fetch_one(query("SELECT 15 UNION SELECT 51 UNION SELECT 39"))
+    let row1 = query("SELECT 15 UNION SELECT 51 UNION SELECT 39")
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
 
-    let row2 = conn
-        .fetch_one(query("SELECT 15 UNION SELECT 51 UNION SELECT 39"))
+    let row2 = query("SELECT 15 UNION SELECT 51 UNION SELECT 39")
+        .fetch_one(&conn)
         .await?;
 
     assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
@@ -171,7 +171,7 @@ async fn it_fetches_in_loop() -> anyhow::Result<()> {
 async fn it_executes_with_pool() -> anyhow::Result<()> {
     let pool = Musq::new().max_connections(2).open_in_memory().await?;
 
-    let rows = pool.fetch_all("SELECT 1; SElECT 2").await?;
+    let rows = query("SELECT 1; SElECT 2").fetch_all(&pool).await?;
 
     assert_eq!(rows.len(), 2);
 
@@ -204,7 +204,7 @@ async fn it_fails_to_parse() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_handles_empty_queries() -> anyhow::Result<()> {
     let conn = connection().await?;
-    let done = conn.execute("").await?;
+    let done = query("").execute(&conn).await?;
 
     assert_eq!(done.rows_affected(), 0);
 
@@ -355,12 +355,12 @@ async fn it_combines_named_and_positional_binds() -> anyhow::Result<()> {
 async fn it_executes_queries() -> anyhow::Result<()> {
     let conn = connection().await?;
 
-    let _ = conn
-        .execute(
+    let _ = query(
             r#"
 CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
             "#,
         )
+        .execute(&conn)
         .await?;
 
     for index in 1..=10_i32 {
@@ -372,9 +372,10 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
         assert_eq!(done.rows_affected(), 1);
     }
 
-    let sum: i32 = query_as("SELECT id FROM users")
+    let sum: i32 = query("SELECT id FROM users")
         .fetch(&conn)
-        .try_fold(0_i32, |acc, (x,): (i32,)| async move { Ok(acc + x) })
+        .map(|res| res.map(|row| row.get_value::<i32>("id").unwrap()))
+        .try_fold(0_i32, |acc, x: i32| async move { Ok(acc + x) })
         .await?;
 
     assert_eq!(sum, 110);
@@ -386,13 +387,13 @@ CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY)
 async fn it_can_execute_multiple_statements() -> anyhow::Result<()> {
     let conn = connection().await?;
 
-    let done = conn
-        .execute(
+    let done = query(
             r#"
 CREATE TEMPORARY TABLE users (id INTEGER PRIMARY KEY, other INTEGER);
 INSERT INTO users DEFAULT VALUES;
             "#,
         )
+        .execute(&conn)
         .await?;
 
     assert_eq!(done.rows_affected(), 1);
@@ -419,7 +420,7 @@ SELECT id, other FROM users WHERE id = last_insert_rowid();
 async fn it_interleaves_reads_and_writes() -> anyhow::Result<()> {
     let conn = connection().await?;
 
-    let mut cursor = conn.fetch(
+    let mut cursor = query(
         "
 CREATE TABLE IF NOT EXISTS _musq_test (
     id INT PRIMARY KEY,
@@ -431,8 +432,8 @@ SELECT 'Hello World' as _1;
 INSERT INTO _musq_test (text) VALUES ('this is a test');
 
 SELECT id, text FROM _musq_test;
-    ",
-    );
+    "
+    ).fetch(&conn);
 
     let row = cursor.try_next().await?.unwrap();
 
@@ -602,7 +603,7 @@ async fn it_resets_prepared_statement_after_fetch_many() -> anyhow::Result<()> {
 #[tokio::test]
 async fn it_can_transact() {
     let pool = Musq::new().open_in_memory().await.unwrap();
-    pool.execute(query("CREATE TABLE foo (value INTEGER)"))
+    query("CREATE TABLE foo (value INTEGER)").execute(&pool)
         .await
         .unwrap();
 
@@ -667,17 +668,16 @@ async fn concurrent_resets_dont_segfault() {
 
     let pool = Musq::new().open_in_memory().await.unwrap();
 
-    pool.execute(query("CREATE TABLE stuff (name INTEGER, value INTEGER)"))
+    query("CREATE TABLE stuff (name INTEGER, value INTEGER)").execute(&pool)
         .await
         .unwrap();
 
     tokio::task::spawn(async move {
         for i in 0..1000 {
-            pool.execute(
-                query("INSERT INTO stuff (name, value) VALUES (?, ?)")
+            query("INSERT INTO stuff (name, value) VALUES (?, ?)")
                     .bind(i)
-                    .bind(0),
-            )
+                    .bind(0)
+                    .execute(&pool)
             .await
             .unwrap();
         }
@@ -718,12 +718,12 @@ async fn row_dropped_after_connection_doesnt_panic() {
 async fn issue_1467() -> anyhow::Result<()> {
     let pool = Musq::new().open_in_memory().await?;
 
-    pool.execute(query(
+    query(
         r#"
     CREATE TABLE kv (k PRIMARY KEY, v);
     CREATE INDEX idx_kv ON kv (v);
     "#,
-    ))
+    ).execute(&pool)
     .await?;
 
     // Random seed:
@@ -776,7 +776,7 @@ async fn issue_1467() -> anyhow::Result<()> {
 async fn concurrent_read_and_write() {
     let pool = Musq::new().open_in_memory().await.unwrap();
 
-    pool.execute(query("CREATE TABLE kv (k PRIMARY KEY, v)"))
+    query("CREATE TABLE kv (k PRIMARY KEY, v)").execute(&pool)
         .await
         .unwrap();
 
@@ -800,11 +800,10 @@ async fn concurrent_read_and_write() {
         let pool = pool.clone();
         async move {
             for i in 0u32..n {
-                pool.execute(
-                    query("INSERT INTO kv (k, v) VALUES (?, ?)")
+                query("INSERT INTO kv (k, v) VALUES (?, ?)")
                         .bind(i)
-                        .bind(i * i),
-                )
+                        .bind(i * i)
+                        .execute(&pool)
                 .await
                 .unwrap();
             }

@@ -258,13 +258,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_bind_positional_and_named_parameters() -> anyhow::Result<()> {
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = Connection::connect_with(&Musq::new()).await?;
 
         let (a, b, c): (i32, i32, i32) = query_as("SELECT ?1, :b, :a")
             .bind(7_i32)
             .bind_named("b", 8_i32)
             .bind_named("a", 9_i32)
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await?;
 
         assert_eq!((a, b, c), (7, 8, 9));
@@ -274,11 +274,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_error_on_missing_parameter() -> anyhow::Result<()> {
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = Connection::connect_with(&Musq::new()).await?;
 
         let res = query("select ?1, ?2")
             .bind(5_i32)
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await;
 
         assert!(res.is_err());
@@ -294,12 +294,12 @@ mod tests {
 
     #[tokio::test]
     async fn test_excess_parameters_are_ignored() -> anyhow::Result<()> {
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = Connection::connect_with(&Musq::new()).await?;
 
         let (v,): (i32,) = query_as("SELECT ?1")
             .bind(5_i32)
             .bind(15_i32)
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await?;
 
         assert_eq!(v, 5);
@@ -309,13 +309,13 @@ mod tests {
 
     #[tokio::test]
     async fn test_repeated_named_parameters_add_and_named() -> anyhow::Result<()> {
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = Connection::connect_with(&Musq::new()).await?;
         let stmt = conn.prepare("SELECT :a, :a, ?2").await?;
         let mut args = Arguments::default();
         args.add_named("a", 7_i32)?;
         args.add(9_i32)?;
 
-        let (x, y, z): (i32, i32, i32) = stmt.query_as_with(args).fetch_one(&mut conn).await?;
+        let (x, y, z): (i32, i32, i32) = stmt.query_as_with(args).fetch_one(&conn).await?;
 
         assert_eq!((x, y, z), (7, 7, 9));
 

@@ -1,4 +1,4 @@
-use musq::{Connection, Executor, Musq, query, query_as};
+use musq::{Connection, Musq, query, query_as};
 use std::sync::Arc;
 
 /// Test that Pool implements Executor and can be used interchangeably with Connection
@@ -94,18 +94,18 @@ async fn test_executor_interchangeability() -> anyhow::Result<()> {
 /// Test that Pool can be used in generic functions that accept Executor
 #[tokio::test]
 async fn test_pool_in_generic_function() -> anyhow::Result<()> {
-    async fn insert_and_count<E: for<'a> Executor<'a> + Send + Sync>(
-        executor: &E,
+    async fn insert_and_count(
+        pool: &musq::Pool,
         table: &str,
         value: &str,
     ) -> anyhow::Result<i64> {
         query(&format!("INSERT INTO {} (value) VALUES (?)", table))
             .bind(value)
-            .execute(executor)
+            .execute(pool)
             .await?;
 
         let count: (i64,) = query_as(&format!("SELECT COUNT(*) FROM {}", table))
-            .fetch_one(executor)
+            .fetch_one(pool)
             .await?;
 
         Ok(count.0)
@@ -127,8 +127,14 @@ async fn test_pool_in_generic_function() -> anyhow::Result<()> {
 
     // Test with pool connection
     let conn = pool.acquire().await?;
-    let count3 = insert_and_count(&conn, "test_generic", "value3").await?;
-    assert_eq!(count3, 3);
+    query("INSERT INTO test_generic (value) VALUES (?)")
+        .bind("value3")
+        .execute(&conn)
+        .await?;
+    let count3: (i64,) = query_as("SELECT COUNT(*) FROM test_generic")
+        .fetch_one(&conn)
+        .await?;
+    assert_eq!(count3.0, 3);
 
     Ok(())
 }

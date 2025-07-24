@@ -1,4 +1,4 @@
-use musq::{Executor, Musq, Pool, PoolConnection, query};
+use musq::{Musq, Pool, PoolConnection, query};
 
 // Helper function to create a test database
 async fn setup_test_db() -> musq::Result<PoolConnection> {
@@ -209,8 +209,8 @@ mod pool_execution {
     async fn test_execute_with_pool() -> musq::Result<()> {
         let pool = setup_test_pool().await?;
 
-        let result = pool
-            .execute(query("INSERT INTO test_table (value) VALUES (?)").bind("pool_value"))
+        let result = query("INSERT INTO test_table (value) VALUES (?)").bind("pool_value")
+            .execute(&pool)
             .await?;
 
         assert_eq!(result.rows_affected(), 1);
@@ -222,8 +222,8 @@ mod pool_execution {
     async fn test_fetch_one_with_pool() -> musq::Result<()> {
         let pool = setup_test_pool().await?;
 
-        let row: Row = pool
-            .fetch_one(query("SELECT value FROM test_table WHERE id = ?").bind(1))
+        let row: Row = query("SELECT value FROM test_table WHERE id = ?").bind(1)
+            .fetch_one(&pool)
             .await?;
 
         let value: String = row.get_value("value")?;
@@ -235,8 +235,8 @@ mod pool_execution {
     async fn test_fetch_optional_with_pool() -> musq::Result<()> {
         let pool = setup_test_pool().await?;
 
-        let row: Option<Row> = pool
-            .fetch_optional(query("SELECT value FROM test_table WHERE id = ?").bind(999))
+        let row: Option<Row> = query("SELECT value FROM test_table WHERE id = ?").bind(999)
+            .fetch_optional(&pool)
             .await?;
 
         assert!(row.is_none());
@@ -247,8 +247,8 @@ mod pool_execution {
     async fn test_fetch_all_with_pool() -> musq::Result<()> {
         let pool = setup_test_pool().await?;
 
-        let rows: Vec<Row> = pool
-            .fetch_all(query("SELECT value FROM test_table ORDER BY id"))
+        let rows: Vec<Row> = query("SELECT value FROM test_table ORDER BY id")
+            .fetch_all(&pool)
             .await?;
 
         assert_eq!(rows.len(), 2);
@@ -268,7 +268,7 @@ mod pool_execution {
             let pool = pool.clone();
             let value = format!("concurrent_value_{i}");
             async move {
-                pool.execute(query("INSERT INTO test_table (value) VALUES (?)").bind(&value))
+                query("INSERT INTO test_table (value) VALUES (?)").bind(&value).execute(&pool)
                     .await
             }
         });
@@ -281,8 +281,8 @@ mod pool_execution {
         }
 
         // Verify all values were inserted
-        let count: Row = pool
-            .fetch_one(query("SELECT COUNT(*) as count FROM test_table"))
+        let count: Row = query("SELECT COUNT(*) as count FROM test_table")
+            .fetch_one(&pool)
             .await?;
 
         let count_value: i64 = count.get_value("count")?;
@@ -327,7 +327,7 @@ mod error_handling {
     async fn test_execute_invalid_sql_with_pool() -> musq::Result<()> {
         let pool = setup_test_pool().await?;
 
-        let result = pool.execute(query("INVALID SQL STATEMENT")).await;
+        let result = query("INVALID SQL STATEMENT").execute(&pool).await;
 
         assert!(result.is_err());
         Ok(())

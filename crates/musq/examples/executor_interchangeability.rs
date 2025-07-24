@@ -1,4 +1,4 @@
-use musq::{Connection, Executor, Musq, Pool, query, query_as};
+use musq::{Connection, Musq, Pool, query, query_as, query::QueryExecutor};
 use std::sync::Arc;
 
 /// This example demonstrates that query.execute() now accepts
@@ -48,17 +48,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-/// Generic function that works with any Executor
-async fn setup_schema<E: for<'a> Executor<'a>>(executor: &E) -> musq::Result<()> {
+/// Generic function that works with any QueryExecutor
+async fn setup_schema<E: QueryExecutor>(executor: E) -> musq::Result<()> {
     query("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
         .execute(executor)
         .await?;
     Ok(())
 }
 
-/// Generic function that works with any Executor
-async fn insert_user<E: for<'a> Executor<'a>>(
-    executor: &E,
+/// Generic function that works with any QueryExecutor
+async fn insert_user<E: QueryExecutor>(
+    executor: E,
     id: i32,
     name: &str,
 ) -> musq::Result<()> {
@@ -70,9 +70,9 @@ async fn insert_user<E: for<'a> Executor<'a>>(
     Ok(())
 }
 
-/// Generic function that works with any Executor
-async fn get_users<E: for<'a> Executor<'a> + Send + Sync>(
-    executor: &E,
+/// Generic function that works with any QueryExecutor
+async fn get_users<E: QueryExecutor>(
+    executor: E,
 ) -> musq::Result<Vec<(i32, String)>> {
     query_as("SELECT id, name FROM users ORDER BY id")
         .fetch_all(executor)

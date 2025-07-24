@@ -89,20 +89,20 @@ mod tests {
 
     #[tokio::test]
     async fn test_cached_statement_reused_with_different_args() -> anyhow::Result<()> {
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = Connection::connect_with(&Musq::new()).await?;
 
         let initial = conn.cached_statements_size();
 
         let (v1,): (i32,) = query_as("SELECT ?1")
             .bind(1_i32)
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await?;
         assert_eq!(v1, 1);
         assert_eq!(conn.cached_statements_size(), initial + 1);
 
         let (v2,): (i32,) = query_as("SELECT ?1")
             .bind(5_i32)
-            .fetch_one(&mut conn)
+            .fetch_one(&conn)
             .await?;
         assert_eq!(v2, 5);
         assert_eq!(conn.cached_statements_size(), initial + 1);

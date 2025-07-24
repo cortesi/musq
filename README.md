@@ -23,7 +23,7 @@ struct User {
 // Query directly into your struct
 let user: User = query_as("SELECT id, name, email FROM users WHERE id = ?")
     .bind(1)
-    .fetch_one(&mut conn)
+    .fetch_one(&conn)
     .await?;
 ```
 
@@ -279,7 +279,7 @@ reduce copying and easily share the data:
 
 ```rust
 let blob: Arc<Vec<u8>> = query_scalar("SELECT data FROM blob_test")
-    .fetch_one(&mut conn)
+    .fetch_one(&conn)
     .await?;
 ```
 
@@ -311,7 +311,7 @@ query("INSERT INTO users (id, name) VALUES (:id, ?)")
 
 let (name,): (String,) = query_as("SELECT name FROM users WHERE id = :id")
     .bind_named("id", 5_i32)
-    .fetch_one(&mut conn)
+    .fetch_one(&conn)
     .await?;
 assert_eq!(name, "Bob");
 ```
@@ -363,7 +363,7 @@ assert!(q.is_tainted());
 struct User { id: i32, name: String }
 
 let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}", id = 1)?
-    .fetch_one(&mut conn)
+    .fetch_one(&conn)
     .await?;
 ```
 

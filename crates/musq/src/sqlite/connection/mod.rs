@@ -237,8 +237,7 @@ impl Connection {
         })
     }
 
-    #[allow(dead_code)]
-    pub(crate) fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
+    pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         self.prepare_with(sql)
     }
 

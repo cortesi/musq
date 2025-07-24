@@ -1,4 +1,4 @@
-use musq::{Executor, Musq, query, query_scalar};
+use musq::{Musq, query, query_scalar};
 use musq_test::connection;
 use tokio::time::{Duration, Instant, sleep};
 

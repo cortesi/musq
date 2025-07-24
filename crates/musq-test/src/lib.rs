@@ -44,11 +44,11 @@ macro_rules! test_unprepared_type {
                 use musq::*;
                 use futures::TryStreamExt;
 
-                let mut conn = musq_test::connection().await?;
+                let conn = musq_test::connection().await?;
 
                 $(
-                    let query = format!("SELECT {}", $text);
-                    let mut s = conn.fetch(&*query);
+                    let query_str = format!("SELECT {}", $text);
+                    let mut s = musq::query(&query_str).fetch(&conn);
                     let row = s.try_next().await?.unwrap();
                     let rec = row.get_value_idx::<$ty>(0)?;
 
@@ -72,7 +72,7 @@ macro_rules! __test_prepared_type {
             async fn [< test_prepared_type_ $name >] () -> anyhow::Result<()> {
                 use musq::Row;
 
-                let mut conn = musq_test::connection().await?;
+                let conn = musq_test::connection().await?;
 
                 $(
                     let query = format!($sql, $text);

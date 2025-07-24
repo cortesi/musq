@@ -110,6 +110,7 @@ impl QueryExecutor for &crate::Connection {
     }
 }
 
+
 // Implement QueryExecutor for &PoolConnection
 #[async_trait]
 impl QueryExecutor for &crate::pool::PoolConnection {
