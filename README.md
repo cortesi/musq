@@ -379,6 +379,24 @@ let final_query = {
 };
 ```
 
+### Dynamic query composition
+
+`Query` objects can be combined using [`Query::join`], which appends the SQL and
+parameters from one query to another. This is handy for building queries from
+optional fragments.
+
+```rust
+let mut query = sql!("SELECT * FROM products WHERE 1 = 1")?;
+
+if let Some(category) = &params.category {
+    query = query.join(sql!("AND category = {}", category)?);
+}
+
+if let Some(min_price) = params.min_price {
+    query = query.join(sql!("AND price >= {}", min_price)?);
+}
+```
+
 # Development
 
 
