@@ -21,7 +21,7 @@ result to a struct using the `sql!` and `sql_as!` macros.
 ```rust
 use musq::{FromRow, Musq, sql, sql_as};
 
-#[derive(Debug, FromRow)]
+#[derive(FromRow, Debug)]
 struct User {
     id: i32,
     name: String,
@@ -73,10 +73,7 @@ connections for you. Queries can be executed directly on the pool.
 ```rust
 use musq::Musq;
 
-let _pool = Musq::new()
-    .max_connections(10)
-    .open_in_memory()
-    .await?;
+let _pool = Musq::new().max_connections(10).open_in_memory().await?;
 
 // `pool` can now be shared across your application
 ```
@@ -95,9 +92,9 @@ named arguments, and even dynamic identifiers.
 use musq::{sql, sql_as, FromRow};
 
 #[derive(FromRow, Debug)]
-struct User { 
-    id: i32, 
-    name: String 
+struct User {
+    id: i32,
+    name: String,
 }
 
 let id = 1;
@@ -124,7 +121,9 @@ let columns = ["id", "name"];
 // Dynamic table and column identifiers
 let users: Vec<User> = sql_as!(
     "SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})"
-)?.fetch_all(&pool).await?;
+)?
+.fetch_all(&pool)
+.await?;
 ```
 
 #### Dynamic Query Composition
@@ -353,7 +352,7 @@ let insert_query = insert_into("users")
 
 insert_query.execute(&pool).await?;
 
-// The builder can also execute directly on any executor (pool, connection, transaction, etc.)
+// The builder can also execute directly
 insert_into("users")
     .value("id", 5)
     .value("name", "Carol")
