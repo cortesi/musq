@@ -22,7 +22,7 @@ async fn pool() -> musq::Pool {
         .await
         .unwrap();
     musq::query(BENCH_SCHEMA)
-        .execute(&mut pool.acquire().await.unwrap())
+        .execute(&pool.acquire().await.unwrap())
         .await
         .unwrap();
     pool
@@ -35,7 +35,7 @@ fn setup() -> musq::Pool {
         musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
             .bind(1)
             .bind("two")
-            .execute(&mut p.acquire().await.unwrap())
+            .execute(&p.acquire().await.unwrap())
             .await
             .unwrap();
         tx.send(pool().await).unwrap();

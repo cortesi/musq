@@ -164,7 +164,7 @@ async fn test_concurrent_read_write_mix() -> anyhow::Result<()> {
     let mut handles = vec![];
 
     // Start readers
-    for reader_id in 0..5 {
+    for _reader_id in 0..5 {
         let conn_clone = Arc::clone(&conn);
         let handle = tokio::spawn(async move {
             for _ in 0..20 {
@@ -220,7 +220,7 @@ async fn test_arguments_not_consumed() -> anyhow::Result<()> {
         .await?;
 
     // Create a query with arguments
-    let test_query = query("SELECT ?1 as id, ?2 as value")
+    let _test_query = query("SELECT ?1 as id, ?2 as value")
         .bind(42)
         .bind("test_value");
 

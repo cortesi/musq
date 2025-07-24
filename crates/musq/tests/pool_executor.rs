@@ -99,12 +99,12 @@ async fn test_pool_in_generic_function() -> anyhow::Result<()> {
         table: &str,
         value: &str,
     ) -> anyhow::Result<i64> {
-        query(&format!("INSERT INTO {} (value) VALUES (?)", table))
+        query(&format!("INSERT INTO {table} (value) VALUES (?)"))
             .bind(value)
             .execute(pool)
             .await?;
 
-        let count: (i64,) = query_as(&format!("SELECT COUNT(*) FROM {}", table))
+        let count: (i64,) = query_as(&format!("SELECT COUNT(*) FROM {table}"))
             .fetch_one(pool)
             .await?;
 

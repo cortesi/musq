@@ -36,10 +36,10 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     // Query data back using different executor types
     let pool_users = get_users(&*pool).await?;
-    println!("👥 Pool users: {:?}", pool_users);
+    println!("👥 Pool users: {pool_users:?}");
 
     let standalone_users = get_users(&standalone_conn).await?;
-    println!("👥 Standalone users: {:?}", standalone_users);
+    println!("👥 Standalone users: {standalone_users:?}");
 
     // Demonstrate concurrent usage with Pool
     println!("🚀 Testing concurrent pool usage...");
@@ -86,7 +86,7 @@ async fn test_concurrent_pool_usage(pool: &Arc<Pool>) -> musq::Result<()> {
     for i in 10..15 {
         let pool_clone = Arc::clone(pool);
         let handle = tokio::spawn(async move {
-            let name = format!("User{}", i);
+            let name = format!("User{i}");
             insert_user(&*pool_clone, i, &name).await
         });
         handles.push(handle);

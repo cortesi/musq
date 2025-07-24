@@ -43,7 +43,7 @@ mod tests {
 
     #[test]
     fn test_reference_encode() {
-        let value = 3.14f32;
+        let value = std::f32::consts::PI;
         let result = (&value).encode().unwrap();
         if let Value::Double { value: encoded, .. } = result {
             assert!((encoded - value as f64).abs() < 1e-6);
@@ -51,10 +51,10 @@ mod tests {
             panic!("Expected Double value");
         }
 
-        let value_f64 = 2.718f64;
+        let value_f64 = std::f64::consts::E;
         let result = (&value_f64).encode().unwrap();
         if let Value::Double { value: encoded, .. } = result {
-            assert!((encoded - 2.718).abs() < f64::EPSILON);
+            assert!((encoded - std::f64::consts::E).abs() < f64::EPSILON);
         } else {
             panic!("Expected Double value");
         }
