@@ -18,7 +18,6 @@ use crate::{
         connection::ConnectionHandle,
         statement::{StatementHandle, unlock_notify},
     },
-    ustr::UStr,
 };
 
 // A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
@@ -43,13 +42,13 @@ pub struct CompoundStatement {
     columns: Vec<Arc<Vec<Column>>>,
 
     // each set of column names
-    column_names: Vec<Arc<HashMap<UStr, usize>>>,
+    column_names: Vec<Arc<HashMap<Arc<str>, usize>>>,
 }
 
 pub struct PreparedStatement<'a> {
     pub(crate) handle: &'a mut StatementHandle,
     pub(crate) columns: &'a Arc<Vec<Column>>,
-    pub(crate) column_names: &'a Arc<HashMap<UStr, usize>>,
+    pub(crate) column_names: &'a Arc<HashMap<Arc<str>, usize>>,
 }
 
 impl CompoundStatement {
@@ -95,7 +94,7 @@ impl CompoundStatement {
                     let mut column_names = HashMap::with_capacity(num);
 
                     for i in 0..num {
-                        let name: UStr = statement.column_name(i)?.into();
+                        let name: Arc<str> = statement.column_name(i)?.into();
                         let type_info = statement
                             .column_decltype(i)
                             .or_else(|| statement.column_type_info(i))

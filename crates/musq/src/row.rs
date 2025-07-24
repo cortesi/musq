@@ -6,7 +6,6 @@ use crate::{
     decode::Decode,
     error::Error,
     sqlite::{SqliteDataType, Value, statement::StatementHandle},
-    ustr::UStr,
 };
 
 /// Implementation of [`Row`] for SQLite.
@@ -14,7 +13,7 @@ use crate::{
 pub struct Row {
     values: Box<[Value]>,
     columns: Arc<Vec<Column>>,
-    pub(crate) column_names: Arc<HashMap<UStr, usize>>,
+    pub(crate) column_names: Arc<HashMap<Arc<str>, usize>>,
 }
 
 // Accessing values from the statement object is
@@ -30,7 +29,7 @@ impl Row {
     pub(crate) fn current(
         statement: &StatementHandle,
         columns: &Arc<Vec<Column>>,
-        column_names: &Arc<HashMap<UStr, usize>>,
+        column_names: &Arc<HashMap<Arc<str>, usize>>,
     ) -> Result<Self> {
         use crate::sqlite::Value;
         use libsqlite3_sys::SQLITE_NULL;

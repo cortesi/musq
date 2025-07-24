@@ -1,5 +1,4 @@
 mod sqlite;
-mod ustr;
 #[macro_use]
 mod enum_mode;
 
