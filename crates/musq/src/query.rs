@@ -1,5 +1,6 @@
 use either::Either;
 use std::ops::Deref;
+use futures_core::stream::BoxStream;
 
 use crate::{
     Arguments, QueryResult, Result, Row,
@@ -36,6 +37,9 @@ pub struct Map<F> {
 // Trait to handle query execution without exposing the old Executor trait
 pub trait QueryExecutor {
     async fn execute_query(self, query: Query) -> Result<QueryResult>;
+    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+    where
+        Self: 'c;
     async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>>;
     async fn fetch_one_query(self, query: Query) -> Result<Row>;
     async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>>;
@@ -46,6 +50,20 @@ impl QueryExecutor for &crate::Pool {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         let conn = self.acquire().await?;
         conn.execute(query).await
+    }
+
+    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+    where
+        Self: 'c,
+    {
+        use futures_util::TryStreamExt;
+        Box::pin(async_stream::try_stream! {
+            let conn = self.acquire().await?;
+            let mut stream = conn.fetch(query);
+            while let Some(row) = stream.try_next().await? {
+                yield row;
+            }
+        })
     }
 
     async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
@@ -70,6 +88,13 @@ impl QueryExecutor for &crate::Connection {
         self.execute(query).await
     }
 
+    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+    where
+        Self: 'c,
+    {
+        self.fetch(query)
+    }
+
     async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
         self.fetch_all(query).await
     }
@@ -89,6 +114,13 @@ impl QueryExecutor for &crate::pool::PoolConnection {
         self.execute(query).await
     }
 
+    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+    where
+        Self: 'c,
+    {
+        self.fetch(query)
+    }
+
     async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
         self.fetch_all(query).await
     }
@@ -105,11 +137,25 @@ impl QueryExecutor for &crate::pool::PoolConnection {
 // Implement QueryExecutor for &Transaction<C>
 impl<C> QueryExecutor for &crate::Transaction<C>
 where
-    C: std::ops::DerefMut<Target = crate::Connection> + Send,
+    C: std::ops::DerefMut<Target = crate::Connection> + Send + Sync,
 {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         let conn: &crate::Connection = self.deref();
         conn.execute(query).await
+    }
+
+    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+    where
+        Self: 'c,
+    {
+        use futures_util::TryStreamExt;
+        Box::pin(async_stream::try_stream! {
+            let conn: &crate::Connection = self.deref();
+            let mut stream = conn.fetch(query);
+            while let Some(row) = stream.try_next().await? {
+                yield row;
+            }
+        })
     }
 
     async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
@@ -131,11 +177,25 @@ where
 // Implement QueryExecutor for &mut Transaction<C>
 impl<C> QueryExecutor for &mut crate::Transaction<C>
 where
-    C: std::ops::DerefMut<Target = crate::Connection> + Send,
+    C: std::ops::DerefMut<Target = crate::Connection> + Send + Sync,
 {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         let conn: &crate::Connection = self.deref();
         conn.execute(query).await
+    }
+
+    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+    where
+        Self: 'c,
+    {
+        use futures_util::TryStreamExt;
+        Box::pin(async_stream::try_stream! {
+            let conn: &crate::Connection = self.deref();
+            let mut stream = conn.fetch(query);
+            while let Some(row) = stream.try_next().await? {
+                yield row;
+            }
+        })
     }
 
     async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
@@ -282,6 +342,14 @@ impl Query {
         E: QueryExecutor,
     {
         executor.execute_query(self).await
+    }
+
+    /// Execute the query and return the generated results as a stream.
+    pub fn fetch<'c, E>(self, executor: E) -> BoxStream<'c, Result<Row>>
+    where
+        E: QueryExecutor + 'c,
+    {
+        executor.fetch_query(self)
     }
 
     /// Execute the query and return all the generated results, collected into a [`Vec`].
