@@ -81,7 +81,10 @@ impl PoolInner {
             }
 
             // Wait for all permits to be released.
-            let _permits = self.semaphore.acquire_many(permits).await.unwrap();
+            if let Err(err) = self.semaphore.acquire_many(permits).await {
+                tracing::warn!("semaphore closed while waiting for permits: {err:?}");
+                break;
+            }
         }
     }
 
@@ -101,7 +104,10 @@ impl PoolInner {
     async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<tokio::sync::SemaphorePermit<'a>> {
         tokio::select! {
             permit = self.semaphore.acquire_many(1) => {
-                Ok(permit.unwrap())
+                match permit {
+                    Ok(permit) => Ok(permit),
+                    Err(_) => Err(Error::PoolClosed),
+                }
             }
             _ = self.close_event() => Err(Error::PoolClosed),
         }
