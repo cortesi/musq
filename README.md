@@ -1,5 +1,11 @@
 # Musq
 
+![Discord](https://img.shields.io/discord/1381424110831145070?style=flat-square&logo=rust&link=https%3A%2F%2Fdiscord.gg%2FfHmRmuBDxF)
+[![Crates.io](https://img.shields.io/crates/v/musq.svg)](https://crates.io/crates/musq)
+[![Documentation](https://docs.rs/libruskel/badge.svg)](https://docs.rs/musq)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+
+
 **Musq is an asynchronous SQLite toolkit for Rust.**
 
 It provides a set of tools to help you build applications that interact with a SQLite database,
@@ -50,6 +56,16 @@ async fn main() -> musq::Result<()> {
 ```
 
 -----
+
+## Community
+
+Want to contribute? Have ideas or feature requests? Come tell us about it on
+[Discord](https://discord.gg/fHmRmuBDxF). 
+
+
+---
+
+
 
 ## Core Features
 
@@ -352,5 +368,5 @@ insert_into("users")
 
 ## Development
 
-Musq started life as a focused fork of the
-[SQLx](https://github.com/launchbadge/sqlx) project.
+Just like whales once used to be a land-dwelling quadrupeds, Musq started as a
+focused fork of [SQLx](https://github.com/launchbadge/sqlx).
