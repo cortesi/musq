@@ -82,6 +82,102 @@ impl QueryBuilder {
         Ok(())
     }
 
+    pub fn push_insert_values(&mut self, values: &crate::Values) -> Result<()> {
+        if values.is_empty() {
+            return Err(crate::Error::Protocol("empty values".into()));
+        }
+        self.sql.push('(');
+        let mut first = true;
+        for key in values.keys() {
+            if !first {
+                self.sql.push_str(", ");
+            }
+            first = false;
+            self.sql.push_str(&crate::quote_identifier(key));
+        }
+        self.sql.push_str(") VALUES (");
+        first = true;
+        for val in values.values() {
+            if !first {
+                self.sql.push_str(", ");
+            }
+            first = false;
+            self.sql.push('?');
+            self.arguments.values.push(val.clone());
+        }
+        self.sql.push(')');
+        Ok(())
+    }
+
+    pub fn push_update_set(&mut self, values: &crate::Values) -> Result<()> {
+        if values.is_empty() {
+            return Err(crate::Error::Protocol("empty values".into()));
+        }
+        let mut first = true;
+        for (k, v) in values.iter() {
+            if !first {
+                self.sql.push_str(", ");
+            }
+            first = false;
+            self.sql.push_str(&crate::quote_identifier(k));
+            self.sql.push_str(" = ?");
+            self.arguments.values.push(v.clone());
+        }
+        Ok(())
+    }
+
+    pub fn push_where_and(&mut self, values: &crate::Values) -> Result<()> {
+        if values.is_empty() {
+            self.sql.push_str("1=1");
+            return Ok(());
+        }
+        let mut first = true;
+        for (k, v) in values.iter() {
+            if !first {
+                self.sql.push_str(" AND ");
+            }
+            first = false;
+            self.sql.push_str(&crate::quote_identifier(k));
+            self.sql.push_str(" = ?");
+            self.arguments.values.push(v.clone());
+        }
+        Ok(())
+    }
+
+    pub fn push_upsert_set(&mut self, values: &crate::Values, exclude: &[&str]) -> Result<()> {
+        if values.is_empty() {
+            return Err(crate::Error::Protocol("empty values".into()));
+        }
+
+        use std::collections::HashSet;
+        let exclude: HashSet<&str> = exclude.iter().copied().collect();
+
+        if values.keys().all(|k| exclude.contains(k.as_str())) {
+            return Err(crate::Error::Protocol("empty values".into()));
+        }
+
+        let mut first = true;
+        for key in values.keys() {
+            if exclude.contains(key.as_str()) {
+                continue;
+            }
+            if !first {
+                self.sql.push_str(", ");
+            }
+            first = false;
+            let ident = crate::quote_identifier(key);
+            self.sql.push_str(&ident);
+            self.sql.push_str(" = excluded.");
+            self.sql.push_str(&ident);
+        }
+
+        if first {
+            return Err(crate::Error::Protocol("empty values".into()));
+        }
+
+        Ok(())
+    }
+
     /// Appends another [`Query`] to this builder.
     ///
     /// The SQL of the provided query is appended to this builder with a single

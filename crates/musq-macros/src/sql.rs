@@ -66,7 +66,43 @@ enum Segment {
     Ident(Expr),
     Values(Expr),
     Idents(Expr),
+    InsertValues(Expr),
+    UpdateSet(Expr),
+    WhereAnd(Expr),
+    UpsertSet(Expr, Vec<String>),
     Raw(Expr),
+}
+
+struct UpsertSetArgs {
+    values: Expr,
+    exclude: Vec<String>,
+}
+
+impl Parse for UpsertSetArgs {
+    fn parse(input: ParseStream) -> SynResult<Self> {
+        let values: Expr = input.parse()?;
+        let mut exclude = Vec::new();
+        if input.peek(Token![,]) {
+            input.parse::<Token![,]>()?;
+            let ident: Ident = input.parse()?;
+            if ident != "exclude" {
+                return Err(syn::Error::new_spanned(ident, "expected `exclude`"));
+            }
+            input.parse::<Token![:]>()?;
+            let content;
+            syn::bracketed!(content in input);
+            while !content.is_empty() {
+                let lit: LitStr = content.parse()?;
+                exclude.push(lit.value());
+                if content.peek(Token![,]) {
+                    content.parse::<Token![,]>()?;
+                } else {
+                    break;
+                }
+            }
+        }
+        Ok(Self { values, exclude })
+    }
 }
 
 fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
@@ -108,7 +144,11 @@ fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
                 };
                 match (kind, expr) {
                     ("", None) => out.push(Segment::Positional),
-                    ("ident", None) | ("values", None) | ("idents", None) | ("raw", None) => {
+                    (
+                        "ident" | "values" | "idents" | "insert_values" | "update_set"
+                        | "where_and" | "upsert_set" | "raw",
+                        None,
+                    ) => {
                         return Err(syn::Error::new(
                             proc_macro2::Span::call_site(),
                             "malformed placeholder",
@@ -120,6 +160,25 @@ fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
                         let expr = syn::parse_str::<Expr>(e)?;
                         ensure_non_empty(&expr)?;
                         out.push(Segment::Values(expr));
+                    }
+                    ("insert_values", Some(e)) => {
+                        let expr = syn::parse_str::<Expr>(e)?;
+                        ensure_non_empty(&expr)?;
+                        out.push(Segment::InsertValues(expr));
+                    }
+                    ("update_set", Some(e)) => {
+                        let expr = syn::parse_str::<Expr>(e)?;
+                        ensure_non_empty(&expr)?;
+                        out.push(Segment::UpdateSet(expr));
+                    }
+                    ("where_and", Some(e)) => {
+                        let expr = syn::parse_str::<Expr>(e)?;
+                        out.push(Segment::WhereAnd(expr));
+                    }
+                    ("upsert_set", Some(e)) => {
+                        let args = syn::parse_str::<UpsertSetArgs>(e)?;
+                        ensure_non_empty(&args.values)?;
+                        out.push(Segment::UpsertSet(args.values, args.exclude));
                     }
                     ("idents", Some(e)) => {
                         let expr = syn::parse_str::<Expr>(e)?;
@@ -199,6 +258,22 @@ fn build_sql(
             }
             Segment::Values(expr) => sql_parts.push(quote! { _builder.push_values(#expr)?; }),
             Segment::Idents(expr) => sql_parts.push(quote! { _builder.push_idents(#expr)?; }),
+            Segment::InsertValues(expr) => {
+                sql_parts.push(quote! { _builder.push_insert_values(&(#expr))?; })
+            }
+            Segment::UpdateSet(expr) => {
+                sql_parts.push(quote! { _builder.push_update_set(&(#expr))?; })
+            }
+            Segment::WhereAnd(expr) => {
+                sql_parts.push(quote! { _builder.push_where_and(&(#expr))?; })
+            }
+            Segment::UpsertSet(expr, exclude) => {
+                let lits: Vec<syn::LitStr> = exclude
+                    .iter()
+                    .map(|s| syn::LitStr::new(s, proc_macro2::Span::call_site()))
+                    .collect();
+                sql_parts.push(quote! { _builder.push_upsert_set(&(#expr), &[ #( #lits ),* ])?; })
+            }
             Segment::Raw(expr) => sql_parts.push(quote! { _builder.push_raw(#expr); }),
         }
     }

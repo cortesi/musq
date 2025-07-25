@@ -22,6 +22,7 @@ mod query_result;
 mod row;
 mod statement_cache;
 mod transaction;
+mod values;
 #[macro_use]
 pub mod types;
 
@@ -39,4 +40,15 @@ pub use crate::{
     row::Row,
     sqlite::{Arguments, Connection, Prepared, SqliteDataType, SqliteError, Value},
     transaction::Transaction,
+    values::Values,
 };
+
+#[macro_export]
+macro_rules! values {
+    () => { ::musq::Result::<$crate::Values>::Ok($crate::Values::new()) };
+    { $($key:literal : $value:expr),* $(,)? } => {{
+        let mut _values = $crate::Values::new();
+        $( _values.insert($key, $value)?; )*
+        ::musq::Result::<$crate::Values>::Ok(_values)
+    }};
+}
