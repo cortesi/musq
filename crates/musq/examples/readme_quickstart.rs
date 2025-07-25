@@ -1,12 +1,9 @@
-#![allow(dead_code)]
-
-// START - Quickstart section full example
 use musq::{FromRow, Musq, sql, sql_as};
 
 #[derive(Debug, FromRow)]
-struct User {
-    id: i32,
-    name: String,
+pub struct User {
+    pub id: i32,
+    pub name: String,
 }
 
 #[tokio::main]
@@ -35,4 +32,3 @@ async fn main() -> musq::Result<()> {
 
     Ok(())
 }
-// END - Quickstart section full example

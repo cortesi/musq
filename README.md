@@ -18,13 +18,14 @@ with a strong focus on performance, correctness, and ergonomics.
 Here's a brief example of using `musq` to connect to a database, run a query, and map the
 result to a struct using the `sql!` and `sql_as!` macros.
 
+<!-- snips: crates/musq/examples/readme_quickstart.rs -->
 ```rust
 use musq::{FromRow, Musq, sql, sql_as};
 
-#[derive(FromRow, Debug)]
-struct User {
-    id: i32,
-    name: String,
+#[derive(Debug, FromRow)]
+pub struct User {
+    pub id: i32,
+    pub name: String,
 }
 
 #[tokio::main]
@@ -53,6 +54,7 @@ async fn main() -> musq::Result<()> {
 
     Ok(())
 }
+
 ```
 
 -----
@@ -126,29 +128,46 @@ let users: Vec<User> = sql_as!(
 .await?;
 ```
 
-#### Dynamic Query Composition
 
-For dynamic queries, `musq` encourages a compositional approach. Start with a base query from
-`sql!` and join additional clauses as needed using `Query::join`.
+#### Dynamic Query Composition with `Values`
+
+For more complex dynamic queries, `musq` introduces the `Values` type, a
+key-value map for building dynamic query fragments. It can be constructed with
+the `values!` macro for static data or with a fluent builder for dynamic data.
+
+The `sql!` macro provides special placeholder types for `Values`:
+
+  * `{insert_values:values}`: Expands to `(col1, col2) VALUES (?, ?)` for `INSERT` statements.
+  * `{update_set:values}`: Expands to `col1 = ?, col2 = ?` for `UPDATE` statements.
+  * `{where_and:values}`: Expands to `col1 = ? AND col2 = ?`. If `values` is empty, it expands to `1=1`.
+  * `{upsert_set:values, exclude:["id"]}`: For `ON CONFLICT ... DO UPDATE SET`, expands to `col1 = excluded.col1, ...`, with an option to exclude certain keys.
+
 
 ```rust
-use musq::sql;
+use musq::{sql, values, Values};
 
-let mut query = sql!("SELECT * FROM products WHERE 1 = 1")?;
+let user_data = values! { "id": 1, "name": "Alice", "status": "active" }?;
 
-if let Some(category) = &params.category {
-    query = query.join(sql!("AND category = {category}")?);
-}
+sql!("INSERT INTO users {insert_values:user_data}")?
+    .execute(&pool)
+    .await?;
 
-if let Some(min_price) = params.min_price {
-    query = query.join(sql!("AND price >= {min_price}")?);
-}
+let changes = Values::new()
+    .val("name", "Alicia")?
+    .val("status", "inactive")?;
+
+sql!("UPDATE users SET {update_set:changes} WHERE id = 1")?
+    .execute(&pool)
+    .await?;
+
+let filters = values! { "status": "inactive" }?;
+let user: User = sql_as!("SELECT id, name FROM users WHERE {where_and:filters}")?
+    .fetch_one(&pool)
+    .await?;
 ```
 
 For the most complex scenarios, you can drop down to the `QueryBuilder` for fine-grained
 control over the generated SQL.
-
------
 
 ## Type Handling (`Encode` and `Decode`)
 
