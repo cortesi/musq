@@ -82,7 +82,7 @@ impl QueryBuilder {
         Ok(())
     }
 
-    pub fn push_insert_values(&mut self, values: &crate::Values) -> Result<()> {
+    pub fn push_insert(&mut self, values: &crate::Values) -> Result<()> {
         if values.is_empty() {
             return Err(crate::Error::Protocol("empty values".into()));
         }
@@ -109,7 +109,7 @@ impl QueryBuilder {
         Ok(())
     }
 
-    pub fn push_update_set(&mut self, values: &crate::Values) -> Result<()> {
+    pub fn push_set(&mut self, values: &crate::Values) -> Result<()> {
         if values.is_empty() {
             return Err(crate::Error::Protocol("empty values".into()));
         }
@@ -126,7 +126,7 @@ impl QueryBuilder {
         Ok(())
     }
 
-    pub fn push_where_and(&mut self, values: &crate::Values) -> Result<()> {
+    pub fn push_where(&mut self, values: &crate::Values) -> Result<()> {
         if values.is_empty() {
             self.sql.push_str("1=1");
             return Ok(());
@@ -144,7 +144,7 @@ impl QueryBuilder {
         Ok(())
     }
 
-    pub fn push_upsert_set(&mut self, values: &crate::Values, exclude: &[&str]) -> Result<()> {
+    pub fn push_upsert(&mut self, values: &crate::Values, exclude: &[&str]) -> Result<()> {
         if values.is_empty() {
             return Err(crate::Error::Protocol("empty values".into()));
         }

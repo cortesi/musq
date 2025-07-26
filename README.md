@@ -159,10 +159,10 @@ let vals = Values::new()
 
 The `sql!` macro provides special placeholder types for `Values`:
 
-  * `{insert_values:values}`: Expands to `(col1, col2) VALUES (?, ?)` for `INSERT` statements.
-  * `{update_set:values}`: Expands to `col1 = ?, col2 = ?` for `UPDATE` statements.
-  * `{where_and:values}`: Expands to `col1 = ? AND col2 = ?`. If `values` is empty, it expands to `1=1`.
-  * `{upsert_set:values, exclude:["id"]}`: For `ON CONFLICT ... DO UPDATE SET`, expands to `col1 = excluded.col1, ...`, with an option to exclude certain keys.
+  * `{insert:values}`: Expands to `(col1, col2) VALUES (?, ?)` for `INSERT` statements.
+  * `{set:values}`: Expands to `col1 = ?, col2 = ?` for `UPDATE` statements.
+  * `{where:values}`: Expands to `col1 = ? AND col2 = ?`. If `values` is empty, it expands to `1=1`.
+  * `{upsert:values, exclude:["id"]}`: For `ON CONFLICT ... DO UPDATE SET`, expands to `col1 = excluded.col1, ...`, with an option to exclude certain keys.
 
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values -->
@@ -171,7 +171,7 @@ use musq::{Values, sql, sql_as, values};
 
 let user_data = values! { "id": 1, "name": "Alice", "status": "active" }?;
 
-sql!("INSERT INTO users {insert_values:user_data}")?
+sql!("INSERT INTO users {insert:user_data}")?
     .execute(&pool)
     .await?;
 
@@ -179,13 +179,20 @@ let changes = Values::new()
     .val("name", "Alicia")?
     .val("status", "inactive")?;
 
-sql!("UPDATE users SET {update_set:changes} WHERE id = 1")?
+sql!("UPDATE users SET {set:changes} WHERE id = 1")?
     .execute(&pool)
     .await?;
 
 let filters = values! { "status": "inactive" }?;
-let user: User = sql_as!("SELECT id, name FROM users WHERE {where_and:filters}")?
+let user: User = sql_as!("SELECT id, name FROM users WHERE {where:filters}")?
     .fetch_one(&pool)
+    .await?;
+
+let upsert = values! { "id": 1, "name": "Alicia", "status": "active" }?;
+sql!(
+    "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude:[\"id\"]}"
+)?
+    .execute(&pool)
     .await?;
 ```
 

@@ -84,7 +84,7 @@ async fn values() -> musq::Result<()> {
 
     let user_data = values! { "id": 1, "name": "Alice", "status": "active" }?;
 
-    sql!("INSERT INTO users {insert_values:user_data}")?
+    sql!("INSERT INTO users {insert:user_data}")?
         .execute(&pool)
         .await?;
 
@@ -92,14 +92,21 @@ async fn values() -> musq::Result<()> {
         .val("name", "Alicia")?
         .val("status", "inactive")?;
 
-    sql!("UPDATE users SET {update_set:changes} WHERE id = 1")?
+    sql!("UPDATE users SET {set:changes} WHERE id = 1")?
         .execute(&pool)
         .await?;
 
     let filters = values! { "status": "inactive" }?;
-    let user: User = sql_as!("SELECT id, name FROM users WHERE {where_and:filters}")?
+    let user: User = sql_as!("SELECT id, name FROM users WHERE {where:filters}")?
         .fetch_one(&pool)
         .await?;
+
+    let upsert = values! { "id": 1, "name": "Alicia", "status": "active" }?;
+    sql!(
+        "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude:[\"id\"]}"
+    )?
+    .execute(&pool)
+    .await?;
     // snips-end
 
     Ok(())
