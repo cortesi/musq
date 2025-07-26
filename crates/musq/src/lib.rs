@@ -13,7 +13,6 @@ mod executor;
 mod from_row;
 #[macro_use]
 mod logger;
-mod insert_builder;
 mod musq;
 mod pool;
 pub mod query;
@@ -30,7 +29,6 @@ pub use crate::{
     error::{DecodeError, EncodeError, Error, Result},
     executor::Execute,
     from_row::{AllNull, FromRow},
-    insert_builder::insert_into,
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::{Pool, PoolConnection},
     query::quote_identifier,
