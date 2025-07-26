@@ -35,9 +35,6 @@ help: the type constructed contains `fn(&_) -> Bad<'_, _> {Bad::<'_, _>::A}` due
   | |_____- this argument influences the type of `Ok`
 note: tuple variant defined here
  --> $RUST/core/src/result.rs
-  |
-  |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
-  |     ^^
   = note: this error originates in the derive macro `Codec` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: use parentheses to construct this tuple variant
   |

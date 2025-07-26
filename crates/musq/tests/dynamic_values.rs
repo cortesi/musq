@@ -18,20 +18,20 @@ async fn dynamic_values_workflow() -> anyhow::Result<()> {
 
     let data: Values =
         values! { "id": 1, "name": "Alice", "status": "active", "last_login": "now" }?;
-    sql!("INSERT INTO users {insert_values:data}")?
+    sql!("INSERT INTO users {insert:data}")?
         .execute(&conn)
         .await?;
 
     let mut changes = Values::new();
     changes.insert("name", "Alicia")?;
     changes.insert("status", "inactive")?;
-    sql!("UPDATE users SET {update_set:changes} WHERE id = 1")?
+    sql!("UPDATE users SET {set:changes} WHERE id = 1")?
         .execute(&conn)
         .await?;
 
     let filters: Values = values! { "status": "inactive" }?;
     let user: User =
-        sql_as!("SELECT id, name, status, last_login FROM users WHERE {where_and:filters}")?
+        sql_as!("SELECT id, name, status, last_login FROM users WHERE {where:filters}")?
             .fetch_one(&conn)
             .await?;
     assert_eq!(user.name, "Alicia");
@@ -39,7 +39,7 @@ async fn dynamic_values_workflow() -> anyhow::Result<()> {
     let upsert: Values =
         values! { "id": 1, "name": "Alicia", "status": "active", "last_login": "later" }?;
     sql!(
-        "INSERT INTO users {insert_values:upsert} ON CONFLICT(id) DO UPDATE SET {upsert_set:upsert, exclude:[\"id\"]}"
+        "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude:[\"id\"]}"
     )?
     .execute(&conn)
     .await?;
@@ -60,9 +60,7 @@ async fn fluent_builder_insert() -> anyhow::Result<()> {
         .await?;
 
     let vals = Values::new().val("id", 1)?.val("name", "Bob")?;
-    sql!("INSERT INTO fb {insert_values:vals}")?
-        .execute(&conn)
-        .await?;
+    sql!("INSERT INTO fb {insert:vals}")?.execute(&conn).await?;
 
     let row: (i32, String) = sql_as!("SELECT id, name FROM fb")?.fetch_one(&conn).await?;
     assert_eq!(row, (1, "Bob".into()));
@@ -79,7 +77,7 @@ async fn where_and_empty_returns_all() -> anyhow::Result<()> {
             .await?;
     }
     let empty = Values::new();
-    let rows: Vec<(i32,)> = sql_as!("SELECT id FROM wa WHERE {where_and:empty}")?
+    let rows: Vec<(i32,)> = sql_as!("SELECT id FROM wa WHERE {where:empty}")?
         .fetch_all(&conn)
         .await?;
     assert_eq!(rows.len(), 3);
@@ -99,7 +97,7 @@ async fn where_and_combined_static() -> anyhow::Result<()> {
             .await?;
     }
     let filters: Values = values! { "id": 1 }?;
-    let rows: Vec<(i32,)> = sql_as!("SELECT id FROM wc WHERE active = 1 AND {where_and:filters}")?
+    let rows: Vec<(i32,)> = sql_as!("SELECT id FROM wc WHERE active = 1 AND {where:filters}")?
         .fetch_all(&conn)
         .await?;
     assert_eq!(rows, vec![(1,)]);
@@ -113,13 +111,11 @@ async fn upsert_set_exclude_key() -> anyhow::Result<()> {
         .execute(&conn)
         .await?;
     let vals: Values = values! { "id": 1, "val": "a" }?;
-    sql!("INSERT INTO us {insert_values:vals}")?
-        .execute(&conn)
-        .await?;
+    sql!("INSERT INTO us {insert:vals}")?.execute(&conn).await?;
     let new_vals: Values = values! { "id": 1, "val": "b" }?;
     sql!(
-        "INSERT INTO us {insert_values:new_vals} \
-         ON CONFLICT(id) DO UPDATE SET {upsert_set:new_vals, exclude:[\"id\"]}"
+        "INSERT INTO us {insert:new_vals} \
+         ON CONFLICT(id) DO UPDATE SET {upsert:new_vals, exclude:[\"id\"]}"
     )?
     .execute(&conn)
     .await?;
@@ -137,13 +133,13 @@ async fn upsert_with_subset_columns() -> anyhow::Result<()> {
         .execute(&conn)
         .await?;
     let initial: Values = values! { "id": 1, "name": "a", "logins": 1 }?;
-    sql!("INSERT INTO sub {insert_values:initial}")?
+    sql!("INSERT INTO sub {insert:initial}")?
         .execute(&conn)
         .await?;
     let up: Values = values! { "id": 1, "logins": 2 }?;
     sql!(
-        "INSERT INTO sub {insert_values:up} \
-         ON CONFLICT(id) DO UPDATE SET {upsert_set:up, exclude:[\"id\"]}"
+        "INSERT INTO sub {insert:up} \
+         ON CONFLICT(id) DO UPDATE SET {upsert:up, exclude:[\"id\"]}"
     )?
     .execute(&conn)
     .await?;
@@ -167,11 +163,9 @@ async fn insert_update_various_types() -> anyhow::Result<()> {
         "bl": b"blob".as_slice(),
         "t": Option::<String>::None,
     }?;
-    sql!("INSERT INTO ty {insert_values:vals}")?
-        .execute(&conn)
-        .await?;
+    sql!("INSERT INTO ty {insert:vals}")?.execute(&conn).await?;
     let upd: Values = values! { "r": 2.0, "t": Some("hi") }?;
-    sql!("UPDATE ty SET {update_set:upd} WHERE id = 1")?
+    sql!("UPDATE ty SET {set:upd} WHERE id = 1")?
         .execute(&conn)
         .await?;
     let row: (bool, f64, Vec<u8>, Option<String>) =
@@ -186,11 +180,11 @@ async fn insert_update_various_types() -> anyhow::Result<()> {
 async fn empty_values_error() -> anyhow::Result<()> {
     let empty = Values::new();
     assert!(matches!(
-        sql!("INSERT INTO t {insert_values:empty}"),
+        sql!("INSERT INTO t {insert:empty}"),
         Err(musq::Error::Protocol(_))
     ));
     assert!(matches!(
-        sql!("UPDATE t SET {update_set:empty}"),
+        sql!("UPDATE t SET {set:empty}"),
         Err(musq::Error::Protocol(_))
     ));
     Ok(())
@@ -220,17 +214,14 @@ async fn macro_combination() -> anyhow::Result<()> {
         .await?;
     let table = "mix";
     let vals: Values = values! { "id": 5, "name": "Old" }?;
-    sql!("INSERT INTO {ident:table} {insert_values:vals}")?
+    sql!("INSERT INTO {ident:table} {insert:vals}")?
         .execute(&conn)
         .await?;
     let changes: Values = values! { "name": "New" }?;
     let id = 5;
-    sql!(
-        "UPDATE {ident:table} SET {update_set:changes} WHERE id = {}",
-        id
-    )?
-    .execute(&conn)
-    .await?;
+    sql!("UPDATE {ident:table} SET {set:changes} WHERE id = {}", id)?
+        .execute(&conn)
+        .await?;
     let row: (String,) = sql_as!("SELECT name FROM mix WHERE id = 5")?
         .fetch_one(&conn)
         .await?;
