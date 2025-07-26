@@ -10,7 +10,7 @@ use time::macros::format_description as fd;
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Encode for OffsetDateTime {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         let formatted = self.format(&Rfc3339).map_err(|e| {
             EncodeError::Conversion(format!("failed to format OffsetDateTime: {e}"))
         })?;
@@ -22,7 +22,7 @@ impl Encode for OffsetDateTime {
 }
 
 impl Encode for PrimitiveDateTime {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         let format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
         let formatted = self.format(&format).map_err(|e| {
             EncodeError::Conversion(format!("failed to format PrimitiveDateTime: {e}"))
@@ -35,7 +35,7 @@ impl Encode for PrimitiveDateTime {
 }
 
 impl Encode for Date {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         let format = fd!("[year]-[month]-[day]");
         let formatted = self
             .format(&format)
@@ -48,7 +48,7 @@ impl Encode for Date {
 }
 
 impl Encode for Time {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         let format = fd!("[hour]:[minute]:[second].[subsecond]");
         let formatted = self
             .format(&format)

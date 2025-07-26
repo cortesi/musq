@@ -6,9 +6,9 @@ use crate::{
 };
 
 impl Encode for bool {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Integer {
-            value: self.into(),
+            value: (*self).into(),
             type_info: None,
         })
     }

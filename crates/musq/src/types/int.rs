@@ -6,9 +6,9 @@ use crate::{
 };
 
 impl Encode for i8 {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Integer {
-            value: self as i64,
+            value: *self as i64,
             type_info: None,
         })
     }
@@ -26,9 +26,9 @@ impl<'r> Decode<'r> for i8 {
 }
 
 impl Encode for i16 {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Integer {
-            value: self as i64,
+            value: *self as i64,
             type_info: None,
         })
     }
@@ -46,9 +46,9 @@ impl<'r> Decode<'r> for i16 {
 }
 
 impl Encode for i32 {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Integer {
-            value: self as i64,
+            value: *self as i64,
             type_info: None,
         })
     }
@@ -65,9 +65,9 @@ impl<'r> Decode<'r> for i32 {
 }
 
 impl Encode for i64 {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Integer {
-            value: self,
+            value: *self,
             type_info: None,
         })
     }

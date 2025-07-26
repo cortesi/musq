@@ -21,8 +21,8 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
 
     Ok(quote!(
         impl #impl_generics musq::encode::Encode for #ident #ty_generics #where_clause {
-            fn encode(self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
-                let v = serde_json::to_string(&self)
+            fn encode(&self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
+                let v = serde_json::to_string(self)
                     .map_err(|e| musq::error::EncodeError::Conversion(
                         format!("failed to encode value as JSON: {}", e)
                     ))?;

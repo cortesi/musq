@@ -8,9 +8,9 @@ use crate::{
 };
 
 impl Encode for &str {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self.to_owned(),
+            value: self.to_string(),
             type_info: None,
         })
     }
@@ -24,18 +24,18 @@ impl<'r> Decode<'r> for &'r str {
 }
 
 impl Encode for &String {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self.clone(),
+            value: (*self).clone(),
             type_info: None,
         })
     }
 }
 
 impl Encode for String {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self,
+            value: self.clone(),
             type_info: None,
         })
     }
@@ -49,16 +49,10 @@ impl<'r> Decode<'r> for String {
 }
 
 impl Encode for Arc<String> {
-    fn encode(self) -> Result<Value, EncodeError> {
-        Ok(match Arc::try_unwrap(self) {
-            Ok(s) => Value::Text {
-                value: s,
-                type_info: None,
-            },
-            Err(arc) => Value::Text {
-                value: arc.as_ref().clone(),
-                type_info: None,
-            },
+    fn encode(&self) -> Result<Value, EncodeError> {
+        Ok(Value::Text {
+            value: self.as_ref().clone(),
+            type_info: None,
         })
     }
 }

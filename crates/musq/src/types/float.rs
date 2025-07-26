@@ -6,9 +6,9 @@ use crate::{
 };
 
 impl Encode for f32 {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Double {
-            value: self.into(),
+            value: (*self).into(),
             type_info: None,
         })
     }
@@ -22,9 +22,9 @@ impl<'r> Decode<'r> for f32 {
 }
 
 impl Encode for f64 {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Double {
-            value: self,
+            value: *self,
             type_info: None,
         })
     }

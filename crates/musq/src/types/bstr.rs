@@ -17,16 +17,16 @@ impl<'r> Decode<'r> for BString {
 }
 
 impl Encode for &BStr {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Blob {
-            value: self.as_bytes().to_owned(),
+            value: self.as_bytes().to_vec(),
             type_info: None,
         })
     }
 }
 
 impl Encode for BString {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Blob {
             value: self.as_bytes().to_vec(),
             type_info: None,

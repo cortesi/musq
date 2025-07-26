@@ -192,7 +192,7 @@ async fn empty_values_error() -> anyhow::Result<()> {
 
 struct Bad;
 impl musq::encode::Encode for Bad {
-    fn encode(self) -> std::result::Result<musq::Value, musq::error::EncodeError> {
+    fn encode(&self) -> std::result::Result<musq::Value, musq::error::EncodeError> {
         Err(musq::error::EncodeError::Conversion("bad".into()))
     }
 }

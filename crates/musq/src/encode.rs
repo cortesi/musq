@@ -3,11 +3,9 @@ use crate::{Value, error::EncodeError};
 
 /// Encode a single value to be sent to the database.
 pub trait Encode {
-    /// Writes the value of `self` into `buf` in the expected format for the database, consuming the value. Encoders are
-    /// implemented for reference counted types where a shift in ownership is not wanted.
-    fn encode(self) -> Result<Value, EncodeError>
-    where
-        Self: Sized;
+    /// Writes the value of `self` into `buf` in the expected format for the database.
+    /// Takes `&self` to avoid consuming the value, allowing for more flexible usage patterns.
+    fn encode(&self) -> Result<Value, EncodeError>;
 }
 
 /// Marker trait for primitive types that can be encoded by reference
@@ -25,21 +23,14 @@ impl PrimitiveEncode for u32 {}
 impl PrimitiveEncode for f32 {}
 impl PrimitiveEncode for f64 {}
 
-// Blanket implementation for primitive types
-impl<T> Encode for &T
-where
-    T: PrimitiveEncode,
-{
-    fn encode(self) -> Result<Value, EncodeError> {
-        (*self).encode()
-    }
-}
+// Blanket implementation for primitive types - now they can be encoded by reference directly
+// This implementation is no longer needed since Encode now takes &self
 
 impl<T> Encode for Option<T>
 where
     T: Encode,
 {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         if let Some(v) = self {
             v.encode()
         } else {

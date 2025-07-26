@@ -8,9 +8,9 @@ use crate::{
 };
 
 impl Encode for &[u8] {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Blob {
-            value: self.to_owned(),
+            value: self.to_vec(),
             type_info: None,
         })
     }
@@ -24,9 +24,9 @@ impl<'r> Decode<'r> for &'r [u8] {
 }
 
 impl Encode for Vec<u8> {
-    fn encode(self) -> Result<Value, EncodeError> {
+    fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Blob {
-            value: self,
+            value: self.clone(),
             type_info: None,
         })
     }
@@ -40,16 +40,10 @@ impl<'r> Decode<'r> for Vec<u8> {
 }
 
 impl Encode for Arc<Vec<u8>> {
-    fn encode(self) -> Result<Value, EncodeError> {
-        Ok(match Arc::try_unwrap(self) {
-            Ok(v) => Value::Blob {
-                value: v,
-                type_info: None,
-            },
-            Err(arc) => Value::Blob {
-                value: (*arc).clone(),
-                type_info: None,
-            },
+    fn encode(&self) -> Result<Value, EncodeError> {
+        Ok(Value::Blob {
+            value: self.as_ref().clone(),
+            type_info: None,
         })
     }
 }
