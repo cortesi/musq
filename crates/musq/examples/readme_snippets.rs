@@ -94,6 +94,16 @@ async fn values() -> musq::Result<()> {
         // snips-end
     }
 
+    {
+        // snips-start: values-null
+        use musq::{Null, values};
+        let user_data = values! {
+            "name": "Alice",
+            "email": Null,           // No type annotation needed
+        }?;
+        // snips-end
+    }
+
     // snips-start: values
     use musq::{Values, sql, sql_as, values};
 

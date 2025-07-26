@@ -52,6 +52,29 @@ where
     }
 }
 
+/// A convenience type alias for inserting NULL values without type annotations.
+///
+/// This is useful when you want to insert NULL values in `values!` blocks
+/// without having to specify a particular type like `None::<String>`.
+///
+/// # Example
+///
+/// ```rust,no_run
+/// use musq::{values, Null};
+///
+/// let user_data = values! {
+///     "name": "Alice",
+///     "middle_name": Null,  // Convenient NULL without type annotation
+///     "email": "alice@example.com"
+/// }?;
+/// # Ok::<(), musq::Error>(())
+/// ```
+pub type Null = Option<bool>;
+
+/// A convenient constant for inserting NULL values.
+#[allow(non_upper_case_globals)]
+pub const Null: Null = None;
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -212,6 +235,40 @@ mod tests {
     fn test_nested_option_outer_none() {
         let opt: Option<Option<i32>> = None;
         let encoded = opt.encode().unwrap();
+
+        if let Value::Null { type_info } = encoded {
+            assert_eq!(type_info, None);
+        } else {
+            panic!("Expected Null value, got {:?}", encoded);
+        }
+    }
+
+    #[test]
+    fn test_null_constant() {
+        let encoded = Null.encode().unwrap();
+
+        if let Value::Null { type_info } = encoded {
+            assert_eq!(type_info, None);
+        } else {
+            panic!("Expected Null value, got {:?}", encoded);
+        }
+    }
+
+    #[test]
+    fn test_null_alias_type() {
+        let null_val: Null = None;
+        let encoded = null_val.encode().unwrap();
+
+        if let Value::Null { type_info } = encoded {
+            assert_eq!(type_info, None);
+        } else {
+            panic!("Expected Null value, got {:?}", encoded);
+        }
+    }
+
+    #[test]
+    fn test_null_reference() {
+        let encoded = (&Null).encode().unwrap();
 
         if let Value::Null { type_info } = encoded {
             assert_eq!(type_info, None);

@@ -252,6 +252,18 @@ When you use `Some(value)`, it encodes the inner value normally. When you use `N
 - **WHERE**: `None` values generate `column = NULL` (which is always false in SQL - use explicit `IS NULL` to match NULL values)
 - **UPSERT**: `None` values participate in conflict resolution as `NULL`
 
+Musq also provides a `Null` constant that you can use directly in `values!`
+blocks without specifying a type:
+
+<!-- snips: crates/musq/examples/readme_snippets.rs#values-null -->
+```rust
+use musq::{Null, values};
+let user_data = values! {
+    "name": "Alice",
+    "email": Null,           // No type annotation needed
+}?;
+```
+
 **Note on Large Values:** When passing large string or byte values to queries, consider using
 owned types like `String`, `Vec<u8>`, or `Arc<T>` to avoid unnecessary copies. Similarly, you
 can decode large blobs directly into `Arc<Vec<u8>>` for efficient, shared access to the

@@ -320,4 +320,62 @@ mod tests {
 
         assert_eq!(values.len(), 4);
     }
+
+    #[test]
+    fn test_values_with_null_constant() {
+        use crate::encode::Null;
+
+        let mut values = Values::new();
+
+        // Test using the Null constant
+        values.insert("id", 1).unwrap();
+        values.insert("name", "Alice").unwrap();
+        values.insert("middle_name", Null).unwrap();
+        values.insert("phone", Some("+1-555-0123")).unwrap();
+
+        assert_eq!(values.len(), 4);
+        let keys: Vec<&String> = values.keys().collect();
+        assert_eq!(keys, vec!["id", "name", "middle_name", "phone"]);
+    }
+
+    #[test]
+    fn test_values_macro_with_null() -> crate::Result<()> {
+        use crate::{encode::Null, values};
+
+        let user_data = values! {
+            "id": 1,
+            "name": "Bob",
+            "middle_name": Null,  // Using Null constant
+            "email": Some("bob@example.com"),
+            "phone": None::<String>  // Traditional None with type annotation
+        }?;
+
+        assert_eq!(user_data.len(), 5);
+        let keys: Vec<&String> = user_data.keys().collect();
+        assert_eq!(keys, vec!["id", "name", "middle_name", "email", "phone"]);
+        Ok(())
+    }
+
+    #[test]
+    fn test_values_extend_with_null() {
+        use crate::encode::Null;
+
+        let mut values1 = Values::new()
+            .val("id", 1)
+            .unwrap()
+            .val("name", "Charlie")
+            .unwrap();
+
+        let values2 = Values::new()
+            .val("middle_name", Null) // Using Null constant
+            .unwrap()
+            .val("last_name", "Brown")
+            .unwrap();
+
+        values1.extend(&values2);
+
+        assert_eq!(values1.len(), 4);
+        let keys: Vec<&String> = values1.keys().collect();
+        assert_eq!(keys, vec!["id", "name", "middle_name", "last_name"]);
+    }
 }

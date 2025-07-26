@@ -26,6 +26,7 @@ mod values;
 pub mod types;
 
 pub use crate::{
+    encode::Null,
     error::{DecodeError, EncodeError, Error, Result},
     executor::Execute,
     from_row::{AllNull, FromRow},
@@ -43,10 +44,10 @@ pub use crate::{
 
 #[macro_export]
 macro_rules! values {
-    () => { ::musq::Result::<$crate::Values>::Ok($crate::Values::new()) };
+    () => { $crate::Result::<$crate::Values>::Ok($crate::Values::new()) };
     { $($key:literal : $value:expr),* $(,)? } => {{
         let mut _values = $crate::Values::new();
         $( _values.insert($key, $value)?; )*
-        ::musq::Result::<$crate::Values>::Ok(_values)
+        $crate::Result::<$crate::Values>::Ok(_values)
     }};
 }
