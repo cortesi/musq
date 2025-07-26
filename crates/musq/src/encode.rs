@@ -39,6 +39,19 @@ where
     }
 }
 
+impl<T> Encode for &Option<T>
+where
+    T: Encode,
+{
+    fn encode(&self) -> Result<Value, EncodeError> {
+        if let Some(v) = self {
+            v.encode()
+        } else {
+            Ok(Value::Null { type_info: None })
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
