@@ -64,6 +64,7 @@ async fn main() -> musq::Result<()> {
 Want to contribute? Have ideas or feature requests? Come tell us about it on
 [Discord](https://discord.gg/fHmRmuBDxF). 
 
+-----
 
 ## Core Features
 
@@ -72,12 +73,10 @@ Want to contribute? Have ideas or feature requests? Come tell us about it on
 Use `Musq::open()` or `Musq::open_in_memory()` to create a `Pool`, which manages multiple
 connections for you. Queries can be executed directly on the pool.
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#pool -->
 ```rust
 use musq::Musq;
-
-let _pool = Musq::new().max_connections(10).open_in_memory().await?;
-
-// `pool` can now be shared across your application
+let pool = Musq::new().max_connections(10).open_in_memory().await?;
 ```
 
 ### Querying
@@ -90,8 +89,9 @@ dynamic queries, you can combine queries created with `sql!` using `Query::join`
 These macros offer a flexible, `format!`-like syntax for building queries with positional or
 named arguments, and even dynamic identifiers.
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#sql_basic -->
 ```rust
-use musq::{sql, sql_as, FromRow};
+use musq::{FromRow, sql, sql_as};
 
 #[derive(FromRow, Debug)]
 struct User {
@@ -115,25 +115,47 @@ let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}")?
 
 The `sql!` macro also supports dynamic identifiers and lists for `IN` clauses:
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#sql_in -->
 ```rust
 let table_name = "users";
 let user_ids = vec![1, 2, 3];
 let columns = ["id", "name"];
 
 // Dynamic table and column identifiers
-let users: Vec<User> = sql_as!(
-    "SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})"
-)?
-.fetch_all(&pool)
-.await?;
+let users: Vec<User> =
+    sql_as!("SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})")?
+        .fetch_all(&pool)
+        .await?;
 ```
 
 
-#### Dynamic Query Composition with `Values`
+#### Query Composition with `Values`
 
-For more complex dynamic queries, `musq` introduces the `Values` type, a
-key-value map for building dynamic query fragments. It can be constructed with
-the `values!` macro for static data or with a fluent builder for dynamic data.
+It turns out that a very large portion of SQL query composition can be done by
+treating a key/value map specially based on the query context. Musq provides a
+`Values` type for this, along with a set of placeholder variants to cover all
+cases where SQL uses key/value pairs. It can be constructed with the `values!`
+macro: 
+
+<!-- snips: crates/musq/examples/readme_snippets.rs#values-macro -->
+```rust
+let vals = values! {
+    "id": 1,
+    "name": "Alice",
+    "status": "active"
+}?;
+```
+
+Or the fluent builder interface on the `Value` type:
+
+<!-- snips: crates/musq/examples/readme_snippets.rs#values-fluent -->
+```rust
+let vals = Values::new()
+    .val("id", 1)?
+    .val("name", "Alice")?
+    .val("status", "active")?;
+```
+
 
 The `sql!` macro provides special placeholder types for `Values`:
 
@@ -143,8 +165,9 @@ The `sql!` macro provides special placeholder types for `Values`:
   * `{upsert_set:values, exclude:["id"]}`: For `ON CONFLICT ... DO UPDATE SET`, expands to `col1 = excluded.col1, ...`, with an option to exclude certain keys.
 
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#values -->
 ```rust
-use musq::{sql, values, Values};
+use musq::{Values, sql, sql_as, values};
 
 let user_data = values! { "id": 1, "name": "Alice", "status": "active" }?;
 
@@ -169,7 +192,10 @@ let user: User = sql_as!("SELECT id, name FROM users WHERE {where_and:filters}")
 For the most complex scenarios, you can drop down to the `QueryBuilder` for fine-grained
 control over the generated SQL.
 
-## Type Handling (`Encode` and `Decode`)
+-----
+
+
+## Types
 
 Musq uses the `Encode` and `Decode` traits to convert between Rust types and SQLite types.
 
@@ -200,18 +226,21 @@ data.
 that is text-like but may not contain valid UTF-8. It provides string-like operations without
 enforcing UTF-8 validity.
 
-### Derivable Traits for Custom Types
+### Custom Types
 
-You can easily implement `Encode` and `Decode` for your own types using derive macros.
+You can easily implement `Encode` and `Decode` for your own types using derive
+macros.
 
 #### `#[derive(musq::Codec)]`
 
-The `Codec` derive implements both `Encode` and `Decode`. It's suitable for simple enums and
+The `Codec` derive implements both `Encode` and `Decode` for simple enums and
 newtype structs.
 
-**For Enums (as TEXT):**
+#### Enums as strings
+
 Stores the enum as a snake-cased string (e.g., `"open"`, `"closed"`).
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#text_enum -->
 ```rust
 #[derive(musq::Codec, Debug, PartialEq)]
 enum Status {
@@ -220,9 +249,11 @@ enum Status {
 }
 ```
 
-**For Enums (as INTEGER):**
+#### Enums as integers
+
 Stores the enum as its integer representation.
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#num_enum -->
 ```rust
 #[derive(musq::Codec, Debug, PartialEq)]
 #[musq(repr = "i32")]
@@ -233,18 +264,21 @@ enum Priority {
 }
 ```
 
-**For Newtype Structs:**
+#### Newtype structs
+
 Stores the newtype as its inner value.
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#newtype -->
 ```rust
 #[derive(musq::Codec, Debug, PartialEq)]
 struct UserId(i32);
 ```
 
-#### `#[derive(musq::Json)]`
+#### JSON-encoded structs
 
 Stores any `serde`-compatible type as a JSON string in a `TEXT` column.
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#json -->
 ```rust
 #[derive(musq::Json, serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 struct Metadata {
@@ -255,14 +289,16 @@ struct Metadata {
 
 -----
 
-## Mapping Rows to Structs with `#[derive(FromRow)]`
+## Mapping Rows to Structs
 
-The `FromRow` derive macro provides powerful options for mapping query results to your structs.
+The `FromRow` derive macro provides powerful options for mapping query results
+to your structs.
 
 ### Basic Usage
 
+<!-- snips: crates/musq/examples/readme_snippets.rs#fromrow_basic -->
 ```rust
-#[derive(musq::FromRow, Debug)]
+#[derive(FromRow, Debug)]
 struct User {
     id: i32,
     name: String,
@@ -286,6 +322,7 @@ struct User {
     If the flattened field is wrapped in an `Option`, it will be `None` if and only if **all**
     columns for the nested struct are `NULL`.
 
+    <!-- snips: crates/musq/examples/readme_snippets.rs#fromrow_fields -->
     ```rust
     #[derive(FromRow)]
     struct Address {
@@ -308,6 +345,7 @@ struct User {
     flattening a nested struct. This is useful for avoiding name collisions and can be
     combined with `Option`.
 
+    <!-- snips: crates/musq/examples/readme_snippets.rs#fromrow_flatten -->
     ```rust
     #[derive(FromRow)]
     struct UserWithAddresses {
@@ -328,56 +366,6 @@ struct User {
   - `#[musq(try_from = "database_type")]`: Converts a column from a specific database type
     using `TryFrom`.
 
-### Example
-
-```rust
-#[derive(FromRow, Debug)]
-struct Address {
-    street: String,
-    city: String,
-}
-
-#[derive(FromRow, Debug)]
-struct User {
-    id: i32,
-    full_name: String,
-    
-    #[musq(default)]
-    bio: Option<String>,
-    
-    // Looks for `street` and `city`.
-    #[musq(flatten)]
-    address: Address,
-}
-```
-
------
-
-## Helpers
-
-### `insert_into` Builder
-
-For programmatic `INSERT` statements, the `insert_into` builder provides a convenient fluent
-API.
-
-```rust
-use musq::insert_into;
-
-// Construct the query
-let insert_query = insert_into("users")
-    .value("id", 4)
-    .value("name", "Bob")
-    .query()?;
-
-insert_query.execute(&pool).await?;
-
-// The builder can also execute directly
-insert_into("users")
-    .value("id", 5)
-    .value("name", "Carol")
-    .execute(&pool)
-    .await?;
-```
 
 -----
 
