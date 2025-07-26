@@ -228,6 +228,30 @@ Support for common Rust types is included out-of-the-box.
 | `time::Time`                        | TIME           |
 | `bstr::BString`                     | BLOB           |
 
+Musq has implements `Encode` for `Option<T>` where `T` implements `Encode`.
+This makes it easy to work with nullable database columns:
+
+<!-- snips: crates/musq/examples/readme_snippets.rs#values-optional -->
+```rust
+async fn add_user(pool: musq::Pool, name: &str, phone: Option<String>) -> musq::Result<()> {
+    let user_data = values! {
+        "name": name,
+        "phone": phone,  // Nullable field
+    }?;
+    sql!("INSERT INTO users {insert: user_data}")?
+        .execute(&pool)
+        .await?;
+    Ok(())
+}
+```
+
+When you use `Some(value)`, it encodes the inner value normally. When you use `None`, it encodes as SQL `NULL`. This works seamlessly with all operations:
+
+- **INSERT**: `None` values become `NULL` in the database
+- **UPDATE**: `None` values set columns to `NULL`  
+- **WHERE**: `None` values generate `column = NULL` (which is always false in SQL - use explicit `IS NULL` to match NULL values)
+- **UPSERT**: `None` values participate in conflict resolution as `NULL`
+
 **Note on Large Values:** When passing large string or byte values to queries, consider using
 owned types like `String`, `Vec<u8>`, or `Arc<T>` to avoid unnecessary copies. Similarly, you
 can decode large blobs directly into `Arc<Vec<u8>>` for efficient, shared access to the

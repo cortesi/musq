@@ -205,4 +205,119 @@ mod tests {
         let keys: Vec<&String> = values1.keys().collect();
         assert_eq!(keys, vec!["id", "name", "email"]);
     }
+
+    #[test]
+    fn test_values_with_option_some() {
+        let mut values = Values::new();
+
+        // Test various Some() values
+        values.insert("id", Some(42)).unwrap();
+        values.insert("name", Some("Alice")).unwrap();
+        values.insert("active", Some(true)).unwrap();
+        values.insert("score", Some(98.5)).unwrap();
+
+        assert_eq!(values.len(), 4);
+        let keys: Vec<&String> = values.keys().collect();
+        assert_eq!(keys, vec!["id", "name", "active", "score"]);
+    }
+
+    #[test]
+    fn test_values_with_option_none() {
+        let mut values = Values::new();
+
+        // Test various None values
+        values.insert("id", Some(1)).unwrap();
+        values.insert("middle_name", None::<&str>).unwrap();
+        values.insert("phone", None::<String>).unwrap();
+        values.insert("age", None::<i32>).unwrap();
+        values.insert("verified", None::<bool>).unwrap();
+
+        assert_eq!(values.len(), 5);
+        let keys: Vec<&String> = values.keys().collect();
+        assert_eq!(keys, vec!["id", "middle_name", "phone", "age", "verified"]);
+    }
+
+    #[test]
+    fn test_values_builder_with_options() {
+        let values = Values::new()
+            .val("id", 1)
+            .unwrap()
+            .val("name", Some("Bob"))
+            .unwrap()
+            .val("email", None::<String>)
+            .unwrap()
+            .val("active", Some(false))
+            .unwrap()
+            .val("score", None::<f64>)
+            .unwrap();
+
+        assert_eq!(values.len(), 5);
+        let keys: Vec<&String> = values.keys().collect();
+        assert_eq!(keys, vec!["id", "name", "email", "active", "score"]);
+    }
+
+    #[test]
+    fn test_values_mixed_some_none() {
+        let mut values = Values::new();
+
+        // Mix of Some and None values for the same types
+        values.insert("required_field", "always present").unwrap();
+        values.insert("optional_text", Some("present")).unwrap();
+        values.insert("missing_text", None::<String>).unwrap();
+        values.insert("optional_number", Some(123)).unwrap();
+        values.insert("missing_number", None::<i32>).unwrap();
+
+        assert_eq!(values.len(), 5);
+    }
+
+    #[test]
+    fn test_values_extend_with_options() {
+        let mut values1 = Values::new()
+            .val("id", 1)
+            .unwrap()
+            .val("name", Some("Alice"))
+            .unwrap();
+
+        let values2 = Values::new()
+            .val("email", None::<String>)
+            .unwrap()
+            .val("phone", Some("+1-555-0123"))
+            .unwrap()
+            .val("age", None::<i32>)
+            .unwrap();
+
+        values1.extend(&values2);
+
+        assert_eq!(values1.len(), 5);
+        let keys: Vec<&String> = values1.keys().collect();
+        assert_eq!(keys, vec!["id", "name", "email", "phone", "age"]);
+    }
+
+    #[test]
+    fn test_values_option_overwrite() {
+        let mut values = Values::new().val("field", Some("original")).unwrap();
+
+        // Overwrite Some with None
+        values.insert("field", None::<String>).unwrap();
+        assert_eq!(values.len(), 1);
+
+        // Overwrite None with Some
+        values.insert("field", Some("updated")).unwrap();
+        assert_eq!(values.len(), 1);
+    }
+
+    #[test]
+    fn test_values_option_string_types() {
+        let mut values = Values::new();
+
+        // Test different string option types
+        values
+            .insert("owned_string", Some("hello".to_string()))
+            .unwrap();
+        values.insert("string_ref", Some("world")).unwrap();
+        values.insert("no_owned_string", None::<String>).unwrap();
+        values.insert("no_string_ref", None::<&str>).unwrap();
+
+        assert_eq!(values.len(), 4);
+    }
 }

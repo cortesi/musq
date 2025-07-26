@@ -79,6 +79,21 @@ async fn values() -> musq::Result<()> {
         // snips-end
     }
 
+    {
+        // snips-start: values-optional
+        async fn add_user(pool: musq::Pool, name: &str, phone: Option<String>) -> musq::Result<()> {
+            let user_data = values! {
+                "name": name,
+                "phone": phone,  // Nullable field
+            }?;
+            sql!("INSERT INTO users {insert: user_data}")?
+                .execute(&pool)
+                .await?;
+            Ok(())
+        }
+        // snips-end
+    }
+
     // snips-start: values
     use musq::{Values, sql, sql_as, values};
 
