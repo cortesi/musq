@@ -4,7 +4,7 @@ async fn pool() -> musq::Result<()> {
     // snips-start: pool
     use musq::Musq;
     let pool = Musq::new().max_connections(10).open_in_memory().await?;
-    // snips-end: pool
+    // snips-end
     Ok(())
 }
 
@@ -33,7 +33,7 @@ async fn sql() -> musq::Result<()> {
     let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}")?
         .fetch_one(&pool)
         .await?;
-    // snips-end: sql_basic
+    // snips-end
 
     // snips-start: sql_in
     let table_name = "users";
@@ -45,7 +45,7 @@ async fn sql() -> musq::Result<()> {
         sql_as!("SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})")?
             .fetch_all(&pool)
             .await?;
-    // snips-end: sql_in
+    // snips-end
 
     Ok(())
 }
@@ -100,7 +100,7 @@ async fn values() -> musq::Result<()> {
     let user: User = sql_as!("SELECT id, name FROM users WHERE {where_and:filters}")?
         .fetch_one(&pool)
         .await?;
-    // snips-end: values
+    // snips-end
 
     Ok(())
 }
@@ -114,7 +114,7 @@ fn derives() {
         Open,
         Closed,
     }
-    // snips-end: text_enum
+    // snips-end
 
     // snips-start: num_enum
     #[derive(musq::Codec, Debug, PartialEq)]
@@ -124,12 +124,12 @@ fn derives() {
         Medium = 2,
         High = 3,
     }
-    // snips-end: num_enum
+    // snips-end
 
     // snips-start: newtype
     #[derive(musq::Codec, Debug, PartialEq)]
     struct UserId(i32);
-    // snips-end: newtype
+    // snips-end
 
     // snips-start: json
     #[derive(musq::Json, serde::Serialize, serde::Deserialize, Debug, PartialEq)]
@@ -137,7 +137,7 @@ fn derives() {
         tags: Vec<String>,
         version: i32,
     }
-    // snips-end: json
+    // snips-end
 
     {
         // snips-start: fromrow_basic
@@ -147,7 +147,7 @@ fn derives() {
             name: String,
             email: String,
         }
-        // snips-end: fromrow_basic
+        // snips-end
     }
 
     // snips-start: fromrow_fields
@@ -166,7 +166,7 @@ fn derives() {
         #[musq(flatten)]
         address: Option<Address>,
     }
-    // snips-end: fromrow_fields
+    // snips-end
 
     // snips-start: fromrow_flatten
     #[derive(FromRow)]
@@ -181,7 +181,7 @@ fn derives() {
         #[musq(flatten, prefix = "shipping_")]
         shipping_address: Option<Address>,
     }
-    // snips-end: fromrow_flatten
+    // snips-end
 }
 
 fn main() {
