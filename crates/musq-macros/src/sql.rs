@@ -89,16 +89,93 @@ impl Parse for UpsertArgs {
                 return Err(syn::Error::new_spanned(ident, "expected `exclude`"));
             }
             input.parse::<Token![:]>()?;
-            let content;
-            syn::bracketed!(content in input);
-            while !content.is_empty() {
-                let lit: LitStr = content.parse()?;
-                exclude.push(lit.value());
-                if content.peek(Token![,]) {
-                    content.parse::<Token![,]>()?;
+
+            // Parse comma-separated list of identifiers until end of input
+            while !input.is_empty() {
+                // Try parsing as a regular identifier first, then handle keywords
+                let ident_string = if let Ok(ident) = input.parse::<Ident>() {
+                    ident.to_string()
+                } else {
+                    // Handle Rust keywords by parsing as a token and converting to string
+                    let lookahead = input.lookahead1();
+                    if lookahead.peek(Token![type]) {
+                        input.parse::<Token![type]>()?;
+                        "type".to_string()
+                    } else if lookahead.peek(Token![ref]) {
+                        input.parse::<Token![ref]>()?;
+                        "ref".to_string()
+                    } else if lookahead.peek(Token![let]) {
+                        input.parse::<Token![let]>()?;
+                        "let".to_string()
+                    } else if lookahead.peek(Token![mut]) {
+                        input.parse::<Token![mut]>()?;
+                        "mut".to_string()
+                    } else if lookahead.peek(Token![const]) {
+                        input.parse::<Token![const]>()?;
+                        "const".to_string()
+                    } else if lookahead.peek(Token![static]) {
+                        input.parse::<Token![static]>()?;
+                        "static".to_string()
+                    } else if lookahead.peek(Token![fn]) {
+                        input.parse::<Token![fn]>()?;
+                        "fn".to_string()
+                    } else if lookahead.peek(Token![struct]) {
+                        input.parse::<Token![struct]>()?;
+                        "struct".to_string()
+                    } else if lookahead.peek(Token![enum]) {
+                        input.parse::<Token![enum]>()?;
+                        "enum".to_string()
+                    } else if lookahead.peek(Token![impl]) {
+                        input.parse::<Token![impl]>()?;
+                        "impl".to_string()
+                    } else if lookahead.peek(Token![trait]) {
+                        input.parse::<Token![trait]>()?;
+                        "trait".to_string()
+                    } else if lookahead.peek(Token![mod]) {
+                        input.parse::<Token![mod]>()?;
+                        "mod".to_string()
+                    } else if lookahead.peek(Token![use]) {
+                        input.parse::<Token![use]>()?;
+                        "use".to_string()
+                    } else if lookahead.peek(Token![pub]) {
+                        input.parse::<Token![pub]>()?;
+                        "pub".to_string()
+                    } else if lookahead.peek(Token![crate]) {
+                        input.parse::<Token![crate]>()?;
+                        "crate".to_string()
+                    } else if lookahead.peek(Token![super]) {
+                        input.parse::<Token![super]>()?;
+                        "super".to_string()
+                    } else if lookahead.peek(Token![self]) {
+                        input.parse::<Token![self]>()?;
+                        "self".to_string()
+                    } else if lookahead.peek(Token![Self]) {
+                        input.parse::<Token![Self]>()?;
+                        "Self".to_string()
+                    } else {
+                        return Err(lookahead.error());
+                    }
+                };
+
+                exclude.push(ident_string);
+
+                if input.peek(Token![,]) {
+                    input.parse::<Token![,]>()?;
+                    // Allow trailing comma - if we're at the end after consuming comma, break
+                    if input.is_empty() {
+                        break;
+                    }
                 } else {
                     break;
                 }
+            }
+
+            // Ensure we have at least one exclude column
+            if exclude.is_empty() {
+                return Err(syn::Error::new(
+                    input.span(),
+                    "expected at least one column identifier after 'exclude:'",
+                ));
             }
         }
         Ok(Self { values, exclude })

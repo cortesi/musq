@@ -39,7 +39,7 @@ async fn dynamic_values_workflow() -> anyhow::Result<()> {
     let upsert: Values =
         values! { "id": 1, "name": "Alicia", "status": "active", "last_login": "later" }?;
     sql!(
-        "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude:[\"id\"]}"
+        "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude: id}"
     )?
     .execute(&conn)
     .await?;
@@ -115,7 +115,7 @@ async fn upsert_set_exclude_key() -> anyhow::Result<()> {
     let new_vals: Values = values! { "id": 1, "val": "b" }?;
     sql!(
         "INSERT INTO us {insert:new_vals} \
-         ON CONFLICT(id) DO UPDATE SET {upsert:new_vals, exclude:[\"id\"]}"
+         ON CONFLICT(id) DO UPDATE SET {upsert:new_vals, exclude: id}"
     )?
     .execute(&conn)
     .await?;
@@ -139,7 +139,7 @@ async fn upsert_with_subset_columns() -> anyhow::Result<()> {
     let up: Values = values! { "id": 1, "logins": 2 }?;
     sql!(
         "INSERT INTO sub {insert:up} \
-         ON CONFLICT(id) DO UPDATE SET {upsert:up, exclude:[\"id\"]}"
+         ON CONFLICT(id) DO UPDATE SET {upsert:up, exclude: id}"
     )?
     .execute(&conn)
     .await?;

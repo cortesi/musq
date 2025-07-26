@@ -164,9 +164,9 @@ The `sql!` macro provides special placeholder types for `Values`:
   * `{set:values}`: Expands to `col1 = ?, col2 = ?` for `UPDATE` statements.
   * `{where:values}`: Expands to `col1 = ? AND col2 = ?`. If `values` is empty,
     it expands to `1=1`.
-  * `{upsert:values, exclude:["id"]}`: For `ON CONFLICT ... DO UPDATE SET`,
+  * `{upsert:values, exclude: id, created_at}`: For `ON CONFLICT ... DO UPDATE SET`,
     expands to `col1 = excluded.col1, ...`, with an option to exclude certain
-    keys.
+    keys from the update.
 
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values -->
@@ -194,10 +194,10 @@ let user: User = sql_as!("SELECT id, name FROM users WHERE {where:filters}")?
 
 let upsert = values! { "id": 1, "name": "Alicia", "status": "active" }?;
 sql!(
-    "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude:[\"id\"]}"
+    "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude: id}"
 )?
-    .execute(&pool)
-    .await?;
+.execute(&pool)
+.await?;
 ```
 
 For the most complex scenarios, you can drop down to the `QueryBuilder` for fine-grained

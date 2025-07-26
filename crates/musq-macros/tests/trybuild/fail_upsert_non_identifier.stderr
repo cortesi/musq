@@ -1,0 +1,7 @@
+error: expected one of: `type`, `ref`, `let`, `mut`, `const`, `static`, `fn`, `struct`, `enum`, `impl`, `trait`, `mod`, `use`, `pub`, `crate`, `super`, `self`, `Self`
+ --> tests/trybuild/fail_upsert_non_identifier.rs:7:18
+  |
+7 |     let _query = sql!("INSERT INTO users (id, name) VALUES {insert: v} ON CONFLICT (id) DO UPDATE SET {upsert: v, exclude: 123}");
+  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  |
+  = note: this error originates in the macro `sql` (in Nightly builds, run with -Z macro-backtrace for more info)

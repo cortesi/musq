@@ -103,7 +103,7 @@ async fn values() -> musq::Result<()> {
 
     let upsert = values! { "id": 1, "name": "Alicia", "status": "active" }?;
     sql!(
-        "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude:[\"id\"]}"
+        "INSERT INTO users {insert:upsert} ON CONFLICT(id) DO UPDATE SET {upsert:upsert, exclude: id}"
     )?
     .execute(&pool)
     .await?;
