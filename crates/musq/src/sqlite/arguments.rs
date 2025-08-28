@@ -74,12 +74,14 @@ impl Arguments {
     }
 
     pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize> {
-        let mut next_pos = offset;
-        if let Some(max) = self.named.values().max().cloned()
-            && max > next_pos
-        {
-            next_pos = max;
-        }
+        // Anonymous-position counter for `?` parameters and for allocating
+        // indices to previously-unseen named parameters. This advances strictly
+        // in SQL order and is rebased up to the highest named index that has
+        // been encountered so far in this statement. Importantly, numeric
+        // parameters like `?1` / `$2` do NOT affect this counter; this matches
+        // expected behavior like mapping `SELECT ?1, ?` with a single bind to
+        // the same index 1.
+        let mut anon_pos = offset;
         // Track mappings from positional-parameter-introduced names to their
         // argument indices so that multiple references to the same name are
         // bound from the same argument. We first consult `self.named` for
@@ -92,35 +94,47 @@ impl Arguments {
             // Figure out the index of this bind parameter into our argument tuple.
             let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
                 if name.starts_with('?') {
+                    // numeric positional like `?1`
                     parse_question_param(&name)?
                 } else if let Some(rest) = name.strip_prefix('$') {
                     // parameters of the form $NNN are positional, otherwise they are named
                     if let Some(n) = atoi(rest.as_bytes()) {
+                        // numeric positional like `$2`
                         n
                     } else if let Some(&idx) = self.named.get(rest) {
+                        // existing named parameter
+                        if idx > anon_pos {
+                            anon_pos = idx;
+                        }
                         idx
                     } else {
                         *names.entry(rest.to_string()).or_insert_with(|| {
-                            next_pos += 1;
-                            next_pos
+                            anon_pos += 1;
+                            anon_pos
                         })
                     }
                 } else if let Some(rest) = name.strip_prefix(':') {
                     if let Some(&idx) = self.named.get(rest) {
+                        if idx > anon_pos {
+                            anon_pos = idx;
+                        }
                         idx
                     } else {
                         *names.entry(rest.to_string()).or_insert_with(|| {
-                            next_pos += 1;
-                            next_pos
+                            anon_pos += 1;
+                            anon_pos
                         })
                     }
                 } else if let Some(rest) = name.strip_prefix('@') {
                     if let Some(&idx) = self.named.get(rest) {
+                        if idx > anon_pos {
+                            anon_pos = idx;
+                        }
                         idx
                     } else {
                         *names.entry(rest.to_string()).or_insert_with(|| {
-                            next_pos += 1;
-                            next_pos
+                            anon_pos += 1;
+                            anon_pos
                         })
                     }
                 } else {
@@ -129,8 +143,9 @@ impl Arguments {
                     )));
                 }
             } else {
-                next_pos += 1;
-                next_pos
+                // anonymous `?`
+                anon_pos += 1;
+                anon_pos
             };
 
             if n > self.values.len() {
@@ -144,7 +159,7 @@ impl Arguments {
             self.values[n - 1].bind(handle, param_i)?;
         }
 
-        Ok(next_pos - offset)
+        Ok(anon_pos - offset)
     }
 }
 

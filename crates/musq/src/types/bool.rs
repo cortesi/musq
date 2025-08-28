@@ -34,7 +34,7 @@ mod tests {
     #[test]
     fn test_reference_encode() {
         let value = true;
-        let result = (&value).encode().unwrap();
+        let result = value.encode().unwrap();
         if let Value::Integer { value: encoded, .. } = result {
             assert_eq!(encoded, 1);
         } else {
@@ -42,7 +42,7 @@ mod tests {
         }
 
         let value_false = false;
-        let result = (&value_false).encode().unwrap();
+        let result = value_false.encode().unwrap();
         if let Value::Integer { value: encoded, .. } = result {
             assert_eq!(encoded, 0);
         } else {

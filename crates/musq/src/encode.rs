@@ -156,6 +156,7 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)]
     fn test_option_some_f64() {
         let opt: Option<f64> = Some(3.14);
         let encoded = opt.encode().unwrap();
@@ -268,7 +269,7 @@ mod tests {
 
     #[test]
     fn test_null_reference() {
-        let encoded = (&Null).encode().unwrap();
+        let encoded = Null.encode().unwrap();
 
         if let Value::Null { type_info } = encoded {
             assert_eq!(type_info, None);
