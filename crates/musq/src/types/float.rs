@@ -44,7 +44,7 @@ mod tests {
     #[test]
     fn test_reference_encode() {
         let value = std::f32::consts::PI;
-        let result = (&value).encode().unwrap();
+        let result = value.encode().unwrap();
         if let Value::Double { value: encoded, .. } = result {
             assert!((encoded - value as f64).abs() < 1e-6);
         } else {
@@ -52,7 +52,7 @@ mod tests {
         }
 
         let value_f64 = std::f64::consts::E;
-        let result = (&value_f64).encode().unwrap();
+        let result = value_f64.encode().unwrap();
         if let Value::Double { value: encoded, .. } = result {
             assert!((encoded - std::f64::consts::E).abs() < f64::EPSILON);
         } else {

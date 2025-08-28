@@ -71,7 +71,7 @@ mod tests {
     #[test]
     fn test_string_reference_encode() {
         let value = String::from("hello");
-        let result = (&value).encode().unwrap();
+        let result = value.encode().unwrap();
         if let Value::Text { value: encoded, .. } = result {
             assert_eq!(encoded, "hello");
         } else {

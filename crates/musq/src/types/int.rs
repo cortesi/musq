@@ -90,7 +90,7 @@ mod tests {
     #[test]
     fn test_reference_encode() {
         let value = 42i32;
-        let result = (&value).encode().unwrap();
+        let result = value.encode().unwrap();
         if let Value::Integer { value: encoded, .. } = result {
             assert_eq!(encoded, 42);
         } else {
@@ -98,7 +98,7 @@ mod tests {
         }
 
         let value_i8 = 127i8;
-        let result = (&value_i8).encode().unwrap();
+        let result = value_i8.encode().unwrap();
         if let Value::Integer { value: encoded, .. } = result {
             assert_eq!(encoded, 127);
         } else {
@@ -106,7 +106,7 @@ mod tests {
         }
 
         let value_u32 = 123u32;
-        let result = (&value_u32).encode().unwrap();
+        let result = value_u32.encode().unwrap();
         if let Value::Integer { value: encoded, .. } = result {
             assert_eq!(encoded, 123);
         } else {
