@@ -228,3 +228,63 @@ async fn macro_combination() -> anyhow::Result<()> {
     assert_eq!(row.0, "New");
     Ok(())
 }
+
+#[tokio::test]
+async fn update_set_with_where_named_param() -> anyhow::Result<()> {
+    use musq::{Values, sql, sql_as, values};
+    let conn = connection().await?;
+
+    sql!(
+        "CREATE TABLE flows_repro (
+            request_id TEXT PRIMARY KEY,
+            response_status INTEGER,
+            resource_ip_address_space TEXT
+        )"
+    )?
+    .execute(&conn)
+    .await?;
+
+    let req_id_target = "req-123";
+    let req_id_other = "req-999";
+    sql!("INSERT INTO flows_repro (request_id, response_status, resource_ip_address_space) VALUES ({}, NULL, NULL)", req_id_target)?
+        .execute(&conn)
+        .await?;
+    sql!("INSERT INTO flows_repro (request_id, response_status, resource_ip_address_space) VALUES ({}, NULL, NULL)", req_id_other)?
+        .execute(&conn)
+        .await?;
+
+    let status_code: i64 = 204;
+    let resource_ip_option = Some(String::from("Public"));
+    let resource_ip_lower: Option<String> = resource_ip_option.as_deref().map(|s| s.to_lowercase());
+
+    // Build the same `changes` map as in your function
+    let changes: Values = values! {
+        "response_status": status_code,
+        "resource_ip_address_space": resource_ip_lower
+    }?;
+
+    sql!(
+        "UPDATE flows_repro SET {set:changes} WHERE request_id = {request_id}",
+        request_id = req_id_target
+    )?
+    .execute(&conn)
+    .await?;
+
+    let updated: (i64, String) = sql_as!(
+        "SELECT response_status, resource_ip_address_space FROM flows_repro WHERE request_id = {}",
+        req_id_target
+    )?
+    .fetch_one(&conn)
+    .await?;
+    assert_eq!(updated, (204, "public".to_string()));
+
+    let untouched: (Option<i64>, Option<String>) = sql_as!(
+        "SELECT response_status, resource_ip_address_space FROM flows_repro WHERE request_id = {}",
+        req_id_other
+    )?
+    .fetch_one(&conn)
+    .await?;
+    assert_eq!(untouched, (None, None));
+
+    Ok(())
+}
