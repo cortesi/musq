@@ -41,6 +41,7 @@ fn workspace_root() -> Result<PathBuf> {
     let manifest_dir = Path::new(env!("CARGO_MANIFEST_DIR"));
     let root = manifest_dir
         .parent()
+        .and_then(|path| path.parent())
         .context("xtask must live under the workspace root")?;
     Ok(root.to_path_buf())
 }
