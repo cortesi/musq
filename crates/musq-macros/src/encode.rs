@@ -4,10 +4,12 @@ use syn::{DeriveInput, Type, parse_quote};
 
 use super::core;
 
+/// Expand an `Encode` derive into the corresponding implementation.
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
     core::expand_type_derive(input, &expand_struct, &expand_repr_enum, &expand_enum)
 }
 
+/// Expand a string-backed enum encode implementation.
 fn expand_enum(
     container: &core::TypeContainer,
     variants: &[core::TypeVariant],
@@ -34,6 +36,7 @@ fn expand_enum(
     ))
 }
 
+/// Expand a repr enum encode implementation.
 fn expand_repr_enum(
     container: &core::TypeContainer,
     variants: &[core::TypeVariant],
@@ -68,6 +71,7 @@ fn expand_repr_enum(
     ))
 }
 
+/// Expand a tuple struct encode implementation.
 fn expand_struct(
     container: &core::TypeContainer,
     field: &core::TypeField,
@@ -100,6 +104,7 @@ fn expand_struct(
     ))
 }
 
+/// Tests for encode expansion helpers.
 #[cfg(test)]
 mod tests {
     use super::*;

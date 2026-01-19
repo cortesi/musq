@@ -1,6 +1,6 @@
-use crate::core::assert_errors_with;
-use crate::decode::expand_derive_decode;
 use syn::parse_str;
+
+use crate::{core::assert_errors_with, decode::expand_derive_decode};
 
 #[test]
 fn derive_enum() {

@@ -1,26 +1,32 @@
-use musq::{query, query_scalar};
-use musq_test::connection;
-use std::sync::Arc;
+//! Integration tests for musq.
 
-#[tokio::test]
-async fn insert_and_select_arc_blob() -> anyhow::Result<()> {
-    let conn = connection().await?;
-    query("CREATE TABLE blob_test (data BLOB)")
-        .execute(&conn)
-        .await?;
+#[cfg(test)]
+mod tests {
+    use std::sync::Arc;
 
-    let data: Vec<u8> = vec![0x42; 16 * 1024];
-    let arc = Arc::new(data.clone());
+    use musq::{query, query_scalar};
+    use musq_test::connection;
 
-    query("INSERT INTO blob_test (data) VALUES (?)")
-        .bind(Arc::clone(&arc))
-        .execute(&conn)
-        .await?;
+    #[tokio::test]
+    async fn insert_and_select_arc_blob() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        query("CREATE TABLE blob_test (data BLOB)")
+            .execute(&conn)
+            .await?;
 
-    let returned: Arc<Vec<u8>> = query_scalar("SELECT data FROM blob_test")
-        .fetch_one(&conn)
-        .await?;
+        let data: Vec<u8> = vec![0x42; 16 * 1024];
+        let arc = Arc::new(data.clone());
 
-    assert_eq!(*returned, data);
-    Ok(())
+        query("INSERT INTO blob_test (data) VALUES (?)")
+            .bind(Arc::clone(&arc))
+            .execute(&conn)
+            .await?;
+
+        let returned: Arc<Vec<u8>> = query_scalar("SELECT data FROM blob_test")
+            .fetch_one(&conn)
+            .await?;
+
+        assert_eq!(*returned, data);
+        Ok(())
+    }
 }

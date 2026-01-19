@@ -1,6 +1,12 @@
-use criterion::{BatchSize, Criterion, criterion_group, criterion_main};
+//! Performance benchmarks for musq.
+
+use std::sync::mpsc;
+
+use criterion::{BatchSize, Criterion};
+use futures::future::join_all;
 use tokio::runtime::{Handle, Runtime};
 
+/// SQL schema used by benchmarks.
 const BENCH_SCHEMA: &str = include_str!("benchschema.sql");
 
 /// How many concurrent read or write requests should we make?
@@ -9,12 +15,16 @@ const CONCURRENCY: usize = 20;
 /// Set min and max pool connections to the same value
 const CONNECTIONS: u32 = 5;
 
+/// Row type used by benchmark queries.
 #[derive(Debug, musq::FromRow)]
 pub struct Data {
+    /// Integer column.
     pub a: i32,
+    /// String column.
     pub b: String,
 }
 
+/// Create a pool initialized with the benchmark schema.
 async fn pool() -> musq::Pool {
     let pool = musq::Musq::new()
         .max_connections(CONNECTIONS)
@@ -28,8 +38,9 @@ async fn pool() -> musq::Pool {
     pool
 }
 
+/// Build a pool and insert a seed row for benchmarks.
 fn setup() -> musq::Pool {
-    let (tx, rx) = std::sync::mpsc::channel();
+    let (tx, rx) = mpsc::channel();
     Handle::current().spawn(async move {
         let p = pool().await;
         musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
@@ -43,6 +54,7 @@ fn setup() -> musq::Pool {
     rx.recv().unwrap()
 }
 
+/// Run concurrent write workloads.
 async fn writes(pool: musq::Pool) {
     let mut futs = vec![];
     for _ in 0..CONCURRENCY {
@@ -56,9 +68,10 @@ async fn writes(pool: musq::Pool) {
                 .await
         });
     }
-    futures::future::join_all(futs).await;
+    join_all(futs).await;
 }
 
+/// Run concurrent read workloads.
 async fn reads(pool: musq::Pool) {
     let mut futs = vec![];
     for _ in 0..CONCURRENCY {
@@ -70,9 +83,10 @@ async fn reads(pool: musq::Pool) {
                 .await
         });
     }
-    futures::future::join_all(futs).await;
+    join_all(futs).await;
 }
 
+/// Register benchmarks with Criterion.
 pub fn criterion_benchmark(c: &mut Criterion) {
     c.bench_function("write", |b| {
         b.to_async(Runtime::new().unwrap())
@@ -84,5 +98,9 @@ pub fn criterion_benchmark(c: &mut Criterion) {
     });
 }
 
-criterion_group!(benches, criterion_benchmark);
-criterion_main!(benches);
+/// Criterion benchmark entry point.
+fn main() {
+    let mut c = Criterion::default().configure_from_args();
+    criterion_benchmark(&mut c);
+    c.final_summary();
+}

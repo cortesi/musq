@@ -39,6 +39,7 @@
 //! `Option<T>` is supported where `T` implements `Encode` or `Decode`. An `Option<T>` represents a potentially `NULL`
 //! value from SQLite.
 
+/// Ensure a value is compatible with the expected SQLite type.
 macro_rules! compatible {
     ($x:expr, $($y:path)|+) => {
         let t = $x.type_info();
@@ -48,12 +49,20 @@ macro_rules! compatible {
     };
 }
 
+/// Conversions for `bstr` text types.
 pub mod bstr;
+/// Conversions for `time` crate types.
 pub mod time;
 
+/// Bool type conversions.
 mod bool;
+/// Byte slice conversions.
 mod bytes;
+/// Floating-point conversions.
 mod float;
+/// Integer conversions.
 mod int;
+/// String conversions.
 mod str;
+/// Unsigned integer conversions.
 mod uint;

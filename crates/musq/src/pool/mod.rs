@@ -12,7 +12,9 @@ use std::{fmt, future::Future, sync::Arc};
 use self::inner::PoolInner;
 use crate::{Result, transaction::Transaction};
 
+/// Pool connection wrappers and lifecycle helpers.
 mod connection;
+/// Internal pool state and scheduling.
 mod inner;
 
 pub use self::connection::PoolConnection;
@@ -46,16 +48,15 @@ pub use self::connection::PoolConnection;
 pub struct Pool(pub(crate) Arc<PoolInner>);
 
 impl Pool {
-    pub(crate) async fn new(options: crate::Musq) -> Result<Pool> {
+    /// Create a new connection pool from the provided options.
+    pub(crate) async fn new(options: crate::Musq) -> Result<Self> {
         // Make an initial connection to validate the configuration
         let inner = PoolInner::new_arc(options);
         let conn = inner.acquire().await?;
         inner.release(conn);
-        Ok(Pool(inner))
+        Ok(Self(inner))
     }
-}
 
-impl Pool {
     /// Retrieves a connection from the pool.
     ///
     /// The total time this method is allowed to execute is capped by

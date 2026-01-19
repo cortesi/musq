@@ -1,5 +1,4 @@
-use crate::Row;
-use crate::error::Result;
+use crate::{Row, error::Result};
 
 /// A record that can be built from a row returned by the database.
 ///
@@ -192,12 +191,14 @@ use crate::error::Result;
 /// }
 /// ```
 pub trait FromRow<'r>: Sized {
+    /// Build the type from a row, using the provided column name prefix.
     fn from_row(prefix: &str, row: &'r Row) -> Result<Self>;
 }
 
 /// Helper trait used internally to determine if all columns belonging to a
 /// record are `NULL` in a given row.
 pub trait AllNull<'r> {
+    /// Returns `true` if all columns for this type are `NULL`.
     fn all_null(prefix: &str, row: &'r Row) -> Result<bool>;
 }
 
@@ -228,6 +229,7 @@ where
 // implement FromRow for tuples of types that implement Decode
 // up to tuples of 9 values
 
+/// Implement [`FromRow`] for tuples of decoded values.
 macro_rules! impl_from_row_for_tuple {
     ($( ($idx:tt) -> $T:ident );+;) => {
         impl<'r, $($T,)+> FromRow<'r> for ($($T,)+)

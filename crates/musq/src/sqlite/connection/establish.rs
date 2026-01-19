@@ -6,7 +6,6 @@ use std::{
     time::Duration,
 };
 
-use crate::sqlite::ffi;
 use libsqlite3_sys::{
     SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
     SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
@@ -14,22 +13,35 @@ use libsqlite3_sys::{
 
 use crate::{
     Error, Musq, Result,
-    sqlite::connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
+    sqlite::{
+        connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
+        ffi,
+    },
 };
 
+/// Monotonic counter for naming worker threads.
 static THREAD_ID: AtomicU64 = AtomicU64::new(0);
 
+/// Derived parameters for establishing a SQLite connection.
 pub struct EstablishParams {
+    /// Database filename as a C-compatible string.
     filename: CString,
+    /// SQLite open flags.
     open_flags: i32,
+    /// Busy timeout to apply after connection.
     busy_timeout: Duration,
+    /// Logging configuration.
     log_settings: LogSettings,
+    /// Statement cache capacity.
     statement_cache_capacity: usize,
+    /// Thread name for connection worker.
     pub(crate) thread_name: String,
+    /// Size of the command channel to the worker.
     pub(crate) command_channel_size: usize,
 }
 
 impl EstablishParams {
+    /// Build connection parameters from user options.
     pub fn from_options(options: &Musq) -> Result<Self> {
         let mut filename = options
             .filename
@@ -141,10 +153,7 @@ impl EstablishParams {
         //
         // We also need to convert the u128 value to i32. If the value overflows,
         // we clamp to `i32::MAX` to comply with SQLite's API.
-        let ms = match i32::try_from(self.busy_timeout.as_millis()) {
-            Ok(ms) => ms,
-            Err(_) => i32::MAX,
-        };
+        let ms = i32::try_from(self.busy_timeout.as_millis()).unwrap_or(i32::MAX);
 
         ffi::busy_timeout(handle.as_ptr(), ms).map_err(Error::from)?;
 

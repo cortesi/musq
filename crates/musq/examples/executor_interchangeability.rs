@@ -1,10 +1,13 @@
+//! Demonstrates executor interchangeability for query execution.
+
+use std::{error::Error, sync::Arc};
+
 use musq::{Connection, Musq, Pool, query, query::QueryExecutor, query_as};
-use std::sync::Arc;
 
 /// This example demonstrates that query.execute() now accepts
 /// Pool, Connection, PoolConnection, and Transaction interchangeably
 #[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
+async fn main() -> Result<(), Box<dyn Error>> {
     // Create a pool and standalone connection
     let pool = Arc::new(Musq::new().open_in_memory().await?);
     let standalone_conn = Connection::connect_with(&Musq::new()).await?;

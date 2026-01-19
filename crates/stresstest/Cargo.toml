@@ -16,3 +16,6 @@ musq = { path = "../musq" }
 rand = "0.9.0"
 tempfile = "3.10.1"
 tokio = "1.38.1"
+
+[lints]
+workspace = true

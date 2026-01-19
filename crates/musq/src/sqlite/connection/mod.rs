@@ -1,9 +1,13 @@
-use std::fmt::{self, Debug, Formatter, Write};
-
-use futures_core::{future::BoxFuture, stream::BoxStream};
-use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
+use std::{
+    fmt::{self, Debug, Formatter, Write},
+    result::Result as StdResult,
+    sync::atomic::Ordering,
+};
 
 use either::Either;
+use futures_core::{future::BoxFuture, stream::BoxStream};
+use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
+pub use handle::ConnectionHandle;
 
 use crate::{
     QueryResult, Result, Row,
@@ -11,18 +15,22 @@ use crate::{
     executor::Execute,
     logger::LogSettings,
     musq::{Musq, OptimizeOnClose},
-    sqlite::connection::{establish::EstablishParams, worker::ConnectionWorker},
-    sqlite::statement::{Prepared, Statement},
+    sqlite::{
+        connection::{establish::EstablishParams, worker::ConnectionWorker},
+        statement::{Prepared, Statement},
+    },
     statement_cache::StatementCache,
     transaction::Transaction,
 };
-
-pub(crate) use handle::ConnectionHandle;
-pub(crate) mod establish;
-pub(crate) mod execute;
+/// Connection establishment helpers.
+pub mod establish;
+/// Query execution helpers for connections.
+pub mod execute;
 
 // removed executor trait implementation module
+/// Low-level connection handle.
 mod handle;
+/// Worker task driving the connection.
 mod worker;
 
 /// A single, standalone connection to a SQLite database.
@@ -47,8 +55,11 @@ mod worker;
 /// When a `Connection` is dropped, it is closed. To handle potential errors on close, it is
 /// recommended to explicitly call the [`close()`] method.
 pub struct Connection {
+    /// Optimize-on-close behavior.
     optimize_on_close: OptimizeOnClose,
+    /// Background worker thread.
     pub(crate) worker: ConnectionWorker,
+    /// Size of the row channel.
     pub(crate) row_channel_size: usize,
 }
 
@@ -58,14 +69,19 @@ pub struct Connection {
 // - row_channel_size is just a usize, safe to share
 unsafe impl Sync for Connection {}
 
-pub(crate) struct ConnectionState {
+/// Internal state for an active connection.
+pub struct ConnectionState {
+    /// Low-level SQLite handle.
     pub(crate) handle: ConnectionHandle,
 
     // transaction status
+    /// Current nested transaction depth.
     pub(crate) transaction_depth: usize,
 
+    /// Cached prepared statements.
     pub(crate) statements: StatementCache,
 
+    /// Logging configuration.
     log_settings: LogSettings,
 }
 
@@ -79,6 +95,7 @@ impl Debug for Connection {
 }
 
 impl Connection {
+    /// Establish a new connection from provided options.
     pub(crate) async fn establish(options: &Musq) -> Result<Self> {
         let params = EstablishParams::from_options(options)?;
         let worker = ConnectionWorker::establish(params).await?;
@@ -131,11 +148,12 @@ impl Connection {
         Transaction::begin(self)
     }
 
+    /// Return the current cached statement count.
     pub(crate) fn cached_statements_size(&self) -> usize {
         self.worker
             .shared
             .cached_statements_size
-            .load(std::sync::atomic::Ordering::Acquire)
+            .load(Ordering::Acquire)
     }
 
     #[cfg(test)]
@@ -148,9 +166,9 @@ impl Connection {
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not
     /// return an error, the transaction will be committed.
-    pub async fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> std::result::Result<R, E>
+    pub async fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> StdResult<R, E>
     where
-        for<'c> F: FnOnce(&'c mut Transaction<&'a mut Self>) -> BoxFuture<'c, std::result::Result<R, E>>
+        for<'c> F: FnOnce(&'c mut Transaction<&'a mut Self>) -> BoxFuture<'c, StdResult<R, E>>
             + Send
             + Sync,
         Self: Sized,
@@ -183,9 +201,7 @@ impl Connection {
     {
         options.connect().await
     }
-}
-
-impl Connection {
+    /// Execute a query and stream both rows and results.
     pub(crate) fn fetch_many<'c, 'q: 'c, E>(
         &'c self,
         query: E,
@@ -195,6 +211,7 @@ impl Connection {
     {
         let arguments = query.arguments();
         let sql = query.sql().into();
+        drop(query);
 
         Box::pin(
             self.worker
@@ -204,6 +221,7 @@ impl Connection {
         )
     }
 
+    /// Execute a query and return the first row if present.
     pub(crate) fn fetch_optional<'c, 'q: 'c, E>(
         &'c self,
         query: E,
@@ -213,6 +231,7 @@ impl Connection {
     {
         let arguments = query.arguments();
         let sql = query.sql().to_string();
+        drop(query);
 
         Box::pin(async move {
             let stream = self
@@ -234,6 +253,7 @@ impl Connection {
     }
 
     #[allow(dead_code)]
+    /// Prepare a SQL statement without caching.
     pub(crate) fn prepare_with<'c, 'q: 'c>(
         &'c self,
         sql: &'q str,
@@ -247,10 +267,12 @@ impl Connection {
         })
     }
 
+    /// Prepare a SQL statement using the cache.
     pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
         self.prepare_with(sql)
     }
 
+    /// Execute a query and stream only rows.
     pub(crate) fn fetch<'c, 'q: 'c, E>(&'c self, query: E) -> BoxStream<'c, Result<Row>>
     where
         E: Execute + 'q,
@@ -265,6 +287,7 @@ impl Connection {
             .boxed()
     }
 
+    /// Execute a query and stream only result summaries.
     pub(crate) fn execute_many<'c, 'q: 'c, E>(
         &'c self,
         query: E,
@@ -282,6 +305,7 @@ impl Connection {
             .boxed()
     }
 
+    /// Execute a query and return a combined result summary.
     pub(crate) fn execute<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<QueryResult>>
     where
         E: Execute + 'q,
@@ -295,6 +319,7 @@ impl Connection {
             .boxed()
     }
 
+    /// Execute a query and collect all rows.
     pub(crate) fn fetch_all<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Vec<Row>>>
     where
         E: Execute + 'q,
@@ -302,6 +327,7 @@ impl Connection {
         self.fetch(query).try_collect().boxed()
     }
 
+    /// Execute a query and return exactly one row.
     pub(crate) fn fetch_one<'c, 'q: 'c, E>(&'c self, query: E) -> BoxFuture<'c, Result<Row>>
     where
         E: Execute + 'q,

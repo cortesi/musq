@@ -5,6 +5,7 @@ use syn::{DeriveInput, Expr, GenericParam, Lifetime, Stmt, parse_quote};
 
 use super::core;
 
+/// Expand a `FromRow` derive into the corresponding implementation.
 pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<TokenStream> {
     let container = core::RowContainer::from_derive_input(input)?;
     core::check_row_attrs(&container)?;
@@ -25,6 +26,7 @@ pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<TokenStream> {
     })
 }
 
+/// Expand a named-struct `FromRow` implementation.
 fn expand_struct(
     container: &core::RowContainer,
     fields: &ast::Fields<core::RowField>,
@@ -191,6 +193,7 @@ fn expand_struct(
     ))
 }
 
+/// Expand a tuple-struct `FromRow` implementation.
 fn expand_tuple_struct(
     container: &core::RowContainer,
     fields: &ast::Fields<core::RowField>,
@@ -261,8 +264,7 @@ fn expand_tuple_struct(
 
 #[cfg(test)]
 mod tests {
-    use super::core::assert_errors_with;
-    use super::*;
+    use super::{core::assert_errors_with, *};
 
     #[test]
     fn it_errors_on_invalid() {

@@ -1,8 +1,11 @@
-use musq::{Connection, Musq};
+//! Test helper utilities for musq integration tests.
 
+use musq::{Connection, Musq, query as query_mod};
+
+/// SQL schema used by integration tests.
 const TEST_SCHEMA: &str = include_str!("setup.sql");
 
-// Make a new connection
+/// Create a new connection for tests.
 pub async fn connection() -> anyhow::Result<Connection> {
     Ok(Connection::connect_with(&Musq::new()).await?)
 }
@@ -10,11 +13,11 @@ pub async fn connection() -> anyhow::Result<Connection> {
 /// Return a connection to a database pre-configured with our test schema.
 pub async fn tdb() -> anyhow::Result<Connection> {
     let conn = connection().await?;
-    musq::query::query(TEST_SCHEMA).execute(&conn).await?;
+    query_mod::query(TEST_SCHEMA).execute(&conn).await?;
     Ok(conn)
 }
 
-// Test type encoding and decoding
+/// Test type encoding and decoding using both prepared and unprepared queries.
 #[macro_export]
 macro_rules! test_type {
     ($name:ident<$ty:ty>($sql:literal, $($text:literal == $value:expr),+ $(,)?)) => {
@@ -34,7 +37,7 @@ macro_rules! test_type {
     };
 }
 
-// Test type decoding for the simple (unprepared) query API
+/// Test type decoding for the simple (unprepared) query API.
 #[macro_export]
 macro_rules! test_unprepared_type {
     ($name:ident<$ty:ty>($($text:literal == $value:expr),+ $(,)?)) => {
@@ -63,7 +66,7 @@ macro_rules! test_unprepared_type {
     }
 }
 
-// Test type encoding and decoding for the prepared query API
+/// Test type encoding and decoding for the prepared query API.
 #[macro_export]
 macro_rules! __test_prepared_type {
     ($name:ident<$ty:ty>($sql:expr, $($text:literal == $value:expr),+ $(,)?)) => {
@@ -113,6 +116,7 @@ macro_rules! __test_prepared_type {
     };
 }
 
+/// Provide the SQL template used by prepared-type tests.
 #[macro_export]
 macro_rules! query_for_test_prepared_type {
     () => {

@@ -1,13 +1,16 @@
-// Procedural macros for sql! and sql_as!
+//! Procedural macros for `sql!` and `sql_as!`.
+
+use std::collections::HashMap;
 
 use proc_macro::TokenStream;
 use quote::quote;
-use syn::punctuated::Punctuated;
 use syn::{
     Expr, Ident, LitStr, Result as SynResult, Token,
     parse::{Parse, ParseStream},
+    punctuated::Punctuated,
 };
 
+/// Ensure a macro expression is not an empty list.
 fn ensure_non_empty(expr: &Expr) -> SynResult<()> {
     match expr {
         Expr::Array(arr) if arr.elems.is_empty() => {
@@ -21,13 +24,19 @@ fn ensure_non_empty(expr: &Expr) -> SynResult<()> {
     }
 }
 
+/// Parsed input for `sql!`-style macros.
 struct SqlMacroInput {
+    /// Format string literal.
     fmt: LitStr,
+    /// Parsed argument list.
     args: Punctuated<SqlArg, Token![,]>,
 }
 
+/// Macro arguments for `sql!` expansions.
 enum SqlArg {
+    /// A positional expression.
     Positional(Expr),
+    /// A named expression with an identifier.
     Named(Ident, Expr),
 }
 
@@ -58,23 +67,38 @@ impl Parse for SqlMacroInput {
     }
 }
 
+/// Parsed format segments for `sql!` expansion.
 #[derive(Debug)]
 enum Segment {
+    /// Literal SQL text.
     Lit(String),
+    /// Positional parameter placeholder.
     Positional,
+    /// Named parameter placeholder.
     Named(String),
+    /// Identifier substitution.
     Ident(Expr),
+    /// Values clause substitution.
     Values(Expr),
+    /// Identifier list substitution.
     Idents(Expr),
+    /// Insert clause substitution.
     Insert(Expr),
+    /// Set clause substitution.
     Set(Expr),
+    /// Where clause substitution.
     Where(Expr),
+    /// Upsert clause substitution.
     Upsert(Expr, Vec<String>),
+    /// Raw SQL substitution.
     Raw(Expr),
 }
 
+/// Parsed arguments for the `upsert` placeholder.
 struct UpsertArgs {
+    /// Values expression to use in upsert.
     values: Expr,
+    /// Columns excluded from updates.
     exclude: Vec<String>,
 }
 
@@ -182,6 +206,7 @@ impl Parse for UpsertArgs {
     }
 }
 
+/// Parse the format string into SQL segments.
 fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
     let mut out = Vec::new();
     let mut cur = String::new();
@@ -291,13 +316,14 @@ fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
     Ok(out)
 }
 
+/// Build SQL from parsed segments and arguments.
 fn build_sql(
     tokens: Vec<Segment>,
     input: SqlMacroInput,
     as_query_as: bool,
 ) -> SynResult<proc_macro2::TokenStream> {
     let mut positional = Vec::new();
-    let mut named = std::collections::HashMap::new();
+    let mut named = HashMap::new();
     for arg in input.args {
         match arg {
             SqlArg::Positional(e) => positional.push(e),
@@ -319,15 +345,15 @@ fn build_sql(
                     )
                 })?;
                 pos_index += 1;
-                sql_parts.push(quote! { _builder.push_bind(#expr)?; });
+                sql_parts.push(quote! { _builder.push_bind(&(#expr))?; });
             }
             Segment::Named(name) => {
                 let name_lit = syn::LitStr::new(&name, proc_macro2::Span::call_site());
                 if let Some(expr) = named.remove(&name) {
-                    sql_parts.push(quote! { _builder.push_bind_named(#name_lit, #expr)?; });
+                    sql_parts.push(quote! { _builder.push_bind_named(#name_lit, &(#expr))?; });
                 } else {
                     let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
-                    sql_parts.push(quote! { _builder.push_bind_named(#name_lit, #ident)?; });
+                    sql_parts.push(quote! { _builder.push_bind_named(#name_lit, &#ident)?; });
                 }
             }
             Segment::Ident(expr) => {
@@ -373,6 +399,7 @@ fn build_sql(
     }})
 }
 
+/// Expand an `sql!` or `sql_as!` invocation.
 pub fn expand_sql(input: TokenStream, as_query_as: bool) -> TokenStream {
     let input = syn::parse_macro_input!(input as SqlMacroInput);
     let fmt = &input.fmt;
@@ -382,10 +409,12 @@ pub fn expand_sql(input: TokenStream, as_query_as: bool) -> TokenStream {
     }
 }
 
+/// Expand the `sql!` macro.
 pub fn sql(input: TokenStream) -> TokenStream {
     expand_sql(input, false)
 }
 
+/// Expand the `sql_as!` macro.
 pub fn sql_as(input: TokenStream) -> TokenStream {
     expand_sql(input, true)
 }

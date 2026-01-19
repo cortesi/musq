@@ -1,3 +1,4 @@
+/// Define an enum with string representations and a default variant.
 macro_rules! enum_mode {
     (
         $(#[$meta:meta])* $vis:vis $name:ident {

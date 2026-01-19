@@ -6,7 +6,6 @@ use std::{
     sync::Arc,
 };
 
-use crate::sqlite::ffi;
 use bytes::{Buf, Bytes};
 use libsqlite3_sys::{SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_stmt};
 
@@ -16,6 +15,7 @@ use crate::{
     error::{Error, Result},
     sqlite::{
         connection::ConnectionHandle,
+        ffi,
         statement::{StatementHandle, unlock_notify},
     },
 };
@@ -23,35 +23,41 @@ use crate::{
 // A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
 // on `;` to support multiple statements in one query.
 
+/// A compound statement made of one or more SQLite statements.
 #[derive(Debug)]
 pub struct CompoundStatement {
-    /// the current index of the actual statement that is executing
-    /// if `None`, no statement is executing and `prepare()` must be called;
-    /// if `Some(self.handles.len())` and `self.tail.is_empty()`,
-    /// there are no more statements to execute and `reset()` must be called
+    /// The current index of the executing statement.
+    ///
+    /// If `None`, no statement is executing and `prepare()` must be called.
+    /// If `Some(self.handles.len())` and `self.tail.is_empty()`, there are no more
+    /// statements to execute and `reset()` must be called.
     index: Option<usize>,
 
-    /// tail of the most recently prepared SQL statement within this container
+    /// Tail of the most recently prepared SQL statement within this container.
     tail: Bytes,
 
-    /// underlying sqlite handles for each inner statement
-    /// a SQL query string in SQLite is broken up into N statements
+    /// Underlying SQLite handles for each inner statement.
     handles: Vec<StatementHandle>,
 
-    // each set of columns
+    /// Columns metadata for each statement.
     columns: Vec<Arc<Vec<Column>>>,
 
-    // each set of column names
+    /// Column name lookup tables for each statement.
     column_names: Vec<Arc<HashMap<Arc<str>, usize>>>,
 }
 
+/// Prepared statement metadata for the current statement.
 pub struct PreparedStatement<'a> {
+    /// Statement handle.
     pub(crate) handle: &'a mut StatementHandle,
+    /// Column metadata.
     pub(crate) columns: &'a Arc<Vec<Column>>,
+    /// Column name lookup table.
     pub(crate) column_names: &'a Arc<HashMap<Arc<str>, usize>>,
 }
 
 impl CompoundStatement {
+    /// Create a compound statement from a SQL string.
     pub(crate) fn new(mut query: &str) -> Result<Self> {
         query = query.trim();
 
@@ -71,9 +77,10 @@ impl CompoundStatement {
         })
     }
 
+    /// Prepare the next statement handle, if any remain in the SQL string.
     pub(crate) fn prepare_next(
         &mut self,
-        conn: &mut ConnectionHandle,
+        conn: &ConnectionHandle,
     ) -> Result<Option<PreparedStatement<'_>>> {
         // increment `self.index` up to `self.handles.len()`
         self.index = self
@@ -119,6 +126,7 @@ impl CompoundStatement {
         Ok(self.current())
     }
 
+    /// Return the currently prepared statement, if any.
     pub fn current(&mut self) -> Option<PreparedStatement<'_>> {
         self.index
             .filter(|&idx| idx < self.handles.len())
@@ -129,6 +137,7 @@ impl CompoundStatement {
             })
     }
 
+    /// Reset all prepared statements so they can be re-executed.
     pub fn reset(&mut self) -> Result<()> {
         self.index = None;
 

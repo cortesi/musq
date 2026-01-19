@@ -1,5 +1,6 @@
-use crate::json::expand_json;
 use syn::parse_str;
+
+use crate::json::expand_json;
 
 #[test]
 fn derive_json_struct() {

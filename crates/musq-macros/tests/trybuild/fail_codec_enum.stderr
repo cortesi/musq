@@ -12,34 +12,34 @@ error[E0532]: expected unit struct, unit variant or constant, found tuple varian
 error[E0308]: mismatched types
  --> tests/trybuild/fail_codec_enum.rs:4:6
   |
-  3 |   #[derive(Codec)]
-    |            ----- arguments to this enum variant are incorrect
-  4 |   enum Bad<'a, T> {
-    |  ______^
-  5 | |     A(&'a T),
-    | |     ^
-    | |     |
-    | |_____`A` defines an enum variant constructor here, which should be called
-    |       expected `Bad<'_, T>`, found enum constructor
-    |
-    = note:          expected enum `Bad<'_, T>`
-            found enum constructor `fn(&_) -> Bad<'_, _> {Bad::<'_, _>::A}`
+3 |   #[derive(Codec)]
+  |            ----- arguments to this enum variant are incorrect
+4 |   enum Bad<'a, T> {
+  |  ______^
+5 | |     A(&'a T),
+  | |     ^
+  | |     |
+  | |_____`A` defines an enum variant constructor here, which should be called
+  |       expected `Bad<'_, T>`, found enum constructor
+  |
+  = note:          expected enum `Bad<'_, T>`
+          found enum constructor `fn(&_) -> Bad<'_, _> {Bad::<'_, _>::A}`
 help: the type constructed contains `fn(&_) -> Bad<'_, _> {Bad::<'_, _>::A}` due to the type of the argument passed
-   --> tests/trybuild/fail_codec_enum.rs:3:10
-    |
-  3 |   #[derive(Codec)]
-    |            ^^^^^
-  4 |   enum Bad<'a, T> {
-    |  ______-
-  5 | |     A(&'a T),
-    | |_____- this argument influences the type of `Ok`
+ --> tests/trybuild/fail_codec_enum.rs:3:10
+  |
+3 |   #[derive(Codec)]
+  |            ^^^^^
+4 |   enum Bad<'a, T> {
+  |  ______-
+5 | |     A(&'a T),
+  | |_____- this argument influences the type of `Ok`
 note: tuple variant defined here
-   --> $RUST/core/src/result.rs
-    |
-    |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
-    |     ^^
-    = note: this error originates in the derive macro `Codec` (in Nightly builds, run with -Z macro-backtrace for more info)
+ --> $RUST/core/src/result.rs
+  |
+  |     Ok(#[stable(feature = "rust1", since = "1.0.0")] T),
+  |     ^^
+  = note: this error originates in the derive macro `Codec` (in Nightly builds, run with -Z macro-backtrace for more info)
 help: use parentheses to construct this tuple variant
-    |
-  5 |     A(/* value */)(&'a T),
-    |      +++++++++++++
+  |
+5 |     A(/* value */)(&'a T),
+  |      +++++++++++++

@@ -1,3 +1,5 @@
+use std::result::Result as StdResult;
+
 use crate::{
     decode::Decode,
     encode::Encode,
@@ -15,9 +17,9 @@ impl Encode for f32 {
 }
 
 impl<'r> Decode<'r> for f32 {
-    fn decode(value: &'r Value) -> std::result::Result<f32, DecodeError> {
+    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Float | SqliteDataType::Numeric);
-        Ok(value.double()? as f32)
+        Ok(value.double()? as Self)
     }
 }
 
@@ -31,7 +33,7 @@ impl Encode for f64 {
 }
 
 impl<'r> Decode<'r> for f64 {
-    fn decode(value: &'r Value) -> std::result::Result<f64, DecodeError> {
+    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Float | SqliteDataType::Numeric);
         value.double()
     }
@@ -39,11 +41,13 @@ impl<'r> Decode<'r> for f64 {
 
 #[cfg(test)]
 mod tests {
+    use std::{f32::consts::PI, f64::consts::E};
+
     use super::*;
 
     #[test]
     fn test_reference_encode() {
-        let value = std::f32::consts::PI;
+        let value = PI;
         let result = value.encode().unwrap();
         if let Value::Double { value: encoded, .. } = result {
             assert!((encoded - value as f64).abs() < 1e-6);
@@ -51,10 +55,10 @@ mod tests {
             panic!("Expected Double value");
         }
 
-        let value_f64 = std::f64::consts::E;
+        let value_f64 = E;
         let result = value_f64.encode().unwrap();
         if let Value::Double { value: encoded, .. } = result {
-            assert!((encoded - std::f64::consts::E).abs() < f64::EPSILON);
+            assert!((encoded - E).abs() < f64::EPSILON);
         } else {
             panic!("Expected Double value");
         }

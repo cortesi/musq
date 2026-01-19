@@ -1,7 +1,9 @@
-use std::fmt::{Debug, Formatter};
-use std::ops::{Deref, DerefMut};
+use std::{
+    fmt::{self, Debug, Formatter},
+    ops::{Deref, DerefMut},
+};
 
-/// A wrapper for `Fn`s that provides a debug impl that just says "Function"
+/// A wrapper for `Fn`s that provides a debug impl that just says "Function".
 pub struct DebugFn<F: ?Sized>(pub F);
 
 impl<F: ?Sized> Deref for DebugFn<F> {
@@ -19,7 +21,7 @@ impl<F: ?Sized> DerefMut for DebugFn<F> {
 }
 
 impl<F: ?Sized> Debug for DebugFn<F> {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
         f.debug_tuple("Function").finish()
     }
 }

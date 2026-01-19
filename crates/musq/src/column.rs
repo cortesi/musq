@@ -1,8 +1,10 @@
-use crate::sqlite::SqliteDataType;
-
 use std::fmt::Debug;
 
+use crate::sqlite::SqliteDataType;
+
+/// Metadata about a result column.
 #[derive(Debug, Clone)]
-pub(crate) struct Column {
+pub struct Column {
+    /// Declared or inferred SQLite type information.
     pub(crate) type_info: SqliteDataType,
 }

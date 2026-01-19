@@ -1,13 +1,15 @@
-use crate::{Result, sqlite::statement::CompoundStatement};
 use hashlink::lru_cache::LruCache;
 
+use crate::{Result, sqlite::statement::CompoundStatement};
+
 /// Default capacity for [`StatementCache`].
-pub(crate) const DEFAULT_CAPACITY: usize = 1024;
+pub const DEFAULT_CAPACITY: usize = 1024;
 
 /// A cache for prepared statements. When full, the least recently used
 /// statement gets removed.
 #[derive(Debug)]
 pub struct StatementCache {
+    /// LRU cache keyed by SQL string.
     inner: LruCache<String, CompoundStatement>,
 }
 
@@ -19,6 +21,7 @@ impl StatementCache {
         }
     }
 
+    /// Get a cached statement for the given query, preparing it if needed.
     pub fn get(&mut self, query: &str) -> Result<&mut CompoundStatement> {
         let exists = self.contains_key(query);
         if !exists {
@@ -72,7 +75,7 @@ impl StatementCache {
     }
 
     /// True if cache has a value for the given key.
-    pub fn contains_key(&mut self, k: &str) -> bool {
+    pub fn contains_key(&self, k: &str) -> bool {
         self.inner.contains_key(k)
     }
 

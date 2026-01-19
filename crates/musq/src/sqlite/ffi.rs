@@ -2,16 +2,21 @@
 // These wrappers centralize the `unsafe` blocks needed when calling into
 // the SQLite C API so that the rest of the codebase can remain safe.
 
-use std::ffi::c_void;
-use std::os::raw::{c_char, c_int};
-use std::ptr;
+use std::{
+    ffi::c_void,
+    mem::size_of,
+    os::raw::{c_char, c_int},
+    ptr,
+    result::Result as StdResult,
+};
+
+use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
 
 use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
-use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
 
 // A compile-time assertion to ensure that `c_int` is 32 bits.
 const _: () = {
-    assert!(std::mem::size_of::<c_int>() == 4);
+    assert!(size_of::<c_int>() == 4);
 };
 
 /// Wrapper around [`sqlite3_open_v2`].
@@ -25,12 +30,12 @@ const _: () = {
 /// See <https://www.sqlite.org/c3ref/open.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn open_v2(
+pub fn open_v2(
     filename: *const c_char,
     handle: *mut *mut sqlite3,
     flags: i32,
     vfs: *const c_char,
-) -> std::result::Result<(), SqliteError> {
+) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_open_v2(filename, handle, flags as c_int, vfs) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -51,7 +56,7 @@ pub(crate) fn open_v2(
             unsafe {
                 ffi_sys::sqlite3_close(db);
                 // prevent dangling pointer in the caller
-                *handle = std::ptr::null_mut();
+                *handle = ptr::null_mut();
             }
 
             Err(err)
@@ -67,10 +72,7 @@ pub(crate) fn open_v2(
 /// See <https://www.sqlite.org/c3ref/errcode.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn extended_result_codes(
-    db: *mut sqlite3,
-    onoff: i32,
-) -> std::result::Result<(), SqliteError> {
+pub fn extended_result_codes(db: *mut sqlite3, onoff: i32) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_extended_result_codes(db, onoff as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -87,7 +89,7 @@ pub(crate) fn extended_result_codes(
 /// See <https://www.sqlite.org/c3ref/busy_timeout.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn busy_timeout(db: *mut sqlite3, ms: i32) -> std::result::Result<(), SqliteError> {
+pub fn busy_timeout(db: *mut sqlite3, ms: i32) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_busy_timeout(db, ms as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -106,14 +108,14 @@ pub(crate) fn busy_timeout(db: *mut sqlite3, ms: i32) -> std::result::Result<(),
 /// See <https://www.sqlite.org/c3ref/prepare.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn prepare_v3(
+pub fn prepare_v3(
     db: *mut sqlite3,
     sql: *const c_char,
     n_byte: i32,
     flags: u32,
     stmt: *mut *mut sqlite3_stmt,
     tail: *mut *const c_char,
-) -> std::result::Result<(), SqliteError> {
+) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_prepare_v3(db, sql, n_byte as c_int, flags, stmt, tail) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -131,11 +133,11 @@ pub(crate) fn prepare_v3(
 /// See <https://www.sqlite.org/c3ref/unlock_notify.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn unlock_notify(
+pub fn unlock_notify(
     db: *mut sqlite3,
     callback: Option<unsafe extern "C" fn(*mut *mut c_void, c_int)>,
     arg: *mut c_void,
-) -> std::result::Result<(), SqliteError> {
+) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_unlock_notify(db, callback, arg) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -151,7 +153,7 @@ pub(crate) fn unlock_notify(
 ///
 /// See <https://www.sqlite.org/c3ref/errcode.html>
 #[inline]
-pub(crate) fn extended_errcode(db: *mut sqlite3) -> i32 {
+pub fn extended_errcode(db: *mut sqlite3) -> i32 {
     unsafe { ffi_sys::sqlite3_extended_errcode(db) as i32 }
 }
 
@@ -162,7 +164,7 @@ pub(crate) fn extended_errcode(db: *mut sqlite3) -> i32 {
 ///
 /// See <https://www.sqlite.org/c3ref/errcode.html>
 #[inline]
-pub(crate) fn errmsg(db: *mut sqlite3) -> *const c_char {
+pub fn errmsg(db: *mut sqlite3) -> *const c_char {
     unsafe { ffi_sys::sqlite3_errmsg(db) }
 }
 
@@ -174,7 +176,7 @@ pub(crate) fn errmsg(db: *mut sqlite3) -> *const c_char {
 /// See <https://www.sqlite.org/c3ref/close.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn close(db: *mut sqlite3) -> std::result::Result<(), SqliteError> {
+pub fn close(db: *mut sqlite3) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_close(db) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -192,7 +194,7 @@ pub(crate) fn close(db: *mut sqlite3) -> std::result::Result<(), SqliteError> {
 /// See <https://www.sqlite.org/c3ref/exec.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn exec(db: *mut sqlite3, sql: *const c_char) -> std::result::Result<(), SqliteError> {
+pub fn exec(db: *mut sqlite3, sql: *const c_char) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_exec(db, sql, None, ptr::null_mut(), ptr::null_mut()) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -208,7 +210,7 @@ pub(crate) fn exec(db: *mut sqlite3, sql: *const c_char) -> std::result::Result<
 ///
 /// See <https://www.sqlite.org/c3ref/last_insert_rowid.html>
 #[inline]
-pub(crate) fn last_insert_rowid(db: *mut sqlite3) -> i64 {
+pub fn last_insert_rowid(db: *mut sqlite3) -> i64 {
     unsafe { ffi_sys::sqlite3_last_insert_rowid(db) }
 }
 
@@ -219,7 +221,7 @@ pub(crate) fn last_insert_rowid(db: *mut sqlite3) -> i64 {
 ///
 /// See <https://www.sqlite.org/c3ref/db_handle.html>
 #[inline]
-pub(crate) fn db_handle(stmt: *mut sqlite3_stmt) -> *mut sqlite3 {
+pub fn db_handle(stmt: *mut sqlite3_stmt) -> *mut sqlite3 {
     unsafe { ffi_sys::sqlite3_db_handle(stmt) }
 }
 
@@ -230,7 +232,7 @@ pub(crate) fn db_handle(stmt: *mut sqlite3_stmt) -> *mut sqlite3 {
 ///
 /// See <https://www.sqlite.org/c3ref/column_count.html>
 #[inline]
-pub(crate) fn column_count(stmt: *mut sqlite3_stmt) -> i32 {
+pub fn column_count(stmt: *mut sqlite3_stmt) -> i32 {
     unsafe { ffi_sys::sqlite3_column_count(stmt) as i32 }
 }
 
@@ -241,7 +243,7 @@ pub(crate) fn column_count(stmt: *mut sqlite3_stmt) -> i32 {
 ///
 /// See <https://www.sqlite.org/c3ref/changes.html>
 #[inline]
-pub(crate) fn changes(db: *mut sqlite3) -> i32 {
+pub fn changes(db: *mut sqlite3) -> i32 {
     unsafe { ffi_sys::sqlite3_changes(db) as i32 }
 }
 
@@ -252,7 +254,7 @@ pub(crate) fn changes(db: *mut sqlite3) -> i32 {
 ///
 /// See <https://www.sqlite.org/c3ref/column_name.html>
 #[inline]
-pub(crate) fn column_name(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
+pub fn column_name(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
     unsafe { ffi_sys::sqlite3_column_name(stmt, index as c_int) }
 }
 
@@ -263,7 +265,7 @@ pub(crate) fn column_name(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char 
 ///
 /// See <https://www.sqlite.org/c3ref/column_decltype.html>
 #[inline]
-pub(crate) fn column_decltype(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
+pub fn column_decltype(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
     unsafe { ffi_sys::sqlite3_column_decltype(stmt, index as c_int) }
 }
 
@@ -274,7 +276,7 @@ pub(crate) fn column_decltype(stmt: *mut sqlite3_stmt, index: i32) -> *const c_c
 ///
 /// See <https://www.sqlite.org/c3ref/bind_parameter_count.html>
 #[inline]
-pub(crate) fn bind_parameter_count(stmt: *mut sqlite3_stmt) -> i32 {
+pub fn bind_parameter_count(stmt: *mut sqlite3_stmt) -> i32 {
     unsafe { ffi_sys::sqlite3_bind_parameter_count(stmt) as i32 }
 }
 
@@ -285,7 +287,7 @@ pub(crate) fn bind_parameter_count(stmt: *mut sqlite3_stmt) -> i32 {
 ///
 /// See <https://www.sqlite.org/c3ref/bind_parameter_name.html>
 #[inline]
-pub(crate) fn bind_parameter_name(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
+pub fn bind_parameter_name(stmt: *mut sqlite3_stmt, index: i32) -> *const c_char {
     unsafe { ffi_sys::sqlite3_bind_parameter_name(stmt, index as c_int) }
 }
 
@@ -298,12 +300,12 @@ pub(crate) fn bind_parameter_name(stmt: *mut sqlite3_stmt, index: i32) -> *const
 /// See <https://www.sqlite.org/c3ref/bind_blob.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn bind_blob64(
+pub fn bind_blob64(
     stmt: *mut sqlite3_stmt,
     index: i32,
     data: *const c_void,
     len: u64,
-) -> std::result::Result<(), SqliteError> {
+) -> StdResult<(), SqliteError> {
     let rc = unsafe {
         ffi_sys::sqlite3_bind_blob64(stmt, index, data, len, ffi_sys::SQLITE_TRANSIENT())
     };
@@ -324,12 +326,12 @@ pub(crate) fn bind_blob64(
 /// See <https://www.sqlite.org/c3ref/bind_blob.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn bind_text64(
+pub fn bind_text64(
     stmt: *mut sqlite3_stmt,
     index: i32,
     data: *const c_char,
     len: u64,
-) -> std::result::Result<(), SqliteError> {
+) -> StdResult<(), SqliteError> {
     unsafe {
         let rc = ffi_sys::sqlite3_bind_text64(
             stmt,
@@ -356,11 +358,7 @@ pub(crate) fn bind_text64(
 /// See <https://www.sqlite.org/c3ref/bind_blob.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn bind_int64(
-    stmt: *mut sqlite3_stmt,
-    index: i32,
-    value: i64,
-) -> std::result::Result<(), SqliteError> {
+pub fn bind_int64(stmt: *mut sqlite3_stmt, index: i32, value: i64) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_int64(stmt, index as c_int, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -378,11 +376,7 @@ pub(crate) fn bind_int64(
 /// See <https://www.sqlite.org/c3ref/bind_blob.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn bind_double(
-    stmt: *mut sqlite3_stmt,
-    index: i32,
-    value: f64,
-) -> std::result::Result<(), SqliteError> {
+pub fn bind_double(stmt: *mut sqlite3_stmt, index: i32, value: f64) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_double(stmt, index as c_int, value) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -400,10 +394,7 @@ pub(crate) fn bind_double(
 /// See <https://www.sqlite.org/c3ref/bind_blob.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn bind_null(
-    stmt: *mut sqlite3_stmt,
-    index: i32,
-) -> std::result::Result<(), SqliteError> {
+pub fn bind_null(stmt: *mut sqlite3_stmt, index: i32) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_bind_null(stmt, index as c_int) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -420,7 +411,7 @@ pub(crate) fn bind_null(
 ///
 /// See <https://www.sqlite.org/c3ref/column_blob.html>
 #[inline]
-pub(crate) fn column_type(stmt: *mut sqlite3_stmt, index: i32) -> i32 {
+pub fn column_type(stmt: *mut sqlite3_stmt, index: i32) -> i32 {
     unsafe { ffi_sys::sqlite3_column_type(stmt, index as c_int) as i32 }
 }
 
@@ -431,7 +422,7 @@ pub(crate) fn column_type(stmt: *mut sqlite3_stmt, index: i32) -> i32 {
 ///
 /// See <https://www.sqlite.org/c3ref/column_blob.html>
 #[inline]
-pub(crate) fn column_int64(stmt: *mut sqlite3_stmt, index: i32) -> i64 {
+pub fn column_int64(stmt: *mut sqlite3_stmt, index: i32) -> i64 {
     unsafe { ffi_sys::sqlite3_column_int64(stmt, index as c_int) }
 }
 
@@ -442,7 +433,7 @@ pub(crate) fn column_int64(stmt: *mut sqlite3_stmt, index: i32) -> i64 {
 ///
 /// See <https://www.sqlite.org/c3ref/column_blob.html>
 #[inline]
-pub(crate) fn column_double(stmt: *mut sqlite3_stmt, index: i32) -> f64 {
+pub fn column_double(stmt: *mut sqlite3_stmt, index: i32) -> f64 {
     unsafe { ffi_sys::sqlite3_column_double(stmt, index as c_int) }
 }
 
@@ -453,7 +444,7 @@ pub(crate) fn column_double(stmt: *mut sqlite3_stmt, index: i32) -> f64 {
 ///
 /// See <https://www.sqlite.org/c3ref/column_blob.html>
 #[inline]
-pub(crate) fn column_blob(stmt: *mut sqlite3_stmt, index: i32) -> *const c_void {
+pub fn column_blob(stmt: *mut sqlite3_stmt, index: i32) -> *const c_void {
     unsafe { ffi_sys::sqlite3_column_blob(stmt, index as c_int) }
 }
 
@@ -464,7 +455,7 @@ pub(crate) fn column_blob(stmt: *mut sqlite3_stmt, index: i32) -> *const c_void 
 ///
 /// See <https://www.sqlite.org/c3ref/column_blob.html>
 #[inline]
-pub(crate) fn column_bytes(stmt: *mut sqlite3_stmt, index: i32) -> i32 {
+pub fn column_bytes(stmt: *mut sqlite3_stmt, index: i32) -> i32 {
     unsafe { ffi_sys::sqlite3_column_bytes(stmt, index as c_int) as i32 }
 }
 
@@ -475,7 +466,7 @@ pub(crate) fn column_bytes(stmt: *mut sqlite3_stmt, index: i32) -> i32 {
 ///
 /// See <https://www.sqlite.org/c3ref/clear_bindings.html>
 #[inline]
-pub(crate) fn clear_bindings(stmt: *mut sqlite3_stmt) {
+pub fn clear_bindings(stmt: *mut sqlite3_stmt) {
     unsafe { ffi_sys::sqlite3_clear_bindings(stmt) };
 }
 
@@ -487,7 +478,7 @@ pub(crate) fn clear_bindings(stmt: *mut sqlite3_stmt) {
 /// See <https://www.sqlite.org/c3ref/reset.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn reset(stmt: *mut sqlite3_stmt) -> std::result::Result<(), SqliteError> {
+pub fn reset(stmt: *mut sqlite3_stmt) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_reset(stmt) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -505,7 +496,7 @@ pub(crate) fn reset(stmt: *mut sqlite3_stmt) -> std::result::Result<(), SqliteEr
 /// See <https://www.sqlite.org/c3ref/step.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn step(stmt: *mut sqlite3_stmt) -> std::result::Result<i32, SqliteError> {
+pub fn step(stmt: *mut sqlite3_stmt) -> StdResult<i32, SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_step(stmt) };
     if rc == ffi_sys::SQLITE_ROW
         || rc == ffi_sys::SQLITE_DONE
@@ -530,7 +521,7 @@ pub(crate) fn step(stmt: *mut sqlite3_stmt) -> std::result::Result<i32, SqliteEr
 /// See <https://www.sqlite.org/c3ref/finalize.html>
 #[inline]
 #[must_use = "handle the Result"]
-pub(crate) fn finalize(stmt: *mut sqlite3_stmt) -> std::result::Result<(), SqliteError> {
+pub fn finalize(stmt: *mut sqlite3_stmt) -> StdResult<(), SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_finalize(stmt) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
@@ -542,9 +533,9 @@ pub(crate) fn finalize(stmt: *mut sqlite3_stmt) -> std::result::Result<(), Sqlit
 
 #[cfg(test)]
 mod tests {
+    use std::{ffi::CString, ptr};
+
     use super::*;
-    use std::ffi::CString;
-    use std::ptr;
 
     #[test]
     fn basic_open_prepare_step_reset_finalize() {

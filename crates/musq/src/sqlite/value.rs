@@ -1,4 +1,11 @@
-use crate::{decode::Decode, error::DecodeError, sqlite::type_info::SqliteDataType};
+use std::result::Result as StdResult;
+
+use crate::{
+    Result,
+    decode::Decode,
+    error::DecodeError,
+    sqlite::{statement::StatementHandle, type_info::SqliteDataType},
+};
 
 /// Owned representation of a SQLite value.
 ///
@@ -53,10 +60,10 @@ pub enum Value {
 
 impl Value {
     /// Returns the value as `i32` if it is an integer and fits in the range.
-    pub fn int(&self) -> std::result::Result<i32, DecodeError> {
+    pub fn int(&self) -> StdResult<i32, DecodeError> {
         match self {
-            Value::Integer { value, .. } => Ok(i32::try_from(*value)?),
-            Value::Null { .. } => Ok(0),
+            Self::Integer { value, .. } => Ok(i32::try_from(*value)?),
+            Self::Null { .. } => Ok(0),
             _ => Err(DecodeError::Conversion(
                 "not an integer or out of range".into(),
             )),
@@ -66,10 +73,10 @@ impl Value {
     /// Returns the value as `i64` if it is stored as an integer.
     ///
     /// Fails with [`DecodeError::Conversion`] if the value is not an integer.
-    pub fn int64(&self) -> std::result::Result<i64, DecodeError> {
+    pub fn int64(&self) -> StdResult<i64, DecodeError> {
         match self {
-            Value::Integer { value, .. } => Ok(*value),
-            Value::Null { .. } => Ok(0),
+            Self::Integer { value, .. } => Ok(*value),
+            Self::Null { .. } => Ok(0),
             _ => Err(DecodeError::Conversion("not an integer".into())),
         }
     }
@@ -78,11 +85,11 @@ impl Value {
     ///
     /// Integer values are automatically widened to `f64`. Any other variant
     /// results in a [`DecodeError::Conversion`].
-    pub fn double(&self) -> std::result::Result<f64, DecodeError> {
+    pub fn double(&self) -> StdResult<f64, DecodeError> {
         match self {
-            Value::Double { value, .. } => Ok(*value),
-            Value::Integer { value, .. } => Ok(*value as f64),
-            Value::Null { .. } => Ok(0.0),
+            Self::Double { value, .. } => Ok(*value),
+            Self::Integer { value, .. } => Ok(*value as f64),
+            Self::Null { .. } => Ok(0.0),
             _ => Err(DecodeError::Conversion("not a double".into())),
         }
     }
@@ -92,9 +99,9 @@ impl Value {
     /// For other variants an empty slice is returned.
     pub fn blob(&self) -> &[u8] {
         match self {
-            Value::Blob { value, .. } => value.as_slice(),
-            Value::Text { value, .. } => value.as_bytes(),
-            Value::Null { .. } => &[],
+            Self::Blob { value, .. } => value.as_slice(),
+            Self::Text { value, .. } => value.as_bytes(),
+            Self::Null { .. } => &[],
             _ => &[],
         }
     }
@@ -102,10 +109,10 @@ impl Value {
     /// Interprets the value as UTF‑8 encoded text and returns it.
     ///
     /// Returns an error if the value is not [`Value::Text`].
-    pub fn text(&self) -> std::result::Result<&str, DecodeError> {
+    pub fn text(&self) -> StdResult<&str, DecodeError> {
         match self {
-            Value::Text { value, .. } => Ok(value.as_str()),
-            Value::Null { .. } => Ok(""),
+            Self::Text { value, .. } => Ok(value.as_str()),
+            Self::Null { .. } => Ok(""),
             _ => Err(DecodeError::Conversion("not text".into())),
         }
     }
@@ -116,22 +123,38 @@ impl Value {
     /// the variant's natural type is returned instead.
     pub fn type_info(&self) -> SqliteDataType {
         match self {
-            Value::Null { type_info } => type_info.unwrap_or(SqliteDataType::Null),
-            Value::Integer { type_info, .. } => type_info.unwrap_or(SqliteDataType::Int),
-            Value::Double { type_info, .. } => type_info.unwrap_or(SqliteDataType::Float),
-            Value::Text { type_info, .. } => type_info.unwrap_or(SqliteDataType::Text),
-            Value::Blob { type_info, .. } => type_info.unwrap_or(SqliteDataType::Blob),
+            Self::Null { type_info } => type_info.unwrap_or(SqliteDataType::Null),
+            Self::Integer { type_info, .. } => type_info.unwrap_or(SqliteDataType::Int),
+            Self::Double { type_info, .. } => type_info.unwrap_or(SqliteDataType::Float),
+            Self::Text { type_info, .. } => type_info.unwrap_or(SqliteDataType::Text),
+            Self::Blob { type_info, .. } => type_info.unwrap_or(SqliteDataType::Blob),
         }
     }
 
     /// Returns `true` if the value is [`Value::Null`].
     pub fn is_null(&self) -> bool {
-        matches!(self, Value::Null { .. })
+        matches!(self, Self::Null { .. })
+    }
+
+    /// Bind this value to the parameter `i` of the given statement handle.
+    ///
+    /// The binding is performed according to the underlying variant without
+    /// altering the stored value.
+    pub(crate) fn bind(&self, handle: &StatementHandle, i: usize) -> Result<()> {
+        match self {
+            Self::Text { value, .. } => handle.bind_text(i, value.as_str())?,
+            Self::Blob { value, .. } => handle.bind_blob(i, value.as_slice())?,
+            Self::Integer { value, .. } => handle.bind_int64(i, *value)?,
+            Self::Double { value, .. } => handle.bind_double(i, *value)?,
+            Self::Null { .. } => handle.bind_null(i)?,
+        }
+
+        Ok(())
     }
 }
 
 impl<'r> Decode<'r> for Value {
-    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
+    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         Ok(value.clone())
     }
 }

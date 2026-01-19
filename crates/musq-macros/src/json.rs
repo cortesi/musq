@@ -5,6 +5,7 @@ use syn::{DeriveInput, GenericParam, Lifetime, LifetimeParam};
 
 use super::core;
 
+/// Expand a `Json` derive into encode/decode implementations.
 pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
     let container = core::JsonContainer::from_derive_input(input)?;
     let (_, ty_generics, _) = container.generics.split_for_impl();
@@ -38,6 +39,7 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
     ))
 }
 
+/// Tests for JSON derive expansion.
 #[cfg(test)]
 mod tests {
     use super::*;

@@ -1,11 +1,13 @@
-use std::sync::Arc;
-use std::sync::atomic::{AtomicUsize, Ordering};
-use std::thread;
-
-use tokio::sync::Mutex;
-use tokio::sync::oneshot;
+use std::{
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
+    thread::{self, JoinHandle},
+};
 
 use either::Either;
+use tokio::sync::{Mutex, oneshot};
 
 use crate::{
     QueryResult, Row,
@@ -24,11 +26,14 @@ use crate::{
 // but given typical application usage patterns for SQLite, the simplicity of a single-threaded
 // worker is preferred.
 
-pub(crate) struct ConnectionWorker {
+/// Background worker thread driving a SQLite connection.
+pub struct ConnectionWorker {
+    /// Command channel to the worker thread.
     command_tx: flume::Sender<Command>,
     /// Mutex for locking access to the database.
     pub(crate) shared: Arc<WorkerSharedState>,
-    join_handle: Arc<Mutex<Option<std::thread::JoinHandle<()>>>>,
+    /// Join handle for the worker thread.
+    join_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
 // ConnectionWorker is safe to share between threads because:
@@ -37,43 +42,65 @@ pub(crate) struct ConnectionWorker {
 // - join_handle is Arc<Mutex<>> which is Sync
 unsafe impl Sync for ConnectionWorker {}
 
-pub(crate) struct WorkerSharedState {
+/// Shared state between async tasks and the worker thread.
+pub struct WorkerSharedState {
+    /// Cached statement size tracking.
     pub(crate) cached_statements_size: AtomicUsize,
+    /// Mutex-protected connection state.
     pub(crate) conn: Mutex<ConnectionState>,
 }
 
 #[allow(dead_code)]
+/// Commands sent to the worker thread.
 enum Command {
+    /// Prepare a statement and return it.
     Prepare {
+        /// SQL text to prepare.
         query: Box<str>,
+        /// Response channel.
         tx: oneshot::Sender<Result<Statement>>,
     },
+    /// Execute a statement and stream results.
     Execute {
+        /// SQL text to execute.
         query: Box<str>,
+        /// Optional arguments to bind.
         arguments: Option<Arguments>,
+        /// Result channel.
         tx: flume::Sender<Result<Either<QueryResult, Row>>>,
     },
+    /// Begin a transaction.
     Begin {
+        /// Response channel.
         tx: rendezvous_oneshot::Sender<Result<()>>,
     },
+    /// Commit a transaction.
     Commit {
+        /// Response channel.
         tx: rendezvous_oneshot::Sender<Result<()>>,
     },
+    /// Roll back a transaction.
     Rollback {
+        /// Optional response channel.
         tx: Option<rendezvous_oneshot::Sender<Result<()>>>,
     },
 
     #[cfg(test)]
+    /// Clear cached statements (tests only).
     ClearCache {
+        /// Response channel.
         tx: oneshot::Sender<()>,
     },
 
+    /// Shut down the worker thread.
     Shutdown {
+        /// Response channel.
         tx: oneshot::Sender<Result<()>>,
     },
 }
 
 impl ConnectionWorker {
+    /// Spawn a worker thread and establish the SQLite connection.
     pub(crate) async fn establish(params: EstablishParams) -> Result<Self> {
         let (establish_tx, establish_rx) = oneshot::channel();
 
@@ -246,7 +273,7 @@ impl ConnectionWorker {
                             // and ending the command loop
                             drop(conn);
                             drop(shared);
-                            let _ = tx.send(res);
+                            let _send_result = tx.send(res);
                             return;
                         }
                     }
@@ -263,6 +290,7 @@ impl ConnectionWorker {
     }
 
     #[allow(dead_code)]
+    /// Returns whether the worker has been shut down.
     pub(crate) fn is_shutdown(&self) -> bool {
         // For now, just return false as checking would require async
         // This is only used in drop, so it's not critical
@@ -270,6 +298,7 @@ impl ConnectionWorker {
     }
 
     #[allow(dead_code)]
+    /// Prepare a SQL statement on the worker thread.
     pub(crate) async fn prepare(&self, query: &str) -> Result<Statement> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
@@ -278,6 +307,8 @@ impl ConnectionWorker {
         .await?
     }
 
+    /// Execute a SQL statement and stream the results.
+    ///
     /// We take an owned string here - we immediatley copy it into the command anyway.
     pub(crate) async fn execute(
         &self,
@@ -299,21 +330,25 @@ impl ConnectionWorker {
         Ok(rx)
     }
 
+    /// Begin a transaction on the worker thread.
     pub(crate) async fn begin(&self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Begin { tx })
             .await?
     }
 
+    /// Commit the current transaction on the worker thread.
     pub(crate) async fn commit(&self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Commit { tx })
             .await?
     }
 
+    /// Roll back the current transaction on the worker thread.
     pub(crate) async fn rollback(&self) -> Result<()> {
         self.oneshot_cmd_with_ack(|tx| Command::Rollback { tx: Some(tx) })
             .await?
     }
 
+    /// Start an asynchronous rollback without awaiting acknowledgement.
     pub(crate) fn start_rollback(&self) -> Result<()> {
         self.command_tx
             .send(Command::Rollback { tx: None })
@@ -321,6 +356,7 @@ impl ConnectionWorker {
     }
 
     #[allow(dead_code)]
+    /// Send a oneshot command and await the response.
     async fn oneshot_cmd<F, T>(&self, command: F) -> Result<T>
     where
         F: FnOnce(oneshot::Sender<T>) -> Command,
@@ -335,6 +371,7 @@ impl ConnectionWorker {
         rx.await.map_err(|_| Error::WorkerCrashed)
     }
 
+    /// Send a oneshot command requiring acknowledgement before returning.
     async fn oneshot_cmd_with_ack<F, T>(&self, command: F) -> Result<T>
     where
         F: FnOnce(rendezvous_oneshot::Sender<T>) -> Command,
@@ -350,6 +387,7 @@ impl ConnectionWorker {
     }
 
     #[cfg(test)]
+    /// Clear cached statements in tests.
     pub(crate) async fn clear_cache(&self) -> Result<()> {
         self.oneshot_cmd(|tx| Command::ClearCache { tx }).await
     }
@@ -368,7 +406,7 @@ impl ConnectionWorker {
 
         if let Err(e) = send_res {
             if let Some(handle) = join_handle {
-                let _ = handle.join();
+                let _join_result = handle.join();
             }
             return Err(e);
         }
@@ -385,11 +423,12 @@ impl ConnectionWorker {
     }
 }
 
+/// Prepare a SQL statement, using the cache when possible.
 fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement> {
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query)?;
 
-    while let Some(_statement) = statement.prepare_next(&mut conn.handle)? {
+    while let Some(_statement) = statement.prepare_next(&conn.handle)? {
         // prepare all statements in the compound query
     }
 
@@ -398,45 +437,58 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement> {
     })
 }
 
+/// Update the cached statement size metric.
 fn update_cached_statements_size(conn: &ConnectionState, size: &AtomicUsize) {
     size.store(conn.statements.len(), Ordering::Release);
 }
 
 // A oneshot channel where send completes only after the receiver receives the value.
+/// Rendezvous-style oneshot channels with acknowledgement.
 mod rendezvous_oneshot {
+    use std::result::Result as StdResult;
+
     use super::oneshot;
 
+    /// Error returned when a rendezvous channel is canceled.
     #[derive(Debug)]
     pub struct Canceled;
 
+    /// Create a sender/receiver pair.
     pub fn channel<T>() -> (Sender<T>, Receiver<T>) {
         let (inner_tx, inner_rx) = oneshot::channel();
         (Sender { inner: inner_tx }, Receiver { inner: inner_rx })
     }
 
+    /// Sender half for rendezvous delivery.
     pub struct Sender<T> {
+        /// Inner channel used for delivery.
         inner: oneshot::Sender<(T, oneshot::Sender<()>)>,
     }
 
     impl<T> Sender<T> {
-        pub async fn send(self, value: T) -> std::result::Result<(), Canceled> {
+        /// Send a value and await acknowledgement.
+        pub async fn send(self, value: T) -> StdResult<(), Canceled> {
             let (ack_tx, ack_rx) = oneshot::channel();
             self.inner.send((value, ack_tx)).map_err(|_| Canceled)?;
             ack_rx.await.map_err(|_| Canceled)?;
             Ok(())
         }
 
-        pub fn blocking_send(self, value: T) -> std::result::Result<(), Canceled> {
+        /// Send a value and block until acknowledged.
+        pub fn blocking_send(self, value: T) -> StdResult<(), Canceled> {
             futures_executor::block_on(self.send(value))
         }
     }
 
+    /// Receiver half for rendezvous delivery.
     pub struct Receiver<T> {
+        /// Inner channel used for delivery.
         inner: oneshot::Receiver<(T, oneshot::Sender<()>)>,
     }
 
     impl<T> Receiver<T> {
-        pub async fn recv(self) -> std::result::Result<T, Canceled> {
+        /// Receive a value and acknowledge receipt.
+        pub async fn recv(self) -> StdResult<T, Canceled> {
             let (value, ack_tx) = self.inner.await.map_err(|_| Canceled)?;
             ack_tx.send(()).map_err(|_| Canceled)?;
             Ok(value)

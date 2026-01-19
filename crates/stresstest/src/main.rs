@@ -1,3 +1,5 @@
+//! Stress test runner for the musq connection pool.
+
 use std::{
     path::PathBuf,
     sync::Arc,
@@ -6,14 +8,14 @@ use std::{
 
 use clap::Parser;
 use futures::stream::{self, StreamExt};
+use musq::{JournalMode, Pool, Result, Row, Synchronous};
 use rand::Rng;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use musq::{JournalMode, Pool, Result, Row, Synchronous};
-
 #[derive(Parser, Debug)]
 #[command(author, version, about, long_about = None)]
+/// CLI arguments for configuring the stress test.
 struct Args {
     /// Path to the SQLite database file
     #[arg(short, long)]
@@ -48,19 +50,26 @@ struct Args {
     max_connections: u32,
 }
 
+/// Aggregated timing metrics and reporting state.
 #[derive(Debug)]
 struct TimingData {
+    /// Collected operation durations.
     durations: Vec<Duration>,
+    /// Test start time.
     start_time: Instant,
+    /// Last report timestamp.
     last_report_time: Instant,
+    /// Interval between progress reports.
     report_interval: Duration,
+    /// Total record count for completion tracking.
     total_records: u64,
 }
 
 impl TimingData {
+    /// Create a new timing tracker.
     fn new(total_records: u64, report_interval: Duration) -> Self {
         let now = Instant::now();
-        TimingData {
+        Self {
             durations: Vec::with_capacity(total_records as usize),
             start_time: now,
             last_report_time: now,
@@ -69,11 +78,13 @@ impl TimingData {
         }
     }
 
+    /// Record a new operation duration.
     fn add_duration(&mut self, duration: Duration) {
         self.durations.push(duration);
         self.maybe_report_progress();
     }
 
+    /// Emit a progress report if enough time has elapsed.
     fn maybe_report_progress(&mut self) {
         let now = Instant::now();
         if now - self.last_report_time >= self.report_interval {
@@ -82,6 +93,7 @@ impl TimingData {
         }
     }
 
+    /// Print a progress report.
     fn report_progress(&self) {
         let records_processed = self.durations.len() as u64;
         let elapsed = self.start_time.elapsed();
@@ -98,6 +110,7 @@ impl TimingData {
         );
     }
 
+    /// Print final timing statistics.
     fn process(&self, bins: usize) {
         let mut durations = self.durations.clone();
         durations.sort_unstable();
@@ -121,6 +134,7 @@ impl TimingData {
     }
 }
 
+/// Open a pool and apply the requested database settings.
 async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool> {
     let journal_mode = match args.journal_mode.to_lowercase().as_str() {
         "wal" => JournalMode::Wal,
@@ -155,6 +169,7 @@ async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool> {
     musq.open(path).await
 }
 
+/// Create the tables used by the stress test.
 async fn create_schema(pool: &Pool) -> Result<()> {
     // Create table A
     musq::query(
@@ -186,6 +201,7 @@ async fn create_schema(pool: &Pool) -> Result<()> {
     Ok(())
 }
 
+/// Insert a single record into the test tables.
 async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<()> {
     // Start a transaction
     let mut tx = pool.begin().await?;
@@ -215,6 +231,7 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<()> 
     Ok(())
 }
 
+/// Read a random record by ID from both tables.
 async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row)> {
     let random_id = rand::rng().random_range(1..=max_id) as i64;
 
@@ -233,6 +250,7 @@ async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row)> {
     Ok((a_row, b_row))
 }
 
+/// Count rows in both tables.
 async fn count_records(pool: &Pool) -> Result<(i64, i64)> {
     let a_count: i64 = musq::query("SELECT COUNT(*) FROM a")
         .fetch_one(pool)
@@ -247,6 +265,7 @@ async fn count_records(pool: &Pool) -> Result<(i64, i64)> {
     Ok((a_count, b_count))
 }
 
+/// Generate two random blobs of the requested size.
 fn generate_random_data(size: usize) -> (Vec<u8>, Vec<u8>) {
     let mut rng = rand::rng();
     let a_data = (0..size).map(|_| rng.random::<u8>()).collect();
@@ -254,6 +273,7 @@ fn generate_random_data(size: usize) -> (Vec<u8>, Vec<u8>) {
     (a_data, b_data)
 }
 
+/// Run the stress workload against the database.
 async fn perform_operations(
     pool: &Pool,
     num_records: u64,

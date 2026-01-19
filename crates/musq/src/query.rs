@@ -1,34 +1,46 @@
+use std::{
+    collections::HashSet,
+    fmt,
+    ops::{Deref, DerefMut},
+};
+
 use async_trait::async_trait;
 use either::Either;
 use futures_core::stream::BoxStream;
-use std::ops::Deref;
 
 use crate::{
-    Arguments, QueryResult, Result, Row, encode::Encode, executor::Execute,
-    sqlite::statement::Statement,
+    Arguments, QueryResult, Result, Row,
+    encode::Encode,
+    executor::Execute,
+    pool::PoolConnection,
+    sqlite::{Value, statement::Statement},
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
 #[must_use = "query must be executed to affect database"]
 #[derive(Clone)]
 pub struct Query {
+    /// SQL text or prepared statement reference.
     pub(crate) statement: Either<String, Statement>,
+    /// Bound arguments for the query.
     pub(crate) arguments: Option<Arguments>,
+    /// Whether the query contains raw SQL fragments.
     pub(crate) tainted: bool,
 }
 
-impl std::fmt::Debug for Query {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+impl fmt::Debug for Query {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write_query_debug(f, self.sql(), &self.arguments, self.tainted)
     }
 }
 
+/// Render the debug representation for a query.
 fn write_query_debug(
-    f: &mut std::fmt::Formatter<'_>,
+    f: &mut fmt::Formatter<'_>,
     sql: &str,
     arguments: &Option<Arguments>,
     tainted: bool,
-) -> std::fmt::Result {
+) -> fmt::Result {
     let multi_line = sql.contains('\n');
 
     if multi_line && f.alternate() {
@@ -68,13 +80,14 @@ fn write_query_debug(
     }
 }
 
+/// Write optional argument and taint fields to the formatter.
 fn write_optional_fields(
-    f: &mut std::fmt::Formatter<'_>,
+    f: &mut fmt::Formatter<'_>,
     arguments: &Option<Arguments>,
     tainted: bool,
     prefix: &str,
     suffix: &str,
-) -> std::fmt::Result {
+) -> fmt::Result {
     if let Some(args) = arguments
         && !args.values.is_empty()
     {
@@ -92,11 +105,12 @@ fn write_optional_fields(
     Ok(())
 }
 
+/// Helper for formatting arguments in debug output.
 struct FormatArguments<'a>(&'a Arguments);
 
-impl<'a> std::fmt::Display for FormatArguments<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let named_indices: std::collections::HashSet<_> = self.0.named.values().copied().collect();
+impl<'a> fmt::Display for FormatArguments<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let named_indices: HashSet<_> = self.0.named.values().copied().collect();
         let mut first = true;
 
         write!(f, "[")?;
@@ -130,11 +144,11 @@ impl<'a> std::fmt::Display for FormatArguments<'a> {
     }
 }
 
-struct FormatValue<'a>(&'a crate::sqlite::Value);
+/// Helper for formatting SQLite values in debug output.
+struct FormatValue<'a>(&'a Value);
 
-impl<'a> std::fmt::Display for FormatValue<'a> {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        use crate::sqlite::Value;
+impl<'a> fmt::Display for FormatValue<'a> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self.0 {
             Value::Null { .. } => write!(f, "NULL"),
             Value::Integer { value, .. } => write!(f, "{value}"),
@@ -170,19 +184,26 @@ impl<'a> std::fmt::Display for FormatValue<'a> {
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
 pub struct Map<F> {
+    /// Underlying query.
     inner: Query,
+    /// Row mapper function.
     mapper: F,
 }
 
-// Trait to handle query execution without exposing the old Executor trait
+/// Execute queries without exposing the legacy `Executor` trait.
 #[async_trait]
 pub trait QueryExecutor {
+    /// Execute the query and return a summary of changes.
     async fn execute_query(self, query: Query) -> Result<QueryResult>;
+    /// Execute the query and stream rows as they are produced.
     fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
     where
         Self: 'c;
+    /// Execute the query and collect all rows.
     async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>>;
+    /// Execute the query and fetch exactly one row.
     async fn fetch_one_query(self, query: Query) -> Result<Row>;
+    /// Execute the query and fetch at most one row.
     async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>>;
 }
 
@@ -253,7 +274,7 @@ impl QueryExecutor for &crate::Connection {
 
 // Implement QueryExecutor for &PoolConnection
 #[async_trait]
-impl QueryExecutor for &crate::pool::PoolConnection {
+impl QueryExecutor for &PoolConnection {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         self.execute(query).await
     }
@@ -282,7 +303,7 @@ impl QueryExecutor for &crate::pool::PoolConnection {
 #[async_trait]
 impl<C> QueryExecutor for &crate::Transaction<C>
 where
-    C: std::ops::DerefMut<Target = crate::Connection> + Send + Sync,
+    C: DerefMut<Target = crate::Connection> + Send + Sync,
 {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         let conn: &crate::Connection = self.deref();
@@ -323,7 +344,7 @@ where
 #[async_trait]
 impl<C> QueryExecutor for &mut crate::Transaction<C>
 where
-    C: std::ops::DerefMut<Target = crate::Connection> + Send + Sync,
+    C: DerefMut<Target = crate::Connection> + Send + Sync,
 {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         let conn: &crate::Connection = self.deref();
@@ -373,11 +394,47 @@ impl Execute for Query {
     }
 }
 
+impl<F> Map<F> {
+    /// Attempt to bind a value for use with the mapped query.
+    pub fn try_bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
+        self.inner = self.inner.try_bind(value)?;
+        Ok(self)
+    }
+
+    /// Bind a value for use with the mapped query.
+    ///
+    /// This will panic if [`try_bind`](Self::try_bind) returns an error.
+    pub fn bind<'q, T: 'q + Send + Encode>(self, value: T) -> Self {
+        self.try_bind(value)
+            .expect("failed to bind query parameter")
+    }
+
+    /// Attempt to bind a value to a named parameter.
+    pub fn try_bind_named<'q, T: 'q + Send + Encode>(
+        mut self,
+        name: &str,
+        value: T,
+    ) -> Result<Self> {
+        self.inner = self.inner.try_bind_named(name, value)?;
+        Ok(self)
+    }
+
+    /// Bind a value to a named parameter.
+    ///
+    /// This will panic if [`try_bind_named`](Self::try_bind_named) returns an error.
+    pub fn bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Self {
+        self.try_bind_named(name, value)
+            .expect("failed to bind named query parameter")
+    }
+}
+
 impl Query {
+    /// Returns `true` if the query has had raw SQL appended to it.
     pub fn is_tainted(&self) -> bool {
         self.tainted
     }
 
+    /// Convert this query into a mutable [`QueryBuilder`].
     pub fn into_builder(self) -> crate::QueryBuilder {
         crate::QueryBuilder::from_parts(
             self.sql().to_string(),
@@ -390,7 +447,7 @@ impl Query {
     ///
     /// The SQL and arguments from `other` are appended to this query and a new
     /// combined query is returned.
-    pub fn join(self, other: Query) -> Query {
+    pub fn join(self, other: Self) -> Self {
         let mut builder = self.into_builder();
         builder.push_query(other);
         builder.build()
@@ -402,8 +459,9 @@ impl Query {
     /// appear in the query then an error will be returned when this query is executed.
     pub fn try_bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
         if let Some(arguments) = &mut self.arguments {
-            arguments.add(value)?;
+            arguments.add(&value)?;
         }
+        drop(value);
         Ok(self)
     }
 
@@ -422,8 +480,9 @@ impl Query {
         value: T,
     ) -> Result<Self> {
         if let Some(arguments) = &mut self.arguments {
-            arguments.add_named(name, value)?;
+            arguments.add_named(name, &value)?;
         }
+        drop(value);
         Ok(self)
     }
 
@@ -434,35 +493,7 @@ impl Query {
         self.try_bind_named(name, value)
             .expect("failed to bind named query parameter")
     }
-}
 
-impl<F> Map<F> {
-    pub fn try_bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
-        self.inner = self.inner.try_bind(value)?;
-        Ok(self)
-    }
-
-    pub fn bind<'q, T: 'q + Send + Encode>(self, value: T) -> Self {
-        self.try_bind(value)
-            .expect("failed to bind query parameter")
-    }
-
-    pub fn try_bind_named<'q, T: 'q + Send + Encode>(
-        mut self,
-        name: &str,
-        value: T,
-    ) -> Result<Self> {
-        self.inner = self.inner.try_bind_named(name, value)?;
-        Ok(self)
-    }
-
-    pub fn bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Self {
-        self.try_bind_named(name, value)
-            .expect("failed to bind named query parameter")
-    }
-}
-
-impl Query {
     /// Map each row in the result to another type.
     ///
     /// See [`try_map`](Query::try_map) for a fallible version of this method.
@@ -617,7 +648,7 @@ where
     }
 }
 
-// Make a SQL query from a statement.
+/// Make a SQL query from a prepared statement.
 pub(crate) fn query_statement(statement: &Statement) -> Query {
     Query {
         arguments: Some(Default::default()),
@@ -626,7 +657,7 @@ pub(crate) fn query_statement(statement: &Statement) -> Query {
     }
 }
 
-// Make a SQL query from a statement, with the given arguments.
+/// Make a SQL query from a prepared statement with the given arguments.
 pub(crate) fn query_statement_with(statement: &Statement, arguments: Arguments) -> Query {
     Query {
         arguments: Some(arguments),
@@ -655,6 +686,7 @@ pub fn query_with(sql: &str, arguments: Arguments) -> Query {
 
 use crate::from_row::FromRow;
 
+/// Build a typed query that maps rows into `O` via [`FromRow`].
 pub fn query_as<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     O: Send + Unpin + for<'r> FromRow<'r>,
@@ -662,6 +694,7 @@ where
     query(sql).try_map(|row| O::from_row("", &row))
 }
 
+/// Build a typed query with explicit arguments.
 pub fn query_as_with<'q, O>(
     sql: &'q str,
     arguments: Arguments,
@@ -672,6 +705,7 @@ where
     query_with(sql, arguments).try_map(|row| O::from_row("", &row))
 }
 
+/// Build a typed query from a prepared statement.
 pub(crate) fn query_statement_as<'q, O>(
     statement: &'q Statement,
 ) -> Map<impl FnMut(Row) -> Result<O> + Send>
@@ -681,6 +715,7 @@ where
     query_statement(statement).try_map(|row| O::from_row("", &row))
 }
 
+/// Build a typed query from a prepared statement and arguments.
 pub(crate) fn query_statement_as_with<'q, O>(
     statement: &'q Statement,
     arguments: Arguments,
@@ -691,6 +726,7 @@ where
     query_statement_with(statement, arguments).try_map(|row| O::from_row("", &row))
 }
 
+/// Build a scalar query that maps a single column into `O`.
 pub fn query_scalar<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
     (O,): for<'r> FromRow<'r>,
@@ -699,6 +735,7 @@ where
     query_as(sql).map(|(o,)| o)
 }
 
+/// Build a scalar query with explicit arguments.
 pub fn query_scalar_with<'q, O>(
     sql: &'q str,
     arguments: Arguments,
@@ -710,6 +747,7 @@ where
     query_as_with(sql, arguments).map(|(o,)| o)
 }
 
+/// Build a scalar query from a prepared statement.
 pub(crate) fn query_statement_scalar<'q, O>(
     statement: &'q Statement,
 ) -> Map<impl FnMut(Row) -> Result<O> + Send>
@@ -720,6 +758,7 @@ where
     query_statement_as(statement).map(|(o,)| o)
 }
 
+/// Build a scalar query from a prepared statement and arguments.
 pub(crate) fn query_statement_scalar_with<'q, O>(
     statement: &'q Statement,
     arguments: Arguments,

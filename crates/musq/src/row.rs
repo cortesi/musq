@@ -1,18 +1,22 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, slice, sync::Arc};
 
 use crate::{
     Result,
     column::Column,
     decode::Decode,
     error::Error,
+    from_row::FromRow,
     sqlite::{SqliteDataType, Value, statement::StatementHandle},
 };
 
 /// Implementation of [`Row`] for SQLite.
 #[derive(Clone)]
 pub struct Row {
+    /// Values for each column in the row.
     values: Box<[Value]>,
+    /// Column metadata.
     columns: Arc<Vec<Column>>,
+    /// Column name lookup table.
     pub(crate) column_names: Arc<HashMap<Arc<str>, usize>>,
 }
 
@@ -26,12 +30,12 @@ unsafe impl Send for Row {}
 unsafe impl Sync for Row {}
 
 impl Row {
+    /// Build a row from the current statement position.
     pub(crate) fn current(
         statement: &StatementHandle,
         columns: &Arc<Vec<Column>>,
         column_names: &Arc<HashMap<Arc<str>, usize>>,
     ) -> Result<Self> {
-        use crate::sqlite::Value;
         use libsqlite3_sys::SQLITE_NULL;
 
         let size = statement.column_count();
@@ -69,7 +73,7 @@ impl Row {
                     let slice = if len == 0 {
                         &[]
                     } else {
-                        unsafe { std::slice::from_raw_parts(ptr, len) }
+                        unsafe { slice::from_raw_parts(ptr, len) }
                     };
                     Value::Text {
                         value: String::from_utf8_lossy(slice).into_owned(),
@@ -86,7 +90,7 @@ impl Row {
                         Vec::new()
                     } else {
                         let ptr = statement.column_blob(i) as *const u8;
-                        let slice = unsafe { std::slice::from_raw_parts(ptr, len) };
+                        let slice = unsafe { slice::from_raw_parts(ptr, len) };
                         slice.to_vec()
                     };
                     Value::Blob {
@@ -161,7 +165,7 @@ impl Row {
     }
 }
 
-impl<'r> crate::from_row::FromRow<'r> for Row {
+impl<'r> FromRow<'r> for Row {
     fn from_row(_prefix: &str, row: &'r Row) -> Result<Self> {
         Ok(row.clone())
     }

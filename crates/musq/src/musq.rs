@@ -1,17 +1,22 @@
 use std::{
     fmt::Write,
     path::{Path, PathBuf},
-    sync::Arc,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    },
     time::Duration,
 };
 
-use crate::{Result, debugfn::DebugFn, logger::LogSettings, pool, sqlite::Connection};
-
+use indexmap::IndexMap;
 use log::LevelFilter;
 
-use indexmap::IndexMap;
+use crate::{
+    Result, debugfn::DebugFn, logger::LogSettings, pool, sqlite::Connection,
+    statement_cache::DEFAULT_CAPACITY,
+};
 
+/// Sequence for in-memory database names.
 static IN_MEMORY_DB_SEQ: AtomicUsize = AtomicUsize::new(0);
 
 enum_mode! {
@@ -19,7 +24,9 @@ enum_mode! {
     ///
     /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_locking_mode
     pub LockingMode {
+        /// Shared database access (default).
         Normal => "NORMAL",
+        /// Exclusive database access.
         Exclusive => "EXCLUSIVE",
     }
     default Normal
@@ -30,20 +37,32 @@ enum_mode! {
     ///
     /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_journal_mode
     pub JournalMode {
+        /// Rollback journal mode.
         Delete => "DELETE",
+        /// Truncated rollback journal mode.
         Truncate => "TRUNCATE",
+        /// Persistent rollback journal mode.
         Persist => "PERSIST",
+        /// In-memory journal mode.
         Memory => "MEMORY",
+        /// Write-ahead log journal mode.
         Wal => "WAL",
+        /// Disable journaling.
         Off => "OFF",
     }
     default Wal
 }
 
 enum_mode! {
+    /// Refer to [SQLite documentation] for auto-vacuum mode semantics.
+    ///
+    /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_auto_vacuum
     pub AutoVacuum {
+        /// Disable auto-vacuum.
         None => "NONE",
+        /// Full auto-vacuum after each transaction.
         Full => "FULL",
+        /// Incremental auto-vacuum support.
         Incremental => "INCREMENTAL",
     }
     default None
@@ -54,9 +73,13 @@ enum_mode! {
     ///
     /// [SQLite documentation]: https://www.sqlite.org/pragma.html#pragma_synchronous
     pub Synchronous {
+        /// Disable synchronous writes.
         Off => "OFF",
+        /// Normal synchronous mode.
         Normal => "NORMAL",
+        /// Full synchronous mode.
         Full => "FULL",
+        /// Extra synchronous mode.
         Extra => "EXTRA",
     }
     default Full
@@ -65,35 +88,59 @@ enum_mode! {
 /// Create a Musq connection
 #[derive(Clone, Debug)]
 pub struct Musq {
+    /// Database filename or URI.
     pub(crate) filename: PathBuf,
+    /// Whether the database is in-memory.
     pub(crate) in_memory: bool,
+    /// Whether to open the database read-only.
     pub(crate) read_only: bool,
+    /// Whether to create the database if missing.
     pub(crate) create_if_missing: bool,
+    /// Whether to enable shared cache mode.
     pub(crate) shared_cache: bool,
+    /// Busy timeout duration.
     pub(crate) busy_timeout: Duration,
+    /// Logging configuration.
     pub(crate) log_settings: LogSettings,
+    /// Whether to open the database as immutable.
     pub(crate) immutable: bool,
+    /// Optional VFS name.
     pub(crate) vfs: Option<String>,
 
+    /// SQLite pragma overrides.
     pub(crate) pragmas: IndexMap<String, Option<String>>,
 
+    /// Size of the command channel for the connection worker.
     pub(crate) command_channel_size: usize,
+    /// Size of the row channel for streaming results.
     pub(crate) row_channel_size: usize,
 
+    /// Prepared statement cache capacity.
     pub(crate) statement_cache_capacity: usize,
 
+    /// Whether to use serialized SQLite mode.
     pub(crate) serialized: bool,
+    /// Thread naming function for worker threads.
     pub(crate) thread_name: Arc<DebugFn<dyn Fn(u64) -> String + Send + Sync + 'static>>,
 
+    /// Maximum number of connections in the pool.
     pub(crate) pool_max_connections: u32,
+    /// Timeout for acquiring a pooled connection.
     pub(crate) pool_acquire_timeout: Duration,
 
+    /// Optimize-on-close configuration.
     pub(crate) optimize_on_close: OptimizeOnClose,
 }
 
+/// Control whether `PRAGMA optimize` is run when closing a connection.
 #[derive(Clone, Debug)]
-pub(crate) enum OptimizeOnClose {
-    Enabled { analysis_limit: Option<u32> },
+pub enum OptimizeOnClose {
+    /// Enable optimize with an optional analysis limit.
+    Enabled {
+        /// Optional analysis limit passed to `ANALYZE`.
+        analysis_limit: Option<u32>,
+    },
+    /// Disable optimize on close.
     Disabled,
 }
 
@@ -163,7 +210,7 @@ impl Musq {
             thread_name: Arc::new(DebugFn(|id| format!("musq-worker-{id}"))),
             command_channel_size: 50,
             row_channel_size: 50,
-            statement_cache_capacity: crate::statement_cache::DEFAULT_CAPACITY,
+            statement_cache_capacity: DEFAULT_CAPACITY,
             optimize_on_close: OptimizeOnClose::Disabled,
             pool_acquire_timeout: Duration::from_secs(30),
             pool_max_connections: 10,
@@ -449,12 +496,14 @@ impl Musq {
     }
 
     #[must_use]
+    /// Log executed SQL statements at the requested level.
     pub fn log_statements(mut self, level: LevelFilter) -> Self {
         self.log_settings.log_statements(level);
         self
     }
 
     #[must_use]
+    /// Log SQL statements slower than the provided duration.
     pub fn log_slow_statements(mut self, level: LevelFilter, duration: Duration) -> Self {
         self.log_settings.log_slow_statements(level, duration);
         self
@@ -471,6 +520,7 @@ impl Musq {
         string
     }
 
+    /// Establish a connection using the current options.
     pub(crate) async fn connect(&self) -> Result<Connection> {
         let conn = Connection::establish(self).await?;
         // Execute PRAGMAs
@@ -506,6 +556,7 @@ impl Musq {
         self
     }
 
+    /// Configure options for an in-memory database.
     pub(crate) fn configure_in_memory(self) -> Self {
         let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
         self.in_memory(true)

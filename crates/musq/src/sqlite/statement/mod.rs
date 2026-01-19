@@ -1,11 +1,14 @@
-use crate::{from_row, query, sqlite::Arguments};
+use crate::{Result, Row, from_row, query, sqlite::Arguments};
 
+/// Compound statement handling.
 mod compound;
+/// Low-level statement handle wrapper.
 mod handle;
+/// Unlock notify helpers.
 pub(super) mod unlock_notify;
 
-pub(crate) use compound::CompoundStatement;
-pub(crate) use handle::StatementHandle;
+pub use compound::CompoundStatement;
+pub use handle::StatementHandle;
 
 /// An explicitly prepared statement.
 ///
@@ -17,11 +20,13 @@ pub(crate) use handle::StatementHandle;
 /// cached within the connection.
 #[derive(Debug, Clone)]
 #[allow(clippy::rc_buffer)]
-pub(crate) struct Statement {
+pub struct Statement {
+    /// SQL string for the prepared statement.
     pub(crate) sql: String,
 }
 
 impl Statement {
+    /// Return the SQL string for this statement.
     pub fn sql(&self) -> &str {
         &self.sql
     }
@@ -30,40 +35,47 @@ impl Statement {
 /// A prepared statement without exposed metadata.
 #[derive(Debug, Clone)]
 pub struct Prepared {
+    /// Prepared statement with metadata.
     pub(crate) statement: Statement,
 }
 
 impl Prepared {
+    /// Return the SQL string for this statement.
     pub fn sql(&self) -> &str {
         self.statement.sql()
     }
 
+    /// Create a query from this prepared statement.
     pub fn query(&self) -> query::Query {
         query::query_statement(&self.statement)
     }
 
+    /// Create a query from this prepared statement with arguments.
     pub fn query_with(&self, arguments: Arguments) -> query::Query {
         query::query_statement_with(&self.statement, arguments)
     }
 
-    pub fn query_as<O>(&self) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
+    /// Create a typed query from this prepared statement.
+    pub fn query_as<O>(&self) -> query::Map<impl FnMut(Row) -> Result<O> + Send>
     where
         O: for<'r> from_row::FromRow<'r> + Send + Unpin,
     {
         query::query_statement_as(&self.statement)
     }
 
+    /// Create a typed query from this prepared statement with arguments.
     pub fn query_as_with<'s, O>(
         &'s self,
         arguments: Arguments,
-    ) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
+    ) -> query::Map<impl FnMut(Row) -> Result<O> + Send>
     where
         O: for<'r> from_row::FromRow<'r> + Send + Unpin,
     {
         query::query_statement_as_with(&self.statement, arguments)
     }
 
-    pub fn query_scalar<O>(&self) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
+    /// Create a scalar query from this prepared statement.
+    pub fn query_scalar<O>(&self) -> query::Map<impl FnMut(Row) -> Result<O> + Send>
     where
         (O,): for<'r> from_row::FromRow<'r>,
         O: Send + Unpin,
@@ -71,10 +83,11 @@ impl Prepared {
         query::query_statement_scalar(&self.statement)
     }
 
+    /// Create a scalar query from this prepared statement with arguments.
     pub fn query_scalar_with<'s, O>(
         &'s self,
         arguments: Arguments,
-    ) -> query::Map<impl FnMut(crate::Row) -> crate::Result<O> + Send>
+    ) -> query::Map<impl FnMut(Row) -> Result<O> + Send>
     where
         (O,): for<'r> from_row::FromRow<'r>,
         O: Send + Unpin,

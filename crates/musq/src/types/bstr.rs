@@ -1,3 +1,8 @@
+use std::result::Result as StdResult;
+
+#[doc(no_inline)]
+pub use bstr::{BStr, BString, ByteSlice};
+
 /// Conversions between `bstr` types and SQL types.
 use crate::{
     SqliteDataType, Value,
@@ -6,13 +11,10 @@ use crate::{
     error::{DecodeError, EncodeError},
 };
 
-#[doc(no_inline)]
-pub use bstr::{BStr, BString, ByteSlice};
-
 impl<'r> Decode<'r> for BString {
-    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
+    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
-        Ok(BString::from(value.blob().to_owned()))
+        Ok(Self::from(value.blob().to_owned()))
     }
 }
 

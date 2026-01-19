@@ -2,18 +2,18 @@ use std::{ffi::CString, ptr::NonNull};
 
 use libsqlite3_sys::sqlite3;
 
-use crate::sqlite::ffi;
-
 use crate::{
     Error, Result,
-    sqlite::{DEFAULT_MAX_RETRIES, statement::unlock_notify},
+    sqlite::{DEFAULT_MAX_RETRIES, ffi, statement::unlock_notify},
 };
 
 /// Managed handle to the raw SQLite3 database handle.
 /// The database handle will be closed when this is dropped and no `ConnectionHandleRef`s exist.
 #[derive(Debug)]
-pub(crate) struct ConnectionHandle {
+pub struct ConnectionHandle {
+    /// Raw SQLite pointer.
     ptr: NonNull<sqlite3>,
+    /// Whether the handle has been closed.
     closed: bool,
 }
 
@@ -29,6 +29,7 @@ pub(crate) struct ConnectionHandle {
 unsafe impl Send for ConnectionHandle {}
 
 impl ConnectionHandle {
+    /// Construct a new handle from a raw SQLite pointer.
     pub(super) unsafe fn new(ptr: *mut sqlite3) -> Self {
         Self {
             ptr: unsafe { NonNull::new_unchecked(ptr) },
@@ -36,15 +37,18 @@ impl ConnectionHandle {
         }
     }
 
+    /// Return the raw SQLite pointer.
     pub(crate) fn as_ptr(&self) -> *mut sqlite3 {
         self.ptr.as_ptr()
     }
 
+    /// Return the last inserted row id for this connection.
     pub(crate) fn last_insert_rowid(&self) -> i64 {
         // SAFETY: we have exclusive access to the database handle
         ffi::last_insert_rowid(self.as_ptr())
     }
 
+    /// Execute a SQL statement without returning rows.
     pub(crate) fn exec(&self, query: impl Into<String>) -> Result<()> {
         let query = query.into();
         let query =
@@ -67,6 +71,7 @@ impl ConnectionHandle {
         }
     }
 
+    /// Close the underlying SQLite handle.
     pub(crate) fn close(&mut self) -> Result<()> {
         if self.closed {
             return Ok(());

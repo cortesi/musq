@@ -29,7 +29,9 @@ pub struct Transaction<C>
 where
     C: DerefMut<Target = Connection> + Send,
 {
+    /// Underlying connection for the transaction.
     connection: C,
+    /// Whether the transaction is still open.
     open: bool,
 }
 
@@ -37,7 +39,7 @@ impl<C> Transaction<C>
 where
     C: DerefMut<Target = Connection> + Send,
 {
-    /// Begin a nested transaction
+    /// Begin a nested transaction.
     pub fn begin<'c>(conn: C) -> BoxFuture<'c, Result<Self>>
     where
         C: 'c,
@@ -125,16 +127,19 @@ where
     }
 }
 
-pub(crate) fn begin_ansi_transaction_sql(depth: usize) -> String {
+/// Build SQL for beginning an ANSI-style transaction/savepoint.
+pub fn begin_ansi_transaction_sql(depth: usize) -> String {
     // The first savepoint is equivalent to a BEGIN
     format!("SAVEPOINT _musq_savepoint_{depth}")
 }
 
-pub(crate) fn commit_ansi_transaction_sql(depth: usize) -> String {
+/// Build SQL for committing an ANSI-style transaction/savepoint.
+pub fn commit_ansi_transaction_sql(depth: usize) -> String {
     format!("RELEASE SAVEPOINT _musq_savepoint_{}", depth - 1)
 }
 
-pub(crate) fn rollback_ansi_transaction_sql(depth: usize) -> String {
+/// Build SQL for rolling back an ANSI-style transaction/savepoint.
+pub fn rollback_ansi_transaction_sql(depth: usize) -> String {
     if depth == 1 {
         "ROLLBACK".into()
     } else {

@@ -1,8 +1,13 @@
+//! Quickstart example from the README.
+
 use musq::{FromRow, Musq, sql, sql_as};
 
+/// User record fetched from the database.
 #[derive(Debug, FromRow)]
 pub struct User {
+    /// User ID.
     pub id: i32,
+    /// User name.
     pub name: String,
 }
 

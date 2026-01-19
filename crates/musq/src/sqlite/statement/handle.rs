@@ -1,25 +1,25 @@
-use std::ffi::CStr;
-use std::ffi::c_void;
-
-use std::os::raw::c_char;
-use std::ptr::NonNull;
+use std::{
+    ffi::{CStr, c_void},
+    os::raw::c_char,
+    ptr::NonNull,
+    result::Result as StdResult,
+};
 
 use libsqlite3_sys::{
     SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW, sqlite3, sqlite3_stmt,
 };
 
+use super::unlock_notify;
 use crate::sqlite::{
     DEFAULT_MAX_RETRIES,
     error::{PrimaryErrCode, SqliteError},
     ffi,
+    type_info::SqliteDataType,
 };
 
-use crate::sqlite::type_info::SqliteDataType;
-
-use super::unlock_notify;
-
+/// Wrapper around a raw SQLite statement handle.
 #[derive(Debug)]
-pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
+pub struct StatementHandle(NonNull<sqlite3_stmt>);
 
 // access to SQLite3 statement handles are safe to send and share between threads
 // as long as the `sqlite3_step` call is serialized.
@@ -27,25 +27,30 @@ pub(crate) struct StatementHandle(NonNull<sqlite3_stmt>);
 unsafe impl Send for StatementHandle {}
 
 impl StatementHandle {
+    /// Create a new statement handle wrapper.
     pub(super) fn new(ptr: NonNull<sqlite3_stmt>) -> Self {
         Self(ptr)
     }
 
+    /// Return the underlying SQLite database handle for this statement.
     pub(super) unsafe fn db_handle(&self) -> *mut sqlite3 {
         // O(c) access to the connection handle for this statement handle
         // https://sqlite.org/c3ref/db_handle.html
         ffi::db_handle(self.0.as_ptr())
     }
 
+    /// Return the last SQLite error for this statement.
     pub(crate) fn last_error(&self) -> SqliteError {
         SqliteError::new(unsafe { self.db_handle() })
     }
 
+    /// Return the number of columns in the result set.
     pub(crate) fn column_count(&self) -> usize {
         // https://sqlite.org/c3ref/column_count.html
         ffi::column_count(self.0.as_ptr()) as usize
     }
 
+    /// Return the number of changes from the last statement.
     pub(crate) fn changes(&self) -> u64 {
         // returns the number of changes of the *last* statement; not
         // necessarily this statement.
@@ -53,7 +58,8 @@ impl StatementHandle {
         unsafe { ffi::changes(self.db_handle()) as u64 }
     }
 
-    pub(crate) fn column_name(&self, index: usize) -> std::result::Result<String, SqliteError> {
+    /// Return the name of a result column.
+    pub(crate) fn column_name(&self, index: usize) -> StdResult<String, SqliteError> {
         // https://sqlite.org/c3ref/column_name.html
         let name = ffi::column_name(self.0.as_ptr(), index as i32);
         if name.is_null() {
@@ -64,10 +70,12 @@ impl StatementHandle {
         Ok(s.to_string_lossy().into_owned())
     }
 
+    /// Return the type information for a result column.
     pub(crate) fn column_type_info(&self, index: usize) -> Option<SqliteDataType> {
         SqliteDataType::from_code(self.column_type(index))
     }
 
+    /// Return the declared type for a result column, if available.
     pub(crate) fn column_decltype(&self, index: usize) -> Option<SqliteDataType> {
         let decl = ffi::column_decltype(self.0.as_ptr(), index as i32);
         if decl.is_null() {
@@ -84,6 +92,7 @@ impl StatementHandle {
 
     // Number Of SQL Parameters
 
+    /// Return the number of bind parameters.
     pub(crate) fn bind_parameter_count(&self) -> usize {
         // https://www.sqlite.org/c3ref/bind_parameter_count.html
         ffi::bind_parameter_count(self.0.as_ptr()) as usize
@@ -92,6 +101,7 @@ impl StatementHandle {
     // Name Of A Host Parameter
     // NOTE: The first host parameter has an index of 1, not 0.
 
+    /// Return the name of a bind parameter, if any.
     pub(crate) fn bind_parameter_name(&self, index: usize) -> Option<String> {
         // https://www.sqlite.org/c3ref/bind_parameter_name.html
         let name = ffi::bind_parameter_name(self.0.as_ptr(), index as i32);
@@ -106,7 +116,8 @@ impl StatementHandle {
     // Binding Values To Prepared Statements
     // https://www.sqlite.org/c3ref/bind_blob.html
 
-    pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> std::result::Result<(), SqliteError> {
+    /// Bind a blob parameter.
+    pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> StdResult<(), SqliteError> {
         ffi::bind_blob64(
             self.0.as_ptr(),
             index as i32,
@@ -115,7 +126,8 @@ impl StatementHandle {
         )
     }
 
-    pub(crate) fn bind_text(&self, index: usize, v: &str) -> std::result::Result<(), SqliteError> {
+    /// Bind a text parameter.
+    pub(crate) fn bind_text(&self, index: usize, v: &str) -> StdResult<(), SqliteError> {
         ffi::bind_text64(
             self.0.as_ptr(),
             index as i32,
@@ -124,52 +136,63 @@ impl StatementHandle {
         )
     }
 
-    pub(crate) fn bind_int64(&self, index: usize, v: i64) -> std::result::Result<(), SqliteError> {
+    /// Bind a 64-bit integer parameter.
+    pub(crate) fn bind_int64(&self, index: usize, v: i64) -> StdResult<(), SqliteError> {
         ffi::bind_int64(self.0.as_ptr(), index as i32, v)
     }
 
-    pub(crate) fn bind_double(&self, index: usize, v: f64) -> std::result::Result<(), SqliteError> {
+    /// Bind a floating-point parameter.
+    pub(crate) fn bind_double(&self, index: usize, v: f64) -> StdResult<(), SqliteError> {
         ffi::bind_double(self.0.as_ptr(), index as i32, v)
     }
 
-    pub(crate) fn bind_null(&self, index: usize) -> std::result::Result<(), SqliteError> {
+    /// Bind a NULL parameter.
+    pub(crate) fn bind_null(&self, index: usize) -> StdResult<(), SqliteError> {
         ffi::bind_null(self.0.as_ptr(), index as i32)
     }
 
     // result values from the query
     // https://www.sqlite.org/c3ref/column_blob.html
 
+    /// Return the SQLite type code for a result column.
     pub(crate) fn column_type(&self, index: usize) -> i32 {
         ffi::column_type(self.0.as_ptr(), index as i32)
     }
 
+    /// Return an integer value from a result column.
     pub(crate) fn column_int64(&self, index: usize) -> i64 {
         ffi::column_int64(self.0.as_ptr(), index as i32)
     }
 
+    /// Return a floating-point value from a result column.
     pub(crate) fn column_double(&self, index: usize) -> f64 {
         ffi::column_double(self.0.as_ptr(), index as i32)
     }
 
+    /// Return a blob pointer from a result column.
     pub(crate) fn column_blob(&self, index: usize) -> *const c_void {
         ffi::column_blob(self.0.as_ptr(), index as i32)
     }
 
+    /// Return the number of bytes in a result column.
     pub(crate) fn column_bytes(&self, index: usize) -> i32 {
         ffi::column_bytes(self.0.as_ptr(), index as i32)
     }
 
+    /// Clear all bound parameters.
     pub(crate) fn clear_bindings(&self) {
         ffi::clear_bindings(self.0.as_ptr());
     }
 
-    pub(crate) fn reset(&mut self) -> std::result::Result<(), SqliteError> {
+    /// Reset the statement so it can be re-executed.
+    pub(crate) fn reset(&self) -> StdResult<(), SqliteError> {
         // SAFETY: we have exclusive access to the handle
         ffi::reset(self.0.as_ptr())?;
 
         Ok(())
     }
 
+    /// Step the statement, returning whether a row is available.
     pub(crate) fn step(&mut self) -> crate::Result<bool> {
         // SAFETY: we have exclusive access to the handle
         let mut attempts = 0;

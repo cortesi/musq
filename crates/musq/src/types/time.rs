@@ -1,3 +1,11 @@
+use std::result::Result as StdResult;
+
+pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
+use time::{
+    format_description::{FormatItem, well_known::Rfc3339},
+    macros::format_description as fd,
+};
+
 use crate::{
     Value,
     decode::Decode,
@@ -5,9 +13,6 @@ use crate::{
     error::{DecodeError, EncodeError},
     sqlite::SqliteDataType,
 };
-use time::format_description::{FormatItem, well_known::Rfc3339};
-use time::macros::format_description as fd;
-pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 
 impl Encode for OffsetDateTime {
     fn encode(&self) -> Result<Value, EncodeError> {
@@ -61,26 +66,26 @@ impl Encode for Time {
 }
 
 impl<'r> Decode<'r> for OffsetDateTime {
-    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
+    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         decode_offset_datetime(value)
     }
 }
 
 impl<'r> Decode<'r> for PrimitiveDateTime {
-    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
+    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         decode_datetime(value)
     }
 }
 
 impl<'r> Decode<'r> for Date {
-    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
-        Date::parse(value.text()?, &fd!("[year]-[month]-[day]"))
+    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+        Self::parse(value.text()?, &fd!("[year]-[month]-[day]"))
             .map_err(|e| DecodeError::Conversion(e.to_string()))
     }
 }
 
 impl<'r> Decode<'r> for Time {
-    fn decode(value: &'r Value) -> std::result::Result<Self, DecodeError> {
+    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         let value = value.text()?;
 
         let sqlite_time_formats = &[
@@ -90,7 +95,7 @@ impl<'r> Decode<'r> for Time {
         ];
 
         for format in sqlite_time_formats {
-            if let Ok(dt) = Time::parse(value, &format) {
+            if let Ok(dt) = Self::parse(value, &format) {
                 return Ok(dt);
             }
         }
@@ -99,7 +104,8 @@ impl<'r> Decode<'r> for Time {
     }
 }
 
-fn decode_offset_datetime(value: &Value) -> std::result::Result<OffsetDateTime, DecodeError> {
+/// Decode an offset datetime from a SQLite value.
+fn decode_offset_datetime(value: &Value) -> StdResult<OffsetDateTime, DecodeError> {
     compatible!(
         value,
         SqliteDataType::Text
@@ -126,6 +132,7 @@ fn decode_offset_datetime(value: &Value) -> std::result::Result<OffsetDateTime, 
     }
 }
 
+/// Try parsing an offset datetime from text.
 fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
     if let Ok(dt) = OffsetDateTime::parse(value, &Rfc3339) {
         return Some(dt);
@@ -142,7 +149,8 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
     None
 }
 
-fn decode_datetime(value: &Value) -> std::result::Result<PrimitiveDateTime, DecodeError> {
+/// Decode a primitive datetime from a SQLite value.
+fn decode_datetime(value: &Value) -> StdResult<PrimitiveDateTime, DecodeError> {
     compatible!(
         value,
         SqliteDataType::Text
@@ -167,6 +175,7 @@ fn decode_datetime(value: &Value) -> std::result::Result<PrimitiveDateTime, Deco
     }
 }
 
+/// Try parsing a primitive datetime from text.
 fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
     let default_format = fd!("[year]-[month]-[day] [hour]:[minute]:[second].[subsecond]");
     if let Ok(dt) = PrimitiveDateTime::parse(value, &default_format) {
@@ -187,9 +196,10 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
 
 #[cfg(test)]
 mod tests {
+    use time::macros::{date, datetime, time};
+
     use super::*;
     use crate::{Value, sqlite::SqliteDataType};
-    use time::macros::{date, datetime, time};
 
     #[test]
     fn test_offset_datetime_encode_decode() {
@@ -423,9 +433,11 @@ mod tests {
     }
 }
 
+/// Precomputed format descriptions for time parsing.
 mod formats {
     use time::format_description::{Component::*, FormatItem, FormatItem::*, modifier};
 
+    /// Format item for year.
     const YEAR: FormatItem<'_> = Component(Year({
         let mut value = modifier::Year::default();
         value.padding = modifier::Padding::Zero;
@@ -435,6 +447,7 @@ mod formats {
         value
     }));
 
+    /// Format item for month.
     const MONTH: FormatItem<'_> = Component(Month({
         let mut value = modifier::Month::default();
         value.padding = modifier::Padding::Zero;
@@ -443,12 +456,14 @@ mod formats {
         value
     }));
 
+    /// Format item for day.
     const DAY: FormatItem<'_> = Component(Day({
         let mut value = modifier::Day::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
+    /// Format item for hour.
     const HOUR: FormatItem<'_> = Component(Hour({
         let mut value = modifier::Hour::default();
         value.padding = modifier::Padding::Zero;
@@ -456,24 +471,28 @@ mod formats {
         value
     }));
 
+    /// Format item for minute.
     const MINUTE: FormatItem<'_> = Component(Minute({
         let mut value = modifier::Minute::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
+    /// Format item for second.
     const SECOND: FormatItem<'_> = Component(Second({
         let mut value = modifier::Second::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
+    /// Format item for subsecond.
     const SUBSECOND: FormatItem<'_> = Component(Subsecond({
         let mut value = modifier::Subsecond::default();
         value.digits = modifier::SubsecondDigits::OneOrMore;
         value
     }));
 
+    /// Format item for offset hour.
     const OFFSET_HOUR: FormatItem<'_> = Component(OffsetHour({
         let mut value = modifier::OffsetHour::default();
         value.sign_is_mandatory = true;
@@ -481,12 +500,14 @@ mod formats {
         value
     }));
 
+    /// Format item for offset minute.
     const OFFSET_MINUTE: FormatItem<'_> = Component(OffsetMinute({
         let mut value = modifier::OffsetMinute::default();
         value.padding = modifier::Padding::Zero;
         value
     }));
 
+    /// Formats for parsing offset datetime strings.
     pub(super) const OFFSET_DATE_TIME: &[FormatItem<'_>] = {
         &[
             YEAR,
@@ -508,6 +529,7 @@ mod formats {
         ]
     };
 
+    /// Formats for parsing space-separated primitive datetimes.
     pub(super) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
         &[
             YEAR,
@@ -527,6 +549,7 @@ mod formats {
         ]
     };
 
+    /// Formats for parsing T-separated primitive datetimes.
     pub(super) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
         &[
             YEAR,

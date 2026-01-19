@@ -1,55 +1,60 @@
-use musq::{Musq, query, query_scalar};
-use musq_test::connection;
-use tokio::time::{Duration, Instant, sleep};
+//! Integration tests for musq.
 
-#[tokio::test]
-async fn basic_statement_flow() -> anyhow::Result<()> {
-    let conn = connection().await?;
+#[cfg(test)]
+mod tests {
+    use musq::{Musq, query, query_scalar};
+    use musq_test::connection;
+    use tokio::time::{Duration, Instant, sleep};
 
-    query("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)")
-        .execute(&conn)
-        .await?;
+    #[tokio::test]
+    async fn basic_statement_flow() -> anyhow::Result<()> {
+        let conn = connection().await?;
 
-    let stmt = conn.prepare("INSERT INTO t (val) VALUES (?1)").await?;
-    stmt.query().bind("hello").execute(&conn).await?;
-    drop(stmt);
+        query("CREATE TABLE t (id INTEGER PRIMARY KEY, val TEXT)")
+            .execute(&conn)
+            .await?;
 
-    let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
-        .fetch_one(&conn)
-        .await?;
-    assert_eq!(count, 1);
+        let stmt = conn.prepare("INSERT INTO t (val) VALUES (?1)").await?;
+        stmt.query().bind("hello").execute(&conn).await?;
+        drop(stmt);
 
-    Ok(())
-}
+        let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(count, 1);
 
-#[tokio::test]
-async fn retry_on_busy_lock() -> anyhow::Result<()> {
-    let pool = Musq::new().max_connections(2).open_in_memory().await?;
-    let c1 = pool.acquire().await?;
-    let c2 = pool.acquire().await?;
+        Ok(())
+    }
 
-    query("CREATE TABLE t (val TEXT)").execute(&c1).await?;
+    #[tokio::test]
+    async fn retry_on_busy_lock() -> anyhow::Result<()> {
+        let pool = Musq::new().max_connections(2).open_in_memory().await?;
+        let c1 = pool.acquire().await?;
+        let c2 = pool.acquire().await?;
 
-    query("BEGIN IMMEDIATE").execute(&c1).await?;
+        query("CREATE TABLE t (val TEXT)").execute(&c1).await?;
 
-    let start = Instant::now();
-    let insert = tokio::spawn(async move {
-        query("INSERT INTO t (val) VALUES ('foo')")
-            .execute(&c2)
-            .await
-    });
+        query("BEGIN IMMEDIATE").execute(&c1).await?;
 
-    sleep(Duration::from_millis(100)).await;
-    query("COMMIT").execute(&c1).await?;
+        let start = Instant::now();
+        let insert = tokio::spawn(async move {
+            query("INSERT INTO t (val) VALUES ('foo')")
+                .execute(&c2)
+                .await
+        });
 
-    insert.await??;
-    assert!(start.elapsed() >= Duration::from_millis(100));
+        sleep(Duration::from_millis(100)).await;
+        query("COMMIT").execute(&c1).await?;
 
-    let conn = pool.acquire().await?;
-    let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
-        .fetch_one(&conn)
-        .await?;
-    assert_eq!(count, 1);
+        insert.await??;
+        assert!(start.elapsed() >= Duration::from_millis(100));
 
-    Ok(())
+        let conn = pool.acquire().await?;
+        let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(count, 1);
+
+        Ok(())
+    }
 }

@@ -1,27 +1,32 @@
-use musq::{query, query_scalar, quote_identifier};
-use musq_test::connection;
+//! Integration tests for musq.
 
-#[tokio::test]
-async fn quote_identifier_escapes_double_quotes() -> anyhow::Result<()> {
-    assert_eq!(quote_identifier("user\"name"), "\"user\"\"name\"");
+#[cfg(test)]
+mod tests {
+    use musq::{query, query_scalar, quote_identifier};
+    use musq_test::connection;
 
-    let conn = connection().await?;
-    let ident = "user\"name";
-    query(&format!(
-        "CREATE TABLE {} (id INTEGER)",
-        quote_identifier(ident)
-    ))
-    .execute(&conn)
-    .await?;
-    query(&format!(
-        "INSERT INTO {} (id) VALUES (1)",
-        quote_identifier(ident)
-    ))
-    .execute(&conn)
-    .await?;
-    let val: i32 = query_scalar(&format!("SELECT id FROM {}", quote_identifier(ident)))
-        .fetch_one(&conn)
+    #[tokio::test]
+    async fn quote_identifier_escapes_double_quotes() -> anyhow::Result<()> {
+        assert_eq!(quote_identifier("user\"name"), "\"user\"\"name\"");
+
+        let conn = connection().await?;
+        let ident = "user\"name";
+        query(&format!(
+            "CREATE TABLE {} (id INTEGER)",
+            quote_identifier(ident)
+        ))
+        .execute(&conn)
         .await?;
-    assert_eq!(val, 1);
-    Ok(())
+        query(&format!(
+            "INSERT INTO {} (id) VALUES (1)",
+            quote_identifier(ident)
+        ))
+        .execute(&conn)
+        .await?;
+        let val: i32 = query_scalar(&format!("SELECT id FROM {}", quote_identifier(ident)))
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(val, 1);
+        Ok(())
+    }
 }

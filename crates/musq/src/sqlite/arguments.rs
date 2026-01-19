@@ -1,13 +1,15 @@
+use std::collections::HashMap;
+
+use atoi::atoi;
+
 use crate::{
     Error, Result,
     encode::Encode,
     sqlite::{Value, statement::StatementHandle},
 };
-use std::collections::HashMap;
 
-use atoi::atoi;
-
-pub(crate) fn parse_question_param(name: &str) -> Result<usize> {
+/// Parse a numeric positional parameter like `?1` into its index.
+pub fn parse_question_param(name: &str) -> Result<usize> {
     // The parameter must start with exactly one '?'
     if !name.starts_with('?') || name.as_bytes().get(1) == Some(&b'?') {
         return Err(Error::Protocol(format!(
@@ -38,17 +40,20 @@ pub(crate) fn parse_question_param(name: &str) -> Result<usize> {
     Ok(num)
 }
 
+/// Collection of bound SQL arguments.
 #[derive(Default, Debug, Clone)]
 pub struct Arguments {
+    /// Ordered positional values.
     pub(crate) values: Vec<Value>,
     /// Mapping from named parameters to their argument indices (1-based).
     pub(crate) named: HashMap<String, usize>,
 }
 
 impl Arguments {
-    pub fn add<T>(&mut self, value: T) -> Result<()>
+    /// Add a positional bind parameter.
+    pub fn add<T>(&mut self, value: &T) -> Result<()>
     where
-        T: Encode,
+        T: Encode + ?Sized,
     {
         self.values
             .push(value.encode().map_err(crate::Error::Encode)?);
@@ -57,9 +62,9 @@ impl Arguments {
 
     /// Add a bind parameter by name. The provided `name` may include the
     /// SQLite prefix (`:`, `@`, or `$`) but it is not required.
-    pub fn add_named<T>(&mut self, name: &str, value: T) -> Result<()>
+    pub fn add_named<T>(&mut self, name: &str, value: &T) -> Result<()>
     where
-        T: Encode,
+        T: Encode + ?Sized,
     {
         let name = name.trim_start_matches([':', '@', '$', '?']);
         if let Some(&index) = self.named.get(name) {
@@ -73,7 +78,8 @@ impl Arguments {
         Ok(())
     }
 
-    pub(super) fn bind(&self, handle: &mut StatementHandle, offset: usize) -> Result<usize> {
+    /// Bind arguments to a prepared statement, returning the number of bound parameters.
+    pub(super) fn bind(&self, handle: &StatementHandle, offset: usize) -> Result<usize> {
         // Anonymous-position counter for `?` parameters and for allocating
         // indices to previously-unseen named parameters. This advances strictly
         // in SQL order and is rebased up to the highest named index that has
@@ -160,24 +166,6 @@ impl Arguments {
         }
 
         Ok(anon_pos - offset)
-    }
-}
-
-impl Value {
-    /// Bind this value to the parameter `i` of the given statement handle.
-    ///
-    /// The binding is performed according to the underlying variant without
-    /// altering the stored value.
-    pub(crate) fn bind(&self, handle: &mut StatementHandle, i: usize) -> Result<()> {
-        match self {
-            Value::Text { value, .. } => handle.bind_text(i, value.as_str())?,
-            Value::Blob { value, .. } => handle.bind_blob(i, value.as_slice())?,
-            Value::Integer { value, .. } => handle.bind_int64(i, *value)?,
-            Value::Double { value, .. } => handle.bind_double(i, *value)?,
-            Value::Null { .. } => handle.bind_null(i)?,
-        }
-
-        Ok(())
     }
 }
 
@@ -324,8 +312,8 @@ mod tests {
         let conn = Connection::connect_with(&Musq::new()).await?;
         let stmt = conn.prepare("SELECT :a, :a, ?2").await?;
         let mut args = Arguments::default();
-        args.add_named("a", 7_i32)?;
-        args.add(9_i32)?;
+        args.add_named("a", &7_i32)?;
+        args.add(&9_i32)?;
 
         let (x, y, z): (i32, i32, i32) = stmt.query_as_with(args).fetch_one(&conn).await?;
 

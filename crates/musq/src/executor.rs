@@ -1,14 +1,16 @@
 use crate::Arguments;
 
-// Private module that defines the `Sealed` trait used to prevent external
-// implementations of [`Execute`].
+/// Private module that defines the `Sealed` trait used to prevent external
+/// implementations of [`Execute`].
 mod sealed {
+    use crate::query::{Map, Query};
+
     /// Prevent downstream implementations of [`Execute`].
     pub trait Sealed {}
 
     impl Sealed for &str {}
-    impl Sealed for crate::query::Query {}
-    impl<F> Sealed for crate::query::Map<F> {}
+    impl Sealed for Query {}
+    impl<F> Sealed for Map<F> {}
 }
 
 /// A type that may be executed against a database connection.

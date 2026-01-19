@@ -19,8 +19,9 @@ impl Values {
         K: Into<String>,
         V: Encode,
     {
-        let value = value.encode().map_err(crate::Error::Encode)?;
-        self.0.insert(key.into(), value);
+        let encoded = value.encode().map_err(crate::Error::Encode)?;
+        drop(value);
+        self.0.insert(key.into(), encoded);
         Ok(())
     }
 
@@ -65,7 +66,7 @@ impl Values {
     /// If a key exists in both collections, the value from `other` will overwrite
     /// the existing value in this collection. The insertion order is preserved,
     /// with existing keys maintaining their position and new keys appended.
-    pub fn extend(&mut self, other: &Values) {
+    pub fn extend(&mut self, other: &Self) {
         self.0
             .extend(other.0.iter().map(|(k, v)| (k.clone(), v.clone())));
     }

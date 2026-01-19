@@ -1,18 +1,27 @@
-use crate::{Arguments, Result, encode::Encode, executor::Execute, query::Query};
+use std::collections::HashSet;
+
 use either::Either;
 
+use crate::{Arguments, Result, encode::Encode, executor::Execute, query::Query};
+
 #[derive(Default)]
+/// Incrementally build a SQL query with bound parameters.
 pub struct QueryBuilder {
+    /// Accumulated SQL string.
     pub(crate) sql: String,
+    /// Bound arguments.
     pub(crate) arguments: Arguments,
+    /// Whether the query is tainted with raw SQL.
     pub(crate) tainted: bool,
 }
 
 impl QueryBuilder {
+    /// Create a new, empty query builder.
     pub fn new() -> Self {
         Self::default()
     }
 
+    /// Create a builder from existing parts.
     pub(crate) fn from_parts(sql: String, arguments: Arguments, tainted: bool) -> Self {
         Self {
             sql,
@@ -21,28 +30,33 @@ impl QueryBuilder {
         }
     }
 
+    /// Append raw SQL to the query.
     pub fn push_sql(&mut self, sql: &str) {
         self.sql.push_str(sql);
     }
 
+    /// Append raw SQL and mark the query as tainted.
     pub fn push_raw(&mut self, raw: &str) {
         self.sql.push_str(raw);
         self.tainted = true;
     }
 
-    pub fn push_bind<T: Encode>(&mut self, value: T) -> Result<()> {
+    /// Add a positional bind parameter and append the placeholder.
+    pub fn push_bind<T: Encode>(&mut self, value: &T) -> Result<()> {
         self.arguments.add(value)?;
         self.sql.push('?');
         Ok(())
     }
 
-    pub fn push_bind_named<T: Encode>(&mut self, name: &str, value: T) -> Result<()> {
+    /// Add a named bind parameter and append the placeholder.
+    pub fn push_bind_named<T: Encode>(&mut self, name: &str, value: &T) -> Result<()> {
         self.arguments.add_named(name, value)?;
         self.sql.push(':');
         self.sql.push_str(name);
         Ok(())
     }
 
+    /// Append a comma-separated list of bound values.
     pub fn push_values<I, T>(&mut self, iter: I) -> Result<()>
     where
         I: IntoIterator<Item = T>,
@@ -55,7 +69,7 @@ impl QueryBuilder {
             }
             first = false;
             self.sql.push('?');
-            self.arguments.add(v)?;
+            self.arguments.add(&v)?;
         }
         if first {
             return Err(crate::Error::Protocol("empty values".into()));
@@ -63,6 +77,7 @@ impl QueryBuilder {
         Ok(())
     }
 
+    /// Append a comma-separated list of quoted identifiers.
     pub fn push_idents<I>(&mut self, iter: I) -> Result<()>
     where
         I: IntoIterator,
@@ -82,6 +97,7 @@ impl QueryBuilder {
         Ok(())
     }
 
+    /// Append an INSERT column/value list from provided values.
     pub fn push_insert(&mut self, values: &crate::Values) -> Result<()> {
         if values.is_empty() {
             return Err(crate::Error::Protocol("empty values".into()));
@@ -109,6 +125,7 @@ impl QueryBuilder {
         Ok(())
     }
 
+    /// Append a SET clause from provided values.
     pub fn push_set(&mut self, values: &crate::Values) -> Result<()> {
         if values.is_empty() {
             return Err(crate::Error::Protocol("empty values".into()));
@@ -126,6 +143,7 @@ impl QueryBuilder {
         Ok(())
     }
 
+    /// Append a WHERE clause from provided values.
     pub fn push_where(&mut self, values: &crate::Values) -> Result<()> {
         if values.is_empty() {
             self.sql.push_str("1=1");
@@ -144,12 +162,12 @@ impl QueryBuilder {
         Ok(())
     }
 
+    /// Append an UPSERT update clause, excluding the named columns.
     pub fn push_upsert(&mut self, values: &crate::Values, exclude: &[&str]) -> Result<()> {
         if values.is_empty() {
             return Err(crate::Error::Protocol("empty values".into()));
         }
 
-        use std::collections::HashSet;
         let exclude: HashSet<&str> = exclude.iter().copied().collect();
 
         if values.keys().all(|k| exclude.contains(k.as_str())) {
@@ -203,6 +221,7 @@ impl QueryBuilder {
         }
     }
 
+    /// Finalize the builder into a [`Query`].
     pub fn build(self) -> Query {
         Query {
             statement: Either::Left(self.sql),

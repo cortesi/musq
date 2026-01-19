@@ -28,16 +28,16 @@ futures-util = { version = "0.3.19", default-features = false, features = [
 async-stream = "0.3"
 log = { version = "0.4.14", default-features = false }
 serde = { version = "1.0.132", features = ["derive", "rc"] }
-sqlformat = "0.3.5"
+sqlformat = "0.5"
 thiserror = "2.0.12"
 tracing = { version = "0.1.37", features = ["log"] }
 bstr = { version = "1.0", default-features = false, features = ["std"] }
-hashlink = "0.10.0"
+hashlink = "0.11"
 indexmap = "2.0"
 event-listener = "5.3.1"
-flume = "0.11.0"
+flume = "0.12"
 futures-executor = "0.3.28"
-libsqlite3-sys = { version = "0.35", features = [
+libsqlite3-sys = { version = "0.36", features = [
     "pkg-config",
     "vcpkg",
     "bundled",
@@ -50,18 +50,18 @@ async-trait = "0.1"
 musq-test = { path = "../musq-test" }
 anyhow = "1.0.52"
 futures = "0.3.19"
-env_logger = "0.11.3"
 tokio = { version = "1.15.0", features = ["full"] }
 paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
 serde_json = "1.0.73"
-url = "2.2.2"
 rand = "0.9.0"
 rand_xoshiro = "0.7.0"
 hex = "0.4.3"
 tempdir = "0.3.7"
-criterion = { version = "0.6", features = ["async_tokio"] }
-pprof = { version = "0.15.0", features = ["flamegraph", "criterion"] }
+criterion = { version = "0.8", features = ["async_tokio"] }
+
+[lints]
+workspace = true
 
 [[bench]]
 name = "benchmark"

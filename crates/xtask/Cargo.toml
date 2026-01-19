@@ -1,5 +1,5 @@
 [package]
-name = "musq-test"
+name = "xtask"
 version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -10,8 +10,8 @@ categories.workspace = true
 publish = false
 
 [dependencies]
-musq = { path = "../musq" }
-anyhow = "1.0.26"
+anyhow = "1.0.86"
+clap = { version = "4.5.9", features = ["derive"] }
 
 [lints]
 workspace = true

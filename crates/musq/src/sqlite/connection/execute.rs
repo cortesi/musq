@@ -10,20 +10,28 @@ use crate::{
     },
 };
 
+/// Iterator over results from executing a compound SQLite statement.
 pub struct ExecuteIter<'a> {
+    /// Active SQLite connection handle.
     handle: &'a mut ConnectionHandle,
+    /// Prepared compound statement.
     statement: &'a mut CompoundStatement,
+    /// Query logging implementation.
     logger: Box<dyn QueryLog + 'a>,
+    /// Bound arguments, if any.
     args: Option<Arguments>,
 
     /// since a `VirtualStatement` can encompass multiple actual statements,
     /// this keeps track of the number of arguments so far
+    /// Number of arguments bound so far.
     args_used: usize,
 
+    /// Whether to advance to the next statement on the next iteration.
     goto_next: bool,
 }
 
-pub(crate) fn iter<'a>(
+/// Create an iterator for executing a SQL query with optional arguments.
+pub fn iter<'a>(
     conn: &'a mut ConnectionState,
     query: &'a str,
     args: Option<Arguments>,
@@ -47,8 +55,9 @@ pub(crate) fn iter<'a>(
     })
 }
 
+/// Bind arguments to the provided statement handle.
 fn bind(
-    statement: &mut StatementHandle,
+    statement: &StatementHandle,
     arguments: &Option<Arguments>,
     offset: usize,
 ) -> Result<usize> {

@@ -1,11 +1,14 @@
-use std::fmt::{self, Debug, Formatter};
-use std::ops::{Deref, DerefMut};
-use std::sync::Arc;
+use std::{
+    fmt::{self, Debug, Formatter},
+    future::Future,
+    ops::{Deref, DerefMut},
+    sync::Arc,
+};
 
-use crate::{Connection, Result};
+use tokio::{sync::SemaphorePermit, task::spawn};
 
 use super::inner::{DecrementSizeGuard, PoolInner};
-use std::future::Future;
+use crate::{Connection, Result};
 
 /// A single database connection acquired from a [`Pool`].
 ///
@@ -45,24 +48,33 @@ use std::future::Future;
 /// } // conn is dropped here and returned to the pool.
 /// ```
 pub struct PoolConnection {
+    /// Live connection, if still attached.
     live: Option<Live>,
+    /// Owning pool reference.
     pool: Arc<PoolInner>,
 }
 
+/// Live connection wrapper.
 pub(super) struct Live {
+    /// Underlying connection handle.
     raw: Connection,
 }
 
+/// Idle connection wrapper.
 pub(super) struct Idle {
+    /// Live connection state.
     pub(super) live: Live,
 }
 
-/// RAII wrapper for connections being handled by functions that may drop them
+/// RAII wrapper for connections being handled by functions that may drop them.
 pub(super) struct Floating<C> {
+    /// Wrapped connection state.
     pub(super) inner: C,
+    /// Guard that decrements pool size on drop.
     pub(super) guard: DecrementSizeGuard,
 }
 
+/// Error message for missing pooled connection state.
 const EXPECT_MSG: &str = "BUG: inner connection already taken!";
 
 impl Debug for PoolConnection {
@@ -100,6 +112,7 @@ impl PoolConnection {
         floating.inner.raw.close().await
     }
 
+    /// Take ownership of the live connection, if present.
     fn take_live(&mut self) -> Live {
         self.live.take().expect(EXPECT_MSG)
     }
@@ -131,12 +144,13 @@ impl Drop for PoolConnection {
     fn drop(&mut self) {
         // We still need to spawn a task to maintain `min_connections`.
         if self.live.is_some() {
-            tokio::task::spawn(self.return_to_pool());
+            spawn(self.return_to_pool());
         }
     }
 }
 
 impl Live {
+    /// Convert a live connection into a floating connection.
     pub fn float(self, pool: Arc<PoolInner>) -> Floating<Self> {
         Floating {
             inner: self,
@@ -145,6 +159,7 @@ impl Live {
         }
     }
 
+    /// Convert a live connection into an idle wrapper.
     pub fn into_idle(self) -> Idle {
         Idle { live: self }
     }
@@ -165,6 +180,7 @@ impl DerefMut for Idle {
 }
 
 impl Floating<Live> {
+    /// Create a new floating live connection.
     pub fn new_live(conn: Connection, guard: DecrementSizeGuard) -> Self {
         Self {
             inner: Live { raw: conn },
@@ -172,8 +188,9 @@ impl Floating<Live> {
         }
     }
 
+    /// Reattach the floating connection to the pool wrapper.
     pub fn reattach(self) -> PoolConnection {
-        let Floating { inner, guard } = self;
+        let Self { inner, guard } = self;
 
         let pool = Arc::clone(&guard.pool);
 
@@ -184,6 +201,7 @@ impl Floating<Live> {
         }
     }
 
+    /// Release the floating connection back into the pool.
     pub fn release(self) {
         self.guard.pool.clone().release(self);
     }
@@ -201,13 +219,15 @@ impl Floating<Live> {
         true
     }
 
+    /// Close the underlying connection and drop the size guard.
     pub async fn close(self) {
-        // This isn't used anywhere that we care about the return value
-        let _ = self.inner.raw.close().await;
+        // This isn't used anywhere that we care about the return value.
+        let _close_result = self.inner.raw.close().await;
 
         // `guard` is dropped as intended
     }
 
+    /// Convert a floating live connection into a floating idle connection.
     pub fn into_idle(self) -> Floating<Idle> {
         Floating {
             inner: self.inner.into_idle(),
@@ -217,17 +237,15 @@ impl Floating<Live> {
 }
 
 impl Floating<Idle> {
-    pub fn from_idle(
-        idle: Idle,
-        pool: Arc<PoolInner>,
-        permit: tokio::sync::SemaphorePermit<'_>,
-    ) -> Self {
+    /// Create a floating idle connection from an idle connection and a permit.
+    pub fn from_idle(idle: Idle, pool: Arc<PoolInner>, permit: SemaphorePermit<'_>) -> Self {
         Self {
             inner: idle,
             guard: DecrementSizeGuard::from_permit(pool, permit),
         }
     }
 
+    /// Convert a floating idle connection back into a floating live connection.
     pub fn into_live(self) -> Floating<Live> {
         Floating {
             inner: self.inner.live,
