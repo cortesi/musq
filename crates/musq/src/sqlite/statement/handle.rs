@@ -58,6 +58,11 @@ impl StatementHandle {
         unsafe { ffi::changes(self.db_handle()) as u64 }
     }
 
+    /// Returns `true` if this statement is read-only.
+    pub(crate) fn is_readonly(&self) -> bool {
+        ffi::stmt_readonly(self.0.as_ptr())
+    }
+
     /// Return the name of a result column.
     pub(crate) fn column_name(&self, index: usize) -> StdResult<String, SqliteError> {
         // https://sqlite.org/c3ref/column_name.html

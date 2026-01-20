@@ -390,6 +390,25 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn it_reports_zero_rows_affected_for_select() -> anyhow::Result<()> {
+        let conn = connection().await?;
+
+        query("CREATE TEMPORARY TABLE t (id INTEGER PRIMARY KEY)")
+            .execute(&conn)
+            .await?;
+
+        let done = query("INSERT INTO t (id) VALUES (1)")
+            .execute(&conn)
+            .await?;
+        assert_eq!(done.rows_affected(), 1);
+
+        let done = query("SELECT id FROM t").execute(&conn).await?;
+        assert_eq!(done.rows_affected(), 0);
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn it_can_execute_multiple_statements() -> anyhow::Result<()> {
         let conn = connection().await?;
 

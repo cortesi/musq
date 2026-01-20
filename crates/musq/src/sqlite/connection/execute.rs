@@ -112,7 +112,11 @@ impl Iterator for ExecuteIter<'_> {
             Ok(false) => {
                 let last_insert_rowid = self.handle.last_insert_rowid();
 
-                let changes = statement.handle.changes();
+                let changes = if statement.handle.is_readonly() {
+                    0
+                } else {
+                    statement.handle.changes()
+                };
                 self.logger.inc_rows_affected(changes);
 
                 let done = QueryResult {

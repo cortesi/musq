@@ -236,6 +236,17 @@ pub fn column_count(stmt: *mut sqlite3_stmt) -> i32 {
     unsafe { ffi_sys::sqlite3_column_count(stmt) as i32 }
 }
 
+/// Wrapper around [`sqlite3_stmt_readonly`].
+///
+/// # Safety
+/// - `stmt` must be a valid prepared statement pointer.
+///
+/// See <https://www.sqlite.org/c3ref/stmt_readonly.html>
+#[inline]
+pub fn stmt_readonly(stmt: *mut sqlite3_stmt) -> bool {
+    unsafe { ffi_sys::sqlite3_stmt_readonly(stmt) != 0 }
+}
+
 /// Wrapper around [`sqlite3_changes`].
 ///
 /// # Safety
