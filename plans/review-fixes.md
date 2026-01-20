@@ -44,8 +44,8 @@ Detect or disambiguate named parameter collisions when joining queries.
 
 Reject `$0` (and leading-zero forms) to avoid underflow in binding.
 
-1. [ ] Add a test for `$0`/`$00` parameter parsing in `Arguments::bind`.
-2. [ ] Add validation to treat `$0` as protocol error like `?0`.
+1. [x] Add a test for `$0`/`$00` parameter parsing in `Arguments::bind`.
+2. [x] Add validation to treat `$0` as protocol error like `?0`.
 
 7. Stage Seven: PoolConnection Drop Without Runtime
 

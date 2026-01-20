@@ -106,6 +106,11 @@ impl Arguments {
                     // parameters of the form $NNN are positional, otherwise they are named
                     if let Some(n) = atoi(rest.as_bytes()) {
                         // numeric positional like `$2`
+                        if n == 0 || rest.starts_with('0') {
+                            return Err(Error::Protocol(format!(
+                                "invalid numeric SQL parameter: {name}"
+                            )));
+                        }
                         n
                     } else if let Some(&idx) = self.named.get(rest) {
                         // existing named parameter
@@ -257,6 +262,42 @@ mod tests {
             Error::Protocol(msg) => assert!(msg.contains(&param)),
             other => panic!("unexpected error: {other:?}"),
         }
+    }
+
+    #[tokio::test]
+    async fn test_parse_dollar_param_zero() -> anyhow::Result<()> {
+        let conn = Connection::connect_with(&Musq::new()).await?;
+
+        let res = query_as::<(i32,)>("SELECT $0")
+            .bind(5_i32)
+            .fetch_one(&conn)
+            .await;
+
+        assert!(res.is_err());
+        match res.unwrap_err() {
+            Error::Protocol(msg) => assert!(msg.contains("$0")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_parse_dollar_param_leading_zero() -> anyhow::Result<()> {
+        let conn = Connection::connect_with(&Musq::new()).await?;
+
+        let res = query_as::<(i32,)>("SELECT $00")
+            .bind(5_i32)
+            .fetch_one(&conn)
+            .await;
+
+        assert!(res.is_err());
+        match res.unwrap_err() {
+            Error::Protocol(msg) => assert!(msg.contains("$00")),
+            other => panic!("unexpected error: {other:?}"),
+        }
+
+        Ok(())
     }
 
     #[tokio::test]
