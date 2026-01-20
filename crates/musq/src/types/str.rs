@@ -10,7 +10,7 @@ use crate::{
 impl Encode for &str {
     fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self.to_string(),
+            value: self.to_string().into(),
             type_info: None,
         })
     }
@@ -26,7 +26,7 @@ impl<'r> Decode<'r> for &'r str {
 impl Encode for &String {
     fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: (*self).clone(),
+            value: (*self).clone().into(),
             type_info: None,
         })
     }
@@ -35,7 +35,7 @@ impl Encode for &String {
 impl Encode for String {
     fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self.clone(),
+            value: self.clone().into(),
             type_info: None,
         })
     }
@@ -51,7 +51,7 @@ impl<'r> Decode<'r> for String {
 impl Encode for Arc<String> {
     fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self.as_ref().clone(),
+            value: self.as_ref().clone().into(),
             type_info: None,
         })
     }
@@ -73,7 +73,7 @@ mod tests {
         let value = String::from("hello");
         let result = value.encode().unwrap();
         if let Value::Text { value: encoded, .. } = result {
-            assert_eq!(encoded, "hello");
+            assert_eq!(encoded.as_ref(), b"hello");
         } else {
             panic!("Expected Text value");
         }
@@ -88,7 +88,7 @@ mod tests {
         // This should now work without the Copy error
         let result = ref_tag.encode().unwrap();
         if let Value::Text { value: encoded, .. } = result {
-            assert_eq!(encoded, "test_tag");
+            assert_eq!(encoded.as_ref(), b"test_tag");
         } else {
             panic!("Expected Text value");
         }

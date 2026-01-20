@@ -153,7 +153,10 @@ impl<'a> fmt::Display for FormatValue<'a> {
             Value::Null { .. } => write!(f, "NULL"),
             Value::Integer { value, .. } => write!(f, "{value}"),
             Value::Double { value, .. } => write!(f, "{value}"),
-            Value::Text { value, .. } => write!(f, "{value:?}"),
+            Value::Text { .. } => match self.0.text() {
+                Ok(text) => write!(f, "{text:?}"),
+                Err(err) => write!(f, "<invalid utf-8: {err}>"),
+            },
             Value::Blob { value, .. } => {
                 write!(f, "0x")?;
                 let display_bytes =

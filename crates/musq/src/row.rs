@@ -1,4 +1,6 @@
-use std::{collections::HashMap, slice, str, sync::Arc};
+use std::{collections::HashMap, ops::Range, slice, str, sync::Arc};
+
+use bytes::BytesMut;
 
 use crate::{
     Result,
@@ -36,38 +38,50 @@ impl Row {
         columns: &Arc<Vec<Column>>,
         column_names: &Arc<HashMap<Arc<str>, usize>>,
     ) -> Result<Self> {
-        use libsqlite3_sys::SQLITE_NULL;
+        use libsqlite3_sys::{SQLITE_BLOB, SQLITE_NULL, SQLITE_TEXT};
+
+        /// Variable-length column variant that will be materialized after the shared buffer is built.
+        enum DeferredKind {
+            Text,
+            Blob,
+        }
 
         let size = statement.column_count();
+        let mut variable_bytes = 0usize;
+        for i in 0..size {
+            match statement.column_type(i) {
+                SQLITE_TEXT => {
+                    // Ensure TEXT has been converted into UTF-8 so `column_bytes` matches the
+                    // `column_text` representation.
+                    statement.column_text(i);
+                    variable_bytes += statement.column_bytes(i) as usize;
+                }
+                SQLITE_BLOB => variable_bytes += statement.column_bytes(i) as usize,
+                _ => {}
+            }
+        }
+
         let mut values = Vec::with_capacity(size);
+        let mut buffer = BytesMut::with_capacity(variable_bytes);
+        let mut deferred: Vec<(usize, DeferredKind, Range<usize>, Option<SqliteDataType>)> =
+            Vec::new();
 
         for i in 0..size {
+            let declared_type = columns[i].type_info;
+            let type_info = (declared_type != SqliteDataType::Null).then_some(declared_type);
+
             let code = statement.column_type(i);
-            let val = match code {
-                SQLITE_NULL => Value::Null {
-                    type_info: if columns[i].type_info == SqliteDataType::Null {
-                        None
-                    } else {
-                        Some(columns[i].type_info)
-                    },
-                },
-                libsqlite3_sys::SQLITE_INTEGER => Value::Integer {
+            match code {
+                SQLITE_NULL => values.push(Value::Null { type_info }),
+                libsqlite3_sys::SQLITE_INTEGER => values.push(Value::Integer {
                     value: statement.column_int64(i),
-                    type_info: if columns[i].type_info == SqliteDataType::Null {
-                        None
-                    } else {
-                        Some(columns[i].type_info)
-                    },
-                },
-                libsqlite3_sys::SQLITE_FLOAT => Value::Double {
+                    type_info,
+                }),
+                libsqlite3_sys::SQLITE_FLOAT => values.push(Value::Double {
                     value: statement.column_double(i),
-                    type_info: if columns[i].type_info == SqliteDataType::Null {
-                        None
-                    } else {
-                        Some(columns[i].type_info)
-                    },
-                },
-                libsqlite3_sys::SQLITE_TEXT => {
+                    type_info,
+                }),
+                SQLITE_TEXT => {
                     let ptr = statement.column_text(i);
                     let len = statement.column_bytes(i) as usize;
                     let slice = if len == 0 {
@@ -77,42 +91,49 @@ impl Row {
                     } else {
                         unsafe { slice::from_raw_parts(ptr, len) }
                     };
-                    let text = str::from_utf8(slice).map_err(|e| {
+
+                    str::from_utf8(slice).map_err(|e| {
                         Error::Decode(DecodeError::Conversion(format!(
                             "invalid UTF-8 in TEXT column {i}: {e}"
                         )))
                     })?;
-                    Value::Text {
-                        value: text.to_owned(),
-                        type_info: if columns[i].type_info == SqliteDataType::Null {
-                            None
-                        } else {
-                            Some(columns[i].type_info)
-                        },
-                    }
+
+                    let start = buffer.len();
+                    buffer.extend_from_slice(slice);
+                    let end = buffer.len();
+
+                    let idx = values.len();
+                    values.push(Value::Null { type_info: None });
+                    deferred.push((idx, DeferredKind::Text, start..end, type_info));
                 }
-                libsqlite3_sys::SQLITE_BLOB => {
+                SQLITE_BLOB => {
                     let len = statement.column_bytes(i) as usize;
-                    let vec = if len == 0 {
-                        Vec::new()
+                    let slice = if len == 0 {
+                        &[]
                     } else {
                         let ptr = statement.column_blob(i) as *const u8;
-                        let slice = unsafe { slice::from_raw_parts(ptr, len) };
-                        slice.to_vec()
+                        unsafe { slice::from_raw_parts(ptr, len) }
                     };
-                    Value::Blob {
-                        value: vec,
-                        type_info: if columns[i].type_info == SqliteDataType::Null {
-                            None
-                        } else {
-                            Some(columns[i].type_info)
-                        },
-                    }
+
+                    let start = buffer.len();
+                    buffer.extend_from_slice(slice);
+                    let end = buffer.len();
+
+                    let idx = values.len();
+                    values.push(Value::Null { type_info: None });
+                    deferred.push((idx, DeferredKind::Blob, start..end, type_info));
                 }
                 _ => return Err(Error::UnknownColumnType(code)),
-            };
+            }
+        }
 
-            values.push(val);
+        let shared = buffer.freeze();
+        for (idx, kind, range, type_info) in deferred {
+            let value = shared.slice(range);
+            values[idx] = match kind {
+                DeferredKind::Text => Value::Text { value, type_info },
+                DeferredKind::Blob => Value::Blob { value, type_info },
+            };
         }
 
         Ok(Self {

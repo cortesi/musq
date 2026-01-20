@@ -58,7 +58,7 @@ mod tests {
 
         let arguments = Arguments {
             values: vec![Value::Blob {
-                value: buf,
+                value: buf.into(),
                 type_info: None,
             }],
             named: HashMap::new(),
@@ -69,7 +69,7 @@ mod tests {
         let args = query.arguments().expect("expected arguments");
 
         match &args.values[0] {
-            Value::Blob { value, .. } => assert_eq!(value.as_ptr(), original_ptr),
+            Value::Blob { value, .. } => assert_eq!(value.as_ref().as_ptr(), original_ptr),
             other => panic!("expected blob, got {other:?}"),
         }
 

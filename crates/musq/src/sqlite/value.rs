@@ -1,9 +1,11 @@
-use std::result::Result as StdResult;
+use std::{result::Result as StdResult, str};
+
+use bytes::Bytes;
 
 use crate::{
     Result,
     decode::Decode,
-    error::DecodeError,
+    error::{DecodeError, Error},
     sqlite::{statement::StatementHandle, type_info::SqliteDataType},
 };
 
@@ -44,15 +46,15 @@ pub enum Value {
     },
     /// A UTF-8 text value.
     Text {
-        /// String value.
-        value: String,
+        /// UTF-8 encoded bytes.
+        value: Bytes,
         /// Original declared type, if known.
         type_info: Option<SqliteDataType>,
     },
     /// An arbitrary blob of bytes.
     Blob {
-        /// Bytes contained in the blob.
-        value: Vec<u8>,
+        /// Blob bytes.
+        value: Bytes,
         /// Original declared type, if known.
         type_info: Option<SqliteDataType>,
     },
@@ -99,8 +101,8 @@ impl Value {
     /// For other variants an empty slice is returned.
     pub fn blob(&self) -> StdResult<&[u8], DecodeError> {
         match self {
-            Self::Blob { value, .. } => Ok(value.as_slice()),
-            Self::Text { value, .. } => Ok(value.as_bytes()),
+            Self::Blob { value, .. } => Ok(value.as_ref()),
+            Self::Text { value, .. } => Ok(value.as_ref()),
             Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
             _ => Err(DecodeError::Conversion("not blob".into())),
         }
@@ -111,7 +113,8 @@ impl Value {
     /// Returns an error if the value is not [`Value::Text`].
     pub fn text(&self) -> StdResult<&str, DecodeError> {
         match self {
-            Self::Text { value, .. } => Ok(value.as_str()),
+            Self::Text { value, .. } => str::from_utf8(value.as_ref())
+                .map_err(|e| DecodeError::Conversion(format!("invalid UTF-8: {e}"))),
             Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
             _ => Err(DecodeError::Conversion("not text".into())),
         }
@@ -142,8 +145,12 @@ impl Value {
     /// altering the stored value.
     pub(crate) fn bind(&self, handle: &StatementHandle, i: usize) -> Result<()> {
         match self {
-            Self::Text { value, .. } => handle.bind_text(i, value.as_str())?,
-            Self::Blob { value, .. } => handle.bind_blob(i, value.as_slice())?,
+            Self::Text { value, .. } => {
+                let text = str::from_utf8(value.as_ref())
+                    .map_err(|e| Error::Decode(DecodeError::Conversion(e.to_string())))?;
+                handle.bind_text(i, text)?;
+            }
+            Self::Blob { value, .. } => handle.bind_blob(i, value.as_ref())?,
             Self::Integer { value, .. } => handle.bind_int64(i, *value)?,
             Self::Double { value, .. } => handle.bind_double(i, *value)?,
             Self::Null { .. } => handle.bind_null(i)?,

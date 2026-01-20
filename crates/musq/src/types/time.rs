@@ -20,7 +20,7 @@ impl Encode for OffsetDateTime {
             EncodeError::Conversion(format!("failed to format OffsetDateTime: {e}"))
         })?;
         Ok(Value::Text {
-            value: formatted,
+            value: formatted.into(),
             type_info: None,
         })
     }
@@ -33,7 +33,7 @@ impl Encode for PrimitiveDateTime {
             EncodeError::Conversion(format!("failed to format PrimitiveDateTime: {e}"))
         })?;
         Ok(Value::Text {
-            value: formatted,
+            value: formatted.into(),
             type_info: None,
         })
     }
@@ -46,7 +46,7 @@ impl Encode for Date {
             .format(&format)
             .map_err(|e| EncodeError::Conversion(format!("failed to format Date: {e}")))?;
         Ok(Value::Text {
-            value: formatted,
+            value: formatted.into(),
             type_info: None,
         })
     }
@@ -59,7 +59,7 @@ impl Encode for Time {
             .format(&format)
             .map_err(|e| EncodeError::Conversion(format!("failed to format Time: {e}")))?;
         Ok(Value::Text {
-            value: formatted,
+            value: formatted.into(),
             type_info: None,
         })
     }
@@ -233,7 +233,7 @@ mod tests {
     fn test_offset_datetime_decode_various_text_formats() {
         // Test RFC3339 format
         let value = Value::Text {
-            value: "2023-12-25T15:30:45.123Z".to_string(),
+            value: "2023-12-25T15:30:45.123Z".to_string().into(),
             type_info: Some(SqliteDataType::Text),
         };
         let decoded: OffsetDateTime = Decode::decode(&value).unwrap();
@@ -242,7 +242,7 @@ mod tests {
 
         // Test with timezone offset
         let value = Value::Text {
-            value: "2023-12-25T15:30:45.123+05:30".to_string(),
+            value: "2023-12-25T15:30:45.123+05:30".to_string().into(),
             type_info: Some(SqliteDataType::Text),
         };
         let decoded: OffsetDateTime = Decode::decode(&value).unwrap();
@@ -251,7 +251,7 @@ mod tests {
 
         // Test space-separated format
         let value = Value::Text {
-            value: "2023-12-25 15:30:45.123".to_string(),
+            value: "2023-12-25 15:30:45.123".to_string().into(),
             type_info: Some(SqliteDataType::Text),
         };
         let decoded: OffsetDateTime = Decode::decode(&value).unwrap();
@@ -263,7 +263,7 @@ mod tests {
     fn test_offset_datetime_decode_edge_cases() {
         // Test format with space and offset (this might reveal the bug)
         let value = Value::Text {
-            value: "2023-12-25 15:30:45+05:30".to_string(),
+            value: "2023-12-25 15:30:45+05:30".to_string().into(),
             type_info: Some(SqliteDataType::Text),
         };
         let result: Result<OffsetDateTime, _> = Decode::decode(&value);
@@ -286,7 +286,7 @@ mod tests {
 
         // This should now FAIL to parse (which is correct)
         let value = Value::Text {
-            value: "2023-12-2515:30:45+05:30".to_string(), // No separator between date and time
+            value: "2023-12-2515:30:45+05:30".to_string().into(), // No separator between date and time
             type_info: Some(SqliteDataType::Text),
         };
         let result: Result<OffsetDateTime, _> = Decode::decode(&value);
@@ -304,7 +304,7 @@ mod tests {
 
         for format_str in valid_formats {
             let value = Value::Text {
-                value: format_str.to_string(),
+                value: format_str.to_string().into(),
                 type_info: Some(SqliteDataType::Text),
             };
             let result: Result<OffsetDateTime, _> = Decode::decode(&value);
@@ -322,7 +322,7 @@ mod tests {
         let problematic_format = "2025-07-22T06:20:47.847729Z";
 
         let value = Value::Text {
-            value: problematic_format.to_string(),
+            value: problematic_format.to_string().into(),
             type_info: Some(SqliteDataType::Datetime),
         };
         let result: Result<OffsetDateTime, _> = Decode::decode(&value);
@@ -353,7 +353,7 @@ mod tests {
 
         for format_str in similar_formats {
             let value = Value::Text {
-                value: format_str.to_string(),
+                value: format_str.to_string().into(),
                 type_info: Some(SqliteDataType::Datetime),
             };
             let result: Result<OffsetDateTime, _> = Decode::decode(&value);
@@ -406,7 +406,7 @@ mod tests {
     fn test_time_decode_various_formats() {
         // Test with subseconds
         let value = Value::Text {
-            value: "15:30:45.123".to_string(),
+            value: "15:30:45.123".to_string().into(),
             type_info: Some(SqliteDataType::Text),
         };
         let decoded: Time = Decode::decode(&value).unwrap();
@@ -415,7 +415,7 @@ mod tests {
 
         // Test without subseconds
         let value = Value::Text {
-            value: "15:30:45".to_string(),
+            value: "15:30:45".to_string().into(),
             type_info: Some(SqliteDataType::Text),
         };
         let decoded: Time = Decode::decode(&value).unwrap();
@@ -424,7 +424,7 @@ mod tests {
 
         // Test without seconds
         let value = Value::Text {
-            value: "15:30".to_string(),
+            value: "15:30".to_string().into(),
             type_info: Some(SqliteDataType::Text),
         };
         let decoded: Time = Decode::decode(&value).unwrap();

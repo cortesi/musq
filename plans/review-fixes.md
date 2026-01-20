@@ -65,5 +65,5 @@ Reduce unnecessary argument cloning during execution.
 
 Investigate deferred decoding or shared buffers for large result sets.
 
-1. [ ] Add a benchmark or targeted test to show allocation overhead.
-2. [ ] Prototype a lazy/zero-copy row or use shared buffers for TEXT/BLOB.
+1. [x] Add a benchmark or targeted test to show allocation overhead.
+2. [x] Prototype a lazy/zero-copy row or use shared buffers for TEXT/BLOB.
