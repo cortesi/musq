@@ -1,4 +1,4 @@
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use either::Either;
 
@@ -207,16 +207,35 @@ impl QueryBuilder {
             if !self.sql.is_empty() {
                 self.sql.push(' ');
             }
-            self.sql.push_str(query.sql());
+            let mut sql = query.sql().to_string();
 
             if let Some(other_args) = query.arguments {
                 let base_index = self.arguments.values.len();
                 self.arguments.values.extend(other_args.values);
+
+                let mut used_names: HashSet<String> =
+                    self.arguments.named.keys().cloned().collect();
+                used_names.extend(other_args.named.keys().cloned());
+
+                let mut renames: HashMap<String, String> = HashMap::new();
                 for (name, index) in other_args.named {
+                    let name = if self.arguments.named.contains_key(&name) {
+                        let new_name = disambiguate_name(&name, &mut used_names);
+                        renames.insert(name.clone(), new_name.clone());
+                        new_name
+                    } else {
+                        name
+                    };
+
                     self.arguments.named.insert(name, base_index + index);
+                }
+
+                if !renames.is_empty() {
+                    sql = rewrite_named_parameters(&sql, &renames);
                 }
             }
 
+            self.sql.push_str(&sql);
             self.tainted |= query.tainted;
         }
     }
@@ -229,4 +248,142 @@ impl QueryBuilder {
             tainted: self.tainted,
         }
     }
+}
+
+/// Returns a unique named-parameter identifier by appending a numeric suffix.
+fn disambiguate_name(name: &str, used_names: &mut HashSet<String>) -> String {
+    let mut suffix = 1_usize;
+    loop {
+        let candidate = format!("{name}_{suffix}");
+        if used_names.insert(candidate.clone()) {
+            return candidate;
+        }
+        suffix += 1;
+    }
+}
+
+/// Returns `true` if this byte is treated as an identifier character for the
+/// purposes of rewriting named parameters.
+fn is_ident_char(b: u8) -> bool {
+    b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// Rewrites named parameters (e.g. `:name`, `@name`, `$name`) according to the
+/// provided mapping, skipping string literals, quoted identifiers, and comments.
+fn rewrite_named_parameters(sql: &str, renames: &HashMap<String, String>) -> String {
+    #[derive(Clone, Copy, Debug)]
+    enum State {
+        Normal,
+        SingleQuote,
+        DoubleQuote,
+        LineComment,
+        BlockComment,
+    }
+
+    let mut out = Vec::with_capacity(sql.len());
+    let mut i = 0;
+    let bytes = sql.as_bytes();
+    let mut state = State::Normal;
+
+    while i < bytes.len() {
+        match state {
+            State::Normal => match bytes[i] {
+                b'\'' => {
+                    out.push(bytes[i]);
+                    i += 1;
+                    state = State::SingleQuote;
+                }
+                b'"' => {
+                    out.push(bytes[i]);
+                    i += 1;
+                    state = State::DoubleQuote;
+                }
+                b'-' if bytes.get(i + 1) == Some(&b'-') => {
+                    out.extend_from_slice(b"--");
+                    i += 2;
+                    state = State::LineComment;
+                }
+                b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                    out.extend_from_slice(b"/*");
+                    i += 2;
+                    state = State::BlockComment;
+                }
+                b':' | b'@' | b'$' => {
+                    let prefix = bytes[i];
+                    let start = i + 1;
+                    let mut end = start;
+                    while end < bytes.len() && is_ident_char(bytes[end]) {
+                        end += 1;
+                    }
+
+                    if end > start {
+                        let name = &sql[start..end];
+                        if let Some(new_name) = renames.get(name) {
+                            out.push(prefix);
+                            out.extend_from_slice(new_name.as_bytes());
+                        } else {
+                            out.extend_from_slice(&bytes[i..end]);
+                        }
+                        i = end;
+                    } else {
+                        out.push(prefix);
+                        i += 1;
+                    }
+                }
+                _ => {
+                    out.push(bytes[i]);
+                    i += 1;
+                }
+            },
+            State::SingleQuote => {
+                if bytes[i] == b'\'' {
+                    if bytes.get(i + 1) == Some(&b'\'') {
+                        out.extend_from_slice(b"''");
+                        i += 2;
+                    } else {
+                        out.push(bytes[i]);
+                        i += 1;
+                        state = State::Normal;
+                    }
+                } else {
+                    out.push(bytes[i]);
+                    i += 1;
+                }
+            }
+            State::DoubleQuote => {
+                if bytes[i] == b'"' {
+                    if bytes.get(i + 1) == Some(&b'"') {
+                        out.extend_from_slice(br#""""#);
+                        i += 2;
+                    } else {
+                        out.push(bytes[i]);
+                        i += 1;
+                        state = State::Normal;
+                    }
+                } else {
+                    out.push(bytes[i]);
+                    i += 1;
+                }
+            }
+            State::LineComment => {
+                out.push(bytes[i]);
+                i += 1;
+                if out.last() == Some(&b'\n') {
+                    state = State::Normal;
+                }
+            }
+            State::BlockComment => {
+                if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                    out.extend_from_slice(b"*/");
+                    i += 2;
+                    state = State::Normal;
+                } else {
+                    out.push(bytes[i]);
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    String::from_utf8(out).expect("rewriting should preserve UTF-8")
 }

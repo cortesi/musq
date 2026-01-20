@@ -37,8 +37,8 @@ Make NULL decoding return an error for non-Option decoders.
 
 Detect or disambiguate named parameter collisions when joining queries.
 
-1. [ ] Add a test that joins two queries using the same named parameter and fails today.
-2. [ ] Implement collision detection or name rewriting in `QueryBuilder::push_query`.
+1. [x] Add a test that joins two queries using the same named parameter and fails today.
+2. [x] Implement collision detection or name rewriting in `QueryBuilder::push_query`.
 
 6. Stage Six: Numeric $NNN Parameter Validation
 

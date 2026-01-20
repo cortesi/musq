@@ -36,6 +36,17 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn join_named_collision() -> anyhow::Result<()> {
+        let q1 = sql!("SELECT {a}", a = 1)?;
+        let q2 = sql!("UNION SELECT {a}", a = 2)?;
+        let q = q1.join(q2);
+        assert_eq!(q.sql(), "SELECT :a UNION SELECT :a_1");
+        let vals = fetch_vals(q).await?;
+        assert_eq!(vals, vec![1, 2]);
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn join_mixed_args() -> anyhow::Result<()> {
         let q1 = sql!("SELECT {a}", a = 5)?;
         let q2 = sql!("UNION SELECT {}", 6)?;
