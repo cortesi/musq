@@ -30,8 +30,8 @@ Use SQLite's UTF-8 conversion and handle invalid UTF-8 explicitly.
 
 Make NULL decoding return an error for non-Option decoders.
 
-1. [ ] Add tests that decoding NULL into `i32`, `String`, etc. yields `DecodeError`.
-2. [ ] Update `Value::{int,int64,double,blob,text}` NULL handling to error (except Option path).
+1. [x] Add tests that decoding NULL into `i32`, `String`, etc. yields `DecodeError`.
+2. [x] Update `Value::{int,int64,double,blob,text}` NULL handling to error (except Option path).
 
 5. Stage Five: Named Parameter Collisions in Query Join
 

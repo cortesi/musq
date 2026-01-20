@@ -19,7 +19,7 @@ impl Encode for &[u8] {
 impl<'r> Decode<'r> for &'r [u8] {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
-        Ok(value.blob())
+        value.blob()
     }
 }
 
@@ -35,7 +35,7 @@ impl Encode for Vec<u8> {
 impl<'r> Decode<'r> for Vec<u8> {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
-        Ok(value.blob().to_owned())
+        Ok(value.blob()?.to_owned())
     }
 }
 
@@ -51,6 +51,6 @@ impl Encode for Arc<Vec<u8>> {
 impl<'r> Decode<'r> for Arc<Vec<u8>> {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
-        Ok(Self::new(value.blob().to_owned()))
+        Ok(Self::new(value.blob()?.to_owned()))
     }
 }

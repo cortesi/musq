@@ -63,7 +63,7 @@ impl Value {
     pub fn int(&self) -> StdResult<i32, DecodeError> {
         match self {
             Self::Integer { value, .. } => Ok(i32::try_from(*value)?),
-            Self::Null { .. } => Ok(0),
+            Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
             _ => Err(DecodeError::Conversion(
                 "not an integer or out of range".into(),
             )),
@@ -76,7 +76,7 @@ impl Value {
     pub fn int64(&self) -> StdResult<i64, DecodeError> {
         match self {
             Self::Integer { value, .. } => Ok(*value),
-            Self::Null { .. } => Ok(0),
+            Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
             _ => Err(DecodeError::Conversion("not an integer".into())),
         }
     }
@@ -89,7 +89,7 @@ impl Value {
         match self {
             Self::Double { value, .. } => Ok(*value),
             Self::Integer { value, .. } => Ok(*value as f64),
-            Self::Null { .. } => Ok(0.0),
+            Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
             _ => Err(DecodeError::Conversion("not a double".into())),
         }
     }
@@ -97,12 +97,12 @@ impl Value {
     /// Returns the raw bytes contained in [`Value::Blob`] or [`Value::Text`].
     ///
     /// For other variants an empty slice is returned.
-    pub fn blob(&self) -> &[u8] {
+    pub fn blob(&self) -> StdResult<&[u8], DecodeError> {
         match self {
-            Self::Blob { value, .. } => value.as_slice(),
-            Self::Text { value, .. } => value.as_bytes(),
-            Self::Null { .. } => &[],
-            _ => &[],
+            Self::Blob { value, .. } => Ok(value.as_slice()),
+            Self::Text { value, .. } => Ok(value.as_bytes()),
+            Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
+            _ => Err(DecodeError::Conversion("not blob".into())),
         }
     }
 
@@ -112,7 +112,7 @@ impl Value {
     pub fn text(&self) -> StdResult<&str, DecodeError> {
         match self {
             Self::Text { value, .. } => Ok(value.as_str()),
-            Self::Null { .. } => Ok(""),
+            Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
             _ => Err(DecodeError::Conversion("not text".into())),
         }
     }

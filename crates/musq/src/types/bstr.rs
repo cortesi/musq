@@ -14,7 +14,7 @@ use crate::{
 impl<'r> Decode<'r> for BString {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
-        Ok(Self::from(value.blob().to_owned()))
+        Ok(Self::from(value.blob()?.to_owned()))
     }
 }
 
