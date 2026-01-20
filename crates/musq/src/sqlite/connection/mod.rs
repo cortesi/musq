@@ -209,6 +209,7 @@ impl Connection {
     where
         E: Execute + 'q,
     {
+        let mut query = query;
         let arguments = query.arguments();
         let sql = query.sql().into();
         drop(query);
@@ -229,6 +230,7 @@ impl Connection {
     where
         E: Execute + 'q,
     {
+        let mut query = query;
         let arguments = query.arguments();
         let sql = query.sql().to_string();
         drop(query);

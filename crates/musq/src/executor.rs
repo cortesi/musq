@@ -32,7 +32,7 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
-    fn arguments(&self) -> Option<Arguments>;
+    fn arguments(&mut self) -> Option<Arguments>;
 }
 
 impl Execute for &str {
@@ -40,7 +40,39 @@ impl Execute for &str {
         self
     }
 
-    fn arguments(&self) -> Option<Arguments> {
+    fn arguments(&mut self) -> Option<Arguments> {
         None
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use crate::{Arguments, Value, executor::Execute, query_with};
+
+    #[test]
+    fn query_arguments_are_taken_without_clone() {
+        let buf = vec![42_u8; 1024 * 1024];
+        let original_ptr = buf.as_ptr();
+
+        let arguments = Arguments {
+            values: vec![Value::Blob {
+                value: buf,
+                type_info: None,
+            }],
+            named: HashMap::new(),
+        };
+
+        let mut query = query_with("SELECT ?1", arguments);
+
+        let args = query.arguments().expect("expected arguments");
+
+        match &args.values[0] {
+            Value::Blob { value, .. } => assert_eq!(value.as_ptr(), original_ptr),
+            other => panic!("expected blob, got {other:?}"),
+        }
+
+        assert!(query.arguments.is_none());
     }
 }

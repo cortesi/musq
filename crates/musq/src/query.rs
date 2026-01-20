@@ -389,8 +389,8 @@ impl Execute for Query {
         }
     }
 
-    fn arguments(&self) -> Option<Arguments> {
-        self.arguments.clone()
+    fn arguments(&mut self) -> Option<Arguments> {
+        self.arguments.take()
     }
 }
 
@@ -569,7 +569,7 @@ impl<F: Send> Execute for Map<F> {
         self.inner.sql()
     }
 
-    fn arguments(&self) -> Option<Arguments> {
+    fn arguments(&mut self) -> Option<Arguments> {
         self.inner.arguments()
     }
 }

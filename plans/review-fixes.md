@@ -58,8 +58,8 @@ Avoid panicking when dropping a `PoolConnection` outside a Tokio runtime.
 
 Reduce unnecessary argument cloning during execution.
 
-1. [ ] Add a micro-benchmark or test to demonstrate cloning of large args.
-2. [ ] Rework `Execute::arguments` for `Query` to move/borrow args without cloning.
+1. [x] Add a micro-benchmark or test to demonstrate cloning of large args.
+2. [x] Rework `Execute::arguments` for `Query` to move/borrow args without cloning.
 
 9. Stage Nine: Row Materialization Costs
 
