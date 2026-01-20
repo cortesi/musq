@@ -5,7 +5,7 @@ use std::{
     sync::Arc,
 };
 
-use tokio::{sync::SemaphorePermit, task::spawn};
+use tokio::{runtime::Handle, sync::SemaphorePermit};
 
 use super::inner::{DecrementSizeGuard, PoolInner};
 use crate::{Connection, Result};
@@ -143,8 +143,17 @@ impl PoolConnection {
 impl Drop for PoolConnection {
     fn drop(&mut self) {
         // We still need to spawn a task to maintain `min_connections`.
-        if self.live.is_some() {
-            spawn(self.return_to_pool());
+        if self.live.is_some()
+            && let Ok(handle) = Handle::try_current()
+        {
+            handle.spawn(self.return_to_pool());
+        } else if let Some(live) = self.live.take() {
+            let floating = live.float(self.pool.clone());
+            if self.pool.is_closed() {
+                drop(floating);
+            } else {
+                floating.release();
+            }
         }
     }
 }

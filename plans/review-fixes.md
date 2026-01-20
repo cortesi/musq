@@ -51,8 +51,8 @@ Reject `$0` (and leading-zero forms) to avoid underflow in binding.
 
 Avoid panicking when dropping a `PoolConnection` outside a Tokio runtime.
 
-1. [ ] Add a test that drops a `PoolConnection` without a runtime and asserts no panic.
-2. [ ] Use `tokio::runtime::Handle::try_current()` and a fallback close/return path.
+1. [x] Add a test that drops a `PoolConnection` without a runtime and asserts no panic.
+2. [x] Use `tokio::runtime::Handle::try_current()` and a fallback close/return path.
 
 8. Stage Eight: Avoid Cloning Arguments on Execute
 
