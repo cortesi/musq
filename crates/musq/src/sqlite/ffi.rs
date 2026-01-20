@@ -448,6 +448,17 @@ pub fn column_double(stmt: *mut sqlite3_stmt, index: i32) -> f64 {
     unsafe { ffi_sys::sqlite3_column_double(stmt, index as c_int) }
 }
 
+/// Wrapper around [`sqlite3_column_text`].
+///
+/// # Safety
+/// - `stmt` must be a valid prepared statement pointer.
+///
+/// See <https://www.sqlite.org/c3ref/column_blob.html>
+#[inline]
+pub fn column_text(stmt: *mut sqlite3_stmt, index: i32) -> *const u8 {
+    unsafe { ffi_sys::sqlite3_column_text(stmt, index as c_int) }
+}
+
 /// Wrapper around [`sqlite3_column_blob`].
 ///
 /// # Safety

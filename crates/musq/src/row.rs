@@ -1,10 +1,10 @@
-use std::{collections::HashMap, slice, sync::Arc};
+use std::{collections::HashMap, slice, str, sync::Arc};
 
 use crate::{
     Result,
     column::Column,
     decode::Decode,
-    error::Error,
+    error::{DecodeError, Error},
     from_row::FromRow,
     sqlite::{SqliteDataType, Value, statement::StatementHandle},
 };
@@ -68,15 +68,22 @@ impl Row {
                     },
                 },
                 libsqlite3_sys::SQLITE_TEXT => {
+                    let ptr = statement.column_text(i);
                     let len = statement.column_bytes(i) as usize;
-                    let ptr = statement.column_blob(i) as *const u8;
                     let slice = if len == 0 {
                         &[]
+                    } else if ptr.is_null() {
+                        return Err(Error::Protocol("sqlite3_column_text returned null".into()));
                     } else {
                         unsafe { slice::from_raw_parts(ptr, len) }
                     };
+                    let text = str::from_utf8(slice).map_err(|e| {
+                        Error::Decode(DecodeError::Conversion(format!(
+                            "invalid UTF-8 in TEXT column {i}: {e}"
+                        )))
+                    })?;
                     Value::Text {
-                        value: String::from_utf8_lossy(slice).into_owned(),
+                        value: text.to_owned(),
                         type_info: if columns[i].type_info == SqliteDataType::Null {
                             None
                         } else {

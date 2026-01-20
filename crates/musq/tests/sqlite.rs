@@ -903,6 +903,39 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn it_decodes_utf16_text_as_utf8() -> anyhow::Result<()> {
+        let conn = connection().await?;
+
+        query("PRAGMA encoding = 'UTF-16le'").execute(&conn).await?;
+
+        query("CREATE TABLE t (val TEXT)").execute(&conn).await?;
+        query("INSERT INTO t (val) VALUES ('café')")
+            .execute(&conn)
+            .await?;
+
+        let val: String = query_scalar("SELECT val FROM t").fetch_one(&conn).await?;
+
+        assert_eq!(val, "café");
+
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn it_errors_on_invalid_utf8_text() -> anyhow::Result<()> {
+        let conn = connection().await?;
+
+        let res: musq::Result<String> = query_scalar("SELECT CAST(X'80' AS TEXT)")
+            .fetch_one(&conn)
+            .await;
+
+        let err = res.unwrap_err();
+        assert!(matches!(err, Error::Decode(_)), "{err:?}");
+        assert!(err.to_string().contains("invalid UTF-8"), "{err}");
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn it_fails_on_missing_bind() -> anyhow::Result<()> {
         let conn = connection().await?;
 

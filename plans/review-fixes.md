@@ -23,8 +23,8 @@ Ensure nested rollback releases savepoints and keeps `transaction_depth` consist
 
 Use SQLite's UTF-8 conversion and handle invalid UTF-8 explicitly.
 
-1. [ ] Add a test for UTF-16/invalid UTF-8 TEXT decoding behavior.
-2. [ ] Replace `column_blob` + `from_utf8_lossy` with `column_text` and strict UTF-8 checks.
+1. [x] Add a test for UTF-16/invalid UTF-8 TEXT decoding behavior.
+2. [x] Replace `column_blob` + `from_utf8_lossy` with `column_text` and strict UTF-8 checks.
 
 4. Stage Four: NULL Decoding for Non-Option Types
 

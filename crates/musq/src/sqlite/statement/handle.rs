@@ -174,6 +174,11 @@ impl StatementHandle {
         ffi::column_double(self.0.as_ptr(), index as i32)
     }
 
+    /// Return a text pointer from a result column.
+    pub(crate) fn column_text(&self, index: usize) -> *const u8 {
+        ffi::column_text(self.0.as_ptr(), index as i32)
+    }
+
     /// Return a blob pointer from a result column.
     pub(crate) fn column_blob(&self, index: usize) -> *const c_void {
         ffi::column_blob(self.0.as_ptr(), index as i32)
