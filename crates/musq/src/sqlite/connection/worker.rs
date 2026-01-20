@@ -238,11 +238,19 @@ impl ConnectionWorker {
                             let depth = conn.transaction_depth;
 
                             let res = if depth > 0 {
-                                conn.handle
-                                    .exec(rollback_ansi_transaction_sql(depth))
-                                    .map(|_| {
-                                        conn.transaction_depth -= 1;
-                                    })
+                                let sql = if depth == 1 {
+                                    rollback_ansi_transaction_sql(depth)
+                                } else {
+                                    format!(
+                                        "{}; {}",
+                                        rollback_ansi_transaction_sql(depth),
+                                        commit_ansi_transaction_sql(depth)
+                                    )
+                                };
+
+                                conn.handle.exec(sql).map(|_| {
+                                    conn.transaction_depth -= 1;
+                                })
                             } else {
                                 Ok(())
                             };

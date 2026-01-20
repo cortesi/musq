@@ -688,6 +688,48 @@ mod tests {
         }
     }
 
+    #[tokio::test]
+    async fn it_releases_savepoint_on_nested_rollback() -> anyhow::Result<()> {
+        let pool = Musq::new().open_in_memory().await?;
+        let mut conn = pool.acquire().await?;
+
+        query("CREATE TABLE t (value INTEGER)")
+            .execute(&conn)
+            .await?;
+
+        let mut tx0 = conn.begin().await?;
+        query("INSERT INTO t (value) VALUES (0)")
+            .execute(&tx0)
+            .await?;
+
+        {
+            let mut tx1 = tx0.begin().await?;
+            query("INSERT INTO t (value) VALUES (1)")
+                .execute(&tx1)
+                .await?;
+            tx1.rollback().await?;
+        }
+
+        {
+            let mut tx2 = tx0.begin().await?;
+            query("INSERT INTO t (value) VALUES (2)")
+                .execute(&tx2)
+                .await?;
+            tx2.commit().await?;
+        }
+
+        tx0.commit().await?;
+        drop(tx0);
+
+        let values: Vec<(i64,)> = query_as("SELECT value FROM t ORDER BY value")
+            .fetch_all(&conn)
+            .await?;
+
+        assert_eq!(values, vec![(0,), (2,)]);
+
+        Ok(())
+    }
+
     // https://github.com/launchbadge/sqlx/issues/1300
     #[tokio::test]
     async fn concurrent_resets_dont_segfault() {

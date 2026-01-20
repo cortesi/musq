@@ -16,8 +16,8 @@ Test and fix `rows_affected` reporting for read-only statements in
 
 Ensure nested rollback releases savepoints and keeps `transaction_depth` consistent.
 
-1. [ ] Add a test that begins a nested transaction, rolls back inner, then commits outer.
-2. [ ] Implement rollback-to-savepoint + release savepoint in worker transaction handling.
+1. [x] Add a test that begins a nested transaction, rolls back inner, then commits outer.
+2. [x] Implement rollback-to-savepoint + release savepoint in worker transaction handling.
 
 3. Stage Three: TEXT Decoding and UTF-8 Handling
 
