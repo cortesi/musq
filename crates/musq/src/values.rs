@@ -3,6 +3,9 @@ use indexmap::IndexMap;
 use crate::{Result, Value, encode::Encode};
 
 /// An ordered collection of key-value pairs for building dynamic SQL queries.
+///
+/// When used with the `sql!` macro's `{where:values}` placeholder, `NULL` values are rendered as
+/// `col IS NULL` (without a bound parameter).
 #[derive(Debug, Default, Clone)]
 pub struct Values(IndexMap<String, Value>);
 

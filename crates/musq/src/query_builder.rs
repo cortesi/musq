@@ -156,8 +156,13 @@ impl QueryBuilder {
             }
             first = false;
             self.sql.push_str(&crate::quote_identifier(k));
-            self.sql.push_str(" = ?");
-            self.arguments.values.push(v.clone());
+            match v {
+                crate::Value::Null { .. } => self.sql.push_str(" IS NULL"),
+                _ => {
+                    self.sql.push_str(" = ?");
+                    self.arguments.values.push(v.clone());
+                }
+            }
         }
         Ok(())
     }

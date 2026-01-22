@@ -119,6 +119,46 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn where_with_null_matches_null_rows() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        sql!("CREATE TABLE wn (id INTEGER PRIMARY KEY, parent_id INTEGER)")?
+            .execute(&conn)
+            .await?;
+
+        sql!("INSERT INTO wn (id, parent_id) VALUES (1, NULL)")?
+            .execute(&conn)
+            .await?;
+        sql!("INSERT INTO wn (id, parent_id) VALUES (2, 1)")?
+            .execute(&conn)
+            .await?;
+
+        let filters: Values = values! { "parent_id": musq::Null }?;
+        let rows: Vec<(i32,)> = sql_as!("SELECT id FROM wn WHERE {where:filters} ORDER BY id ASC")?
+            .fetch_all(&conn)
+            .await?;
+        assert_eq!(rows, vec![(1,)]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn blob_round_trips_as_opaque_bytes() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        sql!("CREATE TABLE bl (id INTEGER PRIMARY KEY, data BLOB)")?
+            .execute(&conn)
+            .await?;
+
+        let bytes: Vec<u8> = (0..=255_u8).collect();
+        let vals: Values = values! { "id": 1, "data": bytes.as_slice() }?;
+        sql!("INSERT INTO bl {insert:vals}")?.execute(&conn).await?;
+
+        let row: (Vec<u8>,) = sql_as!("SELECT data FROM bl WHERE id = 1")?
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(row.0, bytes);
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn upsert_set_exclude_key() -> anyhow::Result<()> {
         let conn = connection().await?;
         sql!("CREATE TABLE us (id INTEGER PRIMARY KEY, val TEXT)")?

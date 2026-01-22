@@ -181,7 +181,8 @@ The `sql!` macro provides special placeholder types for `Values`:
   * `{insert:values}`: Expands to `(col1, col2) VALUES (?, ?)` for `INSERT`
     statements.
   * `{set:values}`: Expands to `col1 = ?, col2 = ?` for `UPDATE` statements.
-  * `{where:values}`: Expands to `col1 = ? AND col2 = ?`. If `values` is empty,
+  * `{where:values}`: Expands to `col1 = ? AND col2 = ?`. If a value is `NULL` it
+    expands to `col IS NULL` (without binding a parameter). If `values` is empty,
     it expands to `1=1`.
   * `{upsert:values, exclude: id, created_at}`: For `ON CONFLICT ... DO UPDATE SET`,
     expands to `col1 = excluded.col1, ...`, with an option to exclude certain
