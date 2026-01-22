@@ -1,9 +1,12 @@
 //! Regression tests for NULL decoding behavior.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use musq::{DecodeError, Error, query_scalar};
-    use musq_test::connection;
+
+    use crate::support::connection;
 
     fn assert_unexpected_null(err: Error) {
         match err {

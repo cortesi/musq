@@ -1,9 +1,14 @@
 //! Integration tests for musq.
 
+mod support;
+#[path = "support/db.rs"]
+mod support_db;
+
 #[cfg(test)]
 mod tests {
     use musq::{Result, query};
-    use musq_test::tdb;
+
+    use crate::support_db::tdb;
 
     #[tokio::test]
     async fn it_fails_with_unique_violation() -> anyhow::Result<()> {

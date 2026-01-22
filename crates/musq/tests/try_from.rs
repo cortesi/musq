@@ -1,10 +1,13 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use musq::{Error, Value, query_as};
     use musq_macros::*;
-    use musq_test::connection;
+
+    use crate::support::connection;
 
     #[derive(Debug, FromRow, PartialEq)]
     struct Foo {

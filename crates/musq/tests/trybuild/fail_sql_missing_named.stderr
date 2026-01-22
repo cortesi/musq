@@ -5,7 +5,9 @@ error[E0425]: cannot find value `id` in this scope
   |             ^^^^^^^^^^^^^^^^^^^ not found in this scope
   |
   = note: this error originates in the macro `sql` (in Nightly builds, run with -Z macro-backtrace for more info)
-help: consider importing this function
+help: consider importing one of these functions
   |
 1 + use std::process::id;
+  |
+1 + use tokio::task::id;
   |

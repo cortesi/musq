@@ -1,11 +1,14 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
     use musq::{query, query_scalar};
-    use musq_test::connection;
+
+    use crate::support::connection;
 
     #[tokio::test]
     async fn insert_and_select_arc_blob() -> anyhow::Result<()> {

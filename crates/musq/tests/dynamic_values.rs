@@ -1,5 +1,7 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use std::result::Result as StdResult;
@@ -8,7 +10,8 @@ mod tests {
         Error, Result as MusqResult, Value, Values, encode::Encode, error::EncodeError, sql,
         sql_as, values,
     };
-    use musq_test::connection;
+
+    use crate::support::connection;
 
     #[derive(musq::FromRow, Debug, PartialEq)]
     struct User {

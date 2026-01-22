@@ -1,5 +1,6 @@
 [package]
 name = "musq-macros"
+description = "Procedural macros for musq."
 version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -7,6 +8,7 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 authors.workspace = true
+exclude = ["tests_disabled/**"]
 
 [lib]
 proc-macro = true
@@ -17,15 +19,6 @@ heck = "0.5.0"
 proc-macro2 = "1.0.69"
 quote = "1.0.33"
 syn = "2.0.39"
-
-[dev-dependencies]
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-trybuild = "1.0"
-musq = { path = "../musq" }
-
-[package.metadata.cargo-udeps.ignore]
-development = ["musq"]
 
 [lints]
 workspace = true

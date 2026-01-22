@@ -1,9 +1,12 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use musq_macros::*;
-    use musq_test::{connection, test_type};
+
+    use crate::{support::connection, test_type};
 
     #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, Json)]
     struct JsonType {

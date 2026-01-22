@@ -1,11 +1,13 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     // Allow approximate constants in this test file - we're testing specific float representations
     #![allow(clippy::approx_constant)]
 
-    use musq_test::test_type;
+    use crate::test_type;
 
     test_type!(null<Option<i32>>(
         "NULL" == None::<i32>

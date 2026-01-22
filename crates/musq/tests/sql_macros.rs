@@ -1,5 +1,7 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use std::{f32::consts::PI, f64::consts::E};
@@ -9,8 +11,9 @@ mod tests {
         types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time},
         *,
     };
-    use musq_test::connection;
     use time::macros::{date, datetime, time};
+
+    use crate::support::connection;
 
     #[derive(FromRow, Debug, PartialEq)]
     struct User {

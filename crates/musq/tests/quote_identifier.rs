@@ -1,9 +1,12 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use musq::{query, query_scalar, quote_identifier};
-    use musq_test::connection;
+
+    use crate::support::connection;
 
     #[tokio::test]
     async fn quote_identifier_escapes_double_quotes() -> anyhow::Result<()> {

@@ -1,15 +1,20 @@
 //! Integration tests for musq.
 
+mod support;
+#[path = "support/db.rs"]
+mod support_db;
+
 #[cfg(test)]
 mod tests {
     use std::{env, sync::Arc, time::Duration};
 
     use futures::{StreamExt, TryStreamExt};
     use musq::{Connection, Error, Musq, Row, query, query_as, query_scalar};
-    use musq_test::{connection, tdb};
     use rand::{Rng, SeedableRng};
     use rand_xoshiro::Xoshiro256PlusPlus;
     use tokio::{sync::Barrier, task::spawn, time::sleep};
+
+    use crate::{support::connection, support_db::tdb};
 
     #[tokio::test]
     async fn it_connects() -> anyhow::Result<()> {
@@ -969,8 +974,6 @@ mod tests {
 
     #[tokio::test]
     async fn connection_drops_without_close() -> anyhow::Result<()> {
-        use musq_test::connection;
-
         let conn = connection().await?;
         drop(conn);
 

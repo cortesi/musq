@@ -1,10 +1,13 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use musq::{Musq, query, query_scalar};
-    use musq_test::connection;
     use tokio::time::{Duration, Instant, sleep};
+
+    use crate::support::connection;
 
     #[tokio::test]
     async fn basic_statement_flow() -> anyhow::Result<()> {

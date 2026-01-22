@@ -1,9 +1,12 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use musq::{Execute, query::Query, sql};
-    use musq_test::connection;
+
+    use crate::support::connection;
 
     // Helper to extract i32 from first column
     async fn fetch_vals(q: Query) -> anyhow::Result<Vec<i32>> {
