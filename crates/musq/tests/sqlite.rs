@@ -2,14 +2,14 @@
 
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, time::Duration};
+    use std::{env, sync::Arc, time::Duration};
 
     use futures::{StreamExt, TryStreamExt};
     use musq::{Connection, Error, Musq, Row, query, query_as, query_scalar};
     use musq_test::{connection, tdb};
     use rand::{Rng, SeedableRng};
     use rand_xoshiro::Xoshiro256PlusPlus;
-    use tokio::{task::spawn, time::sleep};
+    use tokio::{sync::Barrier, task::spawn, time::sleep};
 
     #[tokio::test]
     async fn it_connects() -> anyhow::Result<()> {
@@ -777,14 +777,19 @@ mod tests {
         drop(books);
     }
 
-    // note: to repro issue #1467 this should be run in release mode
-    // May spuriously fail with UNIQUE constraint failures (which aren't relevant to the original issue)
-    // which I have tried to reproduce using the same seed as printed from CI but to no avail.
-    // It may be due to some nondeterminism in SQLite itself for all I know.
     #[tokio::test]
-    #[ignore = "flaky and intended for release-mode reproduction of issue #1467"]
     async fn issue_1467() -> anyhow::Result<()> {
-        let pool = Musq::new().open_in_memory().await?;
+        // Regression test for https://github.com/launchbadge/sqlx/issues/1467
+        //
+        // The original report required many iterations and was more reliably reproduced in
+        // release mode. Keep this test fast for `cargo test` and allow overriding the
+        // iteration count for stress runs.
+        let iterations = env::var("MUSQ_ISSUE_1467_ITERS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(10_000_usize);
+
+        let mut conn = Connection::connect_with(&Musq::new()).await?;
 
         query(
             r#"
@@ -792,33 +797,21 @@ mod tests {
         CREATE INDEX idx_kv ON kv (v);
         "#,
         )
-        .execute(&pool)
+        .execute(&conn)
         .await?;
 
-        // Random seed:
-        let seed: [u8; 32] = rand::random();
-        println!("RNG seed: {}", hex::encode(seed));
-
-        // Pre-determined seed:
-        // let mut seed: [u8; 32] = [0u8; 32];
-        // hex::decode_to_slice(
-        //     "135234871d03fc0479e22f2f06395b6074761bac5fe7dcf205dbe01eef9f7794",
-        //     &mut seed,
-        // );
+        // Deterministic seed so this is stable under CI.
+        let seed: [u8; 32] = [0x42; 32];
 
         // reproducible RNG for testing
         let mut rng = Xoshiro256PlusPlus::from_seed(seed);
-        let mut conn = pool.acquire().await?;
 
-        for i in 0..1_000_000 {
-            if i % 1_000 == 0 {
-                println!("{i}");
-            }
+        for _ in 0..iterations {
             let key = rng.random_range(0..1_000);
             let value = rng.random_range(0..1_000);
             let mut tx = conn.begin().await?;
 
-            let exists = query("SELECT 1 FROM kv WHERE k = ?")
+            let exists = query("SELECT 1 FROM kv WHERE k = ? LIMIT 1")
                 .bind(key)
                 .fetch_optional(&tx)
                 .await?;
@@ -841,47 +834,62 @@ mod tests {
     }
 
     #[tokio::test]
-    #[ignore = "timing-sensitive and flaky under CI load"]
-    async fn concurrent_read_and_write() {
-        let pool = Musq::new().open_in_memory().await.unwrap();
+    async fn concurrent_read_and_write() -> anyhow::Result<()> {
+        use tempdir::TempDir;
+
+        let dir = TempDir::new("musq-concurrent-read-write")?;
+        let path = dir.path().join("test.db");
+
+        let pool = Musq::new()
+            .create_if_missing(true)
+            .max_connections(2)
+            .open(&path)
+            .await?;
+
+        // Use WAL to avoid reader/writer deadlocks in rollback-journal mode.
+        query("PRAGMA journal_mode = WAL").execute(&pool).await?;
 
         query("CREATE TABLE kv (k PRIMARY KEY, v)")
             .execute(&pool)
-            .await
-            .unwrap();
+            .await?;
 
         let n = 100;
+        let barrier = Arc::new(Barrier::new(2));
 
+        let conn = pool.acquire().await?;
         let read = spawn({
-            let conn = pool.acquire().await.unwrap();
-
+            let barrier = Arc::clone(&barrier);
             async move {
+                barrier.wait().await;
                 for i in 0u32..n {
-                    query("SELECT v FROM kv")
+                    let _v: Option<u32> = query_scalar("SELECT v FROM kv WHERE k = ?")
                         .bind(i)
-                        .fetch_all(&conn)
-                        .await
-                        .unwrap();
+                        .fetch_optional(&conn)
+                        .await?;
                 }
+                Ok::<_, anyhow::Error>(())
             }
         });
 
         let write = spawn({
-            let pool = pool.clone();
+            let barrier = Arc::clone(&barrier);
             async move {
+                barrier.wait().await;
                 for i in 0u32..n {
                     query("INSERT INTO kv (k, v) VALUES (?, ?)")
                         .bind(i)
                         .bind(i * i)
                         .execute(&pool)
-                        .await
-                        .unwrap();
+                        .await?;
                 }
+                Ok::<_, anyhow::Error>(())
             }
         });
 
-        read.await.unwrap();
-        write.await.unwrap();
+        read.await??;
+        write.await??;
+
+        Ok(())
     }
 
     #[tokio::test]
