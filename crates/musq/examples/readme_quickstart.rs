@@ -1,6 +1,6 @@
 //! Quickstart example from the README.
 
-use musq::{FromRow, Musq, sql, sql_as};
+use musq::{FromRow, Musq, sql, sql_as, values};
 
 /// User record fetched from the database.
 #[derive(Debug, FromRow)]
@@ -24,7 +24,8 @@ async fn main() -> musq::Result<()> {
     // Insert a user
     let id = 1;
     let name = "Alice";
-    sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
+    let user_values = values! { "id": id, "name": name }?;
+    sql!("INSERT INTO users {insert:user_values}")?
         .execute(&pool)
         .await?;
 

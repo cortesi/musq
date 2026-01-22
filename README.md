@@ -20,11 +20,16 @@ result to a struct using the `sql!` and `sql_as!` macros.
 
 <!-- snips: crates/musq/examples/readme_quickstart.rs -->
 ```rust
-use musq::{FromRow, Musq, sql, sql_as};
+//! Quickstart example from the README.
 
+use musq::{FromRow, Musq, sql, sql_as, values};
+
+/// User record fetched from the database.
 #[derive(Debug, FromRow)]
 pub struct User {
+    /// User ID.
     pub id: i32,
+    /// User name.
     pub name: String,
 }
 
@@ -41,7 +46,8 @@ async fn main() -> musq::Result<()> {
     // Insert a user
     let id = 1;
     let name = "Alice";
-    sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
+    let user_values = values! { "id": id, "name": name }?;
+    sql!("INSERT INTO users {insert:user_values}")?
         .execute(&pool)
         .await?;
 
@@ -122,10 +128,11 @@ let user_ids = vec![1, 2, 3];
 let columns = ["id", "name"];
 
 // Dynamic table and column identifiers
-let users: Vec<User> =
-    sql_as!("SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})")?
-        .fetch_all(&pool)
-        .await?;
+let users: Vec<User> = sql_as!(
+    "SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})"
+)?
+.fetch_all(&pool)
+.await?;
 ```
 
 
@@ -134,8 +141,20 @@ let users: Vec<User> =
 It turns out that a very large portion of SQL query composition can be done by
 treating a key/value map specially based on the query context. Musq provides a
 `Values` type for this, along with a set of placeholder variants to cover all
-cases where SQL uses key/value pairs. It can be constructed with the `values!`
-macro: 
+cases where SQL uses key/value pairs.
+
+##### The `values!` macro
+
+`values!` builds a `Values` collection from literal column names and any `Encode`-able values. It
+encodes each value immediately and returns `Result<Values>`, so construction can fail and you can
+use `?` to surface encoding errors early. Keys must be string literals; for dynamic keys, use the
+fluent builder. `Values` preserves insertion order, so the order you write is retained.
+
+Because `values!` uses the same `Encode` implementations as regular query arguments, blob storage
+behavior is unchanged. Types like `Vec<u8>`, `&[u8]`, `Arc<Vec<u8>>`, and `bstr::BString` continue
+to map to SQLite `BLOB` when used inside `values!`.
+
+It can be constructed with the `values!` macro:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values-macro -->
 ```rust
@@ -146,7 +165,7 @@ let vals = values! {
 }?;
 ```
 
-Or the fluent builder interface on the `Value` type:
+Or the fluent builder interface on the `Values` type:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values-fluent -->
 ```rust
@@ -228,7 +247,7 @@ Support for common Rust types is included out-of-the-box.
 | `time::Time`                        | TIME           |
 | `bstr::BString`                     | BLOB           |
 
-Musq has implements `Encode` for `Option<T>` where `T` implements `Encode`.
+Musq implements `Encode` for `Option<T>` where `T` implements `Encode`.
 This makes it easy to work with nullable database columns:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values-optional -->
