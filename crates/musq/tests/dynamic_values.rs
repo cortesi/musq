@@ -159,6 +159,96 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn insert_with_expression_mixes_binds_and_expressions() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        sql!("CREATE TABLE ie (a TEXT, b TEXT, c TEXT)")?
+            .execute(&conn)
+            .await?;
+
+        let expr = sql!("({} || {})", "B1", "B2")?;
+        let vals: Values = values! { "a": "A", "b": expr, "c": "C" }?;
+        sql!("INSERT INTO ie {insert:vals}")?.execute(&conn).await?;
+
+        let row: (String, String, String) =
+            sql_as!("SELECT a, b, c FROM ie")?.fetch_one(&conn).await?;
+        assert_eq!(row, ("A".into(), "B1B2".into(), "C".into()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn set_with_expression_mixes_binds_and_expressions() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        sql!("CREATE TABLE se (id INTEGER PRIMARY KEY, a TEXT, b TEXT)")?
+            .execute(&conn)
+            .await?;
+        sql!("INSERT INTO se (id, a, b) VALUES (1, 'old', 'old')")?
+            .execute(&conn)
+            .await?;
+
+        let expr = sql!("({} || {})", "X", "Y")?;
+        let changes: Values = values! { "a": expr, "b": "new" }?;
+        sql!("UPDATE se SET {set:changes} WHERE id = 1")?
+            .execute(&conn)
+            .await?;
+
+        let row: (String, String) = sql_as!("SELECT a, b FROM se WHERE id = 1")?
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(row, ("XY".into(), "new".into()));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn set_expression_named_parameter_collision_is_renamed() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        sql!("CREATE TABLE nc (id INTEGER PRIMARY KEY, v TEXT)")?
+            .execute(&conn)
+            .await?;
+        sql!("INSERT INTO nc (id, v) VALUES (1, 'old')")?
+            .execute(&conn)
+            .await?;
+
+        let expr = sql!("{val}", val = "expr")?;
+        let changes: Values = values! { "v": expr }?;
+        sql!(
+            "UPDATE nc SET {set:changes} WHERE id = 1 AND v != {val}",
+            val = "outer"
+        )?
+        .execute(&conn)
+        .await?;
+
+        let row: (String,) = sql_as!("SELECT v FROM nc WHERE id = 1")?
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(row.0, "expr");
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn expr_helpers_work_for_now_and_jsonb() -> anyhow::Result<()> {
+        use musq::expr;
+        let conn = connection().await?;
+        sql!("CREATE TABLE ej (id INTEGER PRIMARY KEY, created_at TEXT, data BLOB)")?
+            .execute(&conn)
+            .await?;
+
+        let vals: Values = values! {
+            "id": 1,
+            "created_at": expr::now_rfc3339_utc(),
+            "data": expr::jsonb(r#"{"a":1}"#),
+        }?;
+        sql!("INSERT INTO ej {insert:vals}")?.execute(&conn).await?;
+
+        let row: (String, i32) =
+            sql_as!("SELECT created_at, json_extract(data, '$.a') AS a FROM ej WHERE id = 1")?
+                .fetch_one(&conn)
+                .await?;
+        assert!(row.0.contains('T') && row.0.ends_with('Z'));
+        assert_eq!(row.1, 1);
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn upsert_set_exclude_key() -> anyhow::Result<()> {
         let conn = connection().await?;
         sql!("CREATE TABLE us (id INTEGER PRIMARY KEY, val TEXT)")?

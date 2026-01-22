@@ -107,6 +107,20 @@ async fn values() -> musq::Result<()> {
     }
 
     {
+        // snips-start: values-expr
+        use musq::expr;
+        let changes = values! {
+            "updated_at": expr::now_rfc3339_utc(),
+            "payload": expr::jsonb(r#"{"event":"hello"}"#),
+        }?;
+
+        sql!("UPDATE events SET {set:changes} WHERE id = 1")?
+            .execute(&pool)
+            .await?;
+        // snips-end
+    }
+
+    {
         #[derive(FromRow, Debug)]
         struct User {
             id: i32,

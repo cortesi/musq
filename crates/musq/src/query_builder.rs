@@ -118,8 +118,20 @@ impl QueryBuilder {
                 self.sql.push_str(", ");
             }
             first = false;
-            self.sql.push('?');
-            self.arguments.values.push(val.clone());
+            match val {
+                crate::ValuesEntry::Value(v) => {
+                    self.sql.push('?');
+                    self.arguments.values.push(v.clone());
+                }
+                crate::ValuesEntry::Expr(expr) => {
+                    self.push_fragment(
+                        expr.sql.clone(),
+                        expr.arguments.clone(),
+                        expr.tainted,
+                        true,
+                    );
+                }
+            }
         }
         self.sql.push(')');
         Ok(())
@@ -131,14 +143,27 @@ impl QueryBuilder {
             return Err(crate::Error::Protocol("empty values".into()));
         }
         let mut first = true;
-        for (k, v) in values.iter() {
+        for (k, entry) in values.iter() {
             if !first {
                 self.sql.push_str(", ");
             }
             first = false;
             self.sql.push_str(&crate::quote_identifier(k));
-            self.sql.push_str(" = ?");
-            self.arguments.values.push(v.clone());
+            match entry {
+                crate::ValuesEntry::Value(v) => {
+                    self.sql.push_str(" = ?");
+                    self.arguments.values.push(v.clone());
+                }
+                crate::ValuesEntry::Expr(expr) => {
+                    self.sql.push_str(" = ");
+                    self.push_fragment(
+                        expr.sql.clone(),
+                        expr.arguments.clone(),
+                        expr.tainted,
+                        true,
+                    );
+                }
+            }
         }
         Ok(())
     }
@@ -150,17 +175,28 @@ impl QueryBuilder {
             return Ok(());
         }
         let mut first = true;
-        for (k, v) in values.iter() {
+        for (k, entry) in values.iter() {
             if !first {
                 self.sql.push_str(" AND ");
             }
             first = false;
             self.sql.push_str(&crate::quote_identifier(k));
-            match v {
-                crate::Value::Null { .. } => self.sql.push_str(" IS NULL"),
-                _ => {
-                    self.sql.push_str(" = ?");
-                    self.arguments.values.push(v.clone());
+            match entry {
+                crate::ValuesEntry::Value(v) => match v {
+                    crate::Value::Null { .. } => self.sql.push_str(" IS NULL"),
+                    _ => {
+                        self.sql.push_str(" = ?");
+                        self.arguments.values.push(v.clone());
+                    }
+                },
+                crate::ValuesEntry::Expr(expr) => {
+                    self.sql.push_str(" = ");
+                    self.push_fragment(
+                        expr.sql.clone(),
+                        expr.arguments.clone(),
+                        expr.tainted,
+                        true,
+                    );
                 }
             }
         }
@@ -212,37 +248,62 @@ impl QueryBuilder {
             if !self.sql.is_empty() {
                 self.sql.push(' ');
             }
-            let mut sql = query.sql().to_string();
+            let sql = match query.statement {
+                Either::Left(sql) => sql,
+                Either::Right(statement) => statement.sql,
+            };
+            self.push_fragment(
+                sql,
+                query.arguments.unwrap_or_default(),
+                query.tainted,
+                false,
+            );
+        }
+    }
 
-            if let Some(other_args) = query.arguments {
-                let base_index = self.arguments.values.len();
-                self.arguments.values.extend(other_args.values);
+    /// Append a SQL fragment with arguments, rebasing/renaming named parameters as needed.
+    fn push_fragment(
+        &mut self,
+        mut sql: String,
+        other_args: Arguments,
+        tainted: bool,
+        namespace_named: bool,
+    ) {
+        let base_index = self.arguments.values.len();
+        self.arguments.values.extend(other_args.values);
 
-                let mut used_names: HashSet<String> =
-                    self.arguments.named.keys().cloned().collect();
+        if !other_args.named.is_empty() {
+            let mut used_names: HashSet<String> = self.arguments.named.keys().cloned().collect();
+            if !namespace_named {
                 used_names.extend(other_args.named.keys().cloned());
-
-                let mut renames: HashMap<String, String> = HashMap::new();
-                for (name, index) in other_args.named {
-                    let name = if self.arguments.named.contains_key(&name) {
-                        let new_name = disambiguate_name(&name, &mut used_names);
-                        renames.insert(name.clone(), new_name.clone());
-                        new_name
-                    } else {
-                        name
-                    };
-
-                    self.arguments.named.insert(name, base_index + index);
-                }
-
-                if !renames.is_empty() {
-                    sql = rewrite_named_parameters(&sql, &renames);
-                }
             }
 
-            self.sql.push_str(&sql);
-            self.tainted |= query.tainted;
+            let mut renames: HashMap<String, String> = HashMap::new();
+            for (name, index) in other_args.named {
+                let name = if namespace_named {
+                    let base = format!("__musq_expr_{name}");
+                    let new_name = disambiguate_name(&base, &mut used_names);
+                    renames.insert(name.clone(), new_name.clone());
+                    new_name
+                } else if self.arguments.named.contains_key(&name) {
+                    let new_name = disambiguate_name(&name, &mut used_names);
+                    renames.insert(name.clone(), new_name.clone());
+                    new_name
+                } else {
+                    used_names.insert(name.clone());
+                    name
+                };
+
+                self.arguments.named.insert(name, base_index + index);
+            }
+
+            if !renames.is_empty() {
+                sql = rewrite_named_parameters(&sql, &renames);
+            }
         }
+
+        self.sql.push_str(&sql);
+        self.tainted |= tainted;
     }
 
     /// Finalize the builder into a [`Query`].

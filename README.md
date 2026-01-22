@@ -145,7 +145,8 @@ cases where SQL uses key/value pairs.
 
 ##### The `values!` macro
 
-`values!` builds a `Values` collection from literal column names and any `Encode`-able values. It
+`values!` builds a `Values` collection from literal column names and any `Encode`-able values (or
+expression fragments from `musq::expr`). It
 encodes each value immediately and returns `Result<Values>`, so construction can fail and you can
 use `?` to surface encoding errors early. Keys must be string literals; for dynamic keys, use the
 fluent builder. `Values` preserves insertion order, so the order you write is retained.
@@ -187,6 +188,27 @@ The `sql!` macro provides special placeholder types for `Values`:
   * `{upsert:values, exclude: id, created_at}`: For `ON CONFLICT ... DO UPDATE SET`,
     expands to `col1 = excluded.col1, ...`, with an option to exclude certain
     keys from the update.
+
+##### Computed values (expressions)
+
+For some schemas you may want DB-side computed values (for example, a consistent `updated_at`
+timestamp inside a transaction, or JSONB encoding via `jsonb(...)`). Musq supports this by allowing
+expression fragments inside `Values` (via `musq::expr`).
+
+<!-- snips: crates/musq/examples/readme_snippets.rs#values-expr -->
+```rust
+let changes = values! {
+    "updated_at": musq::expr::now_rfc3339_utc(),
+    "payload": musq::expr::jsonb(r#"{"event":"hello"}"#),
+}?;
+
+sql!("UPDATE events SET {set:changes} WHERE id = 1")?
+    .execute(&pool)
+    .await?;
+```
+
+Expressions created via `expr::raw(...)` taint the resulting query. Prefer the curated helpers when
+possible.
 
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values -->

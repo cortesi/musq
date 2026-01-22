@@ -25,6 +25,8 @@ mod from_row;
 #[macro_use]
 /// Logging utilities.
 mod logger;
+/// SQL expression helpers for dynamic queries.
+pub mod expr;
 /// Connection options and configuration.
 mod musq;
 /// Connection pool implementation.
@@ -51,6 +53,7 @@ pub use crate::{
     encode::Null,
     error::{DecodeError, EncodeError, Error, Result},
     executor::Execute,
+    expr::Expr,
     from_row::{AllNull, FromRow},
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::{Pool, PoolConnection},
@@ -63,7 +66,7 @@ pub use crate::{
     row::Row,
     sqlite::{Arguments, Connection, Prepared, SqliteDataType, SqliteError, Value},
     transaction::Transaction,
-    values::Values,
+    values::{IntoValuesEntry, Values, ValuesEntry},
 };
 
 #[macro_export]

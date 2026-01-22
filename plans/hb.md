@@ -19,8 +19,8 @@ Decisions:
 - `now()` should be DB-side (SQLite expression), not Rust-side computed binds, so all timestamps in
   a transaction are consistent and we don't couple correctness to host formatting.
 - We need both:
-  - curated, safe expression helpers (`now_rfc3339_utc()`, `jsonb_text(...)`, etc.) that are *not*
-    tainted
+  - curated, safe expression helpers (`now_rfc3339_utc()`, `jsonb(...)`, `jsonb_serde(...)`, etc.)
+    that are *not* tainted
   - an explicit raw escape hatch for expressions that *does* taint the query
 - "JSONB" here refers to SQLite's internal binary JSON representation.
   Values should be written and read as JSON *text*; SQLite converts internally via `jsonb(...)` and
@@ -36,8 +36,10 @@ Constraints (blob compatibility):
 - Any optional JSON helpers must be opt-in and must not cause automatic interpretation of `BLOB`
   payloads. Opaque `BLOB` bytes must remain opaque unless a caller explicitly opts into JSON
   functions or encodings.
-- JSONB helpers must be explicit (e.g. `expr::jsonb_text(...)`), so callers storing arbitrary blobs
+- JSONB helpers must be explicit (e.g. `expr::jsonb(...)`), so callers storing arbitrary blobs
   are never accidentally routed through SQLite JSON functions.
+  - Prefer `expr::jsonb(...)` / `expr::jsonb_serde(...)`; `expr::jsonb_text(...)` is an alias for
+    the string form.
 
 ## Key findings (hb `db` today)
 
@@ -59,9 +61,10 @@ Constraints (blob compatibility):
    - `WHERE {where:filters}` and `SET {set:changes}` work for basic values
    - JSONB and timestamp updates require leaving the `Values` path and hand-writing expressions
 
-4. `WHERE {where:values}` cannot currently express `IS NULL` correctly:
-   - it always emits `col = ?` even when the bound value is NULL, which will not match NULL rows
-   - hb works around this with explicit `... WHERE parent_id IS NULL ...` patterns
+4. `WHERE {where:values}` needs correct `NULL` handling:
+   - SQLite requires `col IS NULL` (not `col = NULL`) to match NULL rows
+   - **Status:** implemented in musq (`Value::Null` -> `col IS NULL`) and hb migrated the one
+     eligible `col IS NULL` call-site (`get_root_batches`)
 
 ## hb scope inventory (integrated)
 
@@ -132,7 +135,8 @@ Musq change:
 - Extend the `{insert:...}` and `{set:...}` pathways to accept expression values.
 - Provide a small set of safe, non-tainted helpers:
   - `expr::now_rfc3339_utc()` -> `STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')`
-  - `expr::jsonb_text(&str)` -> `jsonb(?)` (binds the JSON text)
+  - `expr::jsonb(&str)` -> `jsonb(?)` (binds JSON text)
+  - `expr::jsonb_serde(&T)` -> `jsonb(?)` (serializes `T: Serialize` to JSON text, then binds)
   - (optionally) `expr::null()` -> `NULL` (mostly for symmetry)
 - Provide an explicit raw escape hatch (tainted), e.g. `expr::raw("...")`.
 
@@ -157,7 +161,7 @@ After (hb perspective, with expression-capable values):
 ```rust
 let changes = musq::values! {
     "type": new_type.as_str(),
-    "data": musq::expr::jsonb_text(&json),
+    "data": musq::expr::jsonb(&json),
     "updated_at": musq::expr::now_rfc3339_utc(),
     "render_cache": musq::Null,
 }?; // then: UPDATE nodes SET {set:changes} WHERE {where:filters}
@@ -191,8 +195,9 @@ pub created_at: time::OffsetDateTime,
 Musq change:
 - Do not add any automatic interpretation of `BLOB` bytes.
 - Provide explicit helpers that work with JSON *text*:
-  - keep `expr::jsonb_text(&str)` as the primary mechanism (SQLite converts to internal JSONB)
-  - optionally provide `expr::jsonb_serde(&T)` where `T: Serialize` under an opt-in `json` feature
+  - keep `expr::jsonb(&str)` as the primary mechanism (SQLite converts to internal JSONB)
+  - provide `expr::jsonb_serde(&T)` where `T: Serialize` (serializes to JSON text, then binds)
+  - `expr::jsonb_text(&str)` is an alias for `expr::jsonb(&str)`
 - Keep reads explicit in SQL via `json(column) AS ...` (hb already does this).
 
 hb consequence:
@@ -212,7 +217,7 @@ musq::sql!(
 After (hb perspective, with `expr::jsonb_serde` and `expr::now_rfc3339_utc`):
 ```rust
 let vals = musq::values! {
-    "payload": musq::expr::jsonb_serde(payload),
+    "payload": musq::expr::jsonb_serde(payload)?,
     "created_at": musq::expr::now_rfc3339_utc(),
 }?;
 musq::sql!("INSERT INTO operations_log {insert:vals};")?;
@@ -230,60 +235,16 @@ hb consequence:
 
 ## Execution checklist
 
-1. Stage One: Musq correctness + documentation (low risk, independent)
+Completed (implemented)
+- [x] NULL-aware `{where:values}`: musq emits `col IS NULL` for `Value::Null`, hb migrated the one
+      eligible `col IS NULL` call-site and added coverage.
+- [x] Expression-capable `Values` + `musq::expr`: hb migrated all JSONB writes and DB-side `now()`
+      timestamps to `{insert:...}` / `{set:...}` with `expr::{jsonb,jsonb_serde,now_rfc3339_utc}`.
+
+1. Stage One: hb/db type tightening (timestamps) (in hb repo)
 
 a) Musq changes
-1. [x] Implement NULL-aware `QueryBuilder::push_where` semantics for `Value::Null`
-       (`musq/crates/musq/src/query_builder.rs`).
-2. [x] Add a musq integration test proving `WHERE {where:values}` can match NULL columns
-       (new test file or extend `musq/crates/musq/tests/dynamic_values.rs`).
-3. [x] Document the NULL behavior in `musq/crates/musq/src/values.rs` and the README `Values`
-       section.
-4. [x] Add a regression test proving opaque `BLOB` storage is unaffected (random bytes round-trip).
-
-b) hb changes
-Switch context: move to the hb repo and update hb crates to capitalize on the musq changes from
-this stage.
-1. [x] Replace eligible `col IS NULL` patterns with `Values` + `musq::Null` and
-       `WHERE {where:filters}` (e.g. `hb/crates/db/src/operations.rs` root batches query).
-2. [x] Add/adjust hb tests to cover NULL filtering via `Values` (especially in query helpers where
-       `IS NULL` previously appeared).
-3. [x] Run hb test suite to validate behavior is unchanged.
-
-2. Stage Two: Musq expression-capable Values
-
-a) Musq changes
-1. [ ] Update `musq::Values` to support bind-or-expression values
-       (`musq/crates/musq/src/values.rs`), without changing plain `BLOB` binding semantics.
-2. [ ] Update `QueryBuilder::{push_insert,push_set,push_where}` to render expressions and merge
-       their arguments (`musq/crates/musq/src/query_builder.rs`).
-3. [ ] Add `musq::expr` module and export it (`musq/crates/musq/src/lib.rs`), including:
-   - `expr::now_rfc3339_utc()`
-   - `expr::jsonb_text(&str)` (binds JSON text; SQLite produces JSONB internally)
-   - `expr::raw(...)` (taints the query)
-4. [ ] Add tests:
-   - `SET {set:...}` mixes binds and expressions correctly
-   - `{insert:...}` mixes binds and expressions correctly
-   - expressions with their own binds merge arguments in the right order
-5. [ ] Extend docs/README with a short "computed values" section and examples for JSONB + now().
-
-b) hb changes
-Switch context: move to the hb repo and update hb crates to capitalize on the musq changes from
-this stage.
-1. [ ] Replace all `STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')` occurrences with
-       `musq::expr::now_rfc3339_utc()` via `{set:...}` / `{insert:...}`
-       (see `hb/crates/db/src/{nodes,edges,links,operations,batch,migrations}.rs`).
-2. [ ] Replace `jsonb({data})` patterns with `musq::expr::jsonb_text(...)` (or `jsonb_serde`) via
-       `{set:...}` / `{insert:...}`
-       (see `hb/crates/db/src/{nodes,edges,links,operations,migrations}.rs`).
-3. [ ] Remove remaining hand-written SQL fragments that exist solely to express computed values
-       (timestamps/JSONB), unless they are intentionally more readable.
-4. [ ] Run hb/db tests and fix any ordering/taint assertions that change due to query rewrites.
-
-3. Stage Three: hb/db type tightening (timestamps) (in hb repo)
-
-a) Musq changes
-1. [ ] None (this stage consumes the musq work from stages 1–2).
+1. [ ] None (this stage consumes the musq work above).
 
 b) hb changes
 Switch context: move to the hb repo and update hb crates to capitalize on the musq changes from
@@ -294,10 +255,10 @@ this stage.
        types are updated accordingly.
 3. [ ] Run hb/db tests to validate behavior and ordering assumptions remain correct.
 
-4. Stage Four: hbtypes alignment (recommended)
+2. Stage Two: hbtypes alignment (recommended)
 
 a) Musq changes
-1. [ ] None required, unless hb wants a `json` feature for `expr::jsonb_serde`.
+1. [ ] None required.
 
 b) hb changes
 Switch context: move to the hb repo and update hb crates to capitalize on the musq changes from

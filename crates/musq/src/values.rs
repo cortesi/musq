@@ -1,13 +1,54 @@
 use indexmap::IndexMap;
 
-use crate::{Result, Value, encode::Encode};
+use crate::{Result, Value, encode::Encode, expr::Expr, query::Query};
+
+/// A value in a [`Values`] collection.
+#[derive(Debug, Clone)]
+pub enum ValuesEntry {
+    /// A bound value (encoded immediately).
+    Value(Value),
+    /// A SQL expression fragment (may include its own bound parameters).
+    Expr(Expr),
+}
+
+/// Convert a value into a [`ValuesEntry`].
+pub trait IntoValuesEntry {
+    /// Convert into a [`ValuesEntry`].
+    fn into_values_entry(self) -> Result<ValuesEntry>;
+}
+
+impl<T> IntoValuesEntry for T
+where
+    T: Encode,
+{
+    fn into_values_entry(self) -> Result<ValuesEntry> {
+        let encoded = self.encode().map_err(crate::Error::Encode)?;
+        drop(self);
+        Ok(ValuesEntry::Value(encoded))
+    }
+}
+
+impl IntoValuesEntry for Expr {
+    fn into_values_entry(self) -> Result<ValuesEntry> {
+        Ok(ValuesEntry::Expr(self))
+    }
+}
+
+impl IntoValuesEntry for Query {
+    fn into_values_entry(self) -> Result<ValuesEntry> {
+        Ok(ValuesEntry::Expr(self.into()))
+    }
+}
 
 /// An ordered collection of key-value pairs for building dynamic SQL queries.
 ///
 /// When used with the `sql!` macro's `{where:values}` placeholder, `NULL` values are rendered as
 /// `col IS NULL` (without a bound parameter).
+///
+/// Values may also include SQL expression fragments (see [`crate::expr`]) for computed columns in
+/// `{set:...}` and `{insert:...}` placeholders.
 #[derive(Debug, Default, Clone)]
-pub struct Values(IndexMap<String, Value>);
+pub struct Values(IndexMap<String, ValuesEntry>);
 
 impl Values {
     /// Creates a new, empty `Values` collection.
@@ -20,11 +61,9 @@ impl Values {
     pub fn insert<K, V>(&mut self, key: K, value: V) -> Result<()>
     where
         K: Into<String>,
-        V: Encode,
+        V: IntoValuesEntry,
     {
-        let encoded = value.encode().map_err(crate::Error::Encode)?;
-        drop(value);
-        self.0.insert(key.into(), encoded);
+        self.0.insert(key.into(), value.into_values_entry()?);
         Ok(())
     }
 
@@ -33,7 +72,7 @@ impl Values {
     pub fn val<K, V>(mut self, key: K, value: V) -> Result<Self>
     where
         K: Into<String>,
-        V: Encode,
+        V: IntoValuesEntry,
     {
         self.insert(key, value)?;
         Ok(self)
@@ -50,7 +89,7 @@ impl Values {
     }
 
     /// Iterate over key-value pairs in insertion order.
-    pub fn iter(&self) -> impl Iterator<Item = (&String, &Value)> {
+    pub fn iter(&self) -> impl Iterator<Item = (&String, &ValuesEntry)> {
         self.0.iter()
     }
 
@@ -60,7 +99,7 @@ impl Values {
     }
 
     /// Iterate over the values in insertion order.
-    pub fn values(&self) -> impl Iterator<Item = &Value> {
+    pub fn values(&self) -> impl Iterator<Item = &ValuesEntry> {
         self.0.values()
     }
 
