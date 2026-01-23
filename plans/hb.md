@@ -240,29 +240,11 @@ Completed (implemented)
       eligible `col IS NULL` call-site and added coverage.
 - [x] Expression-capable `Values` + `musq::expr`: hb migrated all JSONB writes and DB-side `now()`
       timestamps to `{insert:...}` / `{set:...}` with `expr::{jsonb,jsonb_serde,now_rfc3339_utc}`.
+- [x] hb/db timestamp type tightening: hb `db` record types now use `time::OffsetDateTime` for
+      timestamp fields (including internal batch state checks) while keeping the DB storage as
+      TEXT.
+- [x] hbtypes alignment: hb ID newtypes implement `musq::Encode`/`Decode`, hb/db migrated musq
+      call-sites to stop calling `.get()`, and undo/redo snapshots now store timestamps as
+      `time::OffsetDateTime` (serde RFC3339).
 
-1. Stage One: hb/db type tightening (timestamps) (in hb repo)
-
-a) Musq changes
-1. [ ] None (this stage consumes the musq work above).
-
-b) hb changes
-Switch context: move to the hb repo and update hb crates to capitalize on the musq changes from
-this stage.
-1. [ ] Migrate hb/db record timestamp types from `String` -> `time::OffsetDateTime`
-       (`hb/crates/db/src/{nodes,edges,links,operations,batch}.rs`).
-2. [ ] Ensure all hb/db JSONB reads remain explicit in SQL (`json(column) AS ...`) and that decode
-       types are updated accordingly.
-3. [ ] Run hb/db tests to validate behavior and ordering assumptions remain correct.
-
-2. Stage Two: hbtypes alignment (recommended)
-
-a) Musq changes
-1. [ ] None required.
-
-b) hb changes
-Switch context: move to the hb repo and update hb crates to capitalize on the musq changes from
-this stage.
-1. [ ] Add `musq::Encode` / `musq::Decode` impls for hb ID newtypes (either in hbtypes or hb/db).
-2. [ ] If hbtypes snapshots should become typed timestamps, migrate snapshots from `String` to
-       `time::OffsetDateTime` as well (and update serde formats accordingly).
+No remaining stages.
