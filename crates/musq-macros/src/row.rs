@@ -97,6 +97,10 @@ fn expand_struct(
                         })
                     }
                 )
+            } else if let Some(fn_path) = &field.deserialize_with {
+                // Custom deserialization function. The function must have signature:
+                // fn(prefix: &str, row: &musq::Row) -> musq::Result<T>
+                parse_quote!(#fn_path(prefix, row))
             } else {
                 predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
                 parse_quote!(row.get_value(&format!("{}{}", prefix, #column_name)))
@@ -154,6 +158,10 @@ fn expand_struct(
                         ::std::result::Result::Err(e) => return ::std::result::Result::Err(e),
                     }
                 })
+            } else if field.deserialize_with.is_some() {
+                // Custom deserialization fields are never considered null since
+                // we don't know what the function does.
+                parse_quote!(false)
             } else {
                 predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
                 parse_quote!({

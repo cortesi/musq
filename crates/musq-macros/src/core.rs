@@ -126,6 +126,10 @@ pub struct RowField {
     /// Whether to skip the field.
     #[darling(default = "Default::default")]
     pub skip: bool,
+    /// Custom deserialization function path.
+    ///
+    /// The function must have signature `fn(&str, &musq::Row) -> musq::Result<T>`.
+    pub deserialize_with: Option<syn::Path>,
 }
 
 /// Validate that row field attributes are compatible.
@@ -140,8 +144,35 @@ pub fn check_row_field_attrs(field: &RowField) -> syn::Result<()> {
         if field.rename.is_some() {
             span_err!(&field.ty, "`flatten` cannot be combined with `rename`")?;
         }
+        if field.deserialize_with.is_some() {
+            span_err!(
+                &field.ty,
+                "`flatten` cannot be combined with `deserialize_with`"
+            )?;
+        }
     } else if !field.prefix.is_empty() {
         span_err!(&field.ty, "`prefix` requires `flatten`")?;
+    }
+
+    if field.deserialize_with.is_some() {
+        if field.skip {
+            span_err!(
+                &field.ty,
+                "`deserialize_with` cannot be combined with `skip`"
+            )?;
+        }
+        if field.try_from.is_some() {
+            span_err!(
+                &field.ty,
+                "`deserialize_with` cannot be combined with `try_from`"
+            )?;
+        }
+        if field.default {
+            span_err!(
+                &field.ty,
+                "`deserialize_with` cannot be combined with `default`"
+            )?;
+        }
     }
     Ok(())
 }
