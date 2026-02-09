@@ -121,6 +121,9 @@ impl EstablishParams {
     /// [`sqlite3_busy_timeout`]. If the duration exceeds `i32::MAX`
     /// milliseconds, it is clamped to `i32::MAX`.
     pub(crate) fn establish(&self) -> Result<ConnectionState> {
+        #[cfg(feature = "vec")]
+        ffi::register_vec()?;
+
         let mut handle = null_mut();
 
         // <https://www.sqlite.org/c3ref/open.html>

@@ -16,11 +16,16 @@
 //! | `f64`                                 | REAL                |
 //! | `&str`, [`String`]                    | TEXT                |
 //! | `&[u8]`, `Vec<u8>`                    | BLOB                |
+//! | `VecF32`*                             | BLOB                |
+//! | `VecInt8`*                            | BLOB                |
+//! | `VecBit`*                             | BLOB                |
 //! | `time::PrimitiveDateTime`             | DATETIME            |
 //! | `time::OffsetDateTime`                | DATETIME            |
 //! | `time::Date`                          | DATE                |
 //! | `time::Time`                          | TIME                |
 //! | `bstr::BString`                       | BLOB                |
+//!
+//! `*` Requires the `vec` feature.
 //!
 //! #### Note: Unsigned Integers
 //!
@@ -53,6 +58,10 @@ macro_rules! compatible {
 pub mod bstr;
 /// Conversions for `time` crate types.
 pub mod time;
+/// Vector conversions for sqlite-vec (`feature = "vec"`).
+#[cfg(feature = "vec")]
+#[cfg_attr(docsrs, doc(cfg(feature = "vec")))]
+pub mod vec;
 
 /// Bool type conversions.
 mod bool;

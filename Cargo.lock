@@ -153,6 +153,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5dd9dc738b7a8311c7ade152424974d8115f2cdad61e8dab8dac9f2362298510"
 
 [[package]]
+name = "bytemuck"
+version = "1.25.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "c8efb64bd706a16a1bdde310ae86b351e4d21550d98d056f22f8a7f7a2183fec"
+
+[[package]]
 name = "bytes"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -723,6 +729,7 @@ dependencies = [
  "async-trait",
  "atoi",
  "bstr",
+ "bytemuck",
  "bytes",
  "criterion",
  "crossbeam-queue",
@@ -744,6 +751,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sqlformat",
+ "sqlite-vec",
  "tempdir",
  "thiserror",
  "time",
@@ -1217,6 +1225,15 @@ checksum = "0705994df478b895f05b8e290e0d46e53187b26f8d889d37b2a0881234922d94"
 dependencies = [
  "unicode_categories",
  "winnow",
+]
+
+[[package]]
+name = "sqlite-vec"
+version = "0.1.7-alpha.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2388d9b97b32baa48a059df2f15a9bb49217fa1f9fb076e98c89e8fc02c8f2c4"
+dependencies = [
+ "cc",
 ]
 
 [[package]]

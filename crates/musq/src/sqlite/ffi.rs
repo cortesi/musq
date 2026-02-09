@@ -2,6 +2,10 @@
 // These wrappers centralize the `unsafe` blocks needed when calling into
 // the SQLite C API so that the rest of the codebase can remain safe.
 
+#[cfg(feature = "vec")]
+use std::mem::transmute;
+#[cfg(feature = "vec")]
+use std::sync::OnceLock;
 use std::{
     ffi::c_void,
     mem::size_of,
@@ -11,6 +15,8 @@ use std::{
 };
 
 use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
+#[cfg(feature = "vec")]
+use sqlite_vec::sqlite3_vec_init;
 
 use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
 
@@ -18,6 +24,18 @@ use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
 const _: () = {
     assert!(size_of::<c_int>() == 4);
 };
+
+/// Signature expected by SQLite for extension auto-registration.
+#[cfg(feature = "vec")]
+type ExtensionEntryPoint = unsafe extern "C" fn(
+    db: *mut sqlite3,
+    pz_err_msg: *mut *mut c_char,
+    api: *const ffi_sys::sqlite3_api_routines,
+) -> c_int;
+
+/// Cached result of sqlite-vec auto-registration.
+#[cfg(feature = "vec")]
+static REGISTER_VEC_RESULT: OnceLock<StdResult<(), SqliteError>> = OnceLock::new();
 
 /// Wrapper around [`sqlite3_open_v2`].
 ///
@@ -256,6 +274,48 @@ pub fn stmt_readonly(stmt: *mut sqlite3_stmt) -> bool {
 #[inline]
 pub fn changes(db: *mut sqlite3) -> i32 {
     unsafe { ffi_sys::sqlite3_changes(db) as i32 }
+}
+
+/// Wrapper around [`sqlite3_auto_extension`].
+///
+/// Registers an extension entry point so SQLite loads it automatically for all
+/// subsequently opened connections.
+///
+/// See <https://www.sqlite.org/c3ref/auto_extension.html>
+#[cfg(feature = "vec")]
+#[inline]
+#[must_use = "handle the Result"]
+pub fn auto_extension(entry_point: Option<ExtensionEntryPoint>) -> StdResult<(), i32> {
+    let rc = unsafe { ffi_sys::sqlite3_auto_extension(entry_point) };
+    if rc == ffi_sys::SQLITE_OK {
+        Ok(())
+    } else {
+        Err(rc)
+    }
+}
+
+/// Register sqlite-vec as an auto extension exactly once.
+///
+/// The first call attempts registration. Subsequent calls reuse that result.
+#[cfg(feature = "vec")]
+pub fn register_vec() -> crate::Result<()> {
+    let result = REGISTER_VEC_RESULT.get_or_init(|| {
+        // sqlite-vec exposes `sqlite3_vec_init` without a typed signature.
+        // SQLite expects the canonical extension init function type here.
+        let entry_point: ExtensionEntryPoint =
+            unsafe { transmute::<unsafe extern "C" fn(), ExtensionEntryPoint>(sqlite3_vec_init) };
+
+        match auto_extension(Some(entry_point)) {
+            Ok(()) => Ok(()),
+            Err(rc) => Err(SqliteError {
+                primary: PrimaryErrCode::Unknown(rc as u32),
+                extended: ExtendedErrCode::Unknown(rc as u32),
+                message: format!("sqlite3_auto_extension(sqlite3_vec_init) failed with rc={rc}"),
+            }),
+        }
+    });
+
+    result.clone().map_err(crate::Error::from)
 }
 
 /// Wrapper around [`sqlite3_column_name`]. Returns a pointer to a NUL terminated string.

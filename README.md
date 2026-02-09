@@ -72,6 +72,26 @@ Want to contribute? Have ideas or feature requests? Come tell us about it on
 
 -----
 
+## Feature Flags
+
+`musq` ships with vector support enabled by default.
+
+- `vec` (default): Enables sqlite-vec integration and vector types (`VecF32`, `VecInt8`, `VecBit`).
+
+To opt out of vector support:
+
+```toml
+musq = { version = "0.0.3", default-features = false }
+```
+
+To re-enable `vec` while otherwise opting out of defaults:
+
+```toml
+musq = { version = "0.0.3", default-features = false, features = ["vec"] }
+```
+
+-----
+
 ## Core Features
 
 ### Connection Pooling
@@ -264,11 +284,16 @@ Support for common Rust types is included out-of-the-box.
 | `f32`, `f64`                        | REAL           |
 | `&str`, `String`, `Arc<String>`     | TEXT           |
 | `&[u8]`, `Vec<u8>`, `Arc<Vec<u8>>` | BLOB           |
+| `VecF32`*                           | BLOB           |
+| `VecInt8`*                          | BLOB           |
+| `VecBit`*                           | BLOB           |
 | `time::PrimitiveDateTime`           | DATETIME       |
 | `time::OffsetDateTime`              | DATETIME       |
 | `time::Date`                        | DATE           |
 | `time::Time`                        | TIME           |
 | `bstr::BString`                     | BLOB           |
+
+`*` Requires the `vec` feature (enabled by default).
 
 Musq implements `Encode` for `Option<T>` where `T` implements `Encode`.
 This makes it easy to work with nullable database columns:
@@ -291,8 +316,23 @@ When you use `Some(value)`, it encodes the inner value normally. When you use `N
 
 - **INSERT**: `None` values become `NULL` in the database
 - **UPDATE**: `None` values set columns to `NULL`  
-- **WHERE**: `None` values generate `column = NULL` (which is always false in SQL - use explicit `IS NULL` to match NULL values)
+- **WHERE**: `None` values generate `column IS NULL`
 - **UPSERT**: `None` values participate in conflict resolution as `NULL`
+
+### Vector Search (sqlite-vec)
+
+With the default `vec` feature enabled, sqlite-vec is registered automatically for each
+connection.
+
+- `VecF32` can be bound directly to vector functions and `vec0` tables.
+- `VecInt8` and `VecBit` require sqlite-vec subtype wrappers in SQL:
+  `vec_int8(?)` and `vec_bit(?)`.
+
+See `examples/vec.rs` for a runnable end-to-end example:
+
+```bash
+cargo run -p musq --example vec
+```
 
 Musq also provides a `Null` constant that you can use directly in `values!`
 blocks without specifying a type:

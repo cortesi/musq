@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_cfg))]
+
 //! An async SQLite driver focused on performance, correctness, and flexibility.
 
 /// SQLite backend implementation.
@@ -49,6 +51,9 @@ mod values;
 #[macro_use]
 pub mod types;
 
+#[cfg(feature = "vec")]
+#[cfg_attr(docsrs, doc(cfg(feature = "vec")))]
+pub use crate::types::vec::{VecBit, VecF32, VecInt8};
 pub use crate::{
     encode::Null,
     error::{DecodeError, EncodeError, Error, Result},
