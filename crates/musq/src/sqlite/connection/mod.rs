@@ -1,4 +1,5 @@
 use std::{
+    ffi::CString,
     fmt::{self, Debug, Formatter, Write},
     result::Result as StdResult,
     sync::atomic::Ordering,
@@ -15,13 +16,18 @@ use crate::{
     executor::Execute,
     logger::LogSettings,
     musq::{Musq, OptimizeOnClose},
+    query::{query_as, query_scalar},
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
+        ffi,
         statement::{Prepared, Statement},
     },
     statement_cache::StatementCache,
     transaction::Transaction,
 };
+pub use control::{DbStatus, DbStatusKind, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode};
+/// Connection diagnostics and control helpers.
+mod control;
 /// Connection establishment helpers.
 pub mod establish;
 /// Query execution helpers for connections.
@@ -154,6 +160,60 @@ impl Connection {
             .shared
             .cached_statements_size
             .load(Ordering::Acquire)
+    }
+
+    /// Return runtime identity and compile options for this connection.
+    pub async fn runtime_info(&self) -> Result<SqliteRuntimeInfo> {
+        let version: String = query_scalar("SELECT sqlite_version()")
+            .fetch_one(self)
+            .await?;
+        let source_id: String = query_scalar("SELECT sqlite_source_id()")
+            .fetch_one(self)
+            .await?;
+        let compile_option_rows: Vec<(String,)> =
+            query_as("PRAGMA compile_options").fetch_all(self).await?;
+        let mut compile_options = compile_option_rows
+            .into_iter()
+            .map(|(option,)| option)
+            .collect::<Vec<_>>();
+        compile_options.sort();
+
+        Ok(SqliteRuntimeInfo {
+            version,
+            version_number: ffi::libversion_number(),
+            source_id,
+            compile_options,
+        })
+    }
+
+    /// Return a per-connection SQLite status counter.
+    ///
+    /// If `reset_highwater` is true, SQLite resets the high-water mark after
+    /// reading it for counters that support reset.
+    pub async fn db_status(&self, kind: DbStatusKind, reset_highwater: bool) -> Result<DbStatus> {
+        self.worker.db_status(kind, reset_highwater).await
+    }
+
+    /// Run a WAL checkpoint or inspect WAL status for an attached database.
+    ///
+    /// Pass `None` for SQLite's default schema behavior, or `Some("main")` for
+    /// the primary database.
+    pub async fn wal_checkpoint(
+        &self,
+        schema: Option<&str>,
+        mode: WalCheckpointMode,
+    ) -> Result<WalCheckpoint> {
+        let schema = schema
+            .map(CString::new)
+            .transpose()
+            .map_err(|_| Error::Protocol("WAL checkpoint schema contains nul bytes".into()))?;
+
+        self.worker.wal_checkpoint(schema, mode).await
+    }
+
+    /// Return this connection's configured parser stack depth limit.
+    pub async fn parser_depth_limit(&self) -> Result<u32> {
+        self.worker.parser_depth_limit().await
     }
 
     #[cfg(test)]

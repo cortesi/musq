@@ -42,11 +42,11 @@ indexmap = "2.0"
 event-listener = "5.3.1"
 flume = "0.12"
 futures-executor = "0.3.28"
-libsqlite3-sys = { version = "0.38", features = [
-    "pkg-config",
-    "vcpkg",
+libsqlite3-sys = { version = "0.38", default-features = false, features = [
     "bundled",
+    "pkg-config",
     "unlock_notify",
+    "vcpkg",
 ] }
 atoi = "3.1.0"
 async-trait = "0.1"

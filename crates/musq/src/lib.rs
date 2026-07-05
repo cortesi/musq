@@ -1,6 +1,10 @@
 #![cfg_attr(docsrs, feature(doc_cfg))]
 
 //! An async SQLite driver focused on performance, correctness, and flexibility.
+//!
+//! Musq supports the SQLite release bundled by its `libsqlite3-sys` dependency.
+//! It does not support linking against older or system SQLite libraries.
+//! With `libsqlite3-sys 0.38.1`, the bundled SQLite release is 3.53.2.
 
 /// SQLite backend implementation.
 mod sqlite;
@@ -69,7 +73,10 @@ pub use crate::{
     query_builder::QueryBuilder,
     query_result::QueryResult,
     row::Row,
-    sqlite::{Arguments, Connection, Prepared, SqliteDataType, SqliteError, Value},
+    sqlite::{
+        Arguments, Connection, DbStatus, DbStatusKind, Prepared, SqliteDataType, SqliteError,
+        SqliteRuntimeInfo, Value, WalCheckpoint, WalCheckpointMode,
+    },
     transaction::Transaction,
     values::{IntoValuesEntry, Values, ValuesEntry},
 };

@@ -10,7 +10,9 @@
 use std::{fmt, future::Future, sync::Arc};
 
 use self::inner::PoolInner;
-use crate::{Result, transaction::Transaction};
+use crate::{
+    Result, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode, transaction::Transaction,
+};
 
 /// Pool connection wrappers and lifecycle helpers.
 mod connection;
@@ -89,6 +91,22 @@ impl Pool {
     /// Retrieves a connection and immediately begins a new transaction.
     pub async fn begin(&self) -> Result<Transaction<PoolConnection>> {
         Transaction::begin(self.acquire().await?).await
+    }
+
+    /// Return runtime identity and compile options from a pooled connection.
+    pub async fn runtime_info(&self) -> Result<SqliteRuntimeInfo> {
+        let conn = self.acquire().await?;
+        conn.runtime_info().await
+    }
+
+    /// Run a WAL checkpoint or inspect WAL status through a pooled connection.
+    pub async fn wal_checkpoint(
+        &self,
+        schema: Option<&str>,
+        mode: WalCheckpointMode,
+    ) -> Result<WalCheckpoint> {
+        let conn = self.acquire().await?;
+        conn.wal_checkpoint(schema, mode).await
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.

@@ -34,6 +34,10 @@ pub struct EstablishParams {
     log_settings: LogSettings,
     /// Statement cache capacity.
     statement_cache_capacity: usize,
+    /// Floating-point text precision to apply with SQLITE_DBCONFIG_FP_DIGITS.
+    floating_point_text_digits: Option<u8>,
+    /// Parser stack depth limit to apply with sqlite3_limit().
+    parser_depth_limit: Option<i32>,
     /// Thread name for connection worker.
     pub(crate) thread_name: String,
     /// Size of the command channel to the worker.
@@ -104,12 +108,18 @@ impl EstablishParams {
             )
         })?;
 
+        let floating_point_text_digits =
+            validate_floating_point_text_digits(options.floating_point_text_digits)?;
+        let parser_depth_limit = validate_parser_depth_limit(options.parser_depth_limit)?;
+
         Ok(Self {
             filename,
             open_flags: flags,
             busy_timeout: options.busy_timeout,
             log_settings: options.log_settings.clone(),
             statement_cache_capacity: options.statement_cache_capacity,
+            floating_point_text_digits,
+            parser_depth_limit,
             thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
             command_channel_size: options.command_channel_size,
         })
@@ -160,6 +170,24 @@ impl EstablishParams {
 
         ffi::busy_timeout(handle.as_ptr(), ms).map_err(Error::from)?;
 
+        if let Some(digits) = self.floating_point_text_digits {
+            let configured = ffi::db_config_fp_digits(handle.as_ptr(), i32::from(digits))
+                .map_err(Error::from)?;
+            if configured != i32::from(digits) {
+                return Err(Error::Protocol(format!(
+                    "SQLite reported floating point text digits {configured} after setting {digits}"
+                )));
+            }
+        }
+
+        if let Some(limit) = self.parser_depth_limit {
+            ffi::limit(
+                handle.as_ptr(),
+                libsqlite3_sys::SQLITE_LIMIT_PARSER_DEPTH,
+                limit,
+            );
+        }
+
         Ok(ConnectionState {
             handle,
             statements: StatementCache::new(self.statement_cache_capacity),
@@ -167,4 +195,34 @@ impl EstablishParams {
             log_settings: self.log_settings.clone(),
         })
     }
+}
+
+/// Validate the configured floating-point text precision.
+fn validate_floating_point_text_digits(digits: Option<u8>) -> Result<Option<u8>> {
+    if let Some(digits) = digits
+        && !(4..=23).contains(&digits)
+    {
+        return Err(Error::Protocol(format!(
+            "floating_point_text_digits must be between 4 and 23, got {digits}"
+        )));
+    }
+
+    Ok(digits)
+}
+
+/// Validate the configured parser depth limit.
+fn validate_parser_depth_limit(limit: Option<u32>) -> Result<Option<i32>> {
+    let Some(limit) = limit else {
+        return Ok(None);
+    };
+
+    if limit == 0 {
+        return Err(Error::Protocol(
+            "parser_depth_limit must be greater than zero".into(),
+        ));
+    }
+
+    i32::try_from(limit)
+        .map(Some)
+        .map_err(|_| Error::Protocol(format!("parser_depth_limit must fit into i32, got {limit}")))
 }

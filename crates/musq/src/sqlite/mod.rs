@@ -1,5 +1,7 @@
 pub use arguments::Arguments;
-pub use connection::Connection;
+pub use connection::{
+    Connection, DbStatus, DbStatusKind, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode,
+};
 pub use error::SqliteError;
 pub use statement::Prepared;
 pub use type_info::SqliteDataType;

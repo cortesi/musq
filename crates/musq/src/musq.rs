@@ -118,6 +118,11 @@ pub struct Musq {
     /// Prepared statement cache capacity.
     pub(crate) statement_cache_capacity: usize,
 
+    /// Number of significant digits to preserve when SQLite renders floats as text.
+    pub(crate) floating_point_text_digits: Option<u8>,
+    /// SQLite parser stack depth limit.
+    pub(crate) parser_depth_limit: Option<u32>,
+
     /// Whether to use serialized SQLite mode.
     pub(crate) serialized: bool,
     /// Thread naming function for worker threads.
@@ -211,6 +216,8 @@ impl Musq {
             command_channel_size: 50,
             row_channel_size: 50,
             statement_cache_capacity: DEFAULT_CAPACITY,
+            floating_point_text_digits: None,
+            parser_depth_limit: None,
             optimize_on_close: OptimizeOnClose::Disabled,
             pool_acquire_timeout: Duration::from_secs(30),
             pool_max_connections: 10,
@@ -431,6 +438,26 @@ impl Musq {
     #[must_use]
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;
+        self
+    }
+
+    /// Set SQLite's floating-point-to-text rendering precision for each connection.
+    ///
+    /// Values from 4 through 23 are accepted by the bundled SQLite runtime. Musq's
+    /// default leaves SQLite at its bundled default of 17 digits.
+    #[must_use]
+    pub fn floating_point_text_digits(mut self, digits: u8) -> Self {
+        self.floating_point_text_digits = Some(digits);
+        self
+    }
+
+    /// Set SQLite's parser stack depth limit for each connection.
+    ///
+    /// This is an opt-in guard for applications that execute externally shaped
+    /// SQL. Musq's default leaves SQLite's runtime limit unchanged.
+    #[must_use]
+    pub fn parser_depth_limit(mut self, limit: u32) -> Self {
+        self.parser_depth_limit = Some(limit);
         self
     }
 

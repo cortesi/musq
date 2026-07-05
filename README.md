@@ -90,6 +90,15 @@ To re-enable `vec` while otherwise opting out of defaults:
 musq = { version = "0.0.3", default-features = false, features = ["vec"] }
 ```
 
+## SQLite Runtime Support
+
+Musq supports the SQLite release bundled by its `libsqlite3-sys` dependency.
+It does not support linking against older or system SQLite libraries.
+
+The current supported runtime is SQLite 3.53.2, bundled by
+`libsqlite3-sys 0.38.1`. Leave `LIBSQLITE3_SYS_USE_PKG_CONFIG` and
+`SQLITE3_*` linkage environment variables unset when building Musq.
+
 -----
 
 ## Core Features
@@ -327,6 +336,10 @@ connection.
 - `VecF32` can be bound directly to vector functions and `vec0` tables.
 - `VecInt8` and `VecBit` require sqlite-vec subtype wrappers in SQL:
   `vec_int8(?)` and `vec_bit(?)`.
+
+Musq uses the latest stable sqlite-vec release. Prerelease sqlite-vec versions
+are not part of the supported runtime until they build cleanly from crates.io
+and graduate to a stable release.
 
 See `examples/vec.rs` for a runnable end-to-end example:
 

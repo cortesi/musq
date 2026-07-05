@@ -1,4 +1,6 @@
 use std::{
+    ffi::CString,
+    ptr,
     sync::{
         Arc,
         atomic::{AtomicUsize, Ordering},
@@ -14,7 +16,11 @@ use crate::{
     error::{Error, Result},
     sqlite::{
         Arguments,
-        connection::{ConnectionState, establish::EstablishParams, execute},
+        connection::{
+            ConnectionState, DbStatus, DbStatusKind, WalCheckpoint, WalCheckpointMode,
+            establish::EstablishParams, execute,
+        },
+        ffi,
         statement::Statement,
     },
     transaction::{
@@ -83,6 +89,29 @@ enum Command {
     Rollback {
         /// Optional response channel.
         tx: Option<rendezvous_oneshot::Sender<Result<()>>>,
+    },
+    /// Return a database status counter.
+    DbStatus {
+        /// Status counter kind.
+        kind: DbStatusKind,
+        /// Whether SQLite should reset the high-water mark after reading it.
+        reset_highwater: bool,
+        /// Response channel.
+        tx: oneshot::Sender<Result<DbStatus>>,
+    },
+    /// Run a WAL checkpoint operation.
+    WalCheckpoint {
+        /// Optional attached database schema name.
+        schema: Option<CString>,
+        /// Checkpoint mode.
+        mode: WalCheckpointMode,
+        /// Response channel.
+        tx: oneshot::Sender<Result<WalCheckpoint>>,
+    },
+    /// Return the parser stack depth limit.
+    ParserDepthLimit {
+        /// Response channel.
+        tx: oneshot::Sender<Result<u32>>,
     },
 
     #[cfg(test)]
@@ -265,6 +294,19 @@ impl ConnectionWorker {
                                 ignore_next_start_rollback = true;
                             }
                         }
+                        Command::DbStatus {
+                            kind,
+                            reset_highwater,
+                            tx,
+                        } => {
+                            tx.send(db_status(&conn, kind, reset_highwater)).ok();
+                        }
+                        Command::WalCheckpoint { schema, mode, tx } => {
+                            tx.send(wal_checkpoint(&conn, schema.as_ref(), mode)).ok();
+                        }
+                        Command::ParserDepthLimit { tx } => {
+                            tx.send(parser_depth_limit(&conn)).ok();
+                        }
 
                         #[cfg(test)]
                         Command::ClearCache { tx } => {
@@ -363,6 +405,36 @@ impl ConnectionWorker {
             .map_err(|_| Error::WorkerCrashed)
     }
 
+    /// Return a database status counter from the worker thread.
+    pub(crate) async fn db_status(
+        &self,
+        kind: DbStatusKind,
+        reset_highwater: bool,
+    ) -> Result<DbStatus> {
+        self.oneshot_cmd(|tx| Command::DbStatus {
+            kind,
+            reset_highwater,
+            tx,
+        })
+        .await?
+    }
+
+    /// Run a WAL checkpoint operation on the worker thread.
+    pub(crate) async fn wal_checkpoint(
+        &self,
+        schema: Option<CString>,
+        mode: WalCheckpointMode,
+    ) -> Result<WalCheckpoint> {
+        self.oneshot_cmd(|tx| Command::WalCheckpoint { schema, mode, tx })
+            .await?
+    }
+
+    /// Return the parser stack depth limit from the worker thread.
+    pub(crate) async fn parser_depth_limit(&self) -> Result<u32> {
+        self.oneshot_cmd(|tx| Command::ParserDepthLimit { tx })
+            .await?
+    }
+
     #[allow(dead_code)]
     /// Send a oneshot command and await the response.
     async fn oneshot_cmd<F, T>(&self, command: F) -> Result<T>
@@ -448,6 +520,51 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement> {
 /// Update the cached statement size metric.
 fn update_cached_statements_size(conn: &ConnectionState, size: &AtomicUsize) {
     size.store(conn.statements.len(), Ordering::Release);
+}
+
+/// Return a database status counter for the active connection.
+fn db_status(
+    conn: &ConnectionState,
+    kind: DbStatusKind,
+    reset_highwater: bool,
+) -> Result<DbStatus> {
+    let (current, highwater) =
+        ffi::db_status64(conn.handle.as_ptr(), kind.as_sqlite_code(), reset_highwater)?;
+    Ok(DbStatus { current, highwater })
+}
+
+/// Run a WAL checkpoint operation for the active connection.
+fn wal_checkpoint(
+    conn: &ConnectionState,
+    schema: Option<&CString>,
+    mode: WalCheckpointMode,
+) -> Result<WalCheckpoint> {
+    let schema_ptr = schema.map_or(ptr::null(), |schema| schema.as_ptr());
+    let (log_frames, checkpointed_frames) =
+        ffi::wal_checkpoint_v2(conn.handle.as_ptr(), schema_ptr, mode.as_sqlite_code())?;
+    Ok(WalCheckpoint {
+        log_frames: frames_to_option(log_frames),
+        checkpointed_frames: frames_to_option(checkpointed_frames),
+    })
+}
+
+/// Return the parser stack depth limit for the active connection.
+fn parser_depth_limit(conn: &ConnectionState) -> Result<u32> {
+    let limit = ffi::limit(
+        conn.handle.as_ptr(),
+        libsqlite3_sys::SQLITE_LIMIT_PARSER_DEPTH,
+        -1,
+    );
+    u32::try_from(limit).map_err(|_| {
+        Error::Protocol(format!(
+            "SQLite returned invalid parser depth limit {limit}"
+        ))
+    })
+}
+
+/// Convert SQLite frame counts where `-1` means unavailable.
+fn frames_to_option(frames: i32) -> Option<i32> {
+    if frames < 0 { None } else { Some(frames) }
 }
 
 // A oneshot channel where send completes only after the receiver receives the value.

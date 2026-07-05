@@ -116,6 +116,113 @@ pub fn busy_timeout(db: *mut sqlite3, ms: i32) -> StdResult<(), SqliteError> {
     }
 }
 
+/// Wrapper around [`sqlite3_db_config`] for [`SQLITE_DBCONFIG_FP_DIGITS`].
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+///
+/// See <https://www.sqlite.org/c3ref/c_dbconfig_defensive.html>.
+#[inline]
+#[must_use = "handle the Result"]
+pub fn db_config_fp_digits(db: *mut sqlite3, digits: i32) -> StdResult<i32, SqliteError> {
+    let mut current = 0;
+    let rc = unsafe {
+        ffi_sys::sqlite3_db_config(
+            db,
+            ffi_sys::SQLITE_DBCONFIG_FP_DIGITS as c_int,
+            digits as c_int,
+            &mut current as *mut c_int,
+        )
+    };
+    if rc == ffi_sys::SQLITE_OK {
+        Ok(current)
+    } else {
+        Err(SqliteError::new(db))
+    }
+}
+
+/// Wrapper around [`sqlite3_limit`].
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+///
+/// See <https://www.sqlite.org/c3ref/limit.html>.
+#[inline]
+pub fn limit(db: *mut sqlite3, id: i32, new_limit: i32) -> i32 {
+    unsafe { ffi_sys::sqlite3_limit(db, id as c_int, new_limit as c_int) as i32 }
+}
+
+/// Return the SQLite runtime version number.
+///
+/// See <https://www.sqlite.org/c3ref/libversion.html>.
+#[inline]
+pub fn libversion_number() -> i32 {
+    unsafe { ffi_sys::sqlite3_libversion_number() as i32 }
+}
+
+/// Wrapper around [`sqlite3_db_status64`].
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+///
+/// See <https://www.sqlite.org/c3ref/db_status.html>.
+#[inline]
+#[must_use = "handle the Result"]
+pub fn db_status64(
+    db: *mut sqlite3,
+    op: i32,
+    reset_highwater: bool,
+) -> StdResult<(i64, i64), SqliteError> {
+    let mut current = 0_i64;
+    let mut highwater = 0_i64;
+    let rc = unsafe {
+        ffi_sys::sqlite3_db_status64(
+            db,
+            op as c_int,
+            &mut current,
+            &mut highwater,
+            reset_highwater as c_int,
+        )
+    };
+    if rc == ffi_sys::SQLITE_OK {
+        Ok((current, highwater))
+    } else {
+        Err(SqliteError::new(db))
+    }
+}
+
+/// Wrapper around [`sqlite3_wal_checkpoint_v2`].
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+/// - `schema` may be null or must point to a valid NUL terminated string.
+///
+/// See <https://www.sqlite.org/c3ref/wal_checkpoint_v2.html>.
+#[inline]
+#[must_use = "handle the Result"]
+pub fn wal_checkpoint_v2(
+    db: *mut sqlite3,
+    schema: *const c_char,
+    mode: i32,
+) -> StdResult<(i32, i32), SqliteError> {
+    let mut log_frames = 0_i32;
+    let mut checkpointed_frames = 0_i32;
+    let rc = unsafe {
+        ffi_sys::sqlite3_wal_checkpoint_v2(
+            db,
+            schema,
+            mode as c_int,
+            &mut log_frames as *mut c_int,
+            &mut checkpointed_frames as *mut c_int,
+        )
+    };
+    if rc == ffi_sys::SQLITE_OK {
+        Ok((log_frames, checkpointed_frames))
+    } else {
+        Err(SqliteError::new(db))
+    }
+}
+
 /// Wrapper around [`sqlite3_prepare_v3`].
 ///
 /// # Safety
