@@ -37,20 +37,20 @@ sqlformat = "0.5"
 thiserror = "2.0.12"
 tracing = { version = "0.1.37", features = ["log"] }
 bstr = { version = "1.0", default-features = false, features = ["std"] }
-hashlink = "0.11"
+hashlink = "0.12"
 indexmap = "2.0"
 event-listener = "5.3.1"
 flume = "0.12"
 futures-executor = "0.3.28"
-libsqlite3-sys = { version = "0.36", features = [
+libsqlite3-sys = { version = "0.38", features = [
     "pkg-config",
     "vcpkg",
     "bundled",
     "unlock_notify",
 ] }
-atoi = "2.0.0"
+atoi = "3.1.0"
 async-trait = "0.1"
-sqlite-vec = { version = "0.1.7-alpha.2", optional = true }
+sqlite-vec = { version = "0.1.9", optional = true }
 bytemuck = { version = "1.25.0", optional = true }
 
 [dev-dependencies]
@@ -59,8 +59,8 @@ futures = "0.3.19"
 tokio = { version = "1.15.0", features = ["full"] }
 paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
-rand = "0.9.0"
-rand_xoshiro = "0.7.0"
+rand = "0.10.2"
+rand_xoshiro = "0.8.1"
 tempdir = "0.3.7"
 criterion = { version = "0.8", features = ["async_tokio"] }
 trybuild = "1.0"

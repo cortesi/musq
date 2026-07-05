@@ -9,7 +9,7 @@ use std::{
 use clap::Parser;
 use futures::stream::{self, StreamExt};
 use musq::{JournalMode, Pool, Result, Row, Synchronous};
-use rand::Rng;
+use rand::RngExt;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 

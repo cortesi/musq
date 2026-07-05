@@ -435,26 +435,17 @@ mod tests {
 
 /// Precomputed format descriptions for time parsing.
 mod formats {
-    use time::format_description::{Component::*, FormatItem, FormatItem::*, modifier};
+    use time::format_description::{
+        BorrowedFormatItem as FormatItem, BorrowedFormatItem::*, Component::*, modifier,
+    };
 
     /// Format item for year.
-    const YEAR: FormatItem<'_> = Component(Year({
-        let mut value = modifier::Year::default();
-        value.padding = modifier::Padding::Zero;
-        value.repr = modifier::YearRepr::Full;
-        value.iso_week_based = false;
-        value.sign_is_mandatory = false;
-        value
-    }));
+    const YEAR: FormatItem<'_> = Component(CalendarYearFullExtendedRange(
+        modifier::CalendarYearFullExtendedRange::default(),
+    ));
 
     /// Format item for month.
-    const MONTH: FormatItem<'_> = Component(Month({
-        let mut value = modifier::Month::default();
-        value.padding = modifier::Padding::Zero;
-        value.repr = modifier::MonthRepr::Numerical;
-        value.case_sensitive = true;
-        value
-    }));
+    const MONTH: FormatItem<'_> = Component(MonthNumerical(modifier::MonthNumerical::default()));
 
     /// Format item for day.
     const DAY: FormatItem<'_> = Component(Day({
@@ -464,12 +455,7 @@ mod formats {
     }));
 
     /// Format item for hour.
-    const HOUR: FormatItem<'_> = Component(Hour({
-        let mut value = modifier::Hour::default();
-        value.padding = modifier::Padding::Zero;
-        value.is_12_hour_clock = false;
-        value
-    }));
+    const HOUR: FormatItem<'_> = Component(Hour24(modifier::Hour24::default()));
 
     /// Format item for minute.
     const MINUTE: FormatItem<'_> = Component(Minute({
@@ -511,20 +497,20 @@ mod formats {
     pub(super) const OFFSET_DATE_TIME: &[FormatItem<'_>] = {
         &[
             YEAR,
-            Literal(b"-"),
+            StringLiteral("-"),
             MONTH,
-            Literal(b"-"),
+            StringLiteral("-"),
             DAY,
-            First(&[Literal(b" "), Literal(b"T")]),
+            First(&[StringLiteral(" "), StringLiteral("T")]),
             HOUR,
-            Literal(b":"),
+            StringLiteral(":"),
             MINUTE,
-            Optional(&Literal(b":")),
+            Optional(&StringLiteral(":")),
             Optional(&SECOND),
-            Optional(&Literal(b".")),
+            Optional(&StringLiteral(".")),
             Optional(&SUBSECOND),
             Optional(&OFFSET_HOUR),
-            Optional(&Literal(b":")),
+            Optional(&StringLiteral(":")),
             Optional(&OFFSET_MINUTE),
         ]
     };
@@ -533,19 +519,19 @@ mod formats {
     pub(super) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
         &[
             YEAR,
-            Literal(b"-"),
+            StringLiteral("-"),
             MONTH,
-            Literal(b"-"),
+            StringLiteral("-"),
             DAY,
-            Literal(b" "),
+            StringLiteral(" "),
             HOUR,
-            Literal(b":"),
+            StringLiteral(":"),
             MINUTE,
-            Optional(&Literal(b":")),
+            Optional(&StringLiteral(":")),
             Optional(&SECOND),
-            Optional(&Literal(b".")),
+            Optional(&StringLiteral(".")),
             Optional(&SUBSECOND),
-            Optional(&Literal(b"Z")),
+            Optional(&StringLiteral("Z")),
         ]
     };
 
@@ -553,19 +539,19 @@ mod formats {
     pub(super) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
         &[
             YEAR,
-            Literal(b"-"),
+            StringLiteral("-"),
             MONTH,
-            Literal(b"-"),
+            StringLiteral("-"),
             DAY,
-            Literal(b"T"),
+            StringLiteral("T"),
             HOUR,
-            Literal(b":"),
+            StringLiteral(":"),
             MINUTE,
-            Optional(&Literal(b":")),
+            Optional(&StringLiteral(":")),
             Optional(&SECOND),
-            Optional(&Literal(b".")),
+            Optional(&StringLiteral(".")),
             Optional(&SUBSECOND),
-            Optional(&Literal(b"Z")),
+            Optional(&StringLiteral("Z")),
         ]
     };
 }

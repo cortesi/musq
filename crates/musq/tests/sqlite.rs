@@ -10,7 +10,7 @@ mod tests {
 
     use futures::{StreamExt, TryStreamExt};
     use musq::{Connection, Error, Musq, Row, query, query_as, query_scalar};
-    use rand::{Rng, SeedableRng};
+    use rand::{RngExt, SeedableRng};
     use rand_xoshiro::Xoshiro256PlusPlus;
     use tokio::{sync::Barrier, task::spawn, time::sleep};
 
