@@ -1,6 +1,7 @@
 [package]
 name = "musq"
-description = "musq is a SQLite3 driver for Rust focusing on performance, correctness, and flexibility."
+description = "Musq is an asynchronous SQLite toolkit for Rust."
+readme = "../../README.md"
 version.workspace = true
 license.workspace = true
 edition.workspace = true
@@ -12,7 +13,7 @@ default = ["vec"]
 vec = ["dep:sqlite-vec", "dep:bytemuck"]
 
 [dependencies]
-musq-macros = { path = "../musq-macros", version = "0.0.3" }
+musq-macros.workspace = true
 tokio = { version = "1.15.0", features = ["full"] }
 time = { version = "0.3.14", features = [
     "formatting",

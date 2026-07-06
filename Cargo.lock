@@ -742,7 +742,7 @@ dependencies = [
 
 [[package]]
 name = "musq"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -782,7 +782,7 @@ dependencies = [
 
 [[package]]
 name = "musq-macros"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "darling",
  "heck",
@@ -794,7 +794,7 @@ dependencies = [
 
 [[package]]
 name = "musq-test"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "musq",
@@ -1247,7 +1247,7 @@ dependencies = [
 
 [[package]]
 name = "stresstest"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "clap",
  "futures",
@@ -1674,7 +1674,7 @@ checksum = "1ebf944e87a7c253233ad6766e082e3cd714b5d03812acc24c318f549614536e"
 
 [[package]]
 name = "xtask"
-version = "0.0.3"
+version = "0.0.4"
 dependencies = [
  "anyhow",
  "clap",

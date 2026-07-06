@@ -348,7 +348,7 @@ to vector functions and `vec0` tables; `VecInt8` and `VecBit` must be wrapped
 in SQL as `vec_int8(?)` and `vec_bit(?)`.
 
 ```toml
-musq = { version = "0.0.3", default-features = false }  # opt out of vec
+musq = { version = "0.0.4", default-features = false }  # opt out of vec
 ```
 
 See the end-to-end example: `cargo run -p musq --example vec`.

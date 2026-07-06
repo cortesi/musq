@@ -3,7 +3,7 @@ members = [ "crates/*" ]
 resolver = "3"
 
 [workspace.package]
-version = "0.0.3"
+version = "0.0.4"
 license = "MIT"
 edition = "2024"
 repository = "https://github.com/cortesi/musq"
@@ -13,7 +13,7 @@ authors = ["Aldo Cortesi <aldo@corte.si>"]
 
 [workspace.dependencies]
 musq = { path = "crates/musq" }
-musq-macros = { path = "crates/musq-macros" }
+musq-macros = { path = "crates/musq-macros", version = "0.0.4" }
 
 [workspace.lints.rust]
 missing_docs = "warn"

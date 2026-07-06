@@ -13,7 +13,7 @@ publish = false
 clap = { version = "4.5.9", features = ["derive"] }
 futures = "0.3.30"
 
-musq = { path = "../musq" }
+musq.workspace = true
 rand = "0.10.2"
 tempfile = "3.10.1"
 tokio = "1.38.1"
