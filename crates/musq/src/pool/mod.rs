@@ -11,7 +11,7 @@ use std::{fmt, future::Future, sync::Arc};
 
 use self::inner::PoolInner;
 use crate::{
-    Result, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode, transaction::Transaction,
+    Error, Result, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode, transaction::Transaction,
 };
 
 /// Pool connection wrappers and lifecycle helpers.
@@ -49,9 +49,24 @@ pub use self::connection::PoolConnection;
 ///
 pub struct Pool(pub(crate) Arc<PoolInner>);
 
+/// Point-in-time diagnostic counters for a [`Pool`].
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub struct PoolStats {
+    /// Total number of open connections, including idle connections.
+    pub size: u32,
+    /// Number of open connections currently waiting in the idle queue.
+    pub num_idle: usize,
+    /// Whether [`Pool::close`] has been called.
+    pub is_closed: bool,
+}
+
 impl Pool {
     /// Create a new connection pool from the provided options.
     pub(crate) async fn new(options: crate::Musq) -> Result<Self> {
+        if options.pool_max_connections == 0 {
+            return Err(Error::Protocol("max_connections must be at least 1".into()));
+        }
+
         // Make an initial connection to validate the configuration
         let inner = PoolInner::new_arc(options);
         let conn = inner.acquire().await?;
@@ -62,7 +77,7 @@ impl Pool {
     /// Retrieves a connection from the pool.
     ///
     /// The total time this method is allowed to execute is capped by
-    /// [`Musq::acquire_timeout`].
+    /// [`crate::Musq::acquire_timeout`].
     /// If that timeout elapses, this will return [`Error::PoolClosed`].
     ///
     /// ### Note: Cancellation/Timeout May Drop Connections
@@ -165,15 +180,24 @@ impl Pool {
     }
 
     /// Returns the number of connections currently active. This includes idle connections.
-    pub(crate) fn size(&self) -> u32 {
+    pub fn size(&self) -> u32 {
         self.0.size()
     }
 
     /// Returns the number of connections active and idle (not in use).
-    pub(crate) fn num_idle(&self) -> usize {
+    pub fn num_idle(&self) -> usize {
         // This previously called [`crossbeam::queue::ArrayQueue::len()`] which waits for the head and tail pointers to
         // be in a consistent state, which may never happen at high levels of churn.
         self.0.num_idle()
+    }
+
+    /// Return a point-in-time snapshot of pool diagnostic counters.
+    pub fn stats(&self) -> PoolStats {
+        PoolStats {
+            size: self.size(),
+            num_idle: self.num_idle(),
+            is_closed: self.is_closed(),
+        }
     }
 }
 

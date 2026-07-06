@@ -175,6 +175,18 @@ mod tests {
         Ok(())
     }
 
+    #[test]
+    fn insert_expression_rejects_numeric_parameters() -> anyhow::Result<()> {
+        let expr = musq::Expr::from(musq::query("(?1)").bind("B"));
+        let vals: Values = values! { "a": "A", "b": expr }?;
+        let err = sql!("INSERT INTO ie {insert:vals}").expect_err("numeric fragment should fail");
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("numeric SQL parameters")),
+            other => panic!("expected protocol error, got {other:?}"),
+        }
+        Ok(())
+    }
+
     #[tokio::test]
     async fn set_with_expression_mixes_binds_and_expressions() -> anyhow::Result<()> {
         let conn = connection().await?;

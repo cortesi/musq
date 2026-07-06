@@ -33,6 +33,7 @@ fn expand_struct(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let generics = &container.generics;
+    let musq = core::musq_path();
 
     let (lifetime, provided) = generics
         .lifetimes()
@@ -74,26 +75,26 @@ fn expand_struct(
             }
 
             let expr: Expr = if field.flatten {
-                predicates.push(parse_quote!(#ty: musq::FromRow<#lifetime>));
-                predicates.push(parse_quote!(#ty: musq::AllNull<#lifetime>));
+                predicates.push(parse_quote!(#ty: #musq::FromRow<#lifetime>));
+                predicates.push(parse_quote!(#ty: #musq::AllNull<#lifetime>));
                 if field.prefix.is_empty() {
-                    parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row("", row))
+                    parse_quote!(<#ty as #musq::FromRow<#lifetime>>::from_row("", row))
                 } else {
                     let prefix = &field.prefix;
-                    parse_quote!(<#ty as musq::FromRow<#lifetime>>::from_row(#prefix, row))
+                    parse_quote!(<#ty as #musq::FromRow<#lifetime>>::from_row(#prefix, row))
                 }
             } else if let Some(try_from) = &field.try_from {
-                predicates.push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
+                predicates.push(parse_quote!(#try_from: #musq::decode::Decode<#lifetime>));
                 parse_quote!(
                     {
                         let column_name = format!("{}{}", prefix, #column_name);
-                        let value: musq::Value = row.get_value(&column_name)?;
+                        let value: #musq::Value = row.get_value(&column_name)?;
                         let decoded: #try_from = row.get_value(&column_name)?;
-                        <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(decoded).map_err(|e| musq::Error::ColumnDecode {
+                        <#ty as ::std::convert::TryFrom::<#try_from>>::try_from(decoded).map_err(|e| #musq::Error::ColumnDecode {
                             index: String::new(),
                             column_name,
                             value,
-                            source: musq::error::DecodeError::Conversion(e.to_string()),
+                            source: #musq::error::DecodeError::Conversion(e.to_string()),
                         })
                     }
                 )
@@ -102,14 +103,14 @@ fn expand_struct(
                 // fn(prefix: &str, row: &musq::Row) -> musq::Result<T>
                 parse_quote!(#fn_path(prefix, row))
             } else {
-                predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
+                predicates.push(parse_quote!(#ty: #musq::decode::Decode<#lifetime>));
                 parse_quote!(row.get_value(&format!("{}{}", prefix, #column_name)))
             };
 
             if field.default {
                 Some(parse_quote!(
                    let #id: #ty = #expr.or_else(|e| match e {
-                       musq::Error::ColumnNotFound(_) => {
+                       #musq::Error::ColumnNotFound(_) => {
                            ::std::result::Result::Ok(Default::default())
                        },
                        e => ::std::result::Result::Err(e)
@@ -142,19 +143,19 @@ fn expand_struct(
             }
 
             let expr: Expr = if field.flatten {
-                predicates.push(parse_quote!(#ty: musq::AllNull<#lifetime>));
+                predicates.push(parse_quote!(#ty: #musq::AllNull<#lifetime>));
                 if field.prefix.is_empty() {
-                    parse_quote!(<#ty as musq::AllNull<#lifetime>>::all_null("", row)?)
+                    parse_quote!(<#ty as #musq::AllNull<#lifetime>>::all_null("", row)?)
                 } else {
                     let prefix = &field.prefix;
-                    parse_quote!(<#ty as musq::AllNull<#lifetime>>::all_null(#prefix, row)?)
+                    parse_quote!(<#ty as #musq::AllNull<#lifetime>>::all_null(#prefix, row)?)
                 }
             } else if let Some(try_from) = &field.try_from {
-                predicates.push(parse_quote!(#try_from: musq::decode::Decode<#lifetime>));
+                predicates.push(parse_quote!(#try_from: #musq::decode::Decode<#lifetime>));
                 parse_quote!({
                     match row.get_value::<Option<#try_from>>(&format!("{}{}", prefix, #column_name)) {
                         ::std::result::Result::Ok(v) => v.is_none(),
-                        ::std::result::Result::Err(musq::Error::ColumnNotFound(_)) => true,
+                        ::std::result::Result::Err(#musq::Error::ColumnNotFound(_)) => true,
                         ::std::result::Result::Err(e) => return ::std::result::Result::Err(e),
                     }
                 })
@@ -163,11 +164,11 @@ fn expand_struct(
                 // we don't know what the function does.
                 parse_quote!(false)
             } else {
-                predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
+                predicates.push(parse_quote!(#ty: #musq::decode::Decode<#lifetime>));
                 parse_quote!({
                     match row.get_value::<Option<#ty>>(&format!("{}{}", prefix, #column_name)) {
                         ::std::result::Result::Ok(v) => v.is_none(),
-                        ::std::result::Result::Err(musq::Error::ColumnNotFound(_)) => true,
+                        ::std::result::Result::Err(#musq::Error::ColumnNotFound(_)) => true,
                         ::std::result::Result::Err(e) => return ::std::result::Result::Err(e),
                     }
                 })
@@ -182,8 +183,8 @@ fn expand_struct(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(prefix: &str, row: &#lifetime musq::Row) -> musq::Result<Self> {
+        impl #impl_generics #musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
+            fn from_row(prefix: &str, row: &#lifetime #musq::Row) -> #musq::Result<Self> {
                 #(#reads)*
 
                 ::std::result::Result::Ok(#ident {
@@ -193,8 +194,8 @@ fn expand_struct(
         }
 
         #[automatically_derived]
-        impl #impl_generics musq::AllNull<#lifetime> for #ident #ty_generics #where_clause {
-            fn all_null(prefix: &str, row: &#lifetime musq::Row) -> musq::Result<bool> {
+        impl #impl_generics #musq::AllNull<#lifetime> for #ident #ty_generics #where_clause {
+            fn all_null(prefix: &str, row: &#lifetime #musq::Row) -> #musq::Result<bool> {
                 Ok(true #(&& (#null_checks))* )
             }
         }
@@ -208,6 +209,7 @@ fn expand_tuple_struct(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let generics = &container.generics;
+    let musq = core::musq_path();
 
     let (lifetime, provided) = generics
         .lifetimes()
@@ -227,15 +229,12 @@ fn expand_tuple_struct(
         generics.params.insert(pos, parse_quote!(#lifetime));
     }
 
-    let row_pos = generics.lifetimes().count();
-    generics.params.insert(row_pos, parse_quote!(R: musq::Row));
-
     let predicates = &mut generics.make_where_clause().predicates;
 
     for field in fields.iter() {
         let ty = &field.ty;
 
-        predicates.push(parse_quote!(#ty: musq::decode::Decode<#lifetime>));
+        predicates.push(parse_quote!(#ty: #musq::decode::Decode<#lifetime>));
     }
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -252,8 +251,9 @@ fn expand_tuple_struct(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(prefix: &str, row: &#lifetime musq::Row) -> musq::Result<Self> {
+        impl #impl_generics #musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
+            fn from_row(prefix: &str, row: &#lifetime #musq::Row) -> #musq::Result<Self> {
+                let _ = prefix;
                 ::std::result::Result::Ok(#ident (
                     #(#gets),*
                 ))
@@ -261,8 +261,8 @@ fn expand_tuple_struct(
         }
 
         #[automatically_derived]
-        impl #impl_generics musq::AllNull<#lifetime> for #ident #ty_generics #where_clause {
-            fn all_null(prefix: &str, row: &#lifetime musq::Row) -> musq::Result<bool> {
+        impl #impl_generics #musq::AllNull<#lifetime> for #ident #ty_generics #where_clause {
+            fn all_null(prefix: &str, row: &#lifetime #musq::Row) -> #musq::Result<bool> {
                 let _ = prefix;
                 Ok(true #(&& (#null_gets))* )
             }

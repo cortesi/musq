@@ -10,14 +10,14 @@ use tokio::{runtime::Handle, sync::SemaphorePermit};
 use super::inner::{DecrementSizeGuard, PoolInner};
 use crate::{Connection, Result};
 
-/// A single database connection acquired from a [`Pool`].
+/// A single database connection acquired from a [`crate::Pool`].
 ///
 /// A `PoolConnection` represents exclusive access to a single physical database connection.
 /// Its primary purpose is to handle sequences of operations that must run on the same
 /// connection but are not part of a formal transaction.
 ///
 /// For most database interactions, it is more convenient to execute queries directly on a
-/// [`&Pool`] or to use a [`Transaction`].
+/// a shared [`crate::Pool`] reference or to use a [`crate::Transaction`].
 ///
 /// A `PoolConnection` is automatically returned to the pool when it is dropped.
 ///
@@ -142,7 +142,7 @@ impl PoolConnection {
 /// Returns the connection to the [`Pool`][crate::Pool] it was checked-out from.
 impl Drop for PoolConnection {
     fn drop(&mut self) {
-        // We still need to spawn a task to maintain `min_connections`.
+        // Returning can require async health checks and graceful close work.
         if self.live.is_some()
             && let Ok(handle) = Handle::try_current()
         {
@@ -185,6 +185,13 @@ impl Deref for Idle {
 impl DerefMut for Idle {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.live
+    }
+}
+
+impl Idle {
+    /// Close the idle connection without touching pool permits or counters.
+    pub(super) async fn close(self) {
+        let _close_result = self.live.raw.close().await;
     }
 }
 

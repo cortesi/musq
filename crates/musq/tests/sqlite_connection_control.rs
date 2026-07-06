@@ -34,6 +34,7 @@ mod tests {
         let conn_info = conn.runtime_info().await?;
         assert_eq!(conn_info.version, pool_info.version);
         assert_eq!(conn_info.version_number, pool_info.version_number);
+        drop(conn);
 
         let _ = pool.close().await;
         Ok(())

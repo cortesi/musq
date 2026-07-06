@@ -16,6 +16,9 @@ Sources checked:
 - SQLite VACUUM docs: https://sqlite.org/lang_vacuum.html
 - SQLite runtime version APIs: https://sqlite.org/c3ref/libversion.html
 - SQLite compile-option APIs: https://sqlite.org/c3ref/compileoption_get.html
+- SQLite carray table-valued function: https://sqlite.org/carray.html
+- SQLite carray bind APIs: https://sqlite.org/c3ref/carray_bind.html
+- SQLite carray compile option: https://sqlite.org/compile.html#enable_carray
 - SQLite database status APIs: https://sqlite.org/c3ref/db_status.html
 - SQLite WAL checkpoint API: https://sqlite.org/c3ref/wal_checkpoint_v2.html
 - SQLite database configuration options:
@@ -122,19 +125,57 @@ database-level semantics.
 
 4. Stage Four: Array Binding With carray
 
-Investigate whether SQLite's `sqlite3_carray_bind_v2()` is worth a Musq-level
-binding abstraction for large `IN` lists and stable prepared statements.
+Stage decision: defer implementation until `SQLITE_ENABLE_CARRAY` is available
+through a future `libsqlite3-sys/array` Cargo feature. The interface is worth
+having for large, length-varying `IN` predicates because it keeps SQL text
+stable, preserves prepared-statement cache reuse, and avoids host-parameter
+explosion. The current `libsqlite3-sys 0.38.1` crate exposes the carray FFI
+declarations and bundled SQLite source, but its manifest has no `array` feature
+that compiles the amalgamation with `SQLITE_ENABLE_CARRAY`. Relying on ambient
+`LIBSQLITE3_FLAGS=SQLITE_ENABLE_CARRAY` is not a shippable public API contract
+for Musq.
 
-1. [ ] Verify the compile story first. The bundled SQLite source contains carray,
-   but the table-valued function is behind `SQLITE_ENABLE_CARRAY`.
-2. [ ] Decide whether to enable carray through a Musq feature, a libsqlite3 build
-   flag, or both. Keep the design aligned with the bundled-SQLite-only policy.
-3. [ ] Prototype a `CArray<T>` argument type for `i32`, `i64`, `f64`, text, and
-   blob arrays using `sqlite3_carray_bind_v2()`.
-4. [ ] Compare `CArray<T>` against the existing `{values: ids}` expansion for
-   large lists, statement cache reuse, and total allocation cost.
-5. [ ] Design the API so array memory lifetimes are owned by the prepared
-   statement execution path and cannot outlive their backing Rust values.
+Implementation trigger: a future `libsqlite3-sys` release publishes an `array`
+feature that compiles SQLite with `SQLITE_ENABLE_CARRAY`. When that trigger
+exists, ship the API below behind a Musq `carray` feature and include that
+feature in Musq's defaults.
+
+1. [ ] Add `carray = ["libsqlite3-sys/array"]` to `crates/musq/Cargo.toml` and
+   include it in `default`. Extend the SQLite capability tests so
+   `ENABLE_CARRAY` is required whenever the feature is active.
+2. [ ] Add `crates/musq/src/types/carray.rs` and export the public wrappers as
+   `musq::{CArray, CArrayText, CArrayBlob}`. `CArray<T>` supports exactly
+   `i32`, `i64`, and `f64` through a sealed `CArrayElement` trait. It stores
+   `Arc<[T]>` and exposes `new`, `as_slice`, `len`, `is_empty`, `From<Vec<T>>`,
+   `From<Box<[T]>>`, and `From<Arc<[T]>>`.
+3. [ ] Add `CArrayText` for text arrays and `CArrayBlob` for blob arrays.
+   `CArrayText::new` accepts string-like iterators, validates interior NUL bytes
+   once, and stores `Arc<[CString]>`. `CArrayBlob::new` accepts byte-like
+   iterators and stores `Arc<[Bytes]>`. Both wrappers expose `len` and
+   `is_empty`; empty arrays are valid and produce an empty carray table.
+4. [ ] Add an internal `Value::CArray(CArrayValue)` variant plus `Encode`
+   implementations for `CArray<i32>`, `CArray<i64>`, `CArray<f64>`,
+   `CArrayText`, and `CArrayBlob`. Numeric arrays bind with
+   `sqlite3_carray_bind_v2()` and `SQLITE_STATIC` against the `Arc` slice.
+   Text and blob arrays bind with `SQLITE_TRANSIENT` from temporary pointer and
+   `repr(C)` iovec arrays so SQLite owns the copied scan data immediately.
+5. [ ] Add `StatementHandle::bind_carray` and the corresponding FFI wrapper in
+   `crates/musq/src/sqlite/ffi.rs`. Convert SQLite carray bind failures through
+   the existing `SqliteError` path. Keep carray values inside `Arguments` so the
+   existing `ExecuteIter` ownership, statement reset, and `clear_bindings()`
+   lifecycle owns every array for the whole statement execution.
+6. [ ] Add `expr::carray(&array) -> Expr` and
+   `QueryBuilder::push_carray(&array) -> Result<()>`. Both helpers emit the
+   one-argument SQLite form `carray(?)`, which is SQLite's recommended form.
+   Direct use also works with `query("... IN carray(?)").bind(&array)`.
+7. [ ] Document `push_values` as the simple path for short one-off lists and
+   `carray` as the path for large, length-varying, or frequently reused list
+   predicates. The value proposition is stable SQL text and parameter-limit
+   avoidance; no runtime-speedup promise is attached to the API.
+8. [ ] Cover the feature with integration tests for numeric, text, and blob
+   arrays; empty arrays; `WHERE id IN carray(?)`; statement reuse with different
+   array lengths; text NUL validation; and `ENABLE_CARRAY` in
+   `runtime_info().compile_options`.
 
 5. Stage Five: sqlite-vec Coverage
 

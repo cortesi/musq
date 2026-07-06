@@ -418,6 +418,9 @@ impl Musq {
     /// Given that most commands sent to the worker thread involve waiting for a result,
     /// the command channel is unlikely to fill up unless a lot queries are executed in a short
     /// period but cancelled before their full resultsets are returned.
+    ///
+    /// A size of `0` is supported and creates a rendezvous channel, applying backpressure until
+    /// the worker and caller rendezvous for each command.
     #[must_use]
     pub fn command_buffer_size(mut self, size: usize) -> Self {
         self.command_channel_size = size;
@@ -428,6 +431,9 @@ impl Musq {
     ///
     /// If the calling task cannot keep up, backpressure will be applied to the worker thread
     /// in order to limit CPU and memory usage.
+    ///
+    /// A size of `0` is supported and creates a rendezvous channel, applying backpressure until
+    /// the caller receives each row.
     #[must_use]
     pub fn row_buffer_size(mut self, size: usize) -> Self {
         self.row_channel_size = size;
@@ -566,7 +572,7 @@ impl Musq {
         self
     }
 
-    /// Set the maximum amount of time to spend waiting for a connection in [`Pool::acquire()`].
+    /// Set the maximum amount of time to spend waiting for a connection in [`crate::Pool::acquire`].
     ///
     /// Caps the total amount of time `Pool::acquire()` can spend waiting across multiple phases:
     ///

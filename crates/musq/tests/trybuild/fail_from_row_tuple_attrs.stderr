@@ -1,0 +1,11 @@
+error: `musq` field attributes are not supported on tuple FromRow fields
+ --> tests/trybuild/fail_from_row_tuple_attrs.rs:4:38
+  |
+4 | struct TupleDefault(#[musq(default)] i32);
+  |                                      ^^^
+
+error: `rename_all` is not supported on tuple FromRow derives
+ --> tests/trybuild/fail_from_row_tuple_attrs.rs:8:8
+  |
+8 | struct TupleRenameAll(i32);
+  |        ^^^^^^^^^^^^^^

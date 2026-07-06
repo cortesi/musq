@@ -16,6 +16,7 @@ fn expand_enum(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let generics = &container.generics;
+    let musq = core::musq_path();
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
     let value_arms = variants.iter().map(|v| {
         let id = &v.ident;
@@ -25,12 +26,12 @@ fn expand_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musq::encode::Encode for #ident #ty_generics #where_clause {
-            fn encode(&self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
+        impl #impl_generics #musq::encode::Encode for #ident #ty_generics #where_clause {
+            fn encode(&self) -> ::std::result::Result<#musq::Value, #musq::error::EncodeError> {
                 let val = match self {
                     #(#value_arms)*
                 };
-                <&::std::primitive::str as musq::encode::Encode>::encode(&val)
+                <&::std::primitive::str as #musq::encode::Encode>::encode(&val)
             }
         }
     ))
@@ -44,11 +45,12 @@ fn expand_repr_enum(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let generics = &container.generics;
+    let musq = core::musq_path();
     let mut generics = generics.clone();
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#repr: musq::encode::Encode));
+        .push(parse_quote!(#repr: #musq::encode::Encode));
     let (impl_generics, ty_generics, where_clause) = generics.split_for_impl();
 
     let mut values = Vec::new();
@@ -59,13 +61,13 @@ fn expand_repr_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musq::encode::Encode for #ident #ty_generics #where_clause {
-            fn encode(&self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
+        impl #impl_generics #musq::encode::Encode for #ident #ty_generics #where_clause {
+            fn encode(&self) -> ::std::result::Result<#musq::Value, #musq::error::EncodeError> {
                 let value = match self {
                     #(#values)*
                 };
 
-                <#repr as musq::encode::Encode>::encode(&value)
+                <#repr as #musq::encode::Encode>::encode(&value)
             }
         }
     ))
@@ -78,6 +80,7 @@ fn expand_struct(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ty = &field.ty;
+    let musq = core::musq_path();
 
     // extract type generics
     let generics = &container.generics;
@@ -89,16 +92,16 @@ fn expand_struct(
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: musq::encode::Encode));
+        .push(parse_quote!(#ty: #musq::encode::Encode));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musq::encode::Encode for #ident #ty_generics
+        impl #impl_generics #musq::encode::Encode for #ident #ty_generics
         #where_clause
         {
-            fn encode(&self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
-                <#ty as musq::encode::Encode>::encode(&self.0)
+            fn encode(&self) -> ::std::result::Result<#musq::Value, #musq::error::EncodeError> {
+                <#ty as #musq::encode::Encode>::encode(&self.0)
             }
         }
     ))

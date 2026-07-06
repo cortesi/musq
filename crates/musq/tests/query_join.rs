@@ -4,7 +4,7 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    use musq::{Execute, query::Query, sql};
+    use musq::{Error, Execute, query, query::Query, sql};
 
     use crate::support::connection;
 
@@ -25,6 +25,39 @@ mod tests {
         let vals = fetch_vals(q).await?;
         assert_eq!(vals, vec![1, 2]);
         Ok(())
+    }
+
+    #[test]
+    fn try_join_rejects_numeric_placeholder_fragment() {
+        let q1 = query("SELECT ?1").bind(1);
+        let q2 = query("UNION SELECT ?1").bind(2);
+        let err = q1.try_join(q2).expect_err("numeric fragment should fail");
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("numeric SQL parameters")),
+            other => panic!("expected protocol error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn try_join_rejects_reversed_numeric_placeholder_fragment() {
+        let q1 = query("SELECT ?").bind(1);
+        let q2 = query("UNION SELECT ?2, ?1").bind(2).bind(3);
+        let err = q1.try_join(q2).expect_err("numeric fragment should fail");
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("numeric SQL parameters")),
+            other => panic!("expected protocol error, got {other:?}"),
+        }
+    }
+
+    #[test]
+    fn try_join_rejects_mixed_numeric_and_anonymous_fragment() {
+        let q1 = query("SELECT ?").bind(1);
+        let q2 = query("UNION SELECT ?2, ?").bind(2).bind(3);
+        let err = q1.try_join(q2).expect_err("numeric fragment should fail");
+        match err {
+            Error::Protocol(msg) => assert!(msg.contains("numeric SQL parameters")),
+            other => panic!("expected protocol error, got {other:?}"),
+        }
     }
 
     #[tokio::test]

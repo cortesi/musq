@@ -11,6 +11,7 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
     let (_, ty_generics, _) = container.generics.split_for_impl();
 
     let ident = &container.ident;
+    let musq = core::musq_path();
     let generics = container.generics.clone();
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
@@ -21,19 +22,19 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
     let (decode_impl_generics, _, _) = decode_generics.split_for_impl();
 
     Ok(quote!(
-        impl #impl_generics musq::encode::Encode for #ident #ty_generics #where_clause {
-            fn encode(&self) -> ::std::result::Result<musq::Value, musq::error::EncodeError> {
+        impl #impl_generics #musq::encode::Encode for #ident #ty_generics #where_clause {
+            fn encode(&self) -> ::std::result::Result<#musq::Value, #musq::error::EncodeError> {
                 let v = serde_json::to_string(self)
-                    .map_err(|e| musq::error::EncodeError::Conversion(
+                    .map_err(|e| #musq::error::EncodeError::Conversion(
                         format!("failed to encode value as JSON: {}", e)
                     ))?;
-                Ok(musq::Value::Text { value: v.into(), type_info: None })
+                Ok(#musq::Value::Text { value: v.into(), type_info: None })
             }
         }
 
-        impl #decode_impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
-            fn decode(value: &'r musq::Value) -> std::result::Result<Self, musq::DecodeError> {
-                serde_json::from_str(value.text()?).map_err(|x| musq::DecodeError::Conversion(x.to_string().into()))
+        impl #decode_impl_generics #musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
+            fn decode(value: &'r #musq::Value) -> std::result::Result<Self, #musq::DecodeError> {
+                serde_json::from_str(value.text()?).map_err(|x| #musq::DecodeError::Conversion(x.to_string().into()))
             }
         }
     ))

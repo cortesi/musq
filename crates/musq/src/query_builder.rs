@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 
 use either::Either;
 
-use crate::{Arguments, Result, encode::Encode, executor::Execute, query::Query};
+use crate::{Arguments, Error, Result, encode::Encode, executor::Execute, query::Query};
 
 #[derive(Default)]
 /// Incrementally build a SQL query with bound parameters.
@@ -50,6 +50,7 @@ impl QueryBuilder {
 
     /// Add a named bind parameter and append the placeholder.
     pub fn push_bind_named<T: Encode>(&mut self, name: &str, value: &T) -> Result<()> {
+        let name = normalize_bind_name(name)?;
         self.arguments.add_named(name, value)?;
         self.sql.push(':');
         self.sql.push_str(name);
@@ -129,7 +130,7 @@ impl QueryBuilder {
                         expr.arguments.clone(),
                         expr.tainted,
                         true,
-                    );
+                    )?;
                 }
             }
         }
@@ -161,7 +162,7 @@ impl QueryBuilder {
                         expr.arguments.clone(),
                         expr.tainted,
                         true,
-                    );
+                    )?;
                 }
             }
         }
@@ -196,7 +197,7 @@ impl QueryBuilder {
                         expr.arguments.clone(),
                         expr.tainted,
                         true,
-                    );
+                    )?;
                 }
             }
         }
@@ -243,8 +244,25 @@ impl QueryBuilder {
     /// space in between if needed. All arguments from the other query are
     /// merged and indices for named parameters are re-based to ensure they
     /// refer to the correct values.
+    ///
+    /// This method panics if the appended query contains numeric positional
+    /// placeholders such as `?1` or numeric `$1`. Use
+    /// [`QueryBuilder::try_push_query`] to handle unsupported composition as
+    /// an error.
     pub fn push_query(&mut self, query: Query) {
+        self.try_push_query(query)
+            .expect("failed to append query fragment")
+    }
+
+    /// Attempt to append another [`Query`] to this builder.
+    ///
+    /// Numeric positional placeholders such as `?1` and numeric `$1` are
+    /// rejected in appended fragments because their absolute SQLite indices
+    /// cannot be safely rebased by the current composition machinery.
+    pub fn try_push_query(&mut self, query: Query) -> Result<()> {
         if !query.sql().is_empty() {
+            let needs_space = !self.sql.is_empty();
+            let tainted = query.tainted;
             if !self.sql.is_empty() {
                 self.sql.push(' ');
             }
@@ -252,13 +270,16 @@ impl QueryBuilder {
                 Either::Left(sql) => sql,
                 Either::Right(statement) => statement.sql,
             };
-            self.push_fragment(
-                sql,
-                query.arguments.unwrap_or_default(),
-                query.tainted,
-                false,
-            );
+            if let Err(err) =
+                self.push_fragment(sql, query.arguments.unwrap_or_default(), tainted, false)
+            {
+                if needs_space {
+                    self.sql.pop();
+                }
+                return Err(err);
+            }
         }
+        Ok(())
     }
 
     /// Append a SQL fragment with arguments, rebasing/renaming named parameters as needed.
@@ -268,7 +289,9 @@ impl QueryBuilder {
         other_args: Arguments,
         tainted: bool,
         namespace_named: bool,
-    ) {
+    ) -> Result<()> {
+        reject_numeric_parameters(&sql)?;
+
         let base_index = self.arguments.values.len();
         self.arguments.values.extend(other_args.values);
 
@@ -304,6 +327,7 @@ impl QueryBuilder {
 
         self.sql.push_str(&sql);
         self.tainted |= tainted;
+        Ok(())
     }
 
     /// Finalize the builder into a [`Query`].
@@ -314,6 +338,25 @@ impl QueryBuilder {
             tainted: self.tainted,
         }
     }
+}
+
+/// Normalize a named bind argument into the bare SQLite parameter name.
+fn normalize_bind_name(name: &str) -> Result<&str> {
+    let name = name.trim_start_matches([':', '@', '$', '?']);
+    if name.is_empty() {
+        return Err(Error::Protocol("empty named bind parameter".into()));
+    }
+    Ok(name)
+}
+
+/// Reject numeric placeholders in fragments that are being composed.
+fn reject_numeric_parameters(sql: &str) -> Result<()> {
+    if contains_numeric_parameter(sql) {
+        return Err(Error::Protocol(
+            "numeric SQL parameters are not supported in composed query fragments".into(),
+        ));
+    }
+    Ok(())
 }
 
 /// Returns a unique named-parameter identifier by appending a numeric suffix.
@@ -332,6 +375,98 @@ fn disambiguate_name(name: &str, used_names: &mut HashSet<String>) -> String {
 /// purposes of rewriting named parameters.
 fn is_ident_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
+}
+
+/// Returns `true` if SQL contains `?NNN` or numeric `$NNN` placeholders outside
+/// strings, quoted identifiers, and comments.
+fn contains_numeric_parameter(sql: &str) -> bool {
+    #[derive(Clone, Copy, Debug)]
+    enum State {
+        Normal,
+        SingleQuote,
+        DoubleQuote,
+        LineComment,
+        BlockComment,
+    }
+
+    let mut i = 0;
+    let bytes = sql.as_bytes();
+    let mut state = State::Normal;
+
+    while i < bytes.len() {
+        match state {
+            State::Normal => match bytes[i] {
+                b'\'' => {
+                    i += 1;
+                    state = State::SingleQuote;
+                }
+                b'"' => {
+                    i += 1;
+                    state = State::DoubleQuote;
+                }
+                b'-' if bytes.get(i + 1) == Some(&b'-') => {
+                    i += 2;
+                    state = State::LineComment;
+                }
+                b'/' if bytes.get(i + 1) == Some(&b'*') => {
+                    i += 2;
+                    state = State::BlockComment;
+                }
+                b'?' if bytes.get(i + 1).is_some_and(u8::is_ascii_digit) => return true,
+                b'$' if bytes.get(i + 1).is_some_and(u8::is_ascii_digit) => {
+                    let mut end = i + 2;
+                    while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+                        end += 1;
+                    }
+                    if bytes.get(end).is_none_or(|b| !is_ident_char(*b)) {
+                        return true;
+                    }
+                    i = end;
+                }
+                _ => i += 1,
+            },
+            State::SingleQuote => {
+                if bytes[i] == b'\'' {
+                    if bytes.get(i + 1) == Some(&b'\'') {
+                        i += 2;
+                    } else {
+                        i += 1;
+                        state = State::Normal;
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+            State::DoubleQuote => {
+                if bytes[i] == b'"' {
+                    if bytes.get(i + 1) == Some(&b'"') {
+                        i += 2;
+                    } else {
+                        i += 1;
+                        state = State::Normal;
+                    }
+                } else {
+                    i += 1;
+                }
+            }
+            State::LineComment => {
+                if bytes[i] == b'\n' {
+                    state = State::Normal;
+                }
+                i += 1;
+            }
+            State::BlockComment => {
+                if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
+                    i += 2;
+                    state = State::Normal;
+                } else {
+                    i += 1;
+                }
+            }
+        }
+    }
+
+    false
 }
 
 /// Rewrites named parameters (e.g. `:name`, `@name`, `$name`) according to the

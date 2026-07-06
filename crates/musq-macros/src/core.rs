@@ -1,7 +1,9 @@
 use darling::{self, FromDeriveInput, FromField, FromMeta, ast, util};
 use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
-use proc_macro2::TokenStream;
-use syn::{DeriveInput, Type};
+use proc_macro_crate::{FoundCrate, crate_name};
+use proc_macro2::{Span, TokenStream};
+use quote::format_ident;
+use syn::{DeriveInput, Path, Type, parse_quote};
 
 /// Create a `syn::Error` from a spanned token.
 macro_rules! span_err {
@@ -34,7 +36,7 @@ macro_rules! assert_errors_with {
 pub(crate) use assert_errors_with;
 
 /// Case conversion rules for rename attributes.
-#[derive(Default, Debug, Copy, Clone, FromMeta)]
+#[derive(Default, Debug, Copy, Clone, Eq, PartialEq, FromMeta)]
 pub enum RenameAll {
     /// Convert to snake_case.
     #[default]
@@ -53,6 +55,29 @@ pub enum RenameAll {
     PascalCase,
     /// Preserve the original spelling.
     Verbatim,
+}
+
+/// Resolve the path to the `musq` crate for generated code.
+pub fn musq_path() -> Path {
+    match crate_name("musq") {
+        Ok(FoundCrate::Itself) => parse_quote!(::musq),
+        Ok(FoundCrate::Name(name)) => {
+            let ident = format_ident!("{}", name, span = Span::call_site());
+            parse_quote!(::#ident)
+        }
+        Err(_) => parse_quote!(::musq),
+    }
+}
+
+/// Return whether a tuple row field contains any unsupported row attributes.
+fn tuple_row_field_has_attrs(field: &RowField) -> bool {
+    field.rename.is_some()
+        || field.default
+        || field.flatten
+        || !field.prefix.is_empty()
+        || field.try_from.is_some()
+        || field.skip
+        || field.deserialize_with.is_some()
 }
 
 impl RenameAll {
@@ -180,7 +205,21 @@ pub fn check_row_field_attrs(field: &RowField) -> syn::Result<()> {
 /// Validate container-level row attributes.
 pub fn check_row_attrs(container: &RowContainer) -> syn::Result<()> {
     if let ast::Data::Struct(fields) = &container.data {
+        let has_unnamed = fields.iter().any(|f| f.ident.is_none());
+        if has_unnamed && container.rename_all != RenameAll::default() {
+            span_err!(
+                &container.ident,
+                "`rename_all` is not supported on tuple FromRow derives"
+            )?;
+        }
+
         for f in fields.iter() {
+            if f.ident.is_none() && tuple_row_field_has_attrs(f) {
+                span_err!(
+                    &f.ty,
+                    "`musq` field attributes are not supported on tuple FromRow fields"
+                )?;
+            }
             check_row_field_attrs(f)?;
         }
     }

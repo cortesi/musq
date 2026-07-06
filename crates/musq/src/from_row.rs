@@ -143,10 +143,10 @@ use crate::{Row, error::Result};
 /// let user: User = query_as("SELECT name FROM users")
 ///    .fetch_one(&mut some_connection)
 ///    .await?;
-///
-/// `Default` for `Vec<Address>` is an empty vector.
 /// assert!(user.addresses.is_empty());
 /// ```
+///
+/// `Default` for `Vec<Address>` is an empty vector.
 ///
 /// ## Manual implementation
 ///
@@ -155,7 +155,7 @@ use crate::{Row, error::Result};
 ///
 ///
 /// ```rust,ignore
-/// use {FromRow, Row};
+/// use musq::{FromRow, Result, Row};
 /// struct MyCustomType {
 ///     custom: String,
 /// }
@@ -165,10 +165,10 @@ use crate::{Row, error::Result};
 /// }
 ///
 /// impl FromRow<'_> for Foo {
-///     fn from_row(row: &Row) -> Result<Self> {
+///     fn from_row(prefix: &str, row: &Row) -> Result<Self> {
 ///         Ok(Self {
 ///             bar: MyCustomType {
-///                 custom: row.get_value("custom")?
+///                 custom: row.get_value(&format!("{prefix}custom"))?
 ///             }
 ///         })
 ///     }

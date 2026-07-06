@@ -16,6 +16,7 @@ fn expand_struct(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ty = &field.ty;
+    let musq = core::musq_path();
 
     // extract type generics
     let generics = &container.generics;
@@ -27,19 +28,19 @@ fn expand_struct(
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: musq::decode::Decode<'r>));
+        .push(parse_quote!(#ty: #musq::decode::Decode<'r>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let tts = quote!(
         #[automatically_derived]
-        impl #impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
+        impl #impl_generics #musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
             fn decode(
-                value: &'r musq::Value,
+                value: &'r #musq::Value,
             ) -> ::std::result::Result<
                 Self,
-                musq::DecodeError,
+                #musq::DecodeError,
             > {
-                <#ty as musq::decode::Decode<'r>>::decode(value).map(Self)
+                <#ty as #musq::decode::Decode<'r>>::decode(value).map(Self)
             }
         }
     );
@@ -55,6 +56,7 @@ fn expand_repr_enum(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ident_s = ident.to_string();
+    let musq = core::musq_path();
 
     let generics = &container.generics;
     let (_, ty_generics, _) = generics.split_for_impl();
@@ -63,7 +65,7 @@ fn expand_repr_enum(
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#repr: musq::decode::Decode<'r>));
+        .push(parse_quote!(#repr: #musq::decode::Decode<'r>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let arms = variants
@@ -78,17 +80,17 @@ fn expand_repr_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
+        impl #impl_generics #musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
             fn decode(
-                value: &'r musq::Value,
+                value: &'r #musq::Value,
             ) -> ::std::result::Result<
                 Self,
-                musq::DecodeError,
+                #musq::DecodeError,
             > {
-                let value = <#repr as musq::decode::Decode<'r>>::decode(value)?;
+                let value = <#repr as #musq::decode::Decode<'r>>::decode(value)?;
                 match value {
                     #(#arms)*
-                    _ => Err(musq::DecodeError::Conversion(
+                    _ => Err(#musq::DecodeError::Conversion(
                         ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into(),
                     ))
                 }
@@ -104,6 +106,7 @@ fn expand_enum(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ident_s = ident.to_string();
+    let musq = core::musq_path();
     let generics = &container.generics;
     let (_, ty_generics, _) = generics.split_for_impl();
     let mut generics = generics.clone();
@@ -127,14 +130,14 @@ fn expand_enum(
 
     tts.extend(quote!(
         #[automatically_derived]
-        impl #impl_generics musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
+        impl #impl_generics #musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
             fn decode(
-                value: &'r ::musq::Value,
+                value: &'r #musq::Value,
             ) -> ::std::result::Result<
                 Self,
-                musq::DecodeError,
+                #musq::DecodeError,
             > {
-                let value = <&'r ::std::primitive::str as musq::decode::Decode<
+                let value = <&'r ::std::primitive::str as #musq::decode::Decode<
                     'r,
                 >>::decode(value)?;
 

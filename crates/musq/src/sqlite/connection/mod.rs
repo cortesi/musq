@@ -44,9 +44,9 @@ mod worker;
 /// This represents a single physical connection and is the fundamental primitive for database
 /// interaction. It is created by calling [`Connection::connect_with()`].
 ///
-/// For applications with concurrent database access, it is recommended to use a [`Pool`]
+/// For applications with concurrent database access, it is recommended to use a [`crate::Pool`]
 /// instead of managing `Connection` objects directly. The `Pool` provides managed, reusable
-/// connections via [`PoolConnection`].
+/// connections via [`crate::PoolConnection`].
 ///
 /// However, for simple applications, scripts, or any scenario where connection pooling is
 /// unnecessary, a standalone `Connection` is the most direct way to interact with the database.
@@ -59,7 +59,7 @@ mod worker;
 /// ### Closing
 ///
 /// When a `Connection` is dropped, it is closed. To handle potential errors on close, it is
-/// recommended to explicitly call the [`close()`] method.
+/// recommended to explicitly call the [`Connection::close`] method.
 pub struct Connection {
     /// Optimize-on-close behavior.
     optimize_on_close: OptimizeOnClose,

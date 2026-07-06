@@ -12,7 +12,7 @@ use crate::{Connection, Result};
 /// A transaction is a sequence of operations performed as a single logical unit of work. All
 /// commands within a transaction are guaranteed to execute on the same database connection.
 ///
-/// A transaction is started by calling [`Pool::begin()`] or [`Connection::begin()`]. It must be
+/// A transaction is started by calling [`crate::Pool::begin`] or [`Connection::begin`]. It must be
 /// concluded by calling either [`commit()`] or [`rollback()`].
 ///
 /// If a `Transaction` object is dropped without being explicitly committed or rolled back, it

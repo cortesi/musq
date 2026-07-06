@@ -98,6 +98,23 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn row_introspection_helpers() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        let row = query("SELECT 1 AS id, 'Ada' AS name")
+            .fetch_one(&conn)
+            .await?;
+
+        assert!(!row.is_empty());
+        assert_eq!(row.len(), 2);
+        assert_eq!(row.column_names(), vec!["id", "name"]);
+        assert!(row.contains_column("id"));
+        assert!(row.contains_column("name"));
+        assert!(!row.contains_column("missing"));
+
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_bind_multiple_statements_multiple_values() -> anyhow::Result<()> {
         let conn = connection().await?;
 

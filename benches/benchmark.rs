@@ -49,7 +49,7 @@ fn setup() -> musq::Pool {
             .execute(&p.acquire().await.unwrap())
             .await
             .unwrap();
-        tx.send(pool().await).unwrap();
+        tx.send(p).unwrap();
     });
     rx.recv().unwrap()
 }
@@ -68,7 +68,9 @@ async fn writes(pool: musq::Pool) {
                 .await
         });
     }
-    join_all(futs).await;
+    for result in join_all(futs).await {
+        result.unwrap();
+    }
 }
 
 /// Run concurrent read workloads.
@@ -83,7 +85,9 @@ async fn reads(pool: musq::Pool) {
                 .await
         });
     }
-    join_all(futs).await;
+    for result in join_all(futs).await {
+        result.unwrap();
+    }
 }
 
 /// Register benchmarks with Criterion.

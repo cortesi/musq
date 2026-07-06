@@ -2,6 +2,7 @@
 
 use std::{
     path::PathBuf,
+    result::Result as StdResult,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -34,7 +35,7 @@ struct Args {
     blob_size: usize,
 
     /// Number of bins for timing data analysis
-    #[arg(long, default_value_t = 20)]
+    #[arg(long, default_value_t = 20, value_parser = parse_nonzero_usize)]
     bins: usize,
 
     /// Journal mode for the database
@@ -48,6 +49,17 @@ struct Args {
     /// Maximum number of connections in the pool
     #[arg(long, default_value_t = 10)]
     max_connections: u32,
+}
+
+/// Parse a non-zero `usize` command-line value.
+fn parse_nonzero_usize(value: &str) -> StdResult<usize, String> {
+    let value = value
+        .parse::<usize>()
+        .map_err(|err| format!("invalid usize: {err}"))?;
+    if value == 0 {
+        return Err("value must be greater than 0".to_string());
+    }
+    Ok(value)
 }
 
 /// Aggregated timing metrics and reporting state.
@@ -116,7 +128,13 @@ impl TimingData {
         durations.sort_unstable();
 
         let total_records = durations.len();
-        let records_per_bin = total_records / bins;
+        if total_records == 0 {
+            println!("\nNo timing data collected.");
+            return;
+        }
+
+        let bin_count = bins.min(total_records).max(1);
+        let records_per_bin = total_records.div_ceil(bin_count);
 
         println!("\nTiming data (per bin):");
         for (i, chunk) in durations.chunks(records_per_bin).enumerate() {

@@ -16,7 +16,7 @@ use crate::{
     sqlite::{Value, statement::Statement},
 };
 
-/// Raw SQL query with bind parameters. Returned by [`query`][crate::query::query].
+/// Raw SQL query with bind parameters. Returned by [`query`].
 #[must_use = "query must be executed to affect database"]
 #[derive(Clone)]
 pub struct Query {
@@ -182,7 +182,7 @@ impl<'a> fmt::Display for FormatValue<'a> {
 /// [`Query::execute`] as it doesn't make sense to map the result type and then ignore it.
 ///
 /// [`Map::bind`] and [`Map::bind_named`] may be used to add parameters after
-/// [`try_map()`]. Stylistically we still recommend placing your `.bind()` calls
+/// [`Map::try_map`]. Stylistically we still recommend placing your `.bind()` calls
 /// before `.try_map()` to avoid adding superfluous binds when using
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
@@ -437,7 +437,7 @@ impl Query {
         self.tainted
     }
 
-    /// Convert this query into a mutable [`QueryBuilder`].
+    /// Convert this query into a mutable [`crate::QueryBuilder`].
     pub fn into_builder(self) -> crate::QueryBuilder {
         crate::QueryBuilder::from_parts(
             self.sql().to_string(),
@@ -450,10 +450,25 @@ impl Query {
     ///
     /// The SQL and arguments from `other` are appended to this query and a new
     /// combined query is returned.
+    ///
+    /// This method panics if the appended query contains numeric positional
+    /// placeholders such as `?1` or numeric `$1`. Use [`Query::try_join`] to
+    /// handle unsupported composition as an error.
     pub fn join(self, other: Self) -> Self {
+        self.try_join(other)
+            .expect("failed to join query fragments")
+    }
+
+    /// Try to join this query with another [`Query`].
+    ///
+    /// Anonymous `?` and named parameters are supported in composed fragments.
+    /// Numeric positional placeholders such as `?1` and numeric `$1` are
+    /// rejected in appended fragments because their SQLite indices are absolute
+    /// within the final statement and cannot be safely rebased.
+    pub fn try_join(self, other: Self) -> Result<Self> {
         let mut builder = self.into_builder();
-        builder.push_query(other);
-        builder.build()
+        builder.try_push_query(other)?;
+        Ok(builder.build())
     }
 
     /// Attempt to bind a value for use with this SQL query.
@@ -501,8 +516,8 @@ impl Query {
     ///
     /// See [`try_map`](Query::try_map) for a fallible version of this method.
     ///
-    /// The [`query_as`](crate::query_as) function will construct a mapped query using
-    /// a [`FromRow`](crate::FromRow) implementation.
+    /// The [`query_as`] function will construct a mapped query using
+    /// a [`FromRow`] implementation.
     pub fn map<F, O>(self, mut f: F) -> Map<impl FnMut(Row) -> Result<O> + Send>
     where
         F: FnMut(Row) -> O + Send,
@@ -513,8 +528,8 @@ impl Query {
 
     /// Map each row in the result to another type.
     ///
-    /// The [`query_as`](crate::query_as) function will construct a mapped query using
-    /// a [`FromRow`](crate::FromRow) implementation.
+    /// The [`query_as`] function will construct a mapped query using
+    /// a [`FromRow`] implementation.
     pub fn try_map<F, O>(self, f: F) -> Map<F>
     where
         F: FnMut(Row) -> Result<O> + Send,
@@ -586,8 +601,8 @@ where
     ///
     /// See [`try_map`](Map::try_map) for a fallible version of this method.
     ///
-    /// The [`query_as`](crate::query_as) function will construct a mapped query using
-    /// a [`FromRow`](crate::FromRow) implementation.
+    /// The [`query_as`] function will construct a mapped query using
+    /// a [`FromRow`] implementation.
     pub fn map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P> + Send>
     where
         G: FnMut(O) -> P + Send,
@@ -598,8 +613,8 @@ where
 
     /// Map each row in the result to another type.
     ///
-    /// The [`query_as`](crate::query_as) function will construct a mapped query using
-    /// a [`FromRow`](crate::FromRow) implementation.
+    /// The [`query_as`] function will construct a mapped query using
+    /// a [`FromRow`] implementation.
     pub fn try_map<G, P>(self, mut g: G) -> Map<impl FnMut(Row) -> Result<P> + Send>
     where
         G: FnMut(O) -> Result<P> + Send,

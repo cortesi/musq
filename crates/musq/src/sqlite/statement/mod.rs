@@ -12,9 +12,8 @@ pub use handle::StatementHandle;
 
 /// An explicitly prepared statement.
 ///
-/// Statements are prepared and cached by default, per connection. This type allows you to
-/// look at that cache in-between the statement being prepared and it being executed. This contains
-/// the expected columns to be returned and the expected parameter types (if available).
+/// Statements are prepared and cached by default, per connection. This type stores the SQL for a
+/// statement that can be re-used to build queries without re-specifying the SQL text.
 ///
 /// Statements can be re-used with any connection and on first-use it will be re-prepared and
 /// cached within the connection.
@@ -32,10 +31,10 @@ impl Statement {
     }
 }
 
-/// A prepared statement without exposed metadata.
+/// A prepared statement that can build executable queries.
 #[derive(Debug, Clone)]
 pub struct Prepared {
-    /// Prepared statement with metadata.
+    /// Prepared statement SQL.
     pub(crate) statement: Statement,
 }
 

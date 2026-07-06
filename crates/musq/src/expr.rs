@@ -4,8 +4,12 @@
 //! `{where:...}` placeholders. Unlike regular bound values, expressions may expand to arbitrary SQL
 //! (optionally containing their own bind parameters).
 //!
-//! Use curated helpers (like [`now_rfc3339_utc`]) whenever possible. If you must embed ad-hoc SQL,
-//! use [`raw`], which will taint the resulting query.
+//! Expression fragments support anonymous `?` and named bind parameters. Numeric positional
+//! placeholders such as `?1` and numeric `$1` are rejected when an expression is embedded because
+//! their absolute SQLite indices cannot be safely rebased inside a larger statement.
+//!
+//! Use curated helpers (like [`crate::expr::now_rfc3339_utc`]) whenever possible. If you must embed
+//! ad-hoc SQL, use [`crate::expr::raw`], which will taint the resulting query.
 
 use either::Either;
 

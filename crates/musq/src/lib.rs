@@ -65,7 +65,7 @@ pub use crate::{
     expr::Expr,
     from_row::{AllNull, FromRow},
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
-    pool::{Pool, PoolConnection},
+    pool::{Pool, PoolConnection, PoolStats},
     query::{
         Query, query, query_as, query_as_with, query_scalar, query_scalar_with, query_with,
         quote_identifier,

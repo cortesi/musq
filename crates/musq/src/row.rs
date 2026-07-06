@@ -148,6 +148,27 @@ impl Row {
         self.columns.len() == 0
     }
 
+    /// Return the number of columns in this row.
+    pub fn len(&self) -> usize {
+        self.values.len()
+    }
+
+    /// Return the visible column names in column-index order.
+    pub fn column_names(&self) -> Vec<&str> {
+        let mut names = self
+            .column_names
+            .iter()
+            .map(|(name, &idx)| (idx, &**name))
+            .collect::<Vec<_>>();
+        names.sort_by_key(|(idx, _)| *idx);
+        names.into_iter().map(|(_, name)| name).collect()
+    }
+
+    /// Return whether this row contains a column with the provided name.
+    pub fn contains_column(&self, name: &str) -> bool {
+        self.column_names.contains_key(name)
+    }
+
     /// Get a single value from the row by column index.
     pub fn get_value_idx<'r, T>(&'r self, index: usize) -> Result<T>
     where

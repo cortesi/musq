@@ -4,7 +4,7 @@
 mod tests {
     use std::iter::empty;
 
-    use musq::{Error, QueryBuilder};
+    use musq::{Error, Execute, QueryBuilder};
 
     #[test]
     fn push_values_empty_iterator_returns_error() {
@@ -24,5 +24,15 @@ mod tests {
             Err(Error::Protocol(msg)) => assert!(msg.contains("empty idents")),
             other => panic!("expected protocol error, got {other:?}"),
         }
+    }
+
+    #[test]
+    fn push_bind_named_normalizes_prefixed_names() -> anyhow::Result<()> {
+        let mut builder = QueryBuilder::new();
+        builder.push_sql("SELECT ");
+        builder.push_bind_named(":foo", &1_i32)?;
+        let query = builder.build();
+        assert_eq!(query.sql(), "SELECT :foo");
+        Ok(())
     }
 }

@@ -89,21 +89,36 @@ impl PoolInner {
     pub(super) async fn close(self: &Arc<Self>) {
         self.mark_closed();
 
-        for permits in 1..=self.options.pool_max_connections {
-            // Close any currently idle connections in the pool.
-            while let Some(idle) = self.idle_conns.pop() {
-                let _ = idle.live.float((*self).clone()).close().await;
+        loop {
+            self.close_idle_connections().await;
+
+            let size = self.size();
+            if size == 0 {
+                return;
             }
 
-            if self.size() == 0 {
-                break;
-            }
-
-            // Wait for all permits to be released.
+            // After all idle connections have been drained, the semaphore already
+            // contains one available permit for every closed/absent connection.
+            // Wait for one more permit than that baseline, which means a
+            // checked-out connection has either returned or closed.
+            let permits = self
+                .options
+                .pool_max_connections
+                .saturating_sub(size)
+                .saturating_add(1);
             if let Err(err) = self.semaphore.acquire_many(permits).await {
                 tracing::warn!("semaphore closed while waiting for permits: {err:?}");
-                break;
+                return;
             }
+        }
+    }
+
+    /// Close all idle connections currently sitting in the idle queue.
+    async fn close_idle_connections(&self) {
+        while let Some(idle) = self.idle_conns.pop() {
+            self.num_idle.fetch_sub(1, Ordering::AcqRel);
+            idle.close().await;
+            self.size.fetch_sub(1, Ordering::AcqRel);
         }
     }
 

@@ -10,6 +10,8 @@ use syn::{
     punctuated::Punctuated,
 };
 
+use super::core;
+
 /// Ensure a macro expression is not an empty list.
 fn ensure_non_empty(expr: &Expr) -> SynResult<()> {
     match expr {
@@ -322,6 +324,7 @@ fn build_sql(
     input: SqlMacroInput,
     as_query_as: bool,
 ) -> SynResult<proc_macro2::TokenStream> {
+    let musq = core::musq_path();
     let mut positional = Vec::new();
     let mut named = HashMap::new();
     for arg in input.args {
@@ -357,7 +360,7 @@ fn build_sql(
                 }
             }
             Segment::Ident(expr) => {
-                sql_parts.push(quote! { _builder.push_sql(&musq::quote_identifier(&(#expr))); })
+                sql_parts.push(quote! { _builder.push_sql(&#musq::quote_identifier(&(#expr))); })
             }
             Segment::Values(expr) => sql_parts.push(quote! { _builder.push_values(#expr)?; }),
             Segment::Idents(expr) => sql_parts.push(quote! { _builder.push_idents(#expr)?; }),
@@ -386,16 +389,16 @@ fn build_sql(
             "unused named arguments",
         ));
     }
-    let builder_inits = quote! { let mut _builder = musq::QueryBuilder::new(); };
+    let builder_inits = quote! { let mut _builder = #musq::QueryBuilder::new(); };
     let collects = quote! { #(#sql_parts)* };
     let build = if as_query_as {
-        quote! { _builder.build().try_map(|row| musq::FromRow::from_row("", &row)) }
+        quote! { _builder.build().try_map(|row| #musq::FromRow::from_row("", &row)) }
     } else {
         quote! { _builder.build() }
     };
     Ok(quote! {{
         #builder_inits
-        (|| -> musq::Result<_> { #collects Ok(#build) })()
+        (|| -> #musq::Result<_> { #collects Ok(#build) })()
     }})
 }
 
