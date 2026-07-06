@@ -2,21 +2,16 @@
 
 ![Discord](https://img.shields.io/discord/1381424110831145070?style=flat-square&logo=rust&link=https%3A%2F%2Fdiscord.gg%2FfHmRmuBDxF)
 [![Crates.io](https://img.shields.io/crates/v/musq.svg)](https://crates.io/crates/musq)
-[![Documentation](https://docs.rs/libruskel/badge.svg)](https://docs.rs/musq)
+[![Documentation](https://docs.rs/musq/badge.svg)](https://docs.rs/musq)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-
 
 **Musq is an asynchronous SQLite toolkit for Rust.**
 
-It provides a set of tools to help you build applications that interact with a SQLite database,
-with a strong focus on performance, correctness, and ergonomics.
-
------
+Musq bundles its own SQLite, runs each connection on a dedicated worker thread
+behind an async API, enables foreign key enforcement by default, and ships with
+[sqlite-vec](https://github.com/asg017/sqlite-vec) vector search built in.
 
 ## Quickstart
-
-Here's a brief example of using `musq` to connect to a database, run a query, and map the
-result to a struct using the `sql!` and `sql_as!` macros.
 
 <!-- snips: crates/musq/examples/readme_quickstart.rs -->
 ```rust
@@ -63,66 +58,33 @@ async fn main() -> musq::Result<()> {
 
 ```
 
------
+## Opening a database
 
-## Community
+`Musq` is the options builder. `open()` and `open_in_memory()` return a `Pool`;
+queries execute directly on the pool, on a `Connection`, a `PoolConnection`, or
+a `Transaction` — all interchangeably.
 
-Want to contribute? Have ideas or feature requests? Come tell us about it on
-[Discord](https://discord.gg/fHmRmuBDxF). 
-
------
-
-## Feature Flags
-
-`musq` ships with vector support enabled by default.
-
-- `vec` (default): Enables sqlite-vec integration and vector types (`VecF32`, `VecInt8`, `VecBit`).
-
-To opt out of vector support:
-
-```toml
-musq = { version = "0.0.3", default-features = false }
-```
-
-To re-enable `vec` while otherwise opting out of defaults:
-
-```toml
-musq = { version = "0.0.3", default-features = false, features = ["vec"] }
-```
-
-## SQLite Runtime Support
-
-Musq supports the SQLite release bundled by its `libsqlite3-sys` dependency.
-It does not support linking against older or system SQLite libraries.
-
-The current supported runtime is SQLite 3.53.2, bundled by
-`libsqlite3-sys 0.38.1`. Leave `LIBSQLITE3_SYS_USE_PKG_CONFIG` and
-`SQLITE3_*` linkage environment variables unset when building Musq.
-
------
-
-## Core Features
-
-### Connection Pooling
-
-Use `Musq::open()` or `Musq::open_in_memory()` to create a `Pool`, which manages multiple
-connections for you. Queries can be executed directly on the pool.
-
-<!-- snips: crates/musq/examples/readme_snippets.rs#pool -->
+<!-- snips: crates/musq/examples/readme_snippets.rs#open -->
 ```rust
-use musq::Musq;
-let pool = Musq::new().max_connections(10).open_in_memory().await?;
+use musq::{JournalMode, Musq};
+
+let pool = Musq::new()
+    .max_connections(10)
+    .create_if_missing(true)
+    .journal_mode(JournalMode::Wal)
+    .open("app.db")
+    .await?;
 ```
 
-### Querying
+Defaults: foreign keys on, busy timeout 5s, 10 pool connections, journal mode
+left unchanged (set `JournalMode::Wal` explicitly for WAL). Any pragma can be
+set with `.pragma(key, value)`.
 
-The recommended way to build queries in `musq` is with the `sql!` and `sql_as!` macros. For
-dynamic queries, you can combine queries created with `sql!` using `Query::join`.
+## Queries
 
-#### `sql!` and `sql_as!` Macros
-
-These macros offer a flexible, `format!`-like syntax for building queries with positional or
-named arguments, and even dynamic identifiers.
+`sql!` builds a query from a `format!`-like string. `sql_as!` does the same and
+maps rows to a `FromRow` type. Interpolated values are always bound as
+parameters, never spliced into the SQL.
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#sql_basic -->
 ```rust
@@ -137,18 +99,28 @@ struct User {
 let id = 1;
 let name = "Bob";
 
-// Positional and named arguments
 sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
     .execute(&pool)
     .await?;
 
-// Map results directly to a struct
 let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}")?
     .fetch_one(&pool)
     .await?;
 ```
 
-The `sql!` macro also supports dynamic identifiers and lists for `IN` clauses:
+Placeholders:
+
+| Placeholder                       | Expansion                                                     |
+| --------------------------------- | ------------------------------------------------------------- |
+| `{expr}`, `{}`                    | one bound parameter                                           |
+| `{values:list}`                   | `?, ?, ?` — one parameter per element, for `IN (...)`         |
+| `{ident:expr}`                    | one quoted identifier                                         |
+| `{idents:list}`                   | comma-separated quoted identifiers                            |
+| `{insert:values}`                 | `(col, ...) VALUES (?, ...)`                                  |
+| `{set:values}`                    | `col = ?, ...`                                                |
+| `{where:values}`                  | `col = ? AND ...`; `col IS NULL` for NULLs; `1=1` when empty  |
+| `{upsert:values, exclude: a, b}`  | `col = excluded.col, ...` for `ON CONFLICT ... DO UPDATE SET` |
+| `{raw:expr}`                      | verbatim SQL; taints the query                                |
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#sql_in -->
 ```rust
@@ -156,7 +128,6 @@ let table_name = "users";
 let user_ids = vec![1, 2, 3];
 let columns = ["id", "name"];
 
-// Dynamic table and column identifiers
 let users: Vec<User> = sql_as!(
     "SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})"
 )?
@@ -164,81 +135,16 @@ let users: Vec<User> = sql_as!(
 .await?;
 ```
 
+Run queries with `.execute()`, `.fetch_one()`, `.fetch_optional()`,
+`.fetch_all()`, or `.fetch()` (a `Stream`). Compose dynamic queries with
+`Query::join`, or drop down to `QueryBuilder` for full control.
 
-#### Query Composition with `Values`
+## Values
 
-It turns out that a very large portion of SQL query composition can be done by
-treating a key/value map specially based on the query context. Musq provides a
-`Values` type for this, along with a set of placeholder variants to cover all
-cases where SQL uses key/value pairs.
-
-##### The `values!` macro
-
-`values!` builds a `Values` collection from literal column names and any `Encode`-able values (or
-expression fragments from `musq::expr`). It
-encodes each value immediately and returns `Result<Values>`, so construction can fail and you can
-use `?` to surface encoding errors early. Keys must be string literals; for dynamic keys, use the
-fluent builder. `Values` preserves insertion order, so the order you write is retained.
-
-Because `values!` uses the same `Encode` implementations as regular query arguments, blob storage
-behavior is unchanged. Types like `Vec<u8>`, `&[u8]`, `Arc<Vec<u8>>`, and `bstr::BString` continue
-to map to SQLite `BLOB` when used inside `values!`.
-
-It can be constructed with the `values!` macro:
-
-<!-- snips: crates/musq/examples/readme_snippets.rs#values-macro -->
-```rust
-let vals = values! {
-    "id": 1,
-    "name": "Alice",
-    "status": "active"
-}?;
-```
-
-Or the fluent builder interface on the `Values` type:
-
-<!-- snips: crates/musq/examples/readme_snippets.rs#values-fluent -->
-```rust
-let vals = Values::new()
-    .val("id", 1)?
-    .val("name", "Alice")?
-    .val("status", "active")?;
-```
-
-
-The `sql!` macro provides special placeholder types for `Values`:
-
-  * `{insert:values}`: Expands to `(col1, col2) VALUES (?, ?)` for `INSERT`
-    statements.
-  * `{set:values}`: Expands to `col1 = ?, col2 = ?` for `UPDATE` statements.
-  * `{where:values}`: Expands to `col1 = ? AND col2 = ?`. If a value is `NULL` it
-    expands to `col IS NULL` (without binding a parameter). If `values` is empty,
-    it expands to `1=1`.
-  * `{upsert:values, exclude: id, created_at}`: For `ON CONFLICT ... DO UPDATE SET`,
-    expands to `col1 = excluded.col1, ...`, with an option to exclude certain
-    keys from the update.
-
-##### Computed values (expressions)
-
-For some schemas you may want DB-side computed values (for example, a consistent `updated_at`
-timestamp inside a transaction, or JSONB encoding via `jsonb(...)`). Musq supports this by allowing
-expression fragments inside `Values` (via `musq::expr`).
-
-<!-- snips: crates/musq/examples/readme_snippets.rs#values-expr -->
-```rust
-let changes = values! {
-    "updated_at": musq::expr::now_rfc3339_utc(),
-    "payload": musq::expr::jsonb(r#"{"event":"hello"}"#),
-}?;
-
-sql!("UPDATE events SET {set:changes} WHERE id = 1")?
-    .execute(&pool)
-    .await?;
-```
-
-Expressions created via `expr::raw(...)` taint the resulting query. Prefer the curated helpers when
-possible.
-
+`Values` is an insertion-ordered column/value map consumed by the `{insert:}`,
+`{set:}`, `{where:}`, and `{upsert:}` placeholders. Build one with the
+`values!` macro or fluently with `Values::new().val(k, v)?`. Each value is
+encoded immediately, so construction returns `Result`.
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values -->
 ```rust
@@ -271,116 +177,92 @@ sql!(
 .await?;
 ```
 
-For the most complex scenarios, you can drop down to the `QueryBuilder` for fine-grained
-control over the generated SQL.
+`Option::None` encodes as SQL `NULL` everywhere (`{where:}` renders it as
+`col IS NULL`), and `musq::Null` is an untyped NULL literal:
 
------
-
-
-## Types
-
-Musq uses the `Encode` and `Decode` traits to convert between Rust types and SQLite types.
-
-### Built-in Types
-
-Support for common Rust types is included out-of-the-box.
-
-| Rust type                           | SQLite type(s) |
-| ----------------------------------- | -------------- |
-| `bool`                              | BOOLEAN        |
-| `i8`, `i16`, `i32`, `i64`           | INTEGER        |
-| `u8`, `u16`, `u32`                  | INTEGER        |
-| `f32`, `f64`                        | REAL           |
-| `&str`, `String`, `Arc<String>`     | TEXT           |
-| `&[u8]`, `Vec<u8>`, `Arc<Vec<u8>>` | BLOB           |
-| `VecF32`*                           | BLOB           |
-| `VecInt8`*                          | BLOB           |
-| `VecBit`*                           | BLOB           |
-| `time::PrimitiveDateTime`           | DATETIME       |
-| `time::OffsetDateTime`              | DATETIME       |
-| `time::Date`                        | DATE           |
-| `time::Time`                        | TIME           |
-| `bstr::BString`                     | BLOB           |
-
-`*` Requires the `vec` feature (enabled by default).
-
-Musq implements `Encode` for `Option<T>` where `T` implements `Encode`.
-This makes it easy to work with nullable database columns:
-
-<!-- snips: crates/musq/examples/readme_snippets.rs#values-optional -->
+<!-- snips: crates/musq/examples/readme_snippets.rs#values-null -->
 ```rust
-async fn add_user(pool: musq::Pool, name: &str, phone: Option<String>) -> musq::Result<()> {
+async fn add_user(
+    pool: &musq::Pool,
+    name: &str,
+    phone: Option<String>,
+) -> musq::Result<()> {
     let user_data = values! {
         "name": name,
-        "phone": phone,  // Nullable field
+        "phone": phone,      // Option: None encodes as NULL
+        "email": musq::Null, // untyped NULL literal
     }?;
-    sql!("INSERT INTO users {insert: user_data}")?
-        .execute(&pool)
+    sql!("INSERT INTO users {insert:user_data}")?
+        .execute(pool)
         .await?;
     Ok(())
 }
 ```
 
-When you use `Some(value)`, it encodes the inner value normally. When you use `None`, it encodes as SQL `NULL`. This works seamlessly with all operations:
+DB-side computed values come from `musq::expr` (`now_rfc3339_utc`, `jsonb`,
+`jsonb_text`, `jsonb_serde`, `raw`):
 
-- **INSERT**: `None` values become `NULL` in the database
-- **UPDATE**: `None` values set columns to `NULL`  
-- **WHERE**: `None` values generate `column IS NULL`
-- **UPSERT**: `None` values participate in conflict resolution as `NULL`
-
-### Vector Search (sqlite-vec)
-
-With the default `vec` feature enabled, sqlite-vec is registered automatically for each
-connection.
-
-- `VecF32` can be bound directly to vector functions and `vec0` tables.
-- `VecInt8` and `VecBit` require sqlite-vec subtype wrappers in SQL:
-  `vec_int8(?)` and `vec_bit(?)`.
-
-Musq uses the latest stable sqlite-vec release. Prerelease sqlite-vec versions
-are not part of the supported runtime until they build cleanly from crates.io
-and graduate to a stable release.
-
-See `examples/vec.rs` for a runnable end-to-end example:
-
-```bash
-cargo run -p musq --example vec
-```
-
-Musq also provides a `Null` constant that you can use directly in `values!`
-blocks without specifying a type:
-
-<!-- snips: crates/musq/examples/readme_snippets.rs#values-null -->
+<!-- snips: crates/musq/examples/readme_snippets.rs#values-expr -->
 ```rust
-use musq::{Null, values};
-let user_data = values! {
-    "name": "Alice",
-    "email": Null,           // No type annotation needed
+use musq::expr;
+let changes = values! {
+    "updated_at": expr::now_rfc3339_utc(),
+    "payload": expr::jsonb(r#"{"event":"hello"}"#),
 }?;
+
+sql!("UPDATE events SET {set:changes} WHERE id = 1")?
+    .execute(&pool)
+    .await?;
 ```
 
-**Note on Large Values:** When passing large string or byte values to queries, consider using
-owned types like `String`, `Vec<u8>`, or `Arc<T>` to avoid unnecessary copies. Similarly, you
-can decode large blobs directly into `Arc<Vec<u8>>` for efficient, shared access to the
-data.
+`expr::raw(...)` taints the resulting query; prefer the curated helpers.
 
-**Note on `bstr`:** Use `bstr::BString` when you need to handle byte data from a `BLOB` column
-that is text-like but may not contain valid UTF-8. It provides string-like operations without
-enforcing UTF-8 validity.
+## Transactions
 
-### Custom Types
+`Pool::begin` and `Connection::begin` return a `Transaction`. Calling `begin`
+on an existing transaction creates a savepoint. Dropping an uncommitted
+transaction rolls it back. `Connection::transaction` runs a closure and
+commits or rolls back based on its result.
 
-You can easily implement `Encode` and `Decode` for your own types using derive
-macros.
+<!-- snips: crates/musq/examples/readme_snippets.rs#transaction -->
+```rust
+let mut tx = pool.begin().await?;
+sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
+    .execute(&tx)
+    .await?;
+tx.commit().await?;
+```
 
-#### `#[derive(musq::Codec)]`
+## Types
 
-The `Codec` derive implements both `Encode` and `Decode` for simple enums and
-newtype structs.
+The `Encode` and `Decode` traits convert between Rust and SQLite types:
 
-#### Enums as strings
+| Rust type                          | SQLite type |
+| ---------------------------------- | ----------- |
+| `bool`                             | BOOLEAN     |
+| `i8`, `i16`, `i32`, `i64`          | INTEGER     |
+| `u8`, `u16`, `u32`                 | INTEGER     |
+| `f32`, `f64`                       | REAL        |
+| `&str`, `String`, `Arc<String>`    | TEXT        |
+| `&[u8]`, `Vec<u8>`, `Arc<Vec<u8>>` | BLOB        |
+| `bstr::BString`                    | BLOB        |
+| `time::OffsetDateTime`             | DATETIME    |
+| `time::PrimitiveDateTime`          | DATETIME    |
+| `time::Date`                       | DATE        |
+| `time::Time`                       | TIME        |
+| `VecF32`, `VecInt8`, `VecBit`      | BLOB        |
 
-Stores the enum as a snake-cased string (e.g., `"open"`, `"closed"`).
+`Option<T>` maps `None` to `NULL`. For large strings and blobs, prefer owned
+or shared types (`String`, `Vec<u8>`, `Arc<T>`) to avoid copies; blobs can be
+decoded directly into `Arc<Vec<u8>>`. `bstr::BString` handles text-like BLOBs
+that may not be valid UTF-8.
+
+### Derived types
+
+`#[derive(musq::Codec)]` implements both `Encode` and `Decode` for enums and
+newtype structs (`Encode` and `Decode` can also be derived individually).
+
+Enums store as snake-cased strings (`"open"`, `"closed"`) by default:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#text_enum -->
 ```rust
@@ -391,9 +273,7 @@ enum Status {
 }
 ```
 
-#### Enums as integers
-
-Stores the enum as its integer representation.
+Or as integers with `repr`:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#num_enum -->
 ```rust
@@ -406,9 +286,7 @@ enum Priority {
 }
 ```
 
-#### Newtype structs
-
-Stores the newtype as its inner value.
+Newtype structs store as their inner value:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#newtype -->
 ```rust
@@ -416,9 +294,7 @@ Stores the newtype as its inner value.
 struct UserId(i32);
 ```
 
-#### JSON-encoded structs
-
-Stores any `serde`-compatible type as a JSON string in a `TEXT` column.
+`#[derive(musq::Json)]` stores any serde-compatible type as JSON text:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#json -->
 ```rust
@@ -429,90 +305,71 @@ struct Metadata {
 }
 ```
 
------
+## Row mapping
 
-## Mapping Rows to Structs
+`#[derive(FromRow)]` maps columns to fields by name. Attributes:
 
-The `FromRow` derive macro provides powerful options for mapping query results
-to your structs.
+- `#[musq(rename = "...")]` — map a field to a differently named column
+- `#[musq(rename_all = "...")]` — on the struct; case-convert all field names
+- `#[musq(default)]` — use `Default::default()` when the column is absent
+- `#[musq(skip)]` — always use `Default::default()`
+- `#[musq(try_from = "T")]` — decode as `T`, then convert with `TryFrom`
+- `#[musq(deserialize_with = "path")]` — decode with a custom
+  `fn(prefix: &str, row: &Row) -> Result<T>`
+- `#[musq(flatten)]`, `#[musq(flatten, prefix = "...")]` — embed a nested
+  `FromRow` struct, optionally prefixing its column names; an `Option` nested
+  struct is `None` iff all of its columns are NULL
 
-### Basic Usage
-
-<!-- snips: crates/musq/examples/readme_snippets.rs#fromrow_basic -->
+<!-- snips: crates/musq/examples/readme_snippets.rs#flatten -->
 ```rust
-#[derive(FromRow, Debug)]
+#[derive(FromRow)]
+struct Address {
+    street: String,
+    city: String,
+}
+
+#[derive(FromRow)]
 struct User {
     id: i32,
-    name: String,
-    email: String,
+    // Reads the `street` and `city` columns.
+    #[musq(flatten)]
+    address: Address,
+    // Reads `billing_street` and `billing_city`; None iff both are NULL.
+    #[musq(flatten, prefix = "billing_")]
+    billing: Option<Address>,
 }
 ```
 
-### Field Attributes
+## Vector search
 
-  - `#[musq(rename = "column_name")]`: Maps a field to a column with a different name.
+The default `vec` feature registers sqlite-vec on every connection and
+provides the `VecF32`, `VecInt8`, and `VecBit` types. `VecF32` binds directly
+to vector functions and `vec0` tables; `VecInt8` and `VecBit` must be wrapped
+in SQL as `vec_int8(?)` and `vec_bit(?)`.
 
-  - `#[musq(rename_all = "...")]`: (On struct) Converts all field names to a specific case
-    style (e.g., `"camelCase"`, `"snake_case"`).
+```toml
+musq = { version = "0.0.3", default-features = false }  # opt out of vec
+```
 
-  - `#[musq(default)]`: Uses the field type's `Default::default()` value if the column is missing
-    from the result set.
+See the end-to-end example: `cargo run -p musq --example vec`.
 
-  - `#[musq(flatten)]`: Embeds another struct that also implements `FromRow`. This is useful for
-    mapping columns to a nested struct, especially from `JOIN`s.
+## SQLite runtime
 
-    If the flattened field is wrapped in an `Option`, it will be `None` if and only if **all**
-    columns for the nested struct are `NULL`.
+Musq supports exactly the SQLite release bundled by its `libsqlite3-sys`
+dependency — currently SQLite 3.53.2 via `libsqlite3-sys 0.38.1`. Linking
+against older or system SQLite libraries is not supported; leave
+`LIBSQLITE3_SYS_USE_PKG_CONFIG` and `SQLITE3_*` environment variables unset.
 
-    <!-- snips: crates/musq/examples/readme_snippets.rs#fromrow_fields -->
-    ```rust
-    #[derive(FromRow)]
-    struct Address {
-        street: String,
-        city: String,
-    }
+Runtime introspection and control:
 
-    #[derive(FromRow)]
-    struct User {
-        id: i32,
-        name: String,
-        // `address` will be `Some` if either `street` or `city` is not NULL.
-        // It will be `None` only if both `street` and `city` are NULL.
-        #[musq(flatten)]
-        address: Option<Address>,
-    }
-    ```
+- `runtime_info()` — SQLite version, source ID, and compile options
+- `db_status(kind, reset)` — per-connection status counters (page cache,
+  lookaside, schema, statements, ...)
+- `wal_checkpoint(schema, mode)` — run or inspect WAL checkpoints
 
-  - `#[musq(flatten, prefix = "prefix_")]`: Adds a prefix to all column names when
-    flattening a nested struct. This is useful for avoiding name collisions and can be
-    combined with `Option`.
+## Community
 
-    <!-- snips: crates/musq/examples/readme_snippets.rs#fromrow_flatten -->
-    ```rust
-    #[derive(FromRow)]
-    struct UserWithAddresses {
-        id: i32,
-        // Looks for `billing_street` and `billing_city`.
-        #[musq(flatten, prefix = "billing_")]
-        billing_address: Address,
+Questions, ideas, feature requests: [Discord](https://discord.gg/fHmRmuBDxF).
 
-        // Looks for `shipping_street` and `shipping_city`.
-        // Will be `None` if both are NULL.
-        #[musq(flatten, prefix = "shipping_")]
-        shipping_address: Option<Address>,
-    }
-    ```
-
-  - `#[musq(skip)]`: Always uses `Default::default()` for the field, ignoring the database.
-
-  - `#[musq(try_from = "database_type")]`: Converts a column from a specific database type
-    using `TryFrom`.
-
-
------
-
-
-## Development
-
-Just like whales once used to be land-dwelling quadrupeds, Musq started life as a
-focused fork of [SQLx](https://github.com/launchbadge/sqlx).
+Just like whales once used to be land-dwelling quadrupeds, Musq started life
+as a focused fork of [SQLx](https://github.com/launchbadge/sqlx).

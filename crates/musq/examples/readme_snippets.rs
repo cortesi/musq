@@ -2,11 +2,17 @@
 
 #![allow(dead_code, unused)]
 
-/// Demonstrate basic pool creation.
-async fn pool() -> musq::Result<()> {
-    // snips-start: pool
-    use musq::Musq;
-    let pool = Musq::new().max_connections(10).open_in_memory().await?;
+/// Demonstrate opening a database with options.
+async fn open() -> musq::Result<()> {
+    // snips-start: open
+    use musq::{JournalMode, Musq};
+
+    let pool = Musq::new()
+        .max_connections(10)
+        .create_if_missing(true)
+        .journal_mode(JournalMode::Wal)
+        .open("app.db")
+        .await?;
     // snips-end
     Ok(())
 }
@@ -14,7 +20,7 @@ async fn pool() -> musq::Result<()> {
 /// Demonstrate SQL query macros.
 async fn sql() -> musq::Result<()> {
     use musq::Musq;
-    let pool = Musq::new().max_connections(10).open_in_memory().await?;
+    let pool = Musq::new().open_in_memory().await?;
 
     {
         // snips-start: sql_basic
@@ -29,12 +35,10 @@ async fn sql() -> musq::Result<()> {
         let id = 1;
         let name = "Bob";
 
-        // Positional and named arguments
         sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
             .execute(&pool)
             .await?;
 
-        // Map results directly to a struct
         let user: User = sql_as!("SELECT id, name FROM users WHERE id = {id}")?
             .fetch_one(&pool)
             .await?;
@@ -45,7 +49,6 @@ async fn sql() -> musq::Result<()> {
         let user_ids = vec![1, 2, 3];
         let columns = ["id", "name"];
 
-        // Dynamic table and column identifiers
         let users: Vec<User> = sql_as!(
             "SELECT {idents:columns} FROM {ident:table_name} WHERE id IN ({values:user_ids})"
         )?
@@ -60,49 +63,25 @@ async fn sql() -> musq::Result<()> {
 /// Demonstrate value helpers and macros.
 async fn values() -> musq::Result<()> {
     use musq::{FromRow, Musq, Null, Values, sql, sql_as, values};
-    let pool = Musq::new().max_connections(10).open_in_memory().await?;
-
-    {
-        // snips-start: values-fluent
-        let vals = Values::new()
-            .val("id", 1)?
-            .val("name", "Alice")?
-            .val("status", "active")?;
-        // snips-end
-    }
-
-    {
-        // snips-start: values-macro
-        let vals = values! {
-            "id": 1,
-            "name": "Alice",
-            "status": "active"
-        }?;
-        // snips-end
-    }
-
-    {
-        // snips-start: values-optional
-        async fn add_user(pool: musq::Pool, name: &str, phone: Option<String>) -> musq::Result<()> {
-            let user_data = values! {
-                "name": name,
-                "phone": phone,  // Nullable field
-            }?;
-            sql!("INSERT INTO users {insert: user_data}")?
-                .execute(&pool)
-                .await?;
-            Ok(())
-        }
-        // snips-end
-    }
+    let pool = Musq::new().open_in_memory().await?;
 
     {
         // snips-start: values-null
-        use musq::{Null, values};
-        let user_data = values! {
-            "name": "Alice",
-            "email": Null,           // No type annotation needed
-        }?;
+        async fn add_user(
+            pool: &musq::Pool,
+            name: &str,
+            phone: Option<String>,
+        ) -> musq::Result<()> {
+            let user_data = values! {
+                "name": name,
+                "phone": phone,      // Option: None encodes as NULL
+                "email": musq::Null, // untyped NULL literal
+            }?;
+            sql!("INSERT INTO users {insert:user_data}")?
+                .execute(pool)
+                .await?;
+            Ok(())
+        }
         // snips-end
     }
 
@@ -161,6 +140,25 @@ async fn values() -> musq::Result<()> {
     Ok(())
 }
 
+/// Demonstrate transactions.
+async fn transactions() -> musq::Result<()> {
+    use musq::{Musq, sql};
+    let pool = Musq::new().open_in_memory().await?;
+
+    let id = 1;
+    let name = "Alice";
+
+    // snips-start: transaction
+    let mut tx = pool.begin().await?;
+    sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
+        .execute(&tx)
+        .await?;
+    tx.commit().await?;
+    // snips-end
+
+    Ok(())
+}
+
 /// Demonstrate derive macros for types.
 fn derives() {
     use musq::FromRow;
@@ -196,7 +194,7 @@ fn derives() {
     }
     // snips-end
 
-    // snips-start: fromrow_fields
+    // snips-start: flatten
     #[derive(FromRow)]
     struct Address {
         street: String,
@@ -206,39 +204,14 @@ fn derives() {
     #[derive(FromRow)]
     struct User {
         id: i32,
-        name: String,
-        // `address` will be `Some` if either `street` or `city` is not NULL.
-        // It will be `None` only if both `street` and `city` are NULL.
+        // Reads the `street` and `city` columns.
         #[musq(flatten)]
-        address: Option<Address>,
-    }
-    // snips-end
-
-    // snips-start: fromrow_flatten
-    #[derive(FromRow)]
-    struct UserWithAddresses {
-        id: i32,
-        // Looks for `billing_street` and `billing_city`.
+        address: Address,
+        // Reads `billing_street` and `billing_city`; None iff both are NULL.
         #[musq(flatten, prefix = "billing_")]
-        billing_address: Address,
-
-        // Looks for `shipping_street` and `shipping_city`.
-        // Will be `None` if both are NULL.
-        #[musq(flatten, prefix = "shipping_")]
-        shipping_address: Option<Address>,
+        billing: Option<Address>,
     }
     // snips-end
-
-    {
-        // snips-start: fromrow_basic
-        #[derive(FromRow, Debug)]
-        struct User {
-            id: i32,
-            name: String,
-            email: String,
-        }
-        // snips-end
-    }
 }
 
 /// Main entry point for running snippet examples locally.
