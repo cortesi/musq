@@ -1,15 +1,18 @@
+# Repository Instructions
 
+<!-- nanocode:standards:start -->
+## Shared coding standards
 
+- For tasks that change code or developer tooling, load and follow the
+  `nano-code` skill.
+- For Rust code, Cargo manifests, build scripts, tests, or validation, also load
+  and follow the `nano-rust` skill.
+- Repository-specific instructions in this file override those skill defaults.
+<!-- nanocode:standards:end -->
 
-## Build & Commands
+## Rust Validation
 
-- Always run "cargo test" before committing.
-- Always run "cargo clippy --fix --allow-dirty --tests --examples --benches"
-  and fix all warnings before committing.
-- Always run "cargo fmt" before committing.
-
-
-## Rust Guideance
-
-- Edition 2024 is now stable
-- Let chains are permitted
+- For Rust changes, run `cargo clippy --fix --allow-dirty --tests --examples
+  --benches` and resolve all warnings.
+- Format Rust changes with `cargo fmt`.
+- Run `cargo test` before a Rust commit.
