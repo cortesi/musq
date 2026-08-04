@@ -5,6 +5,7 @@ use std::{
     sync::atomic::Ordering,
 };
 
+pub use control::{DbStatus, DbStatusKind, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode};
 use either::Either;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
@@ -25,7 +26,6 @@ use crate::{
     statement_cache::StatementCache,
     transaction::Transaction,
 };
-pub use control::{DbStatus, DbStatusKind, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode};
 /// Connection diagnostics and control helpers.
 mod control;
 /// Connection establishment helpers.

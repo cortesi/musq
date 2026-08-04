@@ -2,10 +2,9 @@
 
 #[cfg(test)]
 mod tests {
-    use std::{io, path::Path};
-
     #[cfg(unix)]
     use std::{ffi::OsString, os::unix::ffi::OsStringExt};
+    use std::{io, path::Path};
 
     use musq::{Error, Musq, query, query_scalar};
     use tempdir::TempDir;
