@@ -9,6 +9,9 @@ keywords.workspace = true
 categories.workspace = true
 publish = false
 
+[lib]
+doctest = false
+
 [dependencies]
 musq.workspace = true
 anyhow = "1.0.26"

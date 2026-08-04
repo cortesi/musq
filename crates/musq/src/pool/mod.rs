@@ -7,7 +7,7 @@
 //! A connection pool is a standard technique that can manage opening and re-using connections.
 //! Normally it also enforces a maximum number of connections as these are an expensive resource,
 //! even when working with SQLite.
-use std::{fmt, future::Future, sync::Arc};
+use std::{fmt, future::Future, io, path::Path, sync::Arc};
 
 use self::inner::PoolInner;
 use crate::{
@@ -122,6 +122,43 @@ impl Pool {
     ) -> Result<WalCheckpoint> {
         let conn = self.acquire().await?;
         conn.wal_checkpoint(schema, mode).await
+    }
+
+    /// Copy the main database into a new SQLite database file.
+    ///
+    /// SQLite creates a compact, transactionally consistent snapshot. It accepts a destination
+    /// that does not exist or an existing empty file. It rejects an existing non-empty file.
+    ///
+    /// SQLite waits for required database locks according to [`crate::Musq::busy_timeout`]. If the
+    /// database stays busy, or another SQLite operation fails, this method returns [`Error::Sqlite`].
+    /// SQLite can leave an incomplete destination after some failures. The caller must not publish
+    /// the destination until this method returns successfully.
+    ///
+    /// # Errors
+    ///
+    /// This method returns [`Error::Io`] with [`io::ErrorKind::InvalidData`] if the destination is
+    /// not valid UTF-8 or contains a nul byte. It returns [`Error::Sqlite`] for destination-file,
+    /// locking, and other SQLite failures.
+    pub async fn vacuum_into(&self, destination: impl AsRef<Path>) -> Result<()> {
+        let destination = destination.as_ref().to_str().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "filename passed to SQLite must be valid UTF-8",
+            )
+        })?;
+        if destination.contains('\0') {
+            return Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "filename passed to SQLite must not contain nul bytes",
+            )
+            .into());
+        }
+
+        crate::query("VACUUM INTO ?")
+            .try_bind(destination)?
+            .execute(self)
+            .await?;
+        Ok(())
     }
 
     /// Attempts to retrieve a connection and immediately begins a new transaction if successful.

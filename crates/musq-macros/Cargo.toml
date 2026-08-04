@@ -12,6 +12,7 @@ exclude = ["tests_disabled/**"]
 
 [lib]
 proc-macro = true
+doctest = false
 
 [dependencies]
 darling = "0.23"
