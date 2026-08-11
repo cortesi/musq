@@ -10,3 +10,12 @@ fn derive_json_struct() {
     assert!(s.contains("impl :: musq :: encode :: Encode for Foo"));
     assert!(s.contains("impl < 'r > :: musq :: decode :: Decode < 'r > for Foo"));
 }
+
+#[test]
+fn derive_json_enum() {
+    let txt = "enum Foo { Unit, Tuple(i32), Named { value: String } }";
+    let tokens = expand_json(&parse_str(txt).unwrap()).unwrap();
+    let s = tokens.to_string();
+    assert!(s.contains("impl :: musq :: encode :: Encode for Foo"));
+    assert!(s.contains("impl < 'r > :: musq :: decode :: Decode < 'r > for Foo"));
+}

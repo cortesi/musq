@@ -98,7 +98,7 @@ impl RenameAll {
 
 /// Parsed inputs for `Json` derives.
 #[derive(Debug, FromDeriveInput)]
-#[darling(supports(struct_named, struct_tuple))]
+#[darling(supports(struct_named, struct_tuple, enum_any))]
 pub struct JsonContainer {
     /// Type identifier.
     pub ident: syn::Ident,

@@ -14,6 +14,13 @@ mod tests {
         b: i32,
     }
 
+    #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, Json)]
+    #[serde(tag = "kind", rename_all = "snake_case")]
+    enum JsonEnum {
+        Unit,
+        Tuple { value: String },
+    }
+
     #[derive(Debug, PartialEq, Codec)]
     enum PlainEnum {
         Foo,
@@ -238,6 +245,13 @@ mod tests {
         r#"'{"a":"1","b":1}'"# == JsonType {
             a: "1".into(),
             b: 1,
+        },
+    ));
+
+    test_type!(json_enum<JsonEnum>(
+        r#"'{"kind":"unit"}'"# == JsonEnum::Unit,
+        r#"'{"kind":"tuple","value":"data"}'"# == JsonEnum::Tuple {
+            value: "data".into(),
         },
     ));
 }
