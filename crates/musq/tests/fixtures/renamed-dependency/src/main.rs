@@ -1,4 +1,4 @@
-use renamed_musq::{Decode, Encode, FromRow, Json, sql, sql_as};
+use renamed_musq::{Codec, Decode, Encode, FromRow, Json, sql, sql_as};
 
 #[derive(FromRow)]
 #[allow(dead_code)]
@@ -19,6 +19,20 @@ struct Payload {
     value: String,
 }
 
+#[derive(Codec)]
+#[musq(try_from = "String")]
+struct Identifier(String);
+
+impl TryFrom<String> for Identifier {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        (!value.is_empty())
+            .then_some(Self(value))
+            .ok_or("empty identifier")
+    }
+}
+
 fn main() -> renamed_musq::Result<()> {
     let id = 1_i32;
     let name = "Ada";
@@ -35,6 +49,7 @@ fn main() -> renamed_musq::Result<()> {
         id,
         name: name.to_string(),
     };
+    let _ = Identifier::try_from(name.to_string());
 
     Ok(())
 }

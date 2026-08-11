@@ -7,8 +7,8 @@ mod tests {
     use std::result::Result as StdResult;
 
     use musq::{
-        Error, Result as MusqResult, Value, Values, encode::Encode, error::EncodeError, sql,
-        sql_as, values,
+        Error, QueryBuilder, Result as MusqResult, Value, Values, encode::Encode,
+        error::EncodeError, sql, sql_as, values,
     };
 
     use crate::support::connection;
@@ -303,6 +303,50 @@ mod tests {
             .fetch_one(&conn)
             .await?;
         assert_eq!(row, ("a".into(), 2));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn runtime_builder_inserts_and_upserts_ordered_values() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        sql!(
+            "CREATE TABLE runtime_upsert(\
+             id INTEGER PRIMARY KEY, name TEXT, created_at TEXT, status TEXT\
+             )"
+        )?
+        .execute(&conn)
+        .await?;
+
+        let initial = Values::new()
+            .val("id", 1)?
+            .val("name", "Ada")?
+            .val("created_at", "first")?
+            .val("status", "active")?;
+        let mut builder = QueryBuilder::new();
+        builder.push_sql("INSERT INTO runtime_upsert ");
+        builder.push_insert(&initial)?;
+        builder.build().execute(&conn).await?;
+
+        let update = Values::new()
+            .val("id", 1)?
+            .val("name", "Grace")?
+            .val("created_at", "second")?
+            .val("status", "inactive")?;
+        let mut builder = QueryBuilder::new();
+        builder.push_sql("INSERT INTO runtime_upsert ");
+        builder.push_insert(&update)?;
+        builder.push_sql(" ON CONFLICT(id) DO UPDATE SET ");
+        builder.push_upsert(&update, &["id", "created_at"])?;
+        builder.build().execute(&conn).await?;
+
+        let stored: (i64, String, String, String) =
+            sql_as!("SELECT id, name, created_at, status FROM runtime_upsert WHERE id = 1")?
+                .fetch_one(&conn)
+                .await?;
+        assert_eq!(
+            stored,
+            (1, "Grace".into(), "first".into(), "inactive".into())
+        );
         Ok(())
     }
 

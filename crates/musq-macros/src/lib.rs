@@ -15,7 +15,7 @@ mod sql;
 
 /// Build combined encode/decode tokens for the `Codec` derive.
 fn derive_codec_tokens(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
-    let encode_tts = encode::expand_derive_encode(input)?;
+    let encode_tts = encode::expand_codec_encode(input)?;
     let decode_tts = decode::expand_derive_decode(input)?;
     Ok(proc_macro2::TokenStream::from_iter(
         encode_tts.into_iter().chain(decode_tts),

@@ -148,7 +148,7 @@ encoded immediately, so construction returns `Result`.
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values -->
 ```rust
-use musq::{Values, sql, sql_as, values};
+use musq::{QueryBuilder, Values, sql, sql_as, values};
 
 let user_data = values! { "id": 1, "name": "Alice", "status": "active" }?;
 
@@ -175,6 +175,17 @@ sql!(
 )?
 .execute(&pool)
 .await?;
+
+let runtime_values = Values::new()
+    .val("id", 1)?
+    .val("name", "Alice")?
+    .val("status", "active")?;
+let mut builder = QueryBuilder::new();
+builder.push_sql("INSERT INTO users ");
+builder.push_insert(&runtime_values)?;
+builder.push_sql(" ON CONFLICT(id) DO UPDATE SET ");
+builder.push_upsert(&runtime_values, &["id"])?;
+builder.build().execute(&pool).await?;
 ```
 
 `Option::None` encodes as SQL `NULL` everywhere (`{where:}` renders it as
@@ -241,11 +252,13 @@ The `Encode` and `Decode` traits convert between Rust and SQLite types:
 | ---------------------------------- | ----------- |
 | `bool`                             | BOOLEAN     |
 | `i8`, `i16`, `i32`, `i64`          | INTEGER     |
-| `u8`, `u16`, `u32`                 | INTEGER     |
+| `u8`, `u16`, `u32`, `u64`, `usize` | INTEGER     |
 | `f32`, `f64`                       | REAL        |
 | `&str`, `String`, `Arc<String>`    | TEXT        |
 | `&[u8]`, `Vec<u8>`, `Arc<Vec<u8>>` | BLOB        |
 | `bstr::BString`                    | BLOB        |
+| `Path`, `PathBuf`                  | TEXT        |
+| `serde_json::Value`                | TEXT        |
 | `time::OffsetDateTime`             | DATETIME    |
 | `time::PrimitiveDateTime`          | DATETIME    |
 | `time::Date`                       | DATE        |
@@ -256,6 +269,14 @@ The `Encode` and `Decode` traits convert between Rust and SQLite types:
 or shared types (`String`, `Vec<u8>`, `Arc<T>`) to avoid copies; blobs can be
 decoded directly into `Arc<Vec<u8>>`. `bstr::BString` handles text-like BLOBs
 that may not be valid UTF-8.
+
+Encoding a `u64` or `usize` above `i64::MAX` returns an error. Decode rejects
+negative values for all unsigned integer types. Use `try_bind` when an input can
+exceed SQLite's signed integer range.
+
+`OffsetDateTime` preserves its RFC 3339 offset and fractional precision. Its
+TEXT encoding does not provide chronological lexical order. Use a normalized,
+fixed-width domain type for a sortable database key.
 
 ### Derived types
 
@@ -292,6 +313,23 @@ Newtype structs store as their inner value:
 ```rust
 #[derive(musq::Codec, Debug, PartialEq)]
 struct UserId(i32);
+```
+
+A checked newtype can decode another supported type through `TryFrom`:
+
+<!-- snips: crates/musq/examples/readme_snippets.rs#checked_newtype -->
+```rust
+#[derive(musq::Codec, Debug, PartialEq)]
+#[musq(try_from = "String")]
+struct CheckedUserId(String);
+
+impl TryFrom<String> for CheckedUserId {
+    type Error = &'static str;
+
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        value.starts_with("user-").then_some(Self(value)).ok_or("invalid user ID")
+    }
+}
 ```
 
 `#[derive(musq::Json)]` stores any serde-compatible type as JSON text:

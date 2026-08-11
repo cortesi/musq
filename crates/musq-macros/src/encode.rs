@@ -6,7 +6,23 @@ use super::core;
 
 /// Expand an `Encode` derive into the corresponding implementation.
 pub fn expand_derive_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
-    core::expand_type_derive(input, &expand_struct, &expand_repr_enum, &expand_enum)
+    expand(input, false)
+}
+
+/// Expand the encode half of a `Codec` derive.
+pub fn expand_codec_encode(input: &DeriveInput) -> syn::Result<TokenStream> {
+    expand(input, true)
+}
+
+/// Expand an encode implementation with the selected checked-decode policy.
+fn expand(input: &DeriveInput, allow_try_from: bool) -> syn::Result<TokenStream> {
+    core::expand_type_derive(
+        input,
+        allow_try_from,
+        &expand_struct,
+        &expand_repr_enum,
+        &expand_enum,
+    )
 }
 
 /// Expand a string-backed enum encode implementation.

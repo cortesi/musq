@@ -107,7 +107,7 @@ async fn values() -> musq::Result<()> {
         }
 
         // snips-start: values
-        use musq::{Values, sql, sql_as, values};
+        use musq::{QueryBuilder, Values, sql, sql_as, values};
 
         let user_data = values! { "id": 1, "name": "Alice", "status": "active" }?;
 
@@ -134,6 +134,17 @@ async fn values() -> musq::Result<()> {
         )?
         .execute(&pool)
         .await?;
+
+        let runtime_values = Values::new()
+            .val("id", 1)?
+            .val("name", "Alice")?
+            .val("status", "active")?;
+        let mut builder = QueryBuilder::new();
+        builder.push_sql("INSERT INTO users ");
+        builder.push_insert(&runtime_values)?;
+        builder.push_sql(" ON CONFLICT(id) DO UPDATE SET ");
+        builder.push_upsert(&runtime_values, &["id"])?;
+        builder.build().execute(&pool).await?;
         // snips-end
     }
 
@@ -184,6 +195,23 @@ fn derives() {
     // snips-start: newtype
     #[derive(musq::Codec, Debug, PartialEq)]
     struct UserId(i32);
+    // snips-end
+
+    // snips-start: checked_newtype
+    #[derive(musq::Codec, Debug, PartialEq)]
+    #[musq(try_from = "String")]
+    struct CheckedUserId(String);
+
+    impl TryFrom<String> for CheckedUserId {
+        type Error = &'static str;
+
+        fn try_from(value: String) -> Result<Self, Self::Error> {
+            value
+                .starts_with("user-")
+                .then_some(Self(value))
+                .ok_or("invalid user ID")
+        }
+    }
     // snips-end
 
     // snips-start: json

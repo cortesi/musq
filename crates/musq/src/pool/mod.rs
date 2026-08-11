@@ -11,7 +11,8 @@ use std::{fmt, future::Future, io, path::Path, sync::Arc};
 
 use self::inner::PoolInner;
 use crate::{
-    Error, Result, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode, transaction::Transaction,
+    Error, ForeignKeyViolation, IntegrityReport, Result, SqliteRuntimeInfo, WalCheckpoint,
+    WalCheckpointMode, transaction::Transaction,
 };
 
 /// Pool connection wrappers and lifecycle helpers.
@@ -112,6 +113,24 @@ impl Pool {
     pub async fn runtime_info(&self) -> Result<SqliteRuntimeInfo> {
         let conn = self.acquire().await?;
         conn.runtime_info().await
+    }
+
+    /// Run SQLite's full integrity check through one pooled connection.
+    pub async fn integrity_check(&self) -> Result<IntegrityReport> {
+        let conn = self.acquire().await?;
+        conn.integrity_check().await
+    }
+
+    /// Run SQLite's faster integrity check through one pooled connection.
+    pub async fn quick_check(&self) -> Result<IntegrityReport> {
+        let conn = self.acquire().await?;
+        conn.quick_check().await
+    }
+
+    /// Return all foreign-key violations visible to one pooled connection.
+    pub async fn foreign_key_check(&self) -> Result<Vec<ForeignKeyViolation>> {
+        let conn = self.acquire().await?;
+        conn.foreign_key_check().await
     }
 
     /// Run a WAL checkpoint or inspect WAL status through a pooled connection.

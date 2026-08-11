@@ -1,0 +1,5 @@
+error: `try_from` is not supported on Encode derives
+ --> tests/trybuild/fail_encode_try_from.rs:5:8
+  |
+5 | struct Id(String);
+  |        ^^

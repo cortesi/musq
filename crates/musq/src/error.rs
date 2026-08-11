@@ -156,6 +156,29 @@ pub enum Error {
 }
 
 impl Error {
+    /// Return the primary and extended SQLite codes without consuming the error.
+    pub fn sqlite_codes(&self) -> Option<(PrimaryErrCode, ExtendedErrCode)> {
+        match self {
+            Self::Sqlite {
+                primary, extended, ..
+            } => Some((*primary, *extended)),
+            _ => None,
+        }
+    }
+
+    /// Returns `true` if this error represents a busy SQLite database.
+    pub fn is_busy(&self) -> bool {
+        self.sqlite_codes().is_some_and(|(primary, extended)| {
+            primary == PrimaryErrCode::Busy || extended.is_busy()
+        })
+    }
+
+    /// Returns `true` if this error represents a SQLite unique-value conflict.
+    pub fn is_unique_violation(&self) -> bool {
+        self.sqlite_codes()
+            .is_some_and(|(_, extended)| extended.is_unique_violation())
+    }
+
     /// Convert this error into a SQLite error if it originated there.
     pub fn into_sqlite_error(self) -> Option<sqlite::error::SqliteError> {
         match self {

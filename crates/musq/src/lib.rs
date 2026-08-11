@@ -14,8 +14,15 @@ mod enum_mode;
 
 pub use musq_macros::*;
 
+#[doc(hidden)]
+pub mod __private {
+    pub use serde_json;
+}
+
 /// Column metadata utilities.
 mod column;
+/// Typed condition collection.
+mod conditions;
 /// Debug formatting helpers.
 mod debugfn;
 /// Decoding support for database values.
@@ -59,6 +66,7 @@ pub mod types;
 #[cfg_attr(docsrs, doc(cfg(feature = "vec")))]
 pub use crate::types::vec::{VecBit, VecF32, VecInt8};
 pub use crate::{
+    conditions::Conditions,
     encode::Null,
     error::{DecodeError, EncodeError, Error, Result},
     executor::Execute,
@@ -74,8 +82,9 @@ pub use crate::{
     query_result::QueryResult,
     row::Row,
     sqlite::{
-        Arguments, Connection, DbStatus, DbStatusKind, Prepared, SqliteDataType, SqliteError,
-        SqliteRuntimeInfo, Value, WalCheckpoint, WalCheckpointMode,
+        Arguments, Connection, DbStatus, DbStatusKind, ForeignKeyViolation, IntegrityReport,
+        Prepared, SqliteDataType, SqliteError, SqliteRuntimeInfo, Value, WalCheckpoint,
+        WalCheckpointMode,
     },
     transaction::Transaction,
     values::{IntoValuesEntry, Values, ValuesEntry},

@@ -7,7 +7,7 @@ use crate::{
     error::{DecodeError, EncodeError},
 };
 
-impl Encode for &[u8] {
+impl Encode for [u8] {
     fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Blob {
             value: self.to_vec().into(),
@@ -25,10 +25,7 @@ impl<'r> Decode<'r> for &'r [u8] {
 
 impl Encode for Vec<u8> {
     fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Blob {
-            value: self.clone().into(),
-            type_info: None,
-        })
+        self.as_slice().encode()
     }
 }
 

@@ -362,6 +362,14 @@ impl ExtendedErrCode {
             Self::BusyRecovery | Self::BusySnapshot | Self::BusyTimeout
         )
     }
+
+    /// Returns `true` when this code represents a unique-value conflict.
+    pub(crate) fn is_unique_violation(&self) -> bool {
+        matches!(
+            self,
+            Self::ConstraintPrimaryKey | Self::ConstraintUnique | Self::ConstraintRowId
+        )
+    }
 }
 
 /// An error returned from Sqlite
@@ -394,8 +402,18 @@ impl SqliteError {
     }
 
     /// Returns `true` if the error represents a busy condition.
-    pub(crate) fn is_busy(&self) -> bool {
+    pub fn is_busy(&self) -> bool {
         self.primary == PrimaryErrCode::Busy || self.extended.is_busy()
+    }
+
+    /// Returns `true` if the error represents a unique-value conflict.
+    pub fn is_unique_violation(&self) -> bool {
+        self.extended.is_unique_violation()
+    }
+
+    /// Return the primary and extended SQLite error codes.
+    pub fn codes(&self) -> (PrimaryErrCode, ExtendedErrCode) {
+        (self.primary, self.extended)
     }
 
     /// Returns `true` if the error indicates a retryable condition.

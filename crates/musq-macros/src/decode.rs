@@ -6,7 +6,7 @@ use super::core;
 
 /// Expand a `Decode` derive into the corresponding implementation.
 pub fn expand_derive_decode(input: &DeriveInput) -> syn::Result<TokenStream> {
-    core::expand_type_derive(input, &expand_struct, &expand_repr_enum, &expand_enum)
+    core::expand_type_derive(input, true, &expand_struct, &expand_repr_enum, &expand_enum)
 }
 
 /// Expand a tuple struct decode implementation.
@@ -16,6 +16,7 @@ fn expand_struct(
 ) -> syn::Result<TokenStream> {
     let ident = &container.ident;
     let ty = &field.ty;
+    let decoded_ty = container.try_from.as_ref().unwrap_or(ty);
     let musq = core::musq_path();
 
     // extract type generics
@@ -28,8 +29,30 @@ fn expand_struct(
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#ty: #musq::decode::Decode<'r>));
+        .push(parse_quote!(#decoded_ty: #musq::decode::Decode<'r>));
+    if container.try_from.is_some() {
+        generics.make_where_clause().predicates.push(parse_quote!(
+            #ident #ty_generics: ::std::convert::TryFrom<#decoded_ty>
+        ));
+        generics.make_where_clause().predicates.push(parse_quote!(
+            <#ident #ty_generics as ::std::convert::TryFrom<#decoded_ty>>::Error:
+                ::std::fmt::Display
+        ));
+    }
     let (impl_generics, _, where_clause) = generics.split_for_impl();
+
+    let decode = if container.try_from.is_some() {
+        quote! {
+            let decoded = <#decoded_ty as #musq::decode::Decode<'r>>::decode(value)?;
+            <Self as ::std::convert::TryFrom<#decoded_ty>>::try_from(decoded).map_err(|error| {
+                #musq::DecodeError::Conversion(::std::string::ToString::to_string(&error))
+            })
+        }
+    } else {
+        quote! {
+            <#ty as #musq::decode::Decode<'r>>::decode(value).map(Self)
+        }
+    };
 
     let tts = quote!(
         #[automatically_derived]
@@ -40,7 +63,7 @@ fn expand_struct(
                 Self,
                 #musq::DecodeError,
             > {
-                <#ty as #musq::decode::Decode<'r>>::decode(value).map(Self)
+                #decode
             }
         }
     );
@@ -175,6 +198,12 @@ mod tests {
 
         let txt = r#"
             struct Foo(i32);
+        "#;
+        expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
+
+        let txt = r#"
+            #[musq(try_from = "String")]
+            struct Foo(String);
         "#;
         expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
     }

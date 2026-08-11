@@ -41,6 +41,92 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn integrity_checks_report_clean_databases() -> anyhow::Result<()> {
+        let pool = Musq::new().open_in_memory().await?;
+
+        let integrity = pool.integrity_check().await?;
+        assert!(integrity.is_ok(), "{integrity:?}");
+        assert_eq!(integrity.messages, ["ok"]);
+
+        let quick = pool.quick_check().await?;
+        assert!(quick.is_ok(), "{quick:?}");
+        assert_eq!(quick.messages, ["ok"]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn foreign_key_check_retains_all_rows_and_without_rowid_null() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        query("PRAGMA foreign_keys = OFF").execute(&conn).await?;
+        query("CREATE TABLE parent(id INTEGER PRIMARY KEY)")
+            .execute(&conn)
+            .await?;
+        query(
+            "CREATE TABLE child(id INTEGER PRIMARY KEY, parent_id INTEGER REFERENCES parent(id))",
+        )
+        .execute(&conn)
+        .await?;
+        query(
+            "CREATE TABLE child_without_rowid(\
+             id TEXT PRIMARY KEY, parent_id INTEGER REFERENCES parent(id)\
+             ) WITHOUT ROWID",
+        )
+        .execute(&conn)
+        .await?;
+        query("INSERT INTO child VALUES (1, 10), (2, 20)")
+            .execute(&conn)
+            .await?;
+        query("INSERT INTO child_without_rowid VALUES ('a', 30)")
+            .execute(&conn)
+            .await?;
+
+        let violations = conn.foreign_key_check().await?;
+        assert_eq!(violations.len(), 3);
+        assert!(violations.iter().any(|row| row.row_id == Some(1)));
+        assert!(violations.iter().any(|row| row.row_id == Some(2)));
+        assert!(
+            violations
+                .iter()
+                .any(|row| row.table == "child_without_rowid" && row.row_id.is_none())
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn transaction_check_sees_its_deferred_violation() -> anyhow::Result<()> {
+        let dir = TempDir::new("musq-foreign-key-transaction")?;
+        let path = dir.path().join("foreign-keys.db");
+        let pool = Musq::new()
+            .create_if_missing(true)
+            .max_connections(2)
+            .open(&path)
+            .await?;
+        query("CREATE TABLE parent(id INTEGER PRIMARY KEY)")
+            .execute(&pool)
+            .await?;
+        query(
+            "CREATE TABLE child(\
+             id INTEGER PRIMARY KEY,\
+             parent_id INTEGER REFERENCES parent(id) DEFERRABLE INITIALLY DEFERRED\
+             )",
+        )
+        .execute(&pool)
+        .await?;
+
+        let mut transaction = pool.begin().await?;
+        query("INSERT INTO child VALUES (1, 99)")
+            .execute(&transaction)
+            .await?;
+        let current = transaction.foreign_key_check().await?;
+        assert_eq!(current.len(), 1);
+
+        let other = pool.foreign_key_check().await?;
+        assert!(other.is_empty());
+        transaction.rollback().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn db_status_reports_statement_cache_memory() -> anyhow::Result<()> {
         let conn = connection().await?;
 

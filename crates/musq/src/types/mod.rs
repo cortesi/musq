@@ -12,6 +12,8 @@
 //! | `u8`                                  | INTEGER             |
 //! | `u16`                                 | INTEGER             |
 //! | `u32`                                 | INTEGER             |
+//! | `u64`                                 | INTEGER             |
+//! | `usize`                               | INTEGER             |
 //! | `f32`                                 | REAL                |
 //! | `f64`                                 | REAL                |
 //! | `&str`, [`String`]                    | TEXT                |
@@ -24,20 +26,20 @@
 //! | `time::Date`                          | DATE                |
 //! | `time::Time`                          | TIME                |
 //! | `bstr::BString`                       | BLOB                |
+//! | `std::path::Path`, `PathBuf`           | TEXT                |
+//! | `serde_json::Value`                    | TEXT                |
 //!
 //! `*` Requires the `vec` feature.
 //!
 //! #### Note: Unsigned Integers
 //!
-//! The unsigned integer types `u8`, `u16` and `u32` are implemented by zero-extending to the next-larger signed type.
-//! So `u8` becomes `i16`, `u16` becomes `i32`, and `u32` becomes `i64` while still retaining their semantic values.
+//! The unsigned integer types use SQLite's signed 64-bit integer storage. Encoding a `u64` or
+//! `usize` value above `i64::MAX` returns an error. Decoding any negative value returns an error.
 //!
 //! SQLite stores integers in a variable-width encoding and always handles them in memory as 64-bit signed values, so no
 //! space is wasted by this implicit widening.
 //!
-//! There is no corresponding larger type for `u64` in SQLite (it would require a `i128`), and so it is not supported.
-//! Bit-casting it to `i64` or storing it as `REAL`, `BLOB` or `TEXT` would change the semantics of the value in SQL and
-//! so violates the principle of least surprise.
+//! Values outside SQLite's signed integer range are not stored as `REAL`, `BLOB`, or `TEXT`.
 //!
 //! # Nullable
 //!
@@ -56,6 +58,10 @@ macro_rules! compatible {
 
 /// Conversions for `bstr` text types.
 pub mod bstr;
+/// JSON value conversions.
+mod json;
+/// Filesystem path conversions.
+mod path;
 /// Conversions for `time` crate types.
 pub mod time;
 /// Vector conversions for sqlite-vec (`feature = "vec"`).

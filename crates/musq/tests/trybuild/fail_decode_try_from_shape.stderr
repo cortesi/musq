@@ -1,0 +1,8 @@
+error: structs must have exactly one unnamed field
+ --> tests/trybuild/fail_decode_try_from_shape.rs:4:1
+  |
+4 | / #[musq(try_from = "String")]
+5 | | struct Id {
+6 | |     value: String,
+7 | | }
+  | |_^

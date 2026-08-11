@@ -8,6 +8,33 @@ use libsqlite3_sys::{
     SQLITE_DBSTATUS_SCHEMA_USED, SQLITE_DBSTATUS_STMT_USED, SQLITE_DBSTATUS_TEMPBUF_SPILL,
 };
 
+/// Messages returned by a SQLite integrity check.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct IntegrityReport {
+    /// All messages in SQLite result order.
+    pub messages: Vec<String>,
+}
+
+impl IntegrityReport {
+    /// Returns `true` when SQLite reports no integrity error.
+    pub fn is_ok(&self) -> bool {
+        self.messages.as_slice() == ["ok"]
+    }
+}
+
+/// One row returned by `PRAGMA foreign_key_check`.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct ForeignKeyViolation {
+    /// Child table that contains the invalid reference.
+    pub table: String,
+    /// Child row identifier, or `None` for a `WITHOUT ROWID` table.
+    pub row_id: Option<i64>,
+    /// Referenced parent table.
+    pub parent: String,
+    /// Index of the failed foreign-key constraint.
+    pub foreign_key_index: i64,
+}
+
 /// Runtime identity and compile options for the bundled SQLite library.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct SqliteRuntimeInfo {
@@ -122,4 +149,25 @@ pub struct WalCheckpoint {
     pub log_frames: Option<i32>,
     /// Frames checkpointed from the WAL, or `None` when SQLite reports `-1`.
     pub checkpointed_frames: Option<i32>,
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn integrity_report_retains_all_messages() {
+        let report = IntegrityReport {
+            messages: vec!["first".into(), "second".into()],
+        };
+        assert_eq!(report.messages, ["first", "second"]);
+        assert!(!report.is_ok());
+
+        assert!(
+            IntegrityReport {
+                messages: vec!["ok".into()]
+            }
+            .is_ok()
+        );
+    }
 }

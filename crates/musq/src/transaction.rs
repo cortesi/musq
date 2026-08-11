@@ -5,7 +5,7 @@ use std::{
 
 use futures_core::future::BoxFuture;
 
-use crate::{Connection, Result};
+use crate::{Connection, PoolConnection, Result};
 
 /// An in-progress database transaction or savepoint.
 ///
@@ -25,7 +25,7 @@ use crate::{Connection, Result};
 ///
 /// [`commit()`]: Self::commit()
 /// [`rollback()`]: Self::rollback()
-pub struct Transaction<C>
+pub struct Transaction<C = PoolConnection>
 where
     C: DerefMut<Target = Connection> + Send,
 {

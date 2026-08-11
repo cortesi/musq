@@ -5,7 +5,10 @@ use std::{
     sync::atomic::Ordering,
 };
 
-pub use control::{DbStatus, DbStatusKind, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode};
+pub use control::{
+    DbStatus, DbStatusKind, ForeignKeyViolation, IntegrityReport, SqliteRuntimeInfo, WalCheckpoint,
+    WalCheckpointMode,
+};
 use either::Either;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
@@ -184,6 +187,39 @@ impl Connection {
             source_id,
             compile_options,
         })
+    }
+
+    /// Run SQLite's full integrity check on this connection.
+    pub async fn integrity_check(&self) -> Result<IntegrityReport> {
+        self.integrity_report("PRAGMA integrity_check").await
+    }
+
+    /// Run SQLite's faster integrity check on this connection.
+    pub async fn quick_check(&self) -> Result<IntegrityReport> {
+        self.integrity_report("PRAGMA quick_check").await
+    }
+
+    /// Return all foreign-key violations visible to this connection.
+    pub async fn foreign_key_check(&self) -> Result<Vec<ForeignKeyViolation>> {
+        let rows: Vec<(String, Option<i64>, String, i64)> =
+            query_as("PRAGMA foreign_key_check").fetch_all(self).await?;
+        Ok(rows
+            .into_iter()
+            .map(
+                |(table, row_id, parent, foreign_key_index)| ForeignKeyViolation {
+                    table,
+                    row_id,
+                    parent,
+                    foreign_key_index,
+                },
+            )
+            .collect())
+    }
+
+    /// Collect each message from one SQLite integrity pragma.
+    async fn integrity_report(&self, pragma: &str) -> Result<IntegrityReport> {
+        let messages = query_scalar(pragma).fetch_all(self).await?;
+        Ok(IntegrityReport { messages })
     }
 
     /// Return a per-connection SQLite status counter.

@@ -15,6 +15,10 @@ use crate::{
 };
 
 impl Encode for OffsetDateTime {
+    /// Encode as RFC 3339 text while preserving offset and fractional precision.
+    ///
+    /// This representation does not provide chronological lexical order. Use a
+    /// normalized, fixed-width domain type when TEXT order must match time order.
     fn encode(&self) -> Result<Value, EncodeError> {
         let formatted = self.format(&Rfc3339).map_err(|e| {
             EncodeError::Conversion(format!("failed to format OffsetDateTime: {e}"))
@@ -215,6 +219,38 @@ mod tests {
         let encoded = dt.encode().unwrap();
         let decoded: OffsetDateTime = Decode::decode(&encoded).unwrap();
         assert_eq!(dt, decoded);
+    }
+
+    #[test]
+    fn offset_datetime_text_is_not_a_sortable_key() {
+        let earlier = datetime!(2024-01-01 00:00:00 +14:00);
+        let later = datetime!(2023-12-31 23:00:00 -12:00);
+        assert!(earlier < later);
+
+        let earlier_text = earlier.encode().unwrap().text().unwrap().to_owned();
+        let later_text = later.encode().unwrap().text().unwrap().to_owned();
+        assert!(earlier_text > later_text);
+
+        let same_utc = earlier.to_offset(UtcOffset::UTC);
+        assert_eq!(earlier, same_utc);
+        assert_ne!(
+            earlier.encode().unwrap().text().unwrap(),
+            same_utc.encode().unwrap().text().unwrap()
+        );
+    }
+
+    #[test]
+    fn offset_datetime_preserves_fractional_precision() {
+        let whole = datetime!(2024-01-01 00:00:00 UTC);
+        let nanos = datetime!(2024-01-01 00:00:00.999999999 UTC);
+        assert_eq!(
+            whole.encode().unwrap().text().unwrap(),
+            "2024-01-01T00:00:00Z"
+        );
+        assert_eq!(
+            nanos.encode().unwrap().text().unwrap(),
+            "2024-01-01T00:00:00.999999999Z"
+        );
     }
 
     #[test]

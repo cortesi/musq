@@ -242,6 +242,8 @@ pub struct TypeContainer {
     pub rename_all: RenameAll,
     /// Optional representation attribute.
     pub repr: Option<Type>,
+    /// Optional checked source type for a tuple-newtype decode.
+    pub try_from: Option<Type>,
 }
 
 /// Parsed attributes for a single enum variant.
@@ -294,11 +296,18 @@ type ExpandReprEnumFn = dyn Fn(&TypeContainer, &[TypeVariant], &Type) -> syn::Re
 /// Expand derive input into the appropriate macro output.
 pub fn expand_type_derive(
     input: &DeriveInput,
+    allow_try_from: bool,
     expand_struct: &dyn Fn(&TypeContainer, &TypeField) -> syn::Result<TokenStream>,
     expand_repr_enum: &ExpandReprEnumFn,
     expand_enum: &dyn Fn(&TypeContainer, &[TypeVariant]) -> syn::Result<TokenStream>,
 ) -> syn::Result<TokenStream> {
     let attrs = TypeContainer::from_derive_input(input)?;
+    if attrs.try_from.is_some() && !allow_try_from {
+        return span_err!(
+            &attrs.ident,
+            "`try_from` is not supported on Encode derives"
+        );
+    }
     Ok(match &attrs.data {
         ast::Data::Struct(fields) => {
             if fields.is_empty() {
@@ -314,13 +323,21 @@ pub fn expand_type_derive(
             }
             expand_struct(&attrs, fields.iter().next().unwrap())?
         }
-        ast::Data::Enum(v) => match &attrs.repr {
-            Some(t) => {
-                check_repr_enum_attrs(&attrs)?;
-                expand_repr_enum(&attrs, v, t)?
+        ast::Data::Enum(v) => {
+            if attrs.try_from.is_some() {
+                return span_err!(
+                    &attrs.ident,
+                    "`try_from` is supported only on tuple newtypes"
+                );
             }
-            None => expand_enum(&attrs, v)?,
-        },
+            match &attrs.repr {
+                Some(t) => {
+                    check_repr_enum_attrs(&attrs)?;
+                    expand_repr_enum(&attrs, v, t)?
+                }
+                None => expand_enum(&attrs, v)?,
+            }
+        }
     })
 }
 
@@ -340,5 +357,9 @@ mod tests {
         "#;
         let parsed = syn::parse_str(good_input).unwrap();
         assert!(TypeContainer::from_derive_input(&parsed).is_ok());
+
+        let checked_newtype =
+            syn::parse_str(r#"#[musq(try_from = "String")] struct Id(String);"#).unwrap();
+        assert!(TypeContainer::from_derive_input(&checked_newtype).is_ok());
     }
 }

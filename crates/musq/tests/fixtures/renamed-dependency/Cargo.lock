@@ -565,7 +565,6 @@ version = "0.0.0"
 dependencies = [
  "musq",
  "serde",
- "serde_json",
 ]
 
 [[package]]

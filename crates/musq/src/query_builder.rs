@@ -2,7 +2,13 @@ use std::collections::{HashMap, HashSet};
 
 use either::Either;
 
-use crate::{Arguments, Error, Result, encode::Encode, executor::Execute, query::Query};
+use crate::{
+    Arguments, Conditions, Error, Result, Row,
+    encode::Encode,
+    executor::Execute,
+    from_row::FromRow,
+    query::{Map, Query},
+};
 
 #[derive(Default)]
 /// Incrementally build a SQL query with bound parameters.
@@ -282,6 +288,14 @@ impl QueryBuilder {
         Ok(())
     }
 
+    /// Append a typed collection as one `WHERE` clause.
+    pub fn push_conditions(&mut self, conditions: Conditions) -> Result<()> {
+        if let Some(query) = conditions.into_query()? {
+            self.try_push_query(query)?;
+        }
+        Ok(())
+    }
+
     /// Append a SQL fragment with arguments, rebasing/renaming named parameters as needed.
     fn push_fragment(
         &mut self,
@@ -337,6 +351,14 @@ impl QueryBuilder {
             arguments: Some(self.arguments),
             tainted: self.tainted,
         }
+    }
+
+    /// Finalize this builder as a query mapped through [`FromRow`].
+    pub fn build_query_as<O>(self) -> Map<impl FnMut(Row) -> Result<O> + Send>
+    where
+        O: Send + Unpin + for<'row> FromRow<'row>,
+    {
+        self.build().try_map(|row| O::from_row("", &row))
     }
 }
 

@@ -7,10 +7,10 @@ use crate::{
     error::{DecodeError, EncodeError},
 };
 
-impl Encode for &str {
+impl Encode for str {
     fn encode(&self) -> Result<Value, EncodeError> {
         Ok(Value::Text {
-            value: self.to_string().into(),
+            value: self.to_owned().into(),
             type_info: None,
         })
     }
@@ -23,21 +23,9 @@ impl<'r> Decode<'r> for &'r str {
     }
 }
 
-impl Encode for &String {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Text {
-            value: (*self).clone().into(),
-            type_info: None,
-        })
-    }
-}
-
 impl Encode for String {
     fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Text {
-            value: self.clone().into(),
-            type_info: None,
-        })
+        self.as_str().encode()
     }
 }
 
@@ -92,5 +80,13 @@ mod tests {
         } else {
             panic!("Expected Text value");
         }
+    }
+
+    #[test]
+    fn nested_references_encode() {
+        let value = "nested";
+        let nested = &&value;
+        let encoded = nested.encode().unwrap();
+        assert_eq!(encoded.text().unwrap(), value);
     }
 }

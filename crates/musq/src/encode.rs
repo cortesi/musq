@@ -8,38 +8,16 @@ pub trait Encode {
     fn encode(&self) -> Result<Value, EncodeError>;
 }
 
-/// Marker trait for primitive types that can be encoded by reference
-pub trait PrimitiveEncode: Encode + Copy + 'static {}
-
-// Implement PrimitiveEncode for all our primitive types
-impl PrimitiveEncode for bool {}
-impl PrimitiveEncode for i8 {}
-impl PrimitiveEncode for i16 {}
-impl PrimitiveEncode for i32 {}
-impl PrimitiveEncode for i64 {}
-impl PrimitiveEncode for u8 {}
-impl PrimitiveEncode for u16 {}
-impl PrimitiveEncode for u32 {}
-impl PrimitiveEncode for f32 {}
-impl PrimitiveEncode for f64 {}
-
-// Blanket implementation for primitive types - now they can be encoded by reference directly
-// This implementation is no longer needed since Encode now takes &self
-
-impl<T> Encode for Option<T>
+impl<T> Encode for &T
 where
-    T: Encode,
+    T: Encode + ?Sized,
 {
     fn encode(&self) -> Result<Value, EncodeError> {
-        if let Some(v) = self {
-            v.encode()
-        } else {
-            Ok(Value::Null { type_info: None })
-        }
+        T::encode(self)
     }
 }
 
-impl<T> Encode for &Option<T>
+impl<T> Encode for Option<T>
 where
     T: Encode,
 {
@@ -204,6 +182,21 @@ mod tests {
         } else {
             panic!("Expected Null value, got {:?}", encoded);
         }
+    }
+
+    #[test]
+    fn reference_propagates_encode_errors() {
+        struct Bad;
+
+        impl Encode for Bad {
+            fn encode(&self) -> Result<Value, EncodeError> {
+                Err(EncodeError::Conversion("bad value".into()))
+            }
+        }
+
+        let value = Bad;
+        let error = <&Bad as Encode>::encode(&&value).unwrap_err();
+        assert!(error.to_string().contains("bad value"));
     }
 
     #[test]
