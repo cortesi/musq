@@ -1,6 +1,6 @@
 use std::{
     ffi::CString,
-    fmt::{self, Debug, Formatter, Write},
+    fmt::{self, Debug, Formatter},
     ops::AsyncFnOnce,
     result::Result as StdResult,
     sync::atomic::Ordering,
@@ -20,7 +20,7 @@ use crate::{
     error::Error,
     executor::Execute,
     logger::LogSettings,
-    musq::{Musq, OptimizeOnClose},
+    musq::Musq,
     query::{query_as, query_scalar},
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
@@ -65,7 +65,7 @@ mod worker;
 /// recommended to explicitly call the [`Connection::close`] method.
 pub struct Connection {
     /// Optimize-on-close behavior.
-    optimize_on_close: OptimizeOnClose,
+    optimize_on_close: bool,
     /// Background worker thread.
     pub(crate) worker: ConnectionWorker,
     /// Size of the row channel.
@@ -105,7 +105,7 @@ impl Connection {
         let params = EstablishParams::from_options(options)?;
         let worker = ConnectionWorker::establish(params).await?;
         Ok(Self {
-            optimize_on_close: options.optimize_on_close.clone(),
+            optimize_on_close: options.optimize_on_close,
             worker,
             row_channel_size: options.row_channel_size,
             default_transaction_behavior: options.default_transaction_behavior,
@@ -123,13 +123,8 @@ impl Connection {
     /// closed.
     #[must_use = "futures returned by `Connection::close` must be awaited"]
     pub async fn close(self) -> Result<()> {
-        if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
-            let mut pragma_string = String::new();
-            if let Some(limit) = analysis_limit {
-                write!(pragma_string, "PRAGMA analysis_limit = {limit}; ").ok();
-            }
-            pragma_string.push_str("PRAGMA optimize;");
-            self.execute(crate::query(&pragma_string)).await?;
+        if self.optimize_on_close {
+            self.execute(crate::query("PRAGMA optimize;")).await?;
         }
         self.worker.shutdown().await
     }

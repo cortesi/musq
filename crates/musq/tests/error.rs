@@ -149,14 +149,13 @@ mod tests {
 
     #[tokio::test]
     async fn it_fails_to_open() -> anyhow::Result<()> {
-        use musq::{Connection, Musq};
+        use musq::Musq;
         use tempdir::TempDir;
 
         let dir = TempDir::new("musq-open-fail")?;
         let path = dir.path().join("nonexistent.db");
 
-        let options = Musq::new().filename(&path);
-        let res = Connection::connect_with(&options).await;
+        let res = Musq::new().open(&path).await;
 
         let err = res.unwrap_err();
         println!("error: {err:?}");
