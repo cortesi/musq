@@ -527,7 +527,8 @@ impl SqliteError {
 
     /// Build a new error from the active SQLite handle.
     pub(crate) fn new(handle: *mut sqlite3) -> Self {
-        let code = ffi::extended_errcode(handle);
+        // SAFETY: the caller provided a live connection handle.
+        let code = unsafe { ffi::extended_errcode(handle) };
         let message = unsafe {
             let msg = ffi::errmsg(handle);
             debug_assert!(!msg.is_null());
@@ -535,7 +536,7 @@ impl SqliteError {
         };
 
         Self {
-            offset: ffi::error_offset(handle),
+            offset: unsafe { ffi::error_offset(handle) },
             ..Self::from_code(code, message)
         }
     }

@@ -41,8 +41,8 @@ impl ConnectionHandle {
 
     /// Return the last inserted row id for this connection.
     pub(crate) fn last_insert_rowid(&self) -> i64 {
-        // SAFETY: we have exclusive access to the database handle
-        ffi::last_insert_rowid(self.as_ptr())
+        // SAFETY: this handle owns a live connection.
+        unsafe { ffi::last_insert_rowid(self.as_ptr()) }
     }
 
     /// Execute a SQL statement without returning rows.
@@ -51,7 +51,8 @@ impl ConnectionHandle {
         let query =
             CString::new(query).map_err(|_| Error::Query("query contains nul bytes".into()))?;
 
-        ffi::exec(self.as_ptr(), query.as_ptr()).map_err(Error::from)
+        // SAFETY: this handle owns a live connection; `query` is a valid CString.
+        unsafe { ffi::exec(self.as_ptr(), query.as_ptr()) }.map_err(Error::from)
     }
 
     /// Close the underlying SQLite handle.
@@ -59,7 +60,8 @@ impl ConnectionHandle {
         if self.closed {
             return Ok(());
         }
-        match ffi::close(self.ptr.as_ptr()) {
+        // SAFETY: this handle owns a live connection until close succeeds.
+        match unsafe { ffi::close(self.ptr.as_ptr()) } {
             Ok(()) => {
                 self.closed = true;
                 Ok(())
@@ -73,7 +75,7 @@ impl Drop for ConnectionHandle {
     fn drop(&mut self) {
         // https://sqlite.org/c3ref/close.html
         if !self.closed
-            && let Err(e) = ffi::close(self.ptr.as_ptr())
+            && let Err(e) = unsafe { ffi::close(self.ptr.as_ptr()) }
         {
             // This should only happen if SQLite has leaked handles internally
             // or we misused the API. Log the error and the connection pointer

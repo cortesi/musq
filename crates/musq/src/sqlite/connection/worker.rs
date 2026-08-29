@@ -292,7 +292,7 @@ impl ConnectionWorker {
                             tx.send(parser_depth_limit(&conn)).ok();
                         }
                         Command::IsAutocommit { tx } => {
-                            tx.send(Ok(ffi::get_autocommit(conn.handle.as_ptr())))
+                            tx.send(Ok(unsafe { ffi::get_autocommit(conn.handle.as_ptr()) }))
                                 .ok();
                         }
 
@@ -522,7 +522,7 @@ fn db_status(
     reset_highwater: bool,
 ) -> Result<DbStatus> {
     let (current, highwater) =
-        ffi::db_status64(conn.handle.as_ptr(), kind.as_sqlite_code(), reset_highwater)?;
+        unsafe { ffi::db_status64(conn.handle.as_ptr(), kind.as_sqlite_code(), reset_highwater) }?;
     Ok(DbStatus { current, highwater })
 }
 
@@ -534,7 +534,7 @@ fn wal_checkpoint(
 ) -> Result<WalCheckpoint> {
     let schema_ptr = schema.map_or(ptr::null(), |schema| schema.as_ptr());
     let (log_frames, checkpointed_frames) =
-        ffi::wal_checkpoint_v2(conn.handle.as_ptr(), schema_ptr, mode.as_sqlite_code())?;
+        unsafe { ffi::wal_checkpoint_v2(conn.handle.as_ptr(), schema_ptr, mode.as_sqlite_code()) }?;
     Ok(WalCheckpoint {
         log_frames: frames_to_option(log_frames),
         checkpointed_frames: frames_to_option(checkpointed_frames),
@@ -543,11 +543,13 @@ fn wal_checkpoint(
 
 /// Return the parser stack depth limit for the active connection.
 fn parser_depth_limit(conn: &ConnectionState) -> Result<u32> {
-    let limit = ffi::limit(
-        conn.handle.as_ptr(),
-        libsqlite3_sys::SQLITE_LIMIT_PARSER_DEPTH,
-        -1,
-    );
+    let limit = unsafe {
+        ffi::limit(
+            conn.handle.as_ptr(),
+            libsqlite3_sys::SQLITE_LIMIT_PARSER_DEPTH,
+            -1,
+        )
+    };
     u32::try_from(limit).map_err(|_| {
         Error::Protocol(format!(
             "SQLite returned invalid parser depth limit {limit}"

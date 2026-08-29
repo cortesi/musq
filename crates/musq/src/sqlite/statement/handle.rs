@@ -28,18 +28,21 @@ impl StatementHandle {
     pub(super) unsafe fn db_handle(&self) -> *mut sqlite3 {
         // O(c) access to the connection handle for this statement handle
         // https://sqlite.org/c3ref/db_handle.html
-        ffi::db_handle(self.0.as_ptr())
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::db_handle(self.0.as_ptr()) }
     }
 
     /// Return the last SQLite error for this statement.
     pub(crate) fn last_error(&self) -> SqliteError {
+        // SAFETY: this handle owns a live prepared statement.
         SqliteError::new(unsafe { self.db_handle() })
     }
 
     /// Return the number of columns in the result set.
     pub(crate) fn column_count(&self) -> usize {
         // https://sqlite.org/c3ref/column_count.html
-        ffi::column_count(self.0.as_ptr()) as usize
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::column_count(self.0.as_ptr()) as usize }
     }
 
     /// Return the number of changes from the last statement.
@@ -47,18 +50,21 @@ impl StatementHandle {
         // returns the number of changes of the *last* statement; not
         // necessarily this statement.
         // https://sqlite.org/c3ref/changes.html
+        // SAFETY: this handle owns a live prepared statement.
         unsafe { ffi::changes64(self.db_handle()) as u64 }
     }
 
     /// Returns `true` if this statement is read-only.
     pub(crate) fn is_readonly(&self) -> bool {
-        ffi::stmt_readonly(self.0.as_ptr())
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::stmt_readonly(self.0.as_ptr()) }
     }
 
     /// Return the name of a result column.
     pub(crate) fn column_name(&self, index: usize) -> StdResult<String, SqliteError> {
         // https://sqlite.org/c3ref/column_name.html
-        let name = ffi::column_name(self.0.as_ptr(), index as i32);
+        // SAFETY: this handle owns a live prepared statement.
+        let name = unsafe { ffi::column_name(self.0.as_ptr(), index as i32) };
         if name.is_null() {
             return Err(self.last_error());
         }
@@ -74,7 +80,8 @@ impl StatementHandle {
 
     /// Return the declared type for a result column, if available.
     pub(crate) fn column_decltype(&self, index: usize) -> Option<SqliteDataType> {
-        let decl = ffi::column_decltype(self.0.as_ptr(), index as i32);
+        // SAFETY: this handle owns a live prepared statement.
+        let decl = unsafe { ffi::column_decltype(self.0.as_ptr(), index as i32) };
         if decl.is_null() {
             // If the Nth column of the result set is an expression or subquery,
             // then a NULL pointer is returned.
@@ -92,7 +99,8 @@ impl StatementHandle {
     /// Return the number of bind parameters.
     pub(crate) fn bind_parameter_count(&self) -> usize {
         // https://www.sqlite.org/c3ref/bind_parameter_count.html
-        ffi::bind_parameter_count(self.0.as_ptr()) as usize
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::bind_parameter_count(self.0.as_ptr()) as usize }
     }
 
     // Name Of A Host Parameter
@@ -101,7 +109,8 @@ impl StatementHandle {
     /// Return the name of a bind parameter, if any.
     pub(crate) fn bind_parameter_name(&self, index: usize) -> Option<String> {
         // https://www.sqlite.org/c3ref/bind_parameter_name.html
-        let name = ffi::bind_parameter_name(self.0.as_ptr(), index as i32);
+        // SAFETY: this handle owns a live prepared statement.
+        let name = unsafe { ffi::bind_parameter_name(self.0.as_ptr(), index as i32) };
         if name.is_null() {
             return None;
         }
@@ -115,37 +124,46 @@ impl StatementHandle {
 
     /// Bind a blob parameter.
     pub(crate) fn bind_blob(&self, index: usize, v: &[u8]) -> StdResult<(), SqliteError> {
-        ffi::bind_blob64(
-            self.0.as_ptr(),
-            index as i32,
-            v.as_ptr() as *const c_void,
-            v.len() as u64,
-        )
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe {
+            ffi::bind_blob64(
+                self.0.as_ptr(),
+                index as i32,
+                v.as_ptr() as *const c_void,
+                v.len() as u64,
+            )
+        }
     }
 
     /// Bind a text parameter.
     pub(crate) fn bind_text(&self, index: usize, v: &str) -> StdResult<(), SqliteError> {
-        ffi::bind_text64(
-            self.0.as_ptr(),
-            index as i32,
-            v.as_ptr() as *const c_char,
-            v.len() as u64,
-        )
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe {
+            ffi::bind_text64(
+                self.0.as_ptr(),
+                index as i32,
+                v.as_ptr() as *const c_char,
+                v.len() as u64,
+            )
+        }
     }
 
     /// Bind a 64-bit integer parameter.
     pub(crate) fn bind_int64(&self, index: usize, v: i64) -> StdResult<(), SqliteError> {
-        ffi::bind_int64(self.0.as_ptr(), index as i32, v)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::bind_int64(self.0.as_ptr(), index as i32, v) }
     }
 
     /// Bind a floating-point parameter.
     pub(crate) fn bind_double(&self, index: usize, v: f64) -> StdResult<(), SqliteError> {
-        ffi::bind_double(self.0.as_ptr(), index as i32, v)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::bind_double(self.0.as_ptr(), index as i32, v) }
     }
 
     /// Bind a NULL parameter.
     pub(crate) fn bind_null(&self, index: usize) -> StdResult<(), SqliteError> {
-        ffi::bind_null(self.0.as_ptr(), index as i32)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::bind_null(self.0.as_ptr(), index as i32) }
     }
 
     // result values from the query
@@ -153,50 +171,58 @@ impl StatementHandle {
 
     /// Return the SQLite type code for a result column.
     pub(crate) fn column_type(&self, index: usize) -> i32 {
-        ffi::column_type(self.0.as_ptr(), index as i32)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::column_type(self.0.as_ptr(), index as i32) }
     }
 
     /// Return an integer value from a result column.
     pub(crate) fn column_int64(&self, index: usize) -> i64 {
-        ffi::column_int64(self.0.as_ptr(), index as i32)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::column_int64(self.0.as_ptr(), index as i32) }
     }
 
     /// Return a floating-point value from a result column.
     pub(crate) fn column_double(&self, index: usize) -> f64 {
-        ffi::column_double(self.0.as_ptr(), index as i32)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::column_double(self.0.as_ptr(), index as i32) }
     }
 
     /// Return a text pointer from a result column.
     pub(crate) fn column_text(&self, index: usize) -> *const u8 {
-        ffi::column_text(self.0.as_ptr(), index as i32)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::column_text(self.0.as_ptr(), index as i32) }
     }
 
     /// Return a blob pointer from a result column.
     pub(crate) fn column_blob(&self, index: usize) -> *const c_void {
-        ffi::column_blob(self.0.as_ptr(), index as i32)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::column_blob(self.0.as_ptr(), index as i32) }
     }
 
     /// Return the number of bytes in a result column.
     pub(crate) fn column_bytes(&self, index: usize) -> i32 {
-        ffi::column_bytes(self.0.as_ptr(), index as i32)
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::column_bytes(self.0.as_ptr(), index as i32) }
     }
 
     /// Clear all bound parameters.
     pub(crate) fn clear_bindings(&self) {
-        ffi::clear_bindings(self.0.as_ptr());
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::clear_bindings(self.0.as_ptr()) }
     }
 
     /// Reset the statement so it can be re-executed.
     pub(crate) fn reset(&self) -> StdResult<(), SqliteError> {
-        // SAFETY: we have exclusive access to the handle
-        ffi::reset(self.0.as_ptr())?;
+        // SAFETY: this handle owns a live prepared statement.
+        unsafe { ffi::reset(self.0.as_ptr())? }
 
         Ok(())
     }
 
     /// Step the statement, returning whether a row is available.
     pub(crate) fn step(&self) -> crate::Result<bool> {
-        Ok(ffi::step(self.0.as_ptr()).map_err(crate::Error::from)? == SQLITE_ROW)
+        // SAFETY: this handle owns a live prepared statement.
+        Ok(unsafe { ffi::step(self.0.as_ptr()) }.map_err(crate::Error::from)? == SQLITE_ROW)
     }
 }
 
@@ -206,14 +232,15 @@ impl Drop for StatementHandle {
         {
             // Ensure the statement is reset before finalizing so that
             // sqlite3_finalize does not return SQLITE_BUSY.
-            if let Err(e) = ffi::reset(self.0.as_ptr()) {
+            // SAFETY: this handle still owns the statement until finalize returns.
+            if let Err(e) = unsafe { ffi::reset(self.0.as_ptr()) } {
                 tracing::error!("sqlite3_reset before finalize failed: {}", e);
             }
 
             // https://sqlite.org/c3ref/finalize.html
             // Never touch the statement pointer after finalize, and never panic
             // in Drop: a panic during unwind aborts the process.
-            if let Err(e) = ffi::finalize(self.0.as_ptr()) {
+            if let Err(e) = unsafe { ffi::finalize(self.0.as_ptr()) } {
                 tracing::error!("sqlite3_finalize failed: {}", e);
             }
         }
@@ -233,28 +260,33 @@ mod tests {
     fn open_memory() -> *mut sqlite3 {
         let filename = CString::new(":memory:").unwrap();
         let mut handle = ptr::null_mut();
-        ffi::open_v2(
-            filename.as_ptr(),
-            &mut handle,
-            libsqlite3_sys::SQLITE_OPEN_READWRITE
-                | libsqlite3_sys::SQLITE_OPEN_CREATE
-                | libsqlite3_sys::SQLITE_OPEN_MEMORY,
-            ptr::null(),
-        )
+        // SAFETY: this test owns the connection pointer it opens.
+        unsafe {
+            ffi::open_v2(
+                filename.as_ptr(),
+                &mut handle,
+                libsqlite3_sys::SQLITE_OPEN_READWRITE
+                    | libsqlite3_sys::SQLITE_OPEN_CREATE
+                    | libsqlite3_sys::SQLITE_OPEN_MEMORY,
+                ptr::null(),
+            )
+        }
         .unwrap();
         handle
     }
 
     fn prepare_failing_insert(db: *mut sqlite3) -> NonNull<sqlite3_stmt> {
         let create_sql = CString::new("CREATE TABLE t (id INTEGER PRIMARY KEY);").unwrap();
-        ffi::exec(db, create_sql.as_ptr()).unwrap();
+        // SAFETY: `db` is a live connection opened by this test.
+        unsafe { ffi::exec(db, create_sql.as_ptr()) }.unwrap();
         let insert_sql = CString::new("INSERT INTO t VALUES (1);").unwrap();
-        ffi::exec(db, insert_sql.as_ptr()).unwrap();
+        unsafe { ffi::exec(db, insert_sql.as_ptr()) }.unwrap();
 
         let dup_sql = CString::new("INSERT INTO t VALUES (1);").unwrap();
         let mut stmt = ptr::null_mut();
-        ffi::prepare_v3(db, dup_sql.as_ptr(), -1, 0, &mut stmt, ptr::null_mut()).unwrap();
-        let err = ffi::step(stmt).expect_err("duplicate insert must fail");
+        unsafe { ffi::prepare_v3(db, dup_sql.as_ptr(), -1, 0, &mut stmt, ptr::null_mut()) }
+            .unwrap();
+        let err = unsafe { ffi::step(stmt) }.expect_err("duplicate insert must fail");
         assert_eq!(err.primary, PrimaryErrCode::Constraint);
         NonNull::new(stmt).expect("prepared statement pointer")
     }
@@ -264,6 +296,6 @@ mod tests {
         let db = open_memory();
         let stmt = prepare_failing_insert(db);
         drop(StatementHandle::new(stmt));
-        ffi::close(db).unwrap();
+        unsafe { ffi::close(db) }.unwrap();
     }
 }

@@ -127,7 +127,9 @@ impl EstablishParams {
         let mut handle = null_mut();
 
         // <https://www.sqlite.org/c3ref/open.html>
-        let open_res = ffi::open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null());
+        // SAFETY: `filename` is a valid CString; `handle` is a local out-parameter.
+        let open_res =
+            unsafe { ffi::open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null()) };
 
         if let Err(e) = open_res {
             // handle is already closed inside `open_v2`
@@ -148,7 +150,8 @@ impl EstablishParams {
         // Enable extended result codes
         // https://www.sqlite.org/c3ref/extended_result_codes.html
         // On failure return the sqlite error for visibility
-        ffi::extended_result_codes(handle.as_ptr(), 1).map_err(Error::from)?;
+        // SAFETY: `handle` is a newly opened live connection.
+        unsafe { ffi::extended_result_codes(handle.as_ptr(), 1) }.map_err(Error::from)?;
 
         // Configure a busy timeout
         // This causes SQLite to automatically sleep in increasing intervals until the time
@@ -158,11 +161,12 @@ impl EstablishParams {
         // we clamp to `i32::MAX` to comply with SQLite's API.
         let ms = i32::try_from(self.busy_timeout.as_millis()).unwrap_or(i32::MAX);
 
-        ffi::busy_timeout(handle.as_ptr(), ms).map_err(Error::from)?;
+        unsafe { ffi::busy_timeout(handle.as_ptr(), ms) }.map_err(Error::from)?;
 
         if let Some(digits) = self.floating_point_text_digits {
-            let configured = ffi::db_config_fp_digits(handle.as_ptr(), i32::from(digits))
-                .map_err(Error::from)?;
+            let configured =
+                unsafe { ffi::db_config_fp_digits(handle.as_ptr(), i32::from(digits)) }
+                    .map_err(Error::from)?;
             if configured != i32::from(digits) {
                 return Err(Error::Protocol(format!(
                     "SQLite reported floating point text digits {configured} after setting {digits}"
@@ -171,11 +175,13 @@ impl EstablishParams {
         }
 
         if let Some(limit) = self.parser_depth_limit {
-            ffi::limit(
-                handle.as_ptr(),
-                libsqlite3_sys::SQLITE_LIMIT_PARSER_DEPTH,
-                limit,
-            );
+            unsafe {
+                ffi::limit(
+                    handle.as_ptr(),
+                    libsqlite3_sys::SQLITE_LIMIT_PARSER_DEPTH,
+                    limit,
+                )
+            };
         }
 
         Ok(ConnectionState {

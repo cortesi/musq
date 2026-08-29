@@ -985,11 +985,14 @@ deprecation shim or a transition default.
    the `unlock_notify` feature in `crates/musq/Cargo.toml`. Make `ffi::step`
    return any code other than `ROW`/`DONE` as an error. Update
    `tests/sqlite_capabilities.rs`.
-3. [ ] §6. Mark every raw-pointer `ffi` function `unsafe fn`. Move the
+3. [x] §6. Mark every raw-pointer `ffi` function `unsafe fn`. Move the
    `unsafe` blocks into `ConnectionHandle` and `StatementHandle` methods
    with one-line justifications. Reduce `ffi` item visibility to
    `pub(super)`.
-4. [ ] Stage gate. Also run `tests/connection_flows.rs::retry_on_busy_lock`
+   Visibility is `pub(in crate::sqlite)` so connection and statement
+   submodules can call the wrappers. `libversion_number`, `register_vec`,
+   and `auto_extension` stay safe.
+4. [x] Stage gate. Also run `tests/connection_flows.rs::retry_on_busy_lock`
    and confirm it passes through SQLite's busy handler alone.
 
 ### Stage 4: Public API Tightening
