@@ -5,6 +5,7 @@ pub use connection::{
 };
 pub use error::SqliteError;
 pub use function::FunctionFlags;
+pub use hooks::{UpdateEvent, UpdateOp};
 pub use type_info::SqliteDataType;
 pub use value::Value;
 
@@ -18,6 +19,8 @@ pub mod error;
 mod ffi;
 /// User-defined scalar functions and collations.
 pub mod function;
+/// Per-connection SQLite hooks.
+pub mod hooks;
 /// Prepared statement types and helpers.
 pub mod statement;
 /// SQLite type information utilities.

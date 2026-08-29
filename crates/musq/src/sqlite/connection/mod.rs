@@ -3,6 +3,7 @@ use std::{
     fmt::{self, Debug, Formatter},
     io,
     ops::AsyncFnOnce,
+    panic::{AssertUnwindSafe, catch_unwind},
     path::Path,
     result::Result as StdResult,
     sync::atomic::Ordering,
@@ -19,7 +20,7 @@ pub use handle::ConnectionHandle;
 pub use worker::InterruptHandle;
 
 use crate::{
-    QueryResult, Result, Row,
+    QueryResult, Result, Row, UpdateEvent,
     error::Error,
     executor::Execute,
     logger::LogSettings,
@@ -215,6 +216,82 @@ impl Connection {
         let schema = CString::new(schema)
             .map_err(|_| Error::Configuration("deserialize schema contains nul bytes".into()))?;
         self.worker.deserialize(schema, bytes, mode).await
+    }
+
+    /// Copy this database to `path` with the SQLite backup API.
+    ///
+    /// The worker opens the destination on its own thread, copies
+    /// `pages_per_step` pages per step, and calls `backup_finish` on every
+    /// exit path. `pages_per_step` of zero copies all remaining pages in one
+    /// step. The destination path must not be the source file.
+    /// Deliver row-change events from `sqlite3_update_hook`.
+    ///
+    /// Events are sent on an unbounded channel with `try_send` so the SQLite
+    /// callback never blocks. If the receiver is gone, the event is counted
+    /// by [`Self::dropped_hook_events`]. The callback must not run SQL on this
+    /// connection. A hook is per-connection; pooled connections do not share
+    /// it.
+    pub async fn on_update<F>(&self, callback: F) -> Result<()>
+    where
+        F: Fn(UpdateEvent) + Send + 'static,
+    {
+        let (tx, rx) = flume::unbounded();
+        self.worker.set_update_hook(tx).await?;
+        tokio::spawn(async move {
+            while let Ok(event) = rx.recv_async().await {
+                catch_unwind(AssertUnwindSafe(|| {
+                    callback(event);
+                }))
+                .ok();
+            }
+        });
+        Ok(())
+    }
+
+    /// Deliver a signal after SQLite commits a transaction.
+    ///
+    /// The hook cannot veto the commit. See [`Self::on_update`] for delivery
+    /// and per-connection rules.
+    pub async fn on_commit<F>(&self, callback: F) -> Result<()>
+    where
+        F: Fn() + Send + 'static,
+    {
+        let (tx, rx) = flume::unbounded();
+        self.worker.set_commit_hook(tx).await?;
+        tokio::spawn(async move {
+            while let Ok(()) = rx.recv_async().await {
+                catch_unwind(AssertUnwindSafe(|| {
+                    callback();
+                }))
+                .ok();
+            }
+        });
+        Ok(())
+    }
+
+    /// Deliver a signal after SQLite rolls a transaction back.
+    ///
+    /// See [`Self::on_update`] for delivery and per-connection rules.
+    pub async fn on_rollback<F>(&self, callback: F) -> Result<()>
+    where
+        F: Fn() + Send + 'static,
+    {
+        let (tx, rx) = flume::unbounded();
+        self.worker.set_rollback_hook(tx).await?;
+        tokio::spawn(async move {
+            while let Ok(()) = rx.recv_async().await {
+                catch_unwind(AssertUnwindSafe(|| {
+                    callback();
+                }))
+                .ok();
+            }
+        });
+        Ok(())
+    }
+
+    /// Return how many hook events were dropped because the receiver is gone.
+    pub fn dropped_hook_events(&self) -> usize {
+        self.worker.dropped_hook_events()
     }
 
     /// Copy this database to `path` with the SQLite backup API.

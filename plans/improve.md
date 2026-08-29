@@ -1065,7 +1065,7 @@ deprecation shim or a transition default.
    deterministic, direct_only, innocuous }` with `direct_only` default.
    `catch_unwind` at every C entry point; `xDestroy` frees the closure.
    Tests listed in §15.
-5. [ ] §16. `Connection::on_update`, `on_commit`, `on_rollback` through an
+5. [x] §16. `Connection::on_update`, `on_commit`, `on_rollback` through an
    unbounded `flume` channel with `try_send` and a dropped-event counter.
    `catch_unwind` in each callback. Docs on per-connection semantics.
 6. [ ] Stage gate.

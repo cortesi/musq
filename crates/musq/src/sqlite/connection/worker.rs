@@ -20,7 +20,7 @@ use libsqlite3_sys::{sqlite3, sqlite3_backup};
 use tokio::sync::{Mutex as TokioMutex, oneshot};
 
 use crate::{
-    QueryResult, Row,
+    QueryResult, Row, UpdateEvent,
     error::{Error, PrimaryErrCode, Result},
     sqlite::{
         Arguments,
@@ -29,7 +29,7 @@ use crate::{
             WalCheckpointMode, establish::EstablishParams, execute,
         },
         error::SqliteError,
-        ffi,
+        ffi, hooks as sqlite_hooks,
     },
     transaction::{TransactionBehavior, TxnState, begin_sql, commit_sql, rollback_sql},
 };
@@ -59,6 +59,8 @@ pub struct WorkerSharedState {
     pub(crate) transaction_depth: AtomicUsize,
     /// Live SQLite handle for [`sqlite3_interrupt`], or `None` after close.
     db: Mutex<Option<PublishedDb>>,
+    /// Events dropped because a hook receiver is gone.
+    pub(crate) dropped_hook_events: Arc<AtomicUsize>,
 }
 
 /// Raw SQLite handle published for [`sqlite3_interrupt`].
@@ -258,6 +260,27 @@ enum Command {
         /// Response channel.
         tx: oneshot::Sender<Result<()>>,
     },
+    /// Install an update hook delivery channel.
+    SetUpdateHook {
+        /// Event channel.
+        events: flume::Sender<UpdateEvent>,
+        /// Response channel.
+        tx: oneshot::Sender<Result<()>>,
+    },
+    /// Install a commit-hook delivery channel.
+    SetCommitHook {
+        /// Signal channel.
+        events: flume::Sender<()>,
+        /// Response channel.
+        tx: oneshot::Sender<Result<()>>,
+    },
+    /// Install a rollback-hook delivery channel.
+    SetRollbackHook {
+        /// Signal channel.
+        events: flume::Sender<()>,
+        /// Response channel.
+        tx: oneshot::Sender<Result<()>>,
+    },
     /// Commit a transaction.
     Commit {
         /// Response channel.
@@ -360,6 +383,7 @@ impl WorkerSession {
             cached_statements_size: AtomicUsize::new(0),
             transaction_depth: AtomicUsize::new(0),
             db: Mutex::new(None),
+            dropped_hook_events: Arc::new(AtomicUsize::new(0)),
         });
         let clear_db = ClearDbOnDrop {
             shared: Arc::clone(&shared),
@@ -431,6 +455,9 @@ impl WorkerSession {
                 ))
                 .ok();
             }
+            Command::SetUpdateHook { events, tx } => self.install_update_hook(events, tx),
+            Command::SetCommitHook { events, tx } => self.install_commit_hook(events, tx),
+            Command::SetRollbackHook { events, tx } => self.install_rollback_hook(events, tx),
             Command::Commit { tx } => self.commit(tx),
             Command::Rollback { tx } => self.rollback(tx),
             Command::DbStatus {
@@ -603,8 +630,65 @@ impl WorkerSession {
         }
     }
 
+    /// Install an update hook that `try_send`s events.
+    fn install_update_hook(
+        &self,
+        events: flume::Sender<UpdateEvent>,
+        tx: oneshot::Sender<Result<()>>,
+    ) {
+        let db = self.conn.handle.as_ptr();
+        let prev = sqlite_hooks::set_update_hook(
+            db,
+            sqlite_hooks::UpdateHookState::new(
+                events,
+                Arc::clone(&self.shared.dropped_hook_events),
+            ),
+        );
+        unsafe { sqlite_hooks::drop_update_hook(prev) };
+        tx.send(Ok(())).ok();
+    }
+
+    /// Install a commit hook that `try_send`s a unit signal.
+    fn install_commit_hook(&self, events: flume::Sender<()>, tx: oneshot::Sender<Result<()>>) {
+        let db = self.conn.handle.as_ptr();
+        let prev = sqlite_hooks::set_commit_hook(
+            db,
+            sqlite_hooks::SignalHookState::new(
+                events,
+                Arc::clone(&self.shared.dropped_hook_events),
+            ),
+        );
+        unsafe { sqlite_hooks::drop_signal_hook(prev) };
+        tx.send(Ok(())).ok();
+    }
+
+    /// Install a rollback hook that `try_send`s a unit signal.
+    fn install_rollback_hook(&self, events: flume::Sender<()>, tx: oneshot::Sender<Result<()>>) {
+        let db = self.conn.handle.as_ptr();
+        let prev = sqlite_hooks::set_rollback_hook(
+            db,
+            sqlite_hooks::SignalHookState::new(
+                events,
+                Arc::clone(&self.shared.dropped_hook_events),
+            ),
+        );
+        unsafe { sqlite_hooks::drop_signal_hook(prev) };
+        tx.send(Ok(())).ok();
+    }
+
+    /// Remove SQLite hooks and free their userdata.
+    fn clear_hooks(&self) {
+        let db = self.conn.handle.as_ptr();
+        unsafe {
+            sqlite_hooks::drop_update_hook(sqlite_hooks::clear_update_hook(db));
+            sqlite_hooks::drop_signal_hook(sqlite_hooks::clear_commit_hook(db));
+            sqlite_hooks::drop_signal_hook(sqlite_hooks::clear_rollback_hook(db));
+        }
+    }
+
     /// Close the SQLite handle after clearing the published interrupt pointer.
     fn shutdown(&mut self, tx: oneshot::Sender<Result<()>>) {
+        self.clear_hooks();
         self.conn.statements.clear();
         *self
             .shared
@@ -777,6 +861,29 @@ impl ConnectionWorker {
         InterruptHandle {
             shared: Arc::clone(&self.shared),
         }
+    }
+
+    /// Install an update hook delivery channel.
+    pub(crate) async fn set_update_hook(&self, events: flume::Sender<UpdateEvent>) -> Result<()> {
+        self.oneshot_cmd(|tx| Command::SetUpdateHook { events, tx })
+            .await?
+    }
+
+    /// Install a commit-hook delivery channel.
+    pub(crate) async fn set_commit_hook(&self, events: flume::Sender<()>) -> Result<()> {
+        self.oneshot_cmd(|tx| Command::SetCommitHook { events, tx })
+            .await?
+    }
+
+    /// Install a rollback-hook delivery channel.
+    pub(crate) async fn set_rollback_hook(&self, events: flume::Sender<()>) -> Result<()> {
+        self.oneshot_cmd(|tx| Command::SetRollbackHook { events, tx })
+            .await?
+    }
+
+    /// Return the number of hook events dropped because the receiver is gone.
+    pub(crate) fn dropped_hook_events(&self) -> usize {
+        self.shared.dropped_hook_events.load(Ordering::Relaxed)
     }
 
     /// Commit the current transaction on the worker thread.
