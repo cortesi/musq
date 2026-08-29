@@ -933,11 +933,14 @@ deprecation shim or a transition default.
    `SqliteError.offset: Option<usize>` from `sqlite3_error_offset`. Update
    `Display`. Done when `tests/error.rs` asserts `extended == None` and the
    byte offset for `SELECT * FORM t`.
-3. [ ] §3. Add `Error::Configuration(String)` and `Error::Query(String)`.
+3. [x] §3. Add `Error::Configuration(String)` and `Error::Query(String)`.
    Move every `Protocol` call site listed in §3 to the right variant. Done
    when `grep -rn "Error::Protocol" crates/musq/src` shows only invariant
    violations and the `tests/sqlite_connection_control.rs`
    `assert_protocol_contains` helper is renamed to match.
+   Remaining `Error::Protocol` sites: `row.rs` (null TEXT pointer),
+   `worker.rs` (invalid parser-depth limit from SQLite), and
+   `establish.rs` (SQLite did not honor `FP_DIGITS`).
 4. [ ] §8. Add `ffi::changes64`; use it in `StatementHandle::changes`. Delete
    `ffi::changes`.
 5. [ ] §9. Delete `unsafe impl Sync for Connection`, `unsafe impl Sync for

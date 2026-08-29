@@ -65,7 +65,9 @@ impl Pool {
     /// Create a new connection pool from the provided options.
     pub(crate) async fn new(options: crate::Musq) -> Result<Self> {
         if options.pool_max_connections == 0 {
-            return Err(Error::Protocol("max_connections must be at least 1".into()));
+            return Err(Error::Configuration(
+                "max_connections must be at least 1".into(),
+            ));
         }
 
         // Make an initial connection to validate the configuration

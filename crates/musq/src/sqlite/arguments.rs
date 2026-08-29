@@ -12,7 +12,7 @@ use crate::{
 pub fn parse_question_param(name: &str) -> Result<usize> {
     // The parameter must start with exactly one '?'
     if !name.starts_with('?') || name.as_bytes().get(1) == Some(&b'?') {
-        return Err(Error::Protocol(format!(
+        return Err(Error::Query(format!(
             "invalid numeric SQL parameter: {name}"
         )));
     }
@@ -22,17 +22,17 @@ pub fn parse_question_param(name: &str) -> Result<usize> {
     // reject if the parameter is empty, contains non-digit characters,
     // or has a leading zero
     if rest.is_empty() || rest.starts_with('0') || !rest.as_bytes().iter().all(u8::is_ascii_digit) {
-        return Err(Error::Protocol(format!(
+        return Err(Error::Query(format!(
             "invalid numeric SQL parameter: {name}"
         )));
     }
 
     let num = rest
         .parse::<usize>()
-        .map_err(|_| Error::Protocol(format!("invalid numeric SQL parameter: {name}")))?;
+        .map_err(|_| Error::Query(format!("invalid numeric SQL parameter: {name}")))?;
 
     if num == 0 {
-        return Err(Error::Protocol(format!(
+        return Err(Error::Query(format!(
             "invalid numeric SQL parameter: {name}"
         )));
     }
@@ -107,7 +107,7 @@ impl Arguments {
                     if let Some(n) = atoi(rest.as_bytes()) {
                         // numeric positional like `$2`
                         if n == 0 || rest.starts_with('0') {
-                            return Err(Error::Protocol(format!(
+                            return Err(Error::Query(format!(
                                 "invalid numeric SQL parameter: {name}"
                             )));
                         }
@@ -149,7 +149,7 @@ impl Arguments {
                         })
                     }
                 } else {
-                    return Err(Error::Protocol(format!(
+                    return Err(Error::Query(format!(
                         "unsupported SQL parameter format: {name}"
                     )));
                 }
@@ -160,7 +160,7 @@ impl Arguments {
             };
 
             if n > self.values.len() {
-                return Err(Error::Protocol(format!(
+                return Err(Error::Query(format!(
                     "bind parameter index out of bounds: the len is {}, but the index is {}",
                     self.values.len(),
                     n
@@ -183,7 +183,7 @@ mod tests {
     fn test_parse_question_param_invalid() {
         let err = parse_question_param("?foo").unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("?foo")),
+            Error::Query(msg) => assert!(msg.contains("?foo")),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -192,7 +192,7 @@ mod tests {
     fn test_parse_question_param_zero() {
         let err = parse_question_param("?0").unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("?0")),
+            Error::Query(msg) => assert!(msg.contains("?0")),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -201,7 +201,7 @@ mod tests {
     fn test_parse_question_param_trailing_chars() {
         let err = parse_question_param("?12a").unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("?12a")),
+            Error::Query(msg) => assert!(msg.contains("?12a")),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -210,7 +210,7 @@ mod tests {
     fn test_parse_question_param_leading_zero() {
         let err = parse_question_param("?01").unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("?01")),
+            Error::Query(msg) => assert!(msg.contains("?01")),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -221,7 +221,7 @@ mod tests {
         let param = format!("?{big}");
         let err = parse_question_param(&param).unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains(&param)),
+            Error::Query(msg) => assert!(msg.contains(&param)),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -230,7 +230,7 @@ mod tests {
     fn test_parse_question_param_double_question() {
         let err = parse_question_param("??1").unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("??1")),
+            Error::Query(msg) => assert!(msg.contains("??1")),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -239,7 +239,7 @@ mod tests {
     fn test_parse_question_param_colon_like() {
         let err = parse_question_param(":1a").unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains(":1a")),
+            Error::Query(msg) => assert!(msg.contains(":1a")),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -248,7 +248,7 @@ mod tests {
     fn test_parse_question_param_at_zero() {
         let err = parse_question_param("@0").unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("@0")),
+            Error::Query(msg) => assert!(msg.contains("@0")),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -259,7 +259,7 @@ mod tests {
         let param = format!("?{digits}");
         let err = parse_question_param(&param).unwrap_err();
         match err {
-            Error::Protocol(msg) => assert!(msg.contains(&param)),
+            Error::Query(msg) => assert!(msg.contains(&param)),
             other => panic!("unexpected error: {other:?}"),
         }
     }
@@ -275,7 +275,7 @@ mod tests {
 
         assert!(res.is_err());
         match res.unwrap_err() {
-            Error::Protocol(msg) => assert!(msg.contains("$0")),
+            Error::Query(msg) => assert!(msg.contains("$0")),
             other => panic!("unexpected error: {other:?}"),
         }
 
@@ -293,7 +293,7 @@ mod tests {
 
         assert!(res.is_err());
         match res.unwrap_err() {
-            Error::Protocol(msg) => assert!(msg.contains("$00")),
+            Error::Query(msg) => assert!(msg.contains("$00")),
             other => panic!("unexpected error: {other:?}"),
         }
 
@@ -324,10 +324,10 @@ mod tests {
 
         assert!(res.is_err());
 
-        if let Err(Error::Protocol(msg)) = res {
+        if let Err(Error::Query(msg)) = res {
             assert!(msg.contains("index is 2"));
         } else {
-            panic!("expected protocol error");
+            panic!("expected query error");
         }
 
         Ok(())

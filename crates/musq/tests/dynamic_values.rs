@@ -181,8 +181,8 @@ mod tests {
         let vals: Values = values! { "a": "A", "b": expr }?;
         let err = sql!("INSERT INTO ie {insert:vals}").expect_err("numeric fragment should fail");
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("numeric SQL parameters")),
-            other => panic!("expected protocol error, got {other:?}"),
+            Error::Query(msg) => assert!(msg.contains("numeric SQL parameters")),
+            other => panic!("expected query error, got {other:?}"),
         }
         Ok(())
     }
@@ -381,11 +381,11 @@ mod tests {
         let empty = Values::new();
         assert!(matches!(
             sql!("INSERT INTO t {insert:empty}"),
-            Err(Error::Protocol(_))
+            Err(Error::Query(_))
         ));
         assert!(matches!(
             sql!("UPDATE t SET {set:empty}"),
-            Err(Error::Protocol(_))
+            Err(Error::Query(_))
         ));
         Ok(())
     }

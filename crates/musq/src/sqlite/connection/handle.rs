@@ -52,7 +52,7 @@ impl ConnectionHandle {
     pub(crate) fn exec(&self, query: impl Into<String>) -> Result<()> {
         let query = query.into();
         let query =
-            CString::new(query).map_err(|_| Error::Protocol("query contains nul bytes".into()))?;
+            CString::new(query).map_err(|_| Error::Query("query contains nul bytes".into()))?;
 
         // SAFETY: we have exclusive access to the database handle
         let mut attempts = 0;

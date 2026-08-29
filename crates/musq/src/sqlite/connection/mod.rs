@@ -242,7 +242,7 @@ impl Connection {
         let schema = schema
             .map(CString::new)
             .transpose()
-            .map_err(|_| Error::Protocol("WAL checkpoint schema contains nul bytes".into()))?;
+            .map_err(|_| Error::Configuration("WAL checkpoint schema contains nul bytes".into()))?;
 
         self.worker.wal_checkpoint(schema, mode).await
     }

@@ -11,8 +11,8 @@ mod tests {
         let mut builder = QueryBuilder::new();
         let result = builder.push_values(empty::<i32>());
         match result {
-            Err(Error::Protocol(msg)) => assert!(msg.contains("empty values")),
-            other => panic!("expected protocol error, got {other:?}"),
+            Err(Error::Query(msg)) => assert!(msg.contains("empty values")),
+            other => panic!("expected query error, got {other:?}"),
         }
     }
 
@@ -21,8 +21,8 @@ mod tests {
         let mut builder = QueryBuilder::new();
         let result = builder.push_idents(empty::<&str>());
         match result {
-            Err(Error::Protocol(msg)) => assert!(msg.contains("empty idents")),
-            other => panic!("expected protocol error, got {other:?}"),
+            Err(Error::Query(msg)) => assert!(msg.contains("empty idents")),
+            other => panic!("expected query error, got {other:?}"),
         }
     }
 

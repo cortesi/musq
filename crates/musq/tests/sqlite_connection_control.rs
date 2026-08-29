@@ -196,7 +196,7 @@ mod tests {
             .open_in_memory()
             .await
             .unwrap_err();
-        assert_protocol_contains(error, "between 4 and 23");
+        assert_configuration_contains(error, "between 4 and 23");
 
         let _ = pool.close().await;
         Ok(())
@@ -225,7 +225,7 @@ mod tests {
             .open_in_memory()
             .await
             .unwrap_err();
-        assert_protocol_contains(error, "greater than zero");
+        assert_configuration_contains(error, "greater than zero");
 
         Ok(())
     }
@@ -234,13 +234,13 @@ mod tests {
         format!("SELECT {}1{}", "(".repeat(depth), ")".repeat(depth))
     }
 
-    fn assert_protocol_contains(error: Error, expected: &str) {
+    fn assert_configuration_contains(error: Error, expected: &str) {
         match error {
-            Error::Protocol(message) => assert!(
+            Error::Configuration(message) => assert!(
                 message.contains(expected),
-                "protocol error {message:?} did not contain {expected:?}"
+                "configuration error {message:?} did not contain {expected:?}"
             ),
-            other => panic!("expected protocol error containing {expected:?}, got {other:?}"),
+            other => panic!("expected configuration error containing {expected:?}, got {other:?}"),
         }
     }
 }

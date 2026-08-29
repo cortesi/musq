@@ -62,7 +62,7 @@ impl CompoundStatement {
         query = query.trim();
 
         if query.len() > i32::MAX as usize {
-            return Err(Error::Protocol(format!(
+            return Err(Error::Query(format!(
                 "query string must be smaller than {} bytes",
                 i32::MAX
             )));

@@ -981,10 +981,10 @@ mod tests {
         let err = res.err().unwrap();
 
         match err {
-            Error::Protocol(msg) => {
+            Error::Query(msg) => {
                 assert!(msg.contains("index is 4"));
             }
-            _ => panic!("expected protocol error, got {err:?}"),
+            _ => panic!("expected query error, got {err:?}"),
         }
 
         Ok(())

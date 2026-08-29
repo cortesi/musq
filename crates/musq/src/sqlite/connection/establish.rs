@@ -202,7 +202,7 @@ fn validate_floating_point_text_digits(digits: Option<u8>) -> Result<Option<u8>>
     if let Some(digits) = digits
         && !(4..=23).contains(&digits)
     {
-        return Err(Error::Protocol(format!(
+        return Err(Error::Configuration(format!(
             "floating_point_text_digits must be between 4 and 23, got {digits}"
         )));
     }
@@ -217,12 +217,12 @@ fn validate_parser_depth_limit(limit: Option<u32>) -> Result<Option<i32>> {
     };
 
     if limit == 0 {
-        return Err(Error::Protocol(
+        return Err(Error::Configuration(
             "parser_depth_limit must be greater than zero".into(),
         ));
     }
 
-    i32::try_from(limit)
-        .map(Some)
-        .map_err(|_| Error::Protocol(format!("parser_depth_limit must fit into i32, got {limit}")))
+    i32::try_from(limit).map(Some).map_err(|_| {
+        Error::Configuration(format!("parser_depth_limit must fit into i32, got {limit}"))
+    })
 }

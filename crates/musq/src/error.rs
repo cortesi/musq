@@ -69,6 +69,14 @@ pub enum Error {
     #[error("encountered unexpected or invalid data: {0}")]
     Protocol(String),
 
+    /// Invalid builder option or connection configuration.
+    #[error("{0}")]
+    Configuration(String),
+
+    /// Invalid query composition or bind arguments.
+    #[error("{0}")]
+    Query(String),
+
     /// No rows returned by a query that expected to return at least one row.
     #[error("no rows returned by a query that expected to return at least one row")]
     RowNotFound,

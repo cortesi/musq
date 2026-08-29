@@ -33,8 +33,8 @@ mod tests {
         let q2 = query("UNION SELECT ?1").bind(2);
         let err = q1.try_join(q2).expect_err("numeric fragment should fail");
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("numeric SQL parameters")),
-            other => panic!("expected protocol error, got {other:?}"),
+            Error::Query(msg) => assert!(msg.contains("numeric SQL parameters")),
+            other => panic!("expected query error, got {other:?}"),
         }
     }
 
@@ -44,8 +44,8 @@ mod tests {
         let q2 = query("UNION SELECT ?2, ?1").bind(2).bind(3);
         let err = q1.try_join(q2).expect_err("numeric fragment should fail");
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("numeric SQL parameters")),
-            other => panic!("expected protocol error, got {other:?}"),
+            Error::Query(msg) => assert!(msg.contains("numeric SQL parameters")),
+            other => panic!("expected query error, got {other:?}"),
         }
     }
 
@@ -55,8 +55,8 @@ mod tests {
         let q2 = query("UNION SELECT ?2, ?").bind(2).bind(3);
         let err = q1.try_join(q2).expect_err("numeric fragment should fail");
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("numeric SQL parameters")),
-            other => panic!("expected protocol error, got {other:?}"),
+            Error::Query(msg) => assert!(msg.contains("numeric SQL parameters")),
+            other => panic!("expected query error, got {other:?}"),
         }
     }
 

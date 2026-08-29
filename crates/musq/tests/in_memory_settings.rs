@@ -26,8 +26,8 @@ mod tests {
             .expect_err("max_connections(0) should be rejected");
 
         match err {
-            Error::Protocol(msg) => assert!(msg.contains("max_connections")),
-            other => panic!("expected protocol error, got {other:?}"),
+            Error::Configuration(msg) => assert!(msg.contains("max_connections")),
+            other => panic!("expected configuration error, got {other:?}"),
         }
     }
 }

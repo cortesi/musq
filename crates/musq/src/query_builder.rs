@@ -79,7 +79,7 @@ impl QueryBuilder {
             self.arguments.add(&v)?;
         }
         if first {
-            return Err(crate::Error::Protocol("empty values".into()));
+            return Err(crate::Error::Query("empty values".into()));
         }
         Ok(())
     }
@@ -99,7 +99,7 @@ impl QueryBuilder {
             self.sql.push_str(&crate::quote_identifier(ident.as_ref()));
         }
         if first {
-            return Err(crate::Error::Protocol("empty idents".into()));
+            return Err(crate::Error::Query("empty idents".into()));
         }
         Ok(())
     }
@@ -107,7 +107,7 @@ impl QueryBuilder {
     /// Append an INSERT column/value list from provided values.
     pub fn push_insert(&mut self, values: &crate::Values) -> Result<()> {
         if values.is_empty() {
-            return Err(crate::Error::Protocol("empty values".into()));
+            return Err(crate::Error::Query("empty values".into()));
         }
         self.sql.push('(');
         let mut first = true;
@@ -147,7 +147,7 @@ impl QueryBuilder {
     /// Append a SET clause from provided values.
     pub fn push_set(&mut self, values: &crate::Values) -> Result<()> {
         if values.is_empty() {
-            return Err(crate::Error::Protocol("empty values".into()));
+            return Err(crate::Error::Query("empty values".into()));
         }
         let mut first = true;
         for (k, entry) in values.iter() {
@@ -213,13 +213,13 @@ impl QueryBuilder {
     /// Append an UPSERT update clause, excluding the named columns.
     pub fn push_upsert(&mut self, values: &crate::Values, exclude: &[&str]) -> Result<()> {
         if values.is_empty() {
-            return Err(crate::Error::Protocol("empty values".into()));
+            return Err(crate::Error::Query("empty values".into()));
         }
 
         let exclude: HashSet<&str> = exclude.iter().copied().collect();
 
         if values.keys().all(|k| exclude.contains(k.as_str())) {
-            return Err(crate::Error::Protocol("empty values".into()));
+            return Err(crate::Error::Query("empty values".into()));
         }
 
         let mut first = true;
@@ -238,7 +238,7 @@ impl QueryBuilder {
         }
 
         if first {
-            return Err(crate::Error::Protocol("empty values".into()));
+            return Err(crate::Error::Query("empty values".into()));
         }
 
         Ok(())
@@ -366,7 +366,7 @@ impl QueryBuilder {
 fn normalize_bind_name(name: &str) -> Result<&str> {
     let name = name.trim_start_matches([':', '@', '$', '?']);
     if name.is_empty() {
-        return Err(Error::Protocol("empty named bind parameter".into()));
+        return Err(Error::Query("empty named bind parameter".into()));
     }
     Ok(name)
 }
@@ -374,7 +374,7 @@ fn normalize_bind_name(name: &str) -> Result<&str> {
 /// Reject numeric placeholders in fragments that are being composed.
 fn reject_numeric_parameters(sql: &str) -> Result<()> {
     if contains_numeric_parameter(sql) {
-        return Err(Error::Protocol(
+        return Err(Error::Query(
             "numeric SQL parameters are not supported in composed query fragments".into(),
         ));
     }
