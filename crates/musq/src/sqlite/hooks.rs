@@ -13,7 +13,7 @@ use std::{
 
 use libsqlite3_sys::{self as ffi_sys, SQLITE_DELETE, SQLITE_INSERT, SQLITE_UPDATE, sqlite3};
 
-/// Row-change operation reported by [`sqlite3_update_hook`].
+/// Row-change operation reported by `sqlite3_update_hook`.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum UpdateOp {
     /// `INSERT`.

@@ -1068,7 +1068,7 @@ deprecation shim or a transition default.
 5. [x] §16. `Connection::on_update`, `on_commit`, `on_rollback` through an
    unbounded `flume` channel with `try_send` and a dropped-event counter.
    `catch_unwind` in each callback. Docs on per-connection semantics.
-6. [ ] Stage gate.
+6. [x] Stage gate.
 
 ### Stage 7: Dependencies, Structure, And Docs
 
