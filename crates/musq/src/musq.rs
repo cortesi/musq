@@ -29,7 +29,6 @@ enum_mode! {
         /// Exclusive database access.
         Exclusive => "EXCLUSIVE",
     }
-    default Normal
 }
 
 enum_mode! {
@@ -50,7 +49,6 @@ enum_mode! {
         /// Disable journaling.
         Off => "OFF",
     }
-    default Wal
 }
 
 enum_mode! {
@@ -65,7 +63,6 @@ enum_mode! {
         /// Incremental auto-vacuum support.
         Incremental => "INCREMENTAL",
     }
-    default None
 }
 
 enum_mode! {
@@ -82,7 +79,6 @@ enum_mode! {
         /// Extra synchronous mode.
         Extra => "EXTRA",
     }
-    default Full
 }
 
 /// Create a Musq connection
@@ -129,22 +125,10 @@ pub struct Musq {
     /// Timeout for acquiring a pooled connection.
     pub(crate) pool_acquire_timeout: Duration,
 
-    /// Optimize-on-close configuration.
-    pub(crate) optimize_on_close: OptimizeOnClose,
+    /// Whether to run `PRAGMA optimize` when closing a connection.
+    pub(crate) optimize_on_close: bool,
     /// Default start mode for [`crate::Pool::begin`] and [`crate::Connection::begin`].
     pub(crate) default_transaction_behavior: TransactionBehavior,
-}
-
-/// Control whether `PRAGMA optimize` is run when closing a connection.
-#[derive(Clone, Debug)]
-pub enum OptimizeOnClose {
-    /// Enable optimize with an optional analysis limit.
-    Enabled {
-        /// Optional analysis limit passed to `ANALYZE`.
-        analysis_limit: Option<u32>,
-    },
-    /// Disable optimize on close.
-    Disabled,
 }
 
 impl Default for Musq {
@@ -156,7 +140,20 @@ impl Default for Musq {
 impl Musq {
     /// Construct `Self` with default options.
     ///
-    /// See the source of this method for the current defaults.
+    /// Defaults:
+    ///
+    /// | Option | Default |
+    /// | --- | --- |
+    /// | filename | `:memory:` |
+    /// | create_if_missing | `false` |
+    /// | busy_timeout | 5 seconds |
+    /// | foreign_keys | `ON` |
+    /// | journal_mode | unset (SQLite default) |
+    /// | statement_cache_capacity | crate default |
+    /// | pool_max_connections | 10 |
+    /// | pool_acquire_timeout | 30 seconds |
+    /// | optimize_on_close | `false` |
+    /// | default_transaction_behavior | [`TransactionBehavior::Immediate`] |
     #[must_use]
     pub fn new() -> Self {
         let mut pragmas: IndexMap<String, Option<String>> = IndexMap::new();
@@ -214,7 +211,7 @@ impl Musq {
             statement_cache_capacity: DEFAULT_CAPACITY,
             floating_point_text_digits: None,
             parser_depth_limit: None,
-            optimize_on_close: OptimizeOnClose::Disabled,
+            optimize_on_close: false,
             pool_acquire_timeout: Duration::from_secs(30),
             pool_max_connections: 10,
             default_transaction_behavior: TransactionBehavior::Immediate,
@@ -223,7 +220,7 @@ impl Musq {
 
     /// Sets the name of the database file.
     #[must_use]
-    pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
+    pub(crate) fn filename(mut self, filename: impl AsRef<Path>) -> Self {
         self.filename = filename.as_ref().to_owned();
         self
     }
@@ -469,53 +466,25 @@ impl Musq {
 
     /// Execute `PRAGMA optimize;` on the SQLite connection before closing.
     ///
-    /// The SQLite manual recommends using this for long-lived databases.
-    ///
-    /// This will collect and store statistics about the layout of data in your tables to help the query planner make
-    /// better decisions. Over the connection's lifetime, the query planner will make notes about which tables could use
-    /// up-to-date statistics so this command doesn't have to scan the whole database every time. Thus, the best time to
-    /// execute this is on connection close.
-    ///
-    /// `analysis_limit` sets a soft limit on the maximum number of rows to scan per index. It is equivalent to setting
-    /// [`Self::analysis_limit`] but only takes effect for the `PRAGMA optimize;` call and does not affect the behavior
-    /// of any `ANALYZE` statements made during the connection's lifetime.
-    ///
-    /// If not `None`, the `analysis_limit` here overrides the global `analysis_limit` setting, but only for the `PRAGMA
-    /// optimize;` call.
-    ///
-    /// Not enabled by default.
+    /// Not enabled by default. [`Self::analysis_limit`] is the scan limit used
+    /// by both `ANALYZE` and this optimize pass.
     ///
     /// See [the SQLite manual](https://www.sqlite.org/lang_analyze.html#automatically_running_analyze) for details.
     #[must_use]
-    pub fn optimize_on_close(
-        mut self,
-        enabled: bool,
-        analysis_limit: impl Into<Option<u32>>,
-    ) -> Self {
-        self.optimize_on_close = if enabled {
-            OptimizeOnClose::Enabled {
-                analysis_limit: (analysis_limit.into()),
-            }
-        } else {
-            OptimizeOnClose::Disabled
-        };
+    pub fn optimize_on_close(mut self, enabled: bool) -> Self {
+        self.optimize_on_close = enabled;
         self
     }
 
     /// Set a soft limit on the number of rows that `ANALYZE` touches per index.
     ///
-    /// This also affects `PRAGMA optimize` which is set by [Self::optimize_on_close].
-    ///
-    /// The value recommended by SQLite is `400`. There is no default.
+    /// This also affects `PRAGMA optimize` when [`Self::optimize_on_close`] is
+    /// enabled. The value recommended by SQLite is `400`.
     ///
     /// See [the SQLite manual](https://www.sqlite.org/lang_analyze.html#approx) for details.
     #[must_use]
-    pub fn analysis_limit(mut self, limit: Option<u32>) -> Self {
-        if let Some(limit) = limit {
-            return self.pragma("analysis_limit", &limit.to_string());
-        }
-        self.pragmas.insert("analysis_limit".into(), None);
-        self
+    pub fn analysis_limit(self, limit: u32) -> Self {
+        self.pragma("analysis_limit", &limit.to_string())
     }
 
     #[must_use]
