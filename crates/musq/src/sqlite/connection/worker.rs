@@ -3,6 +3,7 @@ use std::{
     ffi::{CString, c_void},
     os::raw::c_int,
     ptr::{self, NonNull},
+    slice,
     sync::{
         Arc, Mutex, PoisonError,
         atomic::{AtomicUsize, Ordering},
@@ -82,6 +83,15 @@ impl Drop for ClearDbOnDrop {
             .db
             .lock()
             .unwrap_or_else(PoisonError::into_inner) = None;
+    }
+}
+
+/// SQLite allocation that is freed with [`ffi::free`].
+struct SqliteAlloc(*mut u8);
+
+impl Drop for SqliteAlloc {
+    fn drop(&mut self) {
+        unsafe { ffi::free(self.0.cast()) }
     }
 }
 
@@ -191,6 +201,13 @@ enum Command {
     TransactionState {
         /// Response channel.
         tx: oneshot::Sender<Result<TxnState>>,
+    },
+    /// Serialize a schema to a byte image.
+    Serialize {
+        /// Schema name, such as `main`.
+        schema: CString,
+        /// Response channel.
+        tx: oneshot::Sender<Result<Vec<u8>>>,
     },
     /// Commit a transaction.
     Commit {
@@ -338,6 +355,9 @@ impl WorkerSession {
             }
             Command::TransactionState { tx } => {
                 tx.send(txn_state(&self.conn)).ok();
+            }
+            Command::Serialize { schema, tx } => {
+                tx.send(serialize_schema(&self.conn, &schema)).ok();
             }
             Command::Commit { tx } => self.commit(tx),
             Command::Rollback { tx } => self.rollback(tx),
@@ -637,6 +657,12 @@ impl ConnectionWorker {
             .await?
     }
 
+    /// Serialize `schema` to a SQLite database image.
+    pub(crate) async fn serialize(&self, schema: CString) -> Result<Vec<u8>> {
+        self.oneshot_cmd(|tx| Command::Serialize { schema, tx })
+            .await?
+    }
+
     /// Interrupt the statement currently running on this connection.
     pub(crate) fn interrupt(&self) {
         self.shared.interrupt();
@@ -883,6 +909,16 @@ fn txn_state(conn: &ConnectionState) -> Result<TxnState> {
             "sqlite3_txn_state returned {other}"
         ))),
     }
+}
+
+/// Copy a SQLite schema image into a `Vec` and free the SQLite buffer.
+fn serialize_schema(conn: &ConnectionState, schema: &CString) -> Result<Vec<u8>> {
+    let (ptr, size) = unsafe { ffi::serialize(conn.handle.as_ptr(), schema.as_ptr()) }?;
+    let _alloc = SqliteAlloc(ptr);
+    let size = usize::try_from(size)
+        .map_err(|_| Error::Protocol(format!("sqlite3_serialize returned invalid size {size}")))?;
+    // SAFETY: `ptr` is a SQLite allocation of `size` bytes.
+    Ok(unsafe { slice::from_raw_parts(ptr, size) }.to_vec())
 }
 
 /// Catch a mismatch between Musq depth and SQLite autocommit in tests.

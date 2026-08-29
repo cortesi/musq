@@ -1052,7 +1052,7 @@ deprecation shim or a transition default.
 
 ### Stage 6: New Capability
 
-1. [ ] §14a. `Connection::serialize(schema) -> Result<Vec<u8>>`.
+1. [x] §14a. `Connection::serialize(schema) -> Result<Vec<u8>>`.
 2. [ ] §14b. `Connection::deserialize(schema, bytes, DeserializeMode)` with
    `sqlite3_malloc64` + `FREEONCLOSE`, refusal inside a transaction, cache
    clear, WAL-image rejection. Round-trip test.

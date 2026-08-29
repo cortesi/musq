@@ -383,6 +383,42 @@ pub(in crate::sqlite) unsafe fn txn_state(db: *mut sqlite3, schema: *const c_cha
     unsafe { ffi_sys::sqlite3_txn_state(db, schema) }
 }
 
+/// Wrapper around [`sqlite3_serialize`].
+///
+/// On success the pointer is owned by the caller and must be passed to
+/// [`free`].
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+/// - `schema` must be a valid UTF-8 C string.
+///
+/// See <https://www.sqlite.org/c3ref/serialize.html>
+#[inline]
+#[must_use = "handle the Result"]
+pub(in crate::sqlite) unsafe fn serialize(
+    db: *mut sqlite3,
+    schema: *const c_char,
+) -> StdResult<(*mut u8, i64), SqliteError> {
+    let mut size = 0_i64;
+    let ptr = unsafe { ffi_sys::sqlite3_serialize(db, schema, &mut size, 0) };
+    if ptr.is_null() {
+        Err(SqliteError::new(db))
+    } else {
+        Ok((ptr, size))
+    }
+}
+
+/// Wrapper around [`sqlite3_free`].
+///
+/// # Safety
+/// - `ptr` must be null or a pointer allocated by SQLite.
+///
+/// See <https://www.sqlite.org/c3ref/free.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn free(ptr: *mut c_void) {
+    unsafe { ffi_sys::sqlite3_free(ptr) }
+}
+
 /// Wrapper around [`sqlite3_interrupt`].
 ///
 /// # Safety

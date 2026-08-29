@@ -169,6 +169,17 @@ impl Connection {
         self.worker.transaction_state().await
     }
 
+    /// Serialize `schema` to a SQLite database image.
+    ///
+    /// The image is a copy of the named schema, usually `"main"`. SQLite
+    /// allocates the buffer; Musq copies it into a `Vec` and frees the
+    /// original.
+    pub async fn serialize(&self, schema: &str) -> Result<Vec<u8>> {
+        let schema = CString::new(schema)
+            .map_err(|_| Error::Configuration("serialize schema contains nul bytes".into()))?;
+        self.worker.serialize(schema).await
+    }
+
     /// Interrupt the statement currently running on this connection.
     ///
     /// The in-flight statement fails with `SQLITE_INTERRUPT`. If that
