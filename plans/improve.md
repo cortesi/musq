@@ -947,9 +947,9 @@ deprecation shim or a transition default.
    ConnectionWorker`, `unsafe impl Send/Sync for Row`, and the empty
    `impl Drop for Connection`. Add `assert_send_sync::<T>()` checks in each
    file's test module.
-6. [ ] §10. Change `Connection::close(&self)` to `close(self)`. Update
+6. [x] §10. Change `Connection::close(&self)` to `close(self)`. Update
    `PoolConnection::close`, `Idle::close`, and `Floating::close`.
-7. [ ] Stage gate.
+7. [x] Stage gate.
 
 ### Stage 2: Transactions
 

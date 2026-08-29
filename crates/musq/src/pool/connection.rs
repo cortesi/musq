@@ -109,7 +109,13 @@ impl PoolConnection {
     #[must_use = "futures returned by `PoolConnection::close` must be awaited"]
     pub async fn close(mut self) -> Result<()> {
         let floating = self.take_live().float(self.pool.clone());
-        floating.inner.raw.close().await
+        let Floating {
+            inner: Live { raw },
+            guard,
+        } = floating;
+        let result = raw.close().await;
+        drop(guard);
+        result
     }
 
     /// Take ownership of the live connection, if present.
@@ -191,7 +197,8 @@ impl DerefMut for Idle {
 impl Idle {
     /// Close the idle connection without touching pool permits or counters.
     pub(super) async fn close(self) {
-        let _close_result = self.live.raw.close().await;
+        let Self { live: Live { raw } } = self;
+        let _close_result = raw.close().await;
     }
 }
 
@@ -237,10 +244,12 @@ impl Floating<Live> {
 
     /// Close the underlying connection and drop the size guard.
     pub async fn close(self) {
-        // This isn't used anywhere that we care about the return value.
-        let _close_result = self.inner.raw.close().await;
-
-        // `guard` is dropped as intended
+        let Self {
+            inner: Live { raw },
+            guard,
+        } = self;
+        let _close_result = raw.close().await;
+        drop(guard);
     }
 
     /// Convert a floating live connection into a floating idle connection.

@@ -109,27 +109,17 @@ impl Connection {
         })
     }
 
-    /// Explicitly close this database connection.
+    /// Close this connection and shut down its worker thread.
     ///
-    /// This notifies the database server that the connection is closing so that it can
-    /// free up any server-side resources in use.
-    ///
-    /// While connections can simply be dropped to clean up local resources,
-    /// the `Drop` handler itself cannot notify the server that the connection is being closed
-    /// because that may require I/O to send a termination message. That can result in a delay
-    /// before the server learns that the connection is gone, usually from a TCP keepalive timeout.
-    ///
-    /// Creating and dropping many connections in short order without calling `.close()` may
-    /// lead to errors from the database server because those senescent connections will still
-    /// count against any connection limit or quota that is configured.
-    ///
-    /// Therefore it is recommended to call `.close()` on a connection when you are done using it
-    /// and to `.await` the result to ensure the termination message is sent.
+    /// This consumes the connection so later calls cannot observe a closed handle.
+    /// Dropping a connection also shuts the worker down when the command channel
+    /// is dropped. Call `close` when you need to wait for that shutdown and handle
+    /// errors from `PRAGMA optimize` when optimize-on-close is enabled.
     ///
     /// The returned future **must** be awaited to ensure the connection is fully
     /// closed.
     #[must_use = "futures returned by `Connection::close` must be awaited"]
-    pub async fn close(&self) -> Result<()> {
+    pub async fn close(self) -> Result<()> {
         if let OptimizeOnClose::Enabled { analysis_limit } = self.optimize_on_close {
             let mut pragma_string = String::new();
             if let Some(limit) = analysis_limit {
