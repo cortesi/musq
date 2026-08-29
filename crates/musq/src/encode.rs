@@ -30,28 +30,16 @@ where
     }
 }
 
-/// A convenience type alias for inserting NULL values without type annotations.
+/// A unit value that encodes as SQL NULL.
 ///
-/// This is useful when you want to insert NULL values in `values!` blocks
-/// without having to specify a particular type like `None::<String>`.
-///
-/// # Example
-///
-/// ```rust,no_run
-/// use musq::{values, Null};
-///
-/// let user_data = values! {
-///     "name": "Alice",
-///     "middle_name": Null,  // Convenient NULL without type annotation
-///     "email": "alice@example.com"
-/// }?;
-/// # Ok::<(), musq::Error>(())
-/// ```
-pub type Null = Option<bool>;
+/// Use this in `values!` blocks when you want NULL without a type annotation.
+pub struct Null;
 
-/// A convenient constant for inserting NULL values.
-#[allow(non_upper_case_globals)]
-pub const Null: Null = None;
+impl Encode for Null {
+    fn encode(&self) -> Result<Value, EncodeError> {
+        Ok(Value::Null { type_info: None })
+    }
+}
 
 #[cfg(test)]
 mod tests {
@@ -249,8 +237,8 @@ mod tests {
     }
 
     #[test]
-    fn test_null_alias_type() {
-        let null_val: Null = None;
+    fn test_null_unit_struct() {
+        let null_val = Null;
         let encoded = null_val.encode().unwrap();
 
         if let Value::Null { type_info } = encoded {
