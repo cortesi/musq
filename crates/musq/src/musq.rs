@@ -13,7 +13,7 @@ use log::LevelFilter;
 
 use crate::{
     Result, debugfn::DebugFn, logger::LogSettings, pool, sqlite::Connection,
-    statement_cache::DEFAULT_CAPACITY,
+    statement_cache::DEFAULT_CAPACITY, transaction::TransactionBehavior,
 };
 
 /// Sequence for in-memory database names.
@@ -135,6 +135,8 @@ pub struct Musq {
 
     /// Optimize-on-close configuration.
     pub(crate) optimize_on_close: OptimizeOnClose,
+    /// Default start mode for [`crate::Pool::begin`] and [`crate::Connection::begin`].
+    pub(crate) default_transaction_behavior: TransactionBehavior,
 }
 
 /// Control whether `PRAGMA optimize` is run when closing a connection.
@@ -221,6 +223,7 @@ impl Musq {
             optimize_on_close: OptimizeOnClose::Disabled,
             pool_acquire_timeout: Duration::from_secs(30),
             pool_max_connections: 10,
+            default_transaction_behavior: TransactionBehavior::Immediate,
         }
     }
 
@@ -237,6 +240,17 @@ impl Musq {
     #[must_use]
     pub fn filename(mut self, filename: impl AsRef<Path>) -> Self {
         self.filename = filename.as_ref().to_owned();
+        self
+    }
+
+    /// Set the default start mode for [`crate::Pool::begin`] and [`crate::Connection::begin`].
+    ///
+    /// The default is [`TransactionBehavior::Immediate`]. Nested `begin` calls
+    /// still create savepoints. Use [`crate::Pool::begin_with`] or
+    /// [`crate::Connection::begin_with`] for a per-call choice.
+    #[must_use]
+    pub fn default_transaction_behavior(mut self, behavior: TransactionBehavior) -> Self {
+        self.default_transaction_behavior = behavior;
         self
     }
 

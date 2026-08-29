@@ -354,6 +354,17 @@ pub fn last_insert_rowid(db: *mut sqlite3) -> i64 {
     unsafe { ffi_sys::sqlite3_last_insert_rowid(db) }
 }
 
+/// Wrapper around [`sqlite3_get_autocommit`].
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+///
+/// See <https://www.sqlite.org/c3ref/get_autocommit.html>
+#[inline]
+pub fn get_autocommit(db: *mut sqlite3) -> bool {
+    unsafe { ffi_sys::sqlite3_get_autocommit(db) != 0 }
+}
+
 /// Wrapper around [`sqlite3_db_handle`].
 ///
 /// # Safety

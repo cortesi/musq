@@ -86,7 +86,7 @@ pub use crate::{
         Prepared, SqliteDataType, SqliteError, SqliteRuntimeInfo, Value, WalCheckpoint,
         WalCheckpointMode,
     },
-    transaction::Transaction,
+    transaction::{Transaction, TransactionBehavior},
     values::{IntoValuesEntry, Values, ValuesEntry},
 };
 

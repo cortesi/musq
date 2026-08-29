@@ -230,10 +230,17 @@ sql!("UPDATE events SET {set:changes} WHERE id = 1")?
 
 ## Transactions
 
-`Pool::begin` and `Connection::begin` return a `Transaction`. Calling `begin`
-on an existing transaction creates a savepoint. Dropping an uncommitted
-transaction rolls it back. `Connection::transaction` runs a closure and
-commits or rolls back based on its result.
+`Pool::begin` and `Connection::begin` return a `Transaction`. Top-level
+transactions start with `BEGIN IMMEDIATE` so a reserved lock is taken at
+begin. That avoids `SQLITE_BUSY_SNAPSHOT` when another connection commits
+between a deferred read and a later write. Use `Musq::default_transaction_behavior`
+to change the default, or `begin_with(TransactionBehavior::Deferred)` /
+`Exclusive` for one call.
+
+Calling `begin` on an existing transaction creates a savepoint. `commit` and
+`rollback` consume the transaction. Dropping an uncommitted transaction rolls
+it back. `Connection::transaction` runs a closure and commits or rolls back
+based on its result.
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#transaction -->
 ```rust

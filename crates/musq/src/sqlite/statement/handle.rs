@@ -237,32 +237,6 @@ impl StatementHandle {
                         }
                     }
                 }
-                libsqlite3_sys::SQLITE_BUSY => {
-                    // Another connection holds a lock that prevented the step from
-                    // completing. Wait for an unlock notification and retry.
-                    if attempts >= DEFAULT_MAX_RETRIES {
-                        return Err(crate::Error::UnlockNotify);
-                    }
-                    attempts += 1;
-                    unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
-                    loop {
-                        if attempts >= DEFAULT_MAX_RETRIES {
-                            return Err(crate::Error::UnlockNotify);
-                        }
-                        attempts += 1;
-                        match ffi::reset(self.0.as_ptr()) {
-                            Ok(()) => break,
-                            Err(ref e) if e.should_retry() => {
-                                unlock_notify::wait(
-                                    unsafe { self.db_handle() },
-                                    Some(self.0.as_ptr()),
-                                )?;
-                                continue;
-                            }
-                            Err(e) => return Err(e.into()),
-                        }
-                    }
-                }
                 _ => return Err(unsafe { SqliteError::new(self.db_handle()) }.into()),
             }
         }

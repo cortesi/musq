@@ -13,17 +13,16 @@ mod tests {
     #[tokio::test]
     async fn transaction_signatures_compile() -> anyhow::Result<()> {
         let pool = Musq::new().open_in_memory().await?;
-        let mut pool_transaction = pool.begin().await?;
+        let pool_transaction = pool.begin().await?;
         accepts_pool_transaction(&pool_transaction);
 
         let mut connection = Connection::connect_with(&Musq::new()).await?;
         let mut borrowed = connection.begin().await?;
         accepts_borrowed_transaction(&borrowed);
 
-        let mut nested = borrowed.begin().await?;
+        let nested = borrowed.begin().await?;
         accepts_nested_transaction(&nested);
         nested.rollback().await?;
-        drop(nested);
         borrowed.rollback().await?;
         pool_transaction.rollback().await?;
         Ok(())

@@ -107,8 +107,18 @@ impl Pool {
     }
 
     /// Retrieves a connection and immediately begins a new transaction.
+    ///
+    /// Uses the pool's default [`crate::TransactionBehavior`].
     pub async fn begin(&self) -> Result<Transaction<PoolConnection>> {
         Transaction::begin(self.acquire().await?).await
+    }
+
+    /// Begin a transaction with an explicit start mode.
+    pub async fn begin_with(
+        &self,
+        behavior: crate::TransactionBehavior,
+    ) -> Result<Transaction<PoolConnection>> {
+        Transaction::begin_with(self.acquire().await?, behavior).await
     }
 
     /// Return runtime identity and compile options from a pooled connection.

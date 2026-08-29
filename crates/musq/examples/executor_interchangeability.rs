@@ -32,7 +32,7 @@ async fn main() -> Result<(), Box<dyn Error>> {
     println!("📊 Inserted user via standalone Connection");
 
     // Test with Transaction
-    let mut tx = pool.begin().await?;
+    let tx = pool.begin().await?;
     insert_user(&tx, 3, "Diana").await?;
     tx.commit().await?;
     println!("📊 Inserted user via Transaction");

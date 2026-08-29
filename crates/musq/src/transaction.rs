@@ -7,13 +7,33 @@ use futures_core::future::BoxFuture;
 
 use crate::{Connection, PoolConnection, Result};
 
+/// How SQLite starts a top-level transaction.
+///
+/// Nested [`Transaction::begin`] calls still create savepoints.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum TransactionBehavior {
+    /// `BEGIN DEFERRED`. Locks are taken when they are needed.
+    Deferred,
+    /// `BEGIN IMMEDIATE`. A reserved lock is taken at begin.
+    ///
+    /// This is the default. Most explicit transactions write, and Immediate
+    /// avoids `SQLITE_BUSY_SNAPSHOT` when a second connection commits between
+    /// a deferred read and a later write.
+    #[default]
+    Immediate,
+    /// `BEGIN EXCLUSIVE`. An exclusive lock is taken at begin.
+    Exclusive,
+}
+
 /// An in-progress database transaction or savepoint.
 ///
 /// A transaction is a sequence of operations performed as a single logical unit of work. All
 /// commands within a transaction are guaranteed to execute on the same database connection.
 ///
-/// A transaction is started by calling [`crate::Pool::begin`] or [`Connection::begin`]. It must be
-/// concluded by calling either [`commit()`] or [`rollback()`].
+/// A transaction is started by calling [`crate::Pool::begin`] or [`Connection::begin`].
+/// Top-level transactions use [`TransactionBehavior::Immediate`] unless a
+/// different default or [`Self::begin_with`] is set. It must be concluded by calling
+/// either [`commit()`] or [`rollback()`], both of which consume the transaction.
 ///
 /// If a `Transaction` object is dropped without being explicitly committed or rolled back, it
 /// will automatically be rolled back.
@@ -39,13 +59,25 @@ impl<C> Transaction<C>
 where
     C: DerefMut<Target = Connection> + Send,
 {
-    /// Begin a nested transaction.
+    /// Begin a transaction using the connection's default behavior.
     pub fn begin<'c>(conn: C) -> BoxFuture<'c, Result<Self>>
     where
         C: 'c,
     {
+        let behavior = conn.deref().default_transaction_behavior;
+        Self::begin_with(conn, behavior)
+    }
+
+    /// Begin a transaction with an explicit start mode.
+    ///
+    /// Nested calls still create savepoints. `behavior` applies only when this
+    /// is the outer transaction.
+    pub fn begin_with<'c>(conn: C, behavior: TransactionBehavior) -> BoxFuture<'c, Result<Self>>
+    where
+        C: 'c,
+    {
         Box::pin(async move {
-            conn.deref().worker.begin().await?;
+            conn.deref().worker.begin(behavior).await?;
             Ok(Self {
                 connection: conn,
                 open: true,
@@ -54,14 +86,14 @@ where
     }
 
     /// Commits this transaction or savepoint.
-    pub async fn commit(&mut self) -> Result<()> {
+    pub async fn commit(mut self) -> Result<()> {
         self.connection.deref().worker.commit().await?;
         self.open = false;
         Ok(())
     }
 
     /// Aborts this transaction or savepoint.
-    pub async fn rollback(&mut self) -> Result<()> {
+    pub async fn rollback(mut self) -> Result<()> {
         self.connection.deref().worker.rollback().await?;
         self.open = false;
         Ok(())
@@ -127,22 +159,72 @@ where
     }
 }
 
-/// Build SQL for beginning an ANSI-style transaction/savepoint.
-pub fn begin_ansi_transaction_sql(depth: usize) -> String {
-    // The first savepoint is equivalent to a BEGIN
-    format!("SAVEPOINT _musq_savepoint_{depth}")
+/// Build SQL for beginning a transaction or savepoint at `depth`.
+pub fn begin_sql(depth: usize, behavior: TransactionBehavior) -> String {
+    if depth == 0 {
+        match behavior {
+            TransactionBehavior::Deferred => "BEGIN DEFERRED".into(),
+            TransactionBehavior::Immediate => "BEGIN IMMEDIATE".into(),
+            TransactionBehavior::Exclusive => "BEGIN EXCLUSIVE".into(),
+        }
+    } else {
+        format!("SAVEPOINT _musq_savepoint_{depth}")
+    }
 }
 
-/// Build SQL for committing an ANSI-style transaction/savepoint.
-pub fn commit_ansi_transaction_sql(depth: usize) -> String {
-    format!("RELEASE SAVEPOINT _musq_savepoint_{}", depth - 1)
+/// Build SQL for committing a transaction or savepoint at `depth`.
+pub fn commit_sql(depth: usize) -> String {
+    if depth <= 1 {
+        "COMMIT".into()
+    } else {
+        format!("RELEASE SAVEPOINT _musq_savepoint_{}", depth - 1)
+    }
 }
 
-/// Build SQL for rolling back an ANSI-style transaction/savepoint.
-pub fn rollback_ansi_transaction_sql(depth: usize) -> String {
-    if depth == 1 {
+/// Build SQL for rolling back a transaction or savepoint at `depth`.
+pub fn rollback_sql(depth: usize) -> String {
+    if depth <= 1 {
         "ROLLBACK".into()
     } else {
-        format!("ROLLBACK TO SAVEPOINT _musq_savepoint_{}", depth - 1)
+        format!(
+            "ROLLBACK TO SAVEPOINT _musq_savepoint_{0}; RELEASE SAVEPOINT _musq_savepoint_{0}",
+            depth - 1
+        )
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{TransactionBehavior, begin_sql, commit_sql, rollback_sql};
+
+    #[test]
+    fn begin_sql_uses_behavior_at_depth_zero() {
+        assert_eq!(
+            begin_sql(0, TransactionBehavior::Deferred),
+            "BEGIN DEFERRED"
+        );
+        assert_eq!(
+            begin_sql(0, TransactionBehavior::Immediate),
+            "BEGIN IMMEDIATE"
+        );
+        assert_eq!(
+            begin_sql(0, TransactionBehavior::Exclusive),
+            "BEGIN EXCLUSIVE"
+        );
+    }
+
+    #[test]
+    fn nested_sql_uses_savepoints() {
+        assert_eq!(
+            begin_sql(1, TransactionBehavior::Immediate),
+            "SAVEPOINT _musq_savepoint_1"
+        );
+        assert_eq!(commit_sql(1), "COMMIT");
+        assert_eq!(commit_sql(2), "RELEASE SAVEPOINT _musq_savepoint_1");
+        assert_eq!(rollback_sql(1), "ROLLBACK");
+        assert_eq!(
+            rollback_sql(2),
+            "ROLLBACK TO SAVEPOINT _musq_savepoint_1; RELEASE SAVEPOINT _musq_savepoint_1"
+        );
     }
 }

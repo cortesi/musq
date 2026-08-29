@@ -953,24 +953,24 @@ deprecation shim or a transition default.
 
 ### Stage 2: Transactions
 
-1. [ ] §1. Add `TransactionBehavior { Deferred, Immediate, Exclusive }`
+1. [x] §1. Add `TransactionBehavior { Deferred, Immediate, Exclusive }`
    with `Immediate` as default. Add `Musq::default_transaction_behavior`,
    `Pool::begin_with`, `Connection::begin_with`. Extend `Command::Begin`.
-2. [ ] §1. Replace `begin_ansi_transaction_sql`,
+2. [x] §1. Replace `begin_ansi_transaction_sql`,
    `commit_ansi_transaction_sql`, and `rollback_ansi_transaction_sql` with
    the depth matrix in §1 (`BEGIN`/`COMMIT`/`ROLLBACK` at depth 0→1,
    `SAVEPOINT`/`RELEASE`/`ROLLBACK TO` deeper). Make `commit` and `rollback`
    consume `self`.
-3. [ ] §1 tests in `tests/transaction_signatures.rs` and a new
+3. [x] §1 tests in `tests/transaction_signatures.rs` and a new
    `tests/transaction_behavior.rs`: autocommit true after top-level commit
    and rollback under each behavior; nested savepoint commit and rollback
    leave the outer transaction open; second-connection write inside an
    `Immediate` transaction fails with `PrimaryErrCode::Busy` after the busy
    timeout; `Deferred` read-then-write reproduces `BusySnapshot`. Use a
    file database in WAL mode.
-4. [ ] README: update the Transactions section for `Immediate` default,
+4. [x] README: update the Transactions section for `Immediate` default,
    `begin_with`, and consuming `commit`/`rollback`.
-5. [ ] Stage gate.
+5. [x] Stage gate.
 
 ### Stage 3: SQLite Locking Layer
 
@@ -1101,4 +1101,9 @@ deprecation shim or a transition default.
 Record added, removed, split, reordered, or deferred items here with the
 date and reason.
 
-- None yet.
+- 2026-08-29: Stage 2 added `Connection::is_autocommit()` so the §1 tests
+  can read `sqlite3_get_autocommit`. Stage 5 §12 still adds
+  `transaction_state()` and the commit/rollback debug asserts.
+- 2026-08-29: Stage 2 removed the `SQLITE_BUSY` unlock-notify retry in
+  `StatementHandle::step` so a blocked Immediate writer returns
+  `PrimaryErrCode::Busy`. Stage 3 still deletes remaining unlock-notify.

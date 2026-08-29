@@ -70,6 +70,8 @@ pub struct Connection {
     pub(crate) worker: ConnectionWorker,
     /// Size of the row channel.
     pub(crate) row_channel_size: usize,
+    /// Default start mode for [`Connection::begin`].
+    pub(crate) default_transaction_behavior: crate::TransactionBehavior,
 }
 
 /// Internal state for an active connection.
@@ -106,6 +108,7 @@ impl Connection {
             optimize_on_close: options.optimize_on_close.clone(),
             worker,
             row_channel_size: options.row_channel_size,
+            default_transaction_behavior: options.default_transaction_behavior,
         })
     }
 
@@ -133,12 +136,32 @@ impl Connection {
 
     /// Begin a new transaction or establish a savepoint within the active transaction.
     ///
-    /// Returns a [`Transaction`] for controlling and tracking the new transaction.
+    /// Uses the connection's default [`crate::TransactionBehavior`]. Nested
+    /// calls create savepoints.
     pub fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<&mut Self>>>
     where
         Self: Sized,
     {
-        Transaction::begin(self)
+        let behavior = self.default_transaction_behavior;
+        Transaction::begin_with(self, behavior)
+    }
+
+    /// Begin a transaction with an explicit start mode.
+    ///
+    /// Nested calls still create savepoints.
+    pub fn begin_with(
+        &mut self,
+        behavior: crate::TransactionBehavior,
+    ) -> BoxFuture<'_, Result<Transaction<&mut Self>>>
+    where
+        Self: Sized,
+    {
+        Transaction::begin_with(self, behavior)
+    }
+
+    /// Return whether SQLite currently has no explicit transaction open.
+    pub async fn is_autocommit(&self) -> Result<bool> {
+        self.worker.is_autocommit().await
     }
 
     /// Return the current cached statement count.

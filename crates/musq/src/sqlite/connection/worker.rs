@@ -23,9 +23,7 @@ use crate::{
         ffi,
         statement::Statement,
     },
-    transaction::{
-        begin_ansi_transaction_sql, commit_ansi_transaction_sql, rollback_ansi_transaction_sql,
-    },
+    transaction::{TransactionBehavior, begin_sql, commit_sql, rollback_sql},
 };
 
 // Each SQLite connection has a dedicated thread. It's possible to create a worker pool for this,
@@ -71,8 +69,15 @@ enum Command {
     },
     /// Begin a transaction.
     Begin {
+        /// Start mode for a top-level transaction.
+        behavior: TransactionBehavior,
         /// Response channel.
         tx: rendezvous_oneshot::Sender<Result<()>>,
+    },
+    /// Report whether SQLite is in autocommit mode.
+    IsAutocommit {
+        /// Response channel.
+        tx: oneshot::Sender<Result<bool>>,
     },
     /// Commit a transaction.
     Commit {
@@ -201,14 +206,11 @@ impl ConnectionWorker {
 
                             update_cached_statements_size(&conn, &shared.cached_statements_size);
                         }
-                        Command::Begin { tx } => {
+                        Command::Begin { behavior, tx } => {
                             let depth = conn.transaction_depth;
-                            let res =
-                                conn.handle
-                                    .exec(begin_ansi_transaction_sql(depth))
-                                    .map(|_| {
-                                        conn.transaction_depth += 1;
-                                    });
+                            let res = conn.handle.exec(begin_sql(depth, behavior)).map(|_| {
+                                conn.transaction_depth += 1;
+                            });
                             let res_ok = res.is_ok();
 
                             if tx.blocking_send(res).is_err() && res_ok {
@@ -218,7 +220,7 @@ impl ConnectionWorker {
                                 // immediately otherwise it would remain started forever.
                                 if let Err(error) = conn
                                     .handle
-                                    .exec(rollback_ansi_transaction_sql(depth + 1))
+                                    .exec(rollback_sql(conn.transaction_depth))
                                     .map(|_| {
                                         conn.transaction_depth -= 1;
                                     })
@@ -235,11 +237,9 @@ impl ConnectionWorker {
                             let depth = conn.transaction_depth;
 
                             let res = if depth > 0 {
-                                conn.handle
-                                    .exec(commit_ansi_transaction_sql(depth))
-                                    .map(|_| {
-                                        conn.transaction_depth -= 1;
-                                    })
+                                conn.handle.exec(commit_sql(depth)).map(|_| {
+                                    conn.transaction_depth -= 1;
+                                })
                             } else {
                                 Ok(())
                             };
@@ -261,17 +261,7 @@ impl ConnectionWorker {
                             let depth = conn.transaction_depth;
 
                             let res = if depth > 0 {
-                                let sql = if depth == 1 {
-                                    rollback_ansi_transaction_sql(depth)
-                                } else {
-                                    format!(
-                                        "{}; {}",
-                                        rollback_ansi_transaction_sql(depth),
-                                        commit_ansi_transaction_sql(depth)
-                                    )
-                                };
-
-                                conn.handle.exec(sql).map(|_| {
+                                conn.handle.exec(rollback_sql(depth)).map(|_| {
                                     conn.transaction_depth -= 1;
                                 })
                             } else {
@@ -300,6 +290,10 @@ impl ConnectionWorker {
                         }
                         Command::ParserDepthLimit { tx } => {
                             tx.send(parser_depth_limit(&conn)).ok();
+                        }
+                        Command::IsAutocommit { tx } => {
+                            tx.send(Ok(ffi::get_autocommit(conn.handle.as_ptr())))
+                                .ok();
                         }
 
                         #[cfg(test)]
@@ -375,9 +369,14 @@ impl ConnectionWorker {
     }
 
     /// Begin a transaction on the worker thread.
-    pub(crate) async fn begin(&self) -> Result<()> {
-        self.oneshot_cmd_with_ack(|tx| Command::Begin { tx })
+    pub(crate) async fn begin(&self, behavior: TransactionBehavior) -> Result<()> {
+        self.oneshot_cmd_with_ack(|tx| Command::Begin { behavior, tx })
             .await?
+    }
+
+    /// Report whether SQLite is in autocommit mode.
+    pub(crate) async fn is_autocommit(&self) -> Result<bool> {
+        self.oneshot_cmd(|tx| Command::IsAutocommit { tx }).await?
     }
 
     /// Commit the current transaction on the worker thread.

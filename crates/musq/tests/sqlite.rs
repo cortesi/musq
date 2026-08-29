@@ -694,16 +694,15 @@ mod tests {
             assert_eq!(check!(tx0, 0), 1);
         }
 
-        let mut ntx = conn.begin().await.unwrap();
+        let ntx = conn.begin().await.unwrap();
         assert_eq!(check!(ntx, 0), 0);
         ntx.rollback().await.unwrap();
-        drop(ntx);
 
         {
             let mut tx0 = conn.begin().await.unwrap();
             add!(tx0, 0);
             {
-                let mut tx1 = tx0.begin().await.unwrap();
+                let tx1 = tx0.begin().await.unwrap();
                 add!(tx1, 1);
                 tx1.commit().await.unwrap();
             }
@@ -726,7 +725,7 @@ mod tests {
             .await?;
 
         {
-            let mut tx1 = tx0.begin().await?;
+            let tx1 = tx0.begin().await?;
             query("INSERT INTO t (value) VALUES (1)")
                 .execute(&tx1)
                 .await?;
@@ -734,7 +733,7 @@ mod tests {
         }
 
         {
-            let mut tx2 = tx0.begin().await?;
+            let tx2 = tx0.begin().await?;
             query("INSERT INTO t (value) VALUES (2)")
                 .execute(&tx2)
                 .await?;
@@ -742,7 +741,6 @@ mod tests {
         }
 
         tx0.commit().await?;
-        drop(tx0);
 
         let values: Vec<(i64,)> = query_as("SELECT value FROM t ORDER BY value")
             .fetch_all(&conn)
@@ -832,7 +830,7 @@ mod tests {
         for _ in 0..iterations {
             let key = rng.random_range(0..1_000);
             let value = rng.random_range(0..1_000);
-            let mut tx = conn.begin().await?;
+            let tx = conn.begin().await?;
 
             let exists = query("SELECT 1 FROM kv WHERE k = ? LIMIT 1")
                 .bind(key)

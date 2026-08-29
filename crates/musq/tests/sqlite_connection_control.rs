@@ -113,7 +113,7 @@ mod tests {
         .execute(&pool)
         .await?;
 
-        let mut transaction = pool.begin().await?;
+        let transaction = pool.begin().await?;
         query("INSERT INTO child VALUES (1, 99)")
             .execute(&transaction)
             .await?;

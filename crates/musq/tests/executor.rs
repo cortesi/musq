@@ -142,7 +142,7 @@ mod tests {
             let mut conn = setup_test_db().await?;
 
             {
-                let mut tx = conn.begin().await?;
+                let tx = conn.begin().await?;
 
                 let result = query("INSERT INTO test_table (value) VALUES (?)")
                     .bind("tx_value")
@@ -169,7 +169,7 @@ mod tests {
             let mut conn = setup_test_db().await?;
 
             {
-                let mut tx = conn.begin().await?;
+                let tx = conn.begin().await?;
 
                 query("INSERT INTO test_table (value) VALUES (?)")
                     .bind("tx_rollback_value")
@@ -193,7 +193,7 @@ mod tests {
         async fn test_fetch_one_with_transaction() -> musq::Result<()> {
             let mut conn = setup_test_db().await?;
 
-            let mut tx = conn.begin().await?;
+            let tx = conn.begin().await?;
 
             let row: Row = query("SELECT value FROM test_table WHERE id = ?")
                 .bind(1)
