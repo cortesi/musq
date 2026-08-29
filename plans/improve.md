@@ -1060,7 +1060,7 @@ deprecation shim or a transition default.
    Result<BackupReport>` on the source worker, `backup_finish` on every
    exit path, same-file rejection. Test backs up a file DB and opens the
    copy.
-4. [ ] §15. `Musq::function(name, n_args, FunctionFlags, f)` and
+4. [x] §15. `Musq::function(name, n_args, FunctionFlags, f)` and
    `Musq::collation(name, f)`, registered at establish. `FunctionFlags {
    deterministic, direct_only, innocuous }` with `direct_only` default.
    `catch_unwind` at every C entry point; `xDestroy` frees the closure.

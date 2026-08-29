@@ -2,7 +2,10 @@ use std::{
     ffi::CString,
     io,
     ptr::{null, null_mut},
-    sync::atomic::{AtomicU64, Ordering},
+    sync::{
+        Arc,
+        atomic::{AtomicU64, Ordering},
+    },
     time::Duration,
 };
 
@@ -16,6 +19,7 @@ use crate::{
     sqlite::{
         connection::{ConnectionState, LogSettings, StatementCache, handle::ConnectionHandle},
         ffi,
+        function::{RegisteredCollation, RegisteredFunction, register_all},
     },
 };
 
@@ -50,6 +54,10 @@ pub struct EstablishParams {
     pub(crate) thread_name: String,
     /// Size of the command channel to the worker.
     pub(crate) command_channel_size: usize,
+    /// Scalar functions to register after open.
+    functions: Vec<Arc<RegisteredFunction>>,
+    /// Collations to register after open.
+    collations: Vec<Arc<RegisteredCollation>>,
 }
 
 impl EstablishParams {
@@ -125,6 +133,8 @@ impl EstablishParams {
             statement_timeout: options.statement_timeout,
             thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
             command_channel_size: options.command_channel_size,
+            functions: options.functions.clone(),
+            collations: options.collations.clone(),
         })
     }
 
@@ -213,6 +223,8 @@ impl EstablishParams {
                 )
             };
         }
+
+        register_all(handle.as_ptr(), &self.functions, &self.collations)?;
 
         Ok(ConnectionState {
             handle,

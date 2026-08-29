@@ -1,9 +1,10 @@
 use std::{
+    cmp::Ordering,
     fmt::Write,
     path::{Path, PathBuf},
     sync::{
         Arc,
-        atomic::{AtomicUsize, Ordering},
+        atomic::{AtomicUsize, Ordering as AtomicOrdering},
     },
     time::Duration,
 };
@@ -12,8 +13,16 @@ use indexmap::IndexMap;
 use log::LevelFilter;
 
 use crate::{
-    Result, debugfn::DebugFn, logger::LogSettings, pool, sqlite::Connection,
-    statement_cache::DEFAULT_CAPACITY, transaction::TransactionBehavior,
+    FunctionFlags, Result, Value,
+    debugfn::DebugFn,
+    logger::LogSettings,
+    pool,
+    sqlite::{
+        Connection,
+        function::{RegisteredCollation, RegisteredFunction},
+    },
+    statement_cache::DEFAULT_CAPACITY,
+    transaction::TransactionBehavior,
 };
 
 /// Sequence for in-memory database names.
@@ -137,6 +146,10 @@ pub struct Musq {
     pub(crate) defensive: bool,
     /// Optional per-statement runtime limit.
     pub(crate) statement_timeout: Option<Duration>,
+    /// Scalar functions registered on every connection.
+    pub(crate) functions: Vec<Arc<RegisteredFunction>>,
+    /// Collations registered on every connection.
+    pub(crate) collations: Vec<Arc<RegisteredCollation>>,
 }
 
 impl Default for Musq {
@@ -228,6 +241,8 @@ impl Musq {
             trusted_schema: false,
             defensive: false,
             statement_timeout: None,
+            functions: Vec::new(),
+            collations: Vec::new(),
         }
     }
 
@@ -518,6 +533,37 @@ impl Musq {
         self
     }
 
+    /// Register a scalar function on every connection opened from these options.
+    ///
+    /// `n_args` is the argument count, or `-1` for a variable-argument
+    /// function. [`FunctionFlags`] defaults to `direct_only`. With trusted
+    /// schema off, set `innocuous` to allow the function in an index, view,
+    /// or trigger.
+    #[must_use]
+    pub fn function<F>(mut self, name: &str, n_args: i32, flags: FunctionFlags, func: F) -> Self
+    where
+        F: Fn(&[Value]) -> Result<Value> + Send + Sync + 'static,
+    {
+        self.functions.push(Arc::new(RegisteredFunction::new(
+            name.to_owned(),
+            n_args,
+            flags,
+            func,
+        )));
+        self
+    }
+
+    /// Register a collation on every connection opened from these options.
+    #[must_use]
+    pub fn collation<F>(mut self, name: &str, func: F) -> Self
+    where
+        F: Fn(&str, &str) -> Ordering + Send + Sync + 'static,
+    {
+        self.collations
+            .push(Arc::new(RegisteredCollation::new(name.to_owned(), func)));
+        self
+    }
+
     /// Execute `PRAGMA optimize;` on the SQLite connection before closing.
     ///
     /// Not enabled by default. [`Self::analysis_limit`] is the scan limit used
@@ -607,7 +653,7 @@ impl Musq {
     /// Uses the `memdb` VFS and a unique `/musq-in-memory-N` name so every
     /// connection in the pool shares one database without shared-cache mode.
     pub(crate) fn configure_in_memory(self) -> Self {
-        let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
+        let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, AtomicOrdering::Relaxed);
         self.filename(format!("/musq-in-memory-{seqno}"))
             .vfs("memdb")
             .create_if_missing(true)
