@@ -1078,7 +1078,7 @@ deprecation shim or a transition default.
    `json` default-on features. Remove serde derives from `SqliteDataType`.
    Run `cargo test -p musq --no-default-features` and
    `cargo test -p musq --features vec` as part of the gate.
-2. [ ] §32. Delete `crates/musq-test`. Move `examples/vec.rs` and a fixed
+2. [x] §32. Delete `crates/musq-test`. Move `examples/vec.rs` and a fixed
    `examples/custom_type.rs` into `crates/musq/examples/`; delete the
    `include!` shim and the root `examples/` directory.
 3. [ ] §33. `build.rs` exports `BUNDLED_SQLITE_VERSION` from
