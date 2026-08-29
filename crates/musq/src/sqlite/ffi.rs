@@ -387,15 +387,15 @@ pub fn stmt_readonly(stmt: *mut sqlite3_stmt) -> bool {
     unsafe { ffi_sys::sqlite3_stmt_readonly(stmt) != 0 }
 }
 
-/// Wrapper around [`sqlite3_changes`].
+/// Wrapper around [`sqlite3_changes64`].
 ///
 /// # Safety
 /// - `db` must be a valid SQLite connection handle.
 ///
 /// See <https://www.sqlite.org/c3ref/changes.html>
 #[inline]
-pub fn changes(db: *mut sqlite3) -> i32 {
-    unsafe { ffi_sys::sqlite3_changes(db) as i32 }
+pub fn changes64(db: *mut sqlite3) -> i64 {
+    unsafe { ffi_sys::sqlite3_changes64(db) }
 }
 
 /// Wrapper around [`sqlite3_auto_extension`].
@@ -774,6 +774,7 @@ mod tests {
         )
         .unwrap();
         assert_eq!(step(stmt).unwrap(), libsqlite3_sys::SQLITE_DONE);
+        assert_eq!(changes64(handle), 1);
         reset(stmt).unwrap();
         finalize(stmt).unwrap();
 

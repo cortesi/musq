@@ -941,7 +941,7 @@ deprecation shim or a transition default.
    Remaining `Error::Protocol` sites: `row.rs` (null TEXT pointer),
    `worker.rs` (invalid parser-depth limit from SQLite), and
    `establish.rs` (SQLite did not honor `FP_DIGITS`).
-4. [ ] §8. Add `ffi::changes64`; use it in `StatementHandle::changes`. Delete
+4. [x] §8. Add `ffi::changes64`; use it in `StatementHandle::changes`. Delete
    `ffi::changes`.
 5. [ ] §9. Delete `unsafe impl Sync for Connection`, `unsafe impl Sync for
    ConnectionWorker`, `unsafe impl Send/Sync for Row`, and the empty

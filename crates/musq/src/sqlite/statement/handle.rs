@@ -50,7 +50,7 @@ impl StatementHandle {
         // returns the number of changes of the *last* statement; not
         // necessarily this statement.
         // https://sqlite.org/c3ref/changes.html
-        unsafe { ffi::changes(self.db_handle()) as u64 }
+        unsafe { ffi::changes64(self.db_handle()) as u64 }
     }
 
     /// Returns `true` if this statement is read-only.
