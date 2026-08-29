@@ -1,4 +1,4 @@
-error: expected one of: `type`, `ref`, `let`, `mut`, `const`, `static`, `fn`, `struct`, `enum`, `impl`, `trait`, `mod`, `use`, `pub`, `crate`, `super`, `self`, `Self`
+error: expected ident
  --> tests/trybuild/fail_upsert_old_syntax.rs:7:18
   |
 7 |     let _query = sql!("INSERT INTO users (id, name) VALUES {insert: v} ON CONFLICT (id) DO UPDATE SET {upsert: v, exclude: [\"id\"]}");

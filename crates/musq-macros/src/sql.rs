@@ -6,6 +6,7 @@ use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
     Expr, Ident, LitStr, Result as SynResult, Token,
+    ext::IdentExt,
     parse::{Parse, ParseStream},
     punctuated::Punctuated,
 };
@@ -116,78 +117,12 @@ impl Parse for UpsertArgs {
             }
             input.parse::<Token![:]>()?;
 
-            // Parse comma-separated list of identifiers until end of input
             while !input.is_empty() {
-                // Try parsing as a regular identifier first, then handle keywords
-                let ident_string = if let Ok(ident) = input.parse::<Ident>() {
-                    ident.to_string()
-                } else {
-                    // Handle Rust keywords by parsing as a token and converting to string
-                    let lookahead = input.lookahead1();
-                    if lookahead.peek(Token![type]) {
-                        input.parse::<Token![type]>()?;
-                        "type".to_string()
-                    } else if lookahead.peek(Token![ref]) {
-                        input.parse::<Token![ref]>()?;
-                        "ref".to_string()
-                    } else if lookahead.peek(Token![let]) {
-                        input.parse::<Token![let]>()?;
-                        "let".to_string()
-                    } else if lookahead.peek(Token![mut]) {
-                        input.parse::<Token![mut]>()?;
-                        "mut".to_string()
-                    } else if lookahead.peek(Token![const]) {
-                        input.parse::<Token![const]>()?;
-                        "const".to_string()
-                    } else if lookahead.peek(Token![static]) {
-                        input.parse::<Token![static]>()?;
-                        "static".to_string()
-                    } else if lookahead.peek(Token![fn]) {
-                        input.parse::<Token![fn]>()?;
-                        "fn".to_string()
-                    } else if lookahead.peek(Token![struct]) {
-                        input.parse::<Token![struct]>()?;
-                        "struct".to_string()
-                    } else if lookahead.peek(Token![enum]) {
-                        input.parse::<Token![enum]>()?;
-                        "enum".to_string()
-                    } else if lookahead.peek(Token![impl]) {
-                        input.parse::<Token![impl]>()?;
-                        "impl".to_string()
-                    } else if lookahead.peek(Token![trait]) {
-                        input.parse::<Token![trait]>()?;
-                        "trait".to_string()
-                    } else if lookahead.peek(Token![mod]) {
-                        input.parse::<Token![mod]>()?;
-                        "mod".to_string()
-                    } else if lookahead.peek(Token![use]) {
-                        input.parse::<Token![use]>()?;
-                        "use".to_string()
-                    } else if lookahead.peek(Token![pub]) {
-                        input.parse::<Token![pub]>()?;
-                        "pub".to_string()
-                    } else if lookahead.peek(Token![crate]) {
-                        input.parse::<Token![crate]>()?;
-                        "crate".to_string()
-                    } else if lookahead.peek(Token![super]) {
-                        input.parse::<Token![super]>()?;
-                        "super".to_string()
-                    } else if lookahead.peek(Token![self]) {
-                        input.parse::<Token![self]>()?;
-                        "self".to_string()
-                    } else if lookahead.peek(Token![Self]) {
-                        input.parse::<Token![Self]>()?;
-                        "Self".to_string()
-                    } else {
-                        return Err(lookahead.error());
-                    }
-                };
-
-                exclude.push(ident_string);
+                let ident = Ident::parse_any(input)?;
+                exclude.push(ident.to_string());
 
                 if input.peek(Token![,]) {
                     input.parse::<Token![,]>()?;
-                    // Allow trailing comma - if we're at the end after consuming comma, break
                     if input.is_empty() {
                         break;
                     }
@@ -209,7 +144,9 @@ impl Parse for UpsertArgs {
 }
 
 /// Parse the format string into SQL segments.
-fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
+fn parse_fmt(fmt: &LitStr) -> SynResult<Vec<Segment>> {
+    let span = fmt.span();
+    let s = fmt.value();
     let mut out = Vec::new();
     let mut cur = String::new();
     let mut chars = s.chars().peekable();
@@ -235,10 +172,7 @@ fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
                     ph.push(ch);
                 }
                 if !closed {
-                    return Err(syn::Error::new(
-                        proc_macro2::Span::call_site(),
-                        "unmatched `{`",
-                    ));
+                    return Err(syn::Error::new(span, "unmatched `{`"));
                 }
                 let (kind, expr) = if let Some(idx) = ph.find(':') {
                     let (k, e) = ph.split_at(idx);
@@ -253,10 +187,7 @@ fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
                         | "raw",
                         None,
                     ) => {
-                        return Err(syn::Error::new(
-                            proc_macro2::Span::call_site(),
-                            "malformed placeholder",
-                        ));
+                        return Err(syn::Error::new(span, "malformed placeholder"));
                     }
                     (name, None) => out.push(Segment::Named(name.to_string())),
                     ("ident", Some(e)) => out.push(Segment::Ident(syn::parse_str(e)?)),
@@ -291,10 +222,7 @@ fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
                     }
                     ("raw", Some(e)) => out.push(Segment::Raw(syn::parse_str(e)?)),
                     _ => {
-                        return Err(syn::Error::new(
-                            proc_macro2::Span::call_site(),
-                            "malformed placeholder",
-                        ));
+                        return Err(syn::Error::new(span, "malformed placeholder"));
                     }
                 }
             }
@@ -303,10 +231,7 @@ fn parse_fmt(s: &str) -> SynResult<Vec<Segment>> {
                     chars.next();
                     cur.push('}');
                 } else {
-                    return Err(syn::Error::new(
-                        proc_macro2::Span::call_site(),
-                        "unmatched `}`",
-                    ));
+                    return Err(syn::Error::new(span, "unmatched `}`"));
                 }
             }
             _ => cur.push(c),
@@ -406,7 +331,7 @@ fn build_sql(
 pub fn expand_sql(input: TokenStream, as_query_as: bool) -> TokenStream {
     let input = syn::parse_macro_input!(input as SqlMacroInput);
     let fmt = &input.fmt;
-    match parse_fmt(&fmt.value()).and_then(|tokens| build_sql(tokens, input, as_query_as)) {
+    match parse_fmt(fmt).and_then(|tokens| build_sql(tokens, input, as_query_as)) {
         Ok(ts) => ts.into(),
         Err(e) => e.to_compile_error().into(),
     }

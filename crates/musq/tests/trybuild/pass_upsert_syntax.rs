@@ -18,8 +18,9 @@ fn main() -> musq::Result<()> {
     // Test with trailing comma
     let _query5 = sql!("INSERT INTO users (id, name, email) VALUES {insert: v} ON CONFLICT (id) DO UPDATE SET {upsert: v, exclude: id, email, }");
 
-    // Test with Rust keywords as identifiers
-    let _query6 = sql!("INSERT INTO table_test (id, type, ref) VALUES {insert: v} ON CONFLICT (id) DO UPDATE SET {upsert: v, exclude: type, ref}");
+    // Test with Rust keywords as identifiers, including ones that are
+    // not in a special-case list (`async`, `match`).
+    let _query6 = sql!("INSERT INTO table_test (id, type, ref, async, match) VALUES {insert: v} ON CONFLICT (id) DO UPDATE SET {upsert: v, exclude: type, ref, async, match}");
 
     // Test with underscores
     let _query7 = sql!("INSERT INTO table_test (id, user_id, last_modified) VALUES {insert: v} ON CONFLICT (id) DO UPDATE SET {upsert: v, exclude: user_id, last_modified}");

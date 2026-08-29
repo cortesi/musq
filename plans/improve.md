@@ -1098,7 +1098,7 @@ deprecation shim or a transition default.
    remaining `dead_code` allows.
 10. [ ] §34. Rewrite the close docs; delete `musq-cli` and SQLx references;
     document each error-code variant.
-11. [ ] §35. `Ident::parse_any` in `UpsertArgs::parse`; format-literal spans
+11. [x] §35. `Ident::parse_any` in `UpsertArgs::parse`; format-literal spans
     for `sql!` errors.
 12. [ ] Stage gate. Also run `cargo outdated --root-deps-only --workspace`
     and record the result here.
