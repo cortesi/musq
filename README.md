@@ -77,8 +77,9 @@ let pool = Musq::new()
 ```
 
 Defaults: foreign keys on, busy timeout 5s, 10 pool connections, journal mode
-left unchanged (set `JournalMode::Wal` explicitly for WAL). Any pragma can be
-set with `.pragma(key, value)`.
+left unchanged (set `JournalMode::Wal` explicitly for WAL), double-quoted
+string literals off, trusted schema off. Any pragma can be set with
+`.pragma(key, value)`.
 
 ## Queries
 

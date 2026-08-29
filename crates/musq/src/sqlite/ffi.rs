@@ -77,26 +77,6 @@ pub(in crate::sqlite) unsafe fn open_v2(
     }
 }
 
-/// Wrapper around [`sqlite3_extended_result_codes`].
-///
-/// # Safety
-/// - `db` must be a valid pointer to an open SQLite connection.
-///
-/// See <https://www.sqlite.org/c3ref/errcode.html>
-#[inline]
-#[must_use = "handle the Result"]
-pub(in crate::sqlite) unsafe fn extended_result_codes(
-    db: *mut sqlite3,
-    onoff: i32,
-) -> StdResult<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_extended_result_codes(db, onoff as c_int) };
-    if rc == ffi_sys::SQLITE_OK {
-        Ok(())
-    } else {
-        Err(SqliteError::new(db))
-    }
-}
-
 /// Wrapper around [`sqlite3_busy_timeout`].
 ///
 /// # Safety
@@ -117,7 +97,48 @@ pub(in crate::sqlite) unsafe fn busy_timeout(
     }
 }
 
-/// Wrapper around [`sqlite3_db_config`] for [`SQLITE_DBCONFIG_FP_DIGITS`].
+/// `sqlite3_db_config` operations that take `(int, int*)`.
+#[derive(Clone, Copy)]
+pub(in crate::sqlite) enum DbConfigIntOp {
+    /// `SQLITE_DBCONFIG_FP_DIGITS`.
+    FpDigits,
+    /// `SQLITE_DBCONFIG_DQS_DDL`.
+    DqsDdl,
+    /// `SQLITE_DBCONFIG_DQS_DML`.
+    DqsDml,
+    /// `SQLITE_DBCONFIG_TRUSTED_SCHEMA`.
+    TrustedSchema,
+    /// `SQLITE_DBCONFIG_DEFENSIVE`.
+    Defensive,
+    /// `SQLITE_DBCONFIG_ENABLE_FKEY`.
+    #[allow(dead_code)]
+    EnableFkey,
+    /// `SQLITE_DBCONFIG_ENABLE_TRIGGER`.
+    #[allow(dead_code)]
+    EnableTrigger,
+    /// `SQLITE_DBCONFIG_ENABLE_VIEW`.
+    #[allow(dead_code)]
+    EnableView,
+}
+
+impl DbConfigIntOp {
+    /// Return the SQLite `SQLITE_DBCONFIG_*` constant for this operation.
+    fn as_raw(self) -> c_int {
+        let code = match self {
+            Self::FpDigits => ffi_sys::SQLITE_DBCONFIG_FP_DIGITS,
+            Self::DqsDdl => ffi_sys::SQLITE_DBCONFIG_DQS_DDL,
+            Self::DqsDml => ffi_sys::SQLITE_DBCONFIG_DQS_DML,
+            Self::TrustedSchema => ffi_sys::SQLITE_DBCONFIG_TRUSTED_SCHEMA,
+            Self::Defensive => ffi_sys::SQLITE_DBCONFIG_DEFENSIVE,
+            Self::EnableFkey => ffi_sys::SQLITE_DBCONFIG_ENABLE_FKEY,
+            Self::EnableTrigger => ffi_sys::SQLITE_DBCONFIG_ENABLE_TRIGGER,
+            Self::EnableView => ffi_sys::SQLITE_DBCONFIG_ENABLE_VIEW,
+        };
+        code as c_int
+    }
+}
+
+/// Wrapper around [`sqlite3_db_config`] for integer operations.
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
@@ -125,18 +146,14 @@ pub(in crate::sqlite) unsafe fn busy_timeout(
 /// See <https://www.sqlite.org/c3ref/c_dbconfig_defensive.html>.
 #[inline]
 #[must_use = "handle the Result"]
-pub(in crate::sqlite) unsafe fn db_config_fp_digits(
+pub(in crate::sqlite) unsafe fn db_config_int(
     db: *mut sqlite3,
-    digits: i32,
+    op: DbConfigIntOp,
+    value: i32,
 ) -> StdResult<i32, SqliteError> {
     let mut current = 0;
     let rc = unsafe {
-        ffi_sys::sqlite3_db_config(
-            db,
-            ffi_sys::SQLITE_DBCONFIG_FP_DIGITS as c_int,
-            digits as c_int,
-            &mut current as *mut c_int,
-        )
+        ffi_sys::sqlite3_db_config(db, op.as_raw(), value as c_int, &mut current as *mut c_int)
     };
     if rc == ffi_sys::SQLITE_OK {
         Ok(current)
@@ -766,11 +783,11 @@ mod tests {
                 &mut handle,
                 libsqlite3_sys::SQLITE_OPEN_READWRITE
                     | libsqlite3_sys::SQLITE_OPEN_CREATE
-                    | libsqlite3_sys::SQLITE_OPEN_MEMORY,
+                    | libsqlite3_sys::SQLITE_OPEN_MEMORY
+                    | libsqlite3_sys::SQLITE_OPEN_EXRESCODE,
                 ptr::null(),
             )
             .unwrap();
-            extended_result_codes(handle, 1).unwrap();
             busy_timeout(handle, 1000).unwrap();
 
             let create_sql = CString::new("CREATE TABLE t (val TEXT);").unwrap();

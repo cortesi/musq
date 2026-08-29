@@ -230,6 +230,21 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn double_quoted_strings_are_disabled_by_default() -> anyhow::Result<()> {
+        let pool = Musq::new().open_in_memory().await?;
+        let error = query(r#"SELECT "no_such_column""#)
+            .execute(&pool)
+            .await
+            .unwrap_err();
+        assert!(
+            error.as_sqlite().is_some(),
+            "expected SQLite error for unknown double-quoted identifier, got {error:?}"
+        );
+        let _ = pool.close().await;
+        Ok(())
+    }
+
     fn nested_expression(depth: usize) -> String {
         format!("SELECT {}1{}", "(".repeat(depth), ")".repeat(depth))
     }

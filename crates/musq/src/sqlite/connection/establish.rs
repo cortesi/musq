@@ -7,8 +7,8 @@ use std::{
 };
 
 use libsqlite3_sys::{
-    SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY,
-    SQLITE_OPEN_READWRITE,
+    SQLITE_OPEN_CREATE, SQLITE_OPEN_EXRESCODE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_NOMUTEX,
+    SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE,
 };
 
 use crate::{
@@ -38,6 +38,12 @@ pub struct EstablishParams {
     floating_point_text_digits: Option<u8>,
     /// Parser stack depth limit to apply with sqlite3_limit().
     parser_depth_limit: Option<i32>,
+    /// Whether double-quoted string literals are accepted.
+    double_quoted_strings: bool,
+    /// Whether schema objects are trusted for non-innocuous functions.
+    trusted_schema: bool,
+    /// Whether SQLite defensive mode is enabled.
+    defensive: bool,
     /// Thread name for connection worker.
     pub(crate) thread_name: String,
     /// Size of the command channel to the worker.
@@ -75,6 +81,7 @@ impl EstablishParams {
         } else {
             SQLITE_OPEN_READWRITE
         };
+        flags |= SQLITE_OPEN_EXRESCODE;
 
         let mut query_params: Vec<String> = vec![];
 
@@ -110,6 +117,9 @@ impl EstablishParams {
             statement_cache_capacity: options.statement_cache_capacity,
             floating_point_text_digits,
             parser_depth_limit,
+            double_quoted_strings: options.double_quoted_strings,
+            trusted_schema: options.trusted_schema,
+            defensive: options.defensive,
             thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
             command_channel_size: options.command_channel_size,
         })
@@ -147,12 +157,6 @@ impl EstablishParams {
         // SAFE: tested for NULL just above and open_v2 succeeded
         let handle = unsafe { ConnectionHandle::new(handle) };
 
-        // Enable extended result codes
-        // https://www.sqlite.org/c3ref/extended_result_codes.html
-        // On failure return the sqlite error for visibility
-        // SAFETY: `handle` is a newly opened live connection.
-        unsafe { ffi::extended_result_codes(handle.as_ptr(), 1) }.map_err(Error::from)?;
-
         // Configure a busy timeout
         // This causes SQLite to automatically sleep in increasing intervals until the time
         // when there is something locked during [sqlite3_step].
@@ -161,12 +165,35 @@ impl EstablishParams {
         // we clamp to `i32::MAX` to comply with SQLite's API.
         let ms = i32::try_from(self.busy_timeout.as_millis()).unwrap_or(i32::MAX);
 
+        // SAFETY: `handle` is a newly opened live connection.
         unsafe { ffi::busy_timeout(handle.as_ptr(), ms) }.map_err(Error::from)?;
 
+        set_db_config_flag(
+            &handle,
+            ffi::DbConfigIntOp::DqsDdl,
+            self.double_quoted_strings,
+        )?;
+        set_db_config_flag(
+            &handle,
+            ffi::DbConfigIntOp::DqsDml,
+            self.double_quoted_strings,
+        )?;
+        set_db_config_flag(
+            &handle,
+            ffi::DbConfigIntOp::TrustedSchema,
+            self.trusted_schema,
+        )?;
+        set_db_config_flag(&handle, ffi::DbConfigIntOp::Defensive, self.defensive)?;
+
         if let Some(digits) = self.floating_point_text_digits {
-            let configured =
-                unsafe { ffi::db_config_fp_digits(handle.as_ptr(), i32::from(digits)) }
-                    .map_err(Error::from)?;
+            let configured = unsafe {
+                ffi::db_config_int(
+                    handle.as_ptr(),
+                    ffi::DbConfigIntOp::FpDigits,
+                    i32::from(digits),
+                )
+            }
+            .map_err(Error::from)?;
             if configured != i32::from(digits) {
                 return Err(Error::Protocol(format!(
                     "SQLite reported floating point text digits {configured} after setting {digits}"
@@ -191,6 +218,19 @@ impl EstablishParams {
             log_settings: self.log_settings.clone(),
         })
     }
+}
+
+/// Apply a boolean `sqlite3_db_config` switch and require SQLite to report the same value.
+fn set_db_config_flag(handle: &ConnectionHandle, op: ffi::DbConfigIntOp, on: bool) -> Result<()> {
+    let value = i32::from(on);
+    let configured =
+        unsafe { ffi::db_config_int(handle.as_ptr(), op, value) }.map_err(Error::from)?;
+    if configured != value {
+        return Err(Error::Protocol(format!(
+            "SQLite reported db_config {configured} after setting {value}"
+        )));
+    }
+    Ok(())
 }
 
 /// Validate the configured floating-point text precision.

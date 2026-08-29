@@ -218,18 +218,18 @@ mod tests {
     }
 
     test_type!(plain_enum<PlainEnum>(
-        "\"foo\"" == PlainEnum::Foo,
-        "\"foo_bar\"" == PlainEnum::FooBar,
+        "'foo'" == PlainEnum::Foo,
+        "'foo_bar'" == PlainEnum::FooBar,
     ));
 
     test_type!(verbatim_enum<VerbatimEnum>(
-        "\"Foo\"" == VerbatimEnum::Foo,
-        "\"FooBar\"" == VerbatimEnum::FooBar,
+        "'Foo'" == VerbatimEnum::Foo,
+        "'FooBar'" == VerbatimEnum::FooBar,
     ));
 
     test_type!(lowercase_enum<LowerCaseEnum>(
-        "\"foo\"" == LowerCaseEnum::Foo,
-        "\"foobar\"" == LowerCaseEnum::FooBar,
+        "'foo'" == LowerCaseEnum::Foo,
+        "'foobar'" == LowerCaseEnum::FooBar,
     ));
 
     test_type!(origin_enum<ReprEnum>(

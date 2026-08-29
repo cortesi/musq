@@ -1022,7 +1022,7 @@ deprecation shim or a transition default.
 
 ### Stage 5: Connection Configuration And Worker State
 
-1. [ ] §11. Add private `DbConfigIntOp` enum and `ffi::db_config_int`.
+1. [x] §11. Add private `DbConfigIntOp` enum and `ffi::db_config_int`.
    Delete `db_config_fp_digits`. Turn `DQS_DDL`, `DQS_DML`, and
    `TRUSTED_SCHEMA` off at establish. Add `Musq::double_quoted_strings`,
    `Musq::trusted_schema`, `Musq::defensive`. Test that
@@ -1043,7 +1043,7 @@ deprecation shim or a transition default.
 6. [ ] §12. Add `Connection::transaction_state()` and
    `Connection::is_autocommit()` worker commands. Debug-assert the counter
    against `is_autocommit` at `Commit` and `Rollback`.
-7. [ ] §13. Add `SQLITE_OPEN_EXRESCODE` to open flags; delete
+7. [x] §13. Add `SQLITE_OPEN_EXRESCODE` to open flags; delete
    `ffi::extended_result_codes`.
 8. [ ] Stage gate.
 

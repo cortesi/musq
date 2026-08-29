@@ -129,6 +129,12 @@ pub struct Musq {
     pub(crate) optimize_on_close: bool,
     /// Default start mode for [`crate::Pool::begin`] and [`crate::Connection::begin`].
     pub(crate) default_transaction_behavior: TransactionBehavior,
+    /// Whether double-quoted string literals are accepted.
+    pub(crate) double_quoted_strings: bool,
+    /// Whether schema objects are trusted for non-innocuous functions.
+    pub(crate) trusted_schema: bool,
+    /// Whether SQLite defensive mode is enabled.
+    pub(crate) defensive: bool,
 }
 
 impl Default for Musq {
@@ -215,6 +221,9 @@ impl Musq {
             pool_acquire_timeout: Duration::from_secs(30),
             pool_max_connections: 10,
             default_transaction_behavior: TransactionBehavior::Immediate,
+            double_quoted_strings: false,
+            trusted_schema: false,
+            defensive: false,
         }
     }
 
@@ -461,6 +470,35 @@ impl Musq {
     #[must_use]
     pub fn vfs(mut self, vfs_name: &str) -> Self {
         self.vfs = Some(vfs_name.into());
+        self
+    }
+
+    /// Accept double-quoted string literals in SQL.
+    ///
+    /// Off by default. Musq quotes identifiers with double quotes, so a typo
+    /// in an identifier becomes an error instead of a silent string.
+    #[must_use]
+    pub fn double_quoted_strings(mut self, on: bool) -> Self {
+        self.double_quoted_strings = on;
+        self
+    }
+
+    /// Trust schema objects to use non-innocuous functions.
+    ///
+    /// Off by default. With this off, SQLite refuses non-innocuous functions
+    /// inside indexes, views, and triggers.
+    #[must_use]
+    pub fn trusted_schema(mut self, on: bool) -> Self {
+        self.trusted_schema = on;
+        self
+    }
+
+    /// Enable SQLite defensive mode for untrusted database files.
+    ///
+    /// Off by default.
+    #[must_use]
+    pub fn defensive(mut self, on: bool) -> Self {
+        self.defensive = on;
         self
     }
 
