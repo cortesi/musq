@@ -8,7 +8,7 @@ use crate::{
     decode::Decode,
     error::{DecodeError, Error},
     from_row::FromRow,
-    sqlite::{SqliteDataType, Value, statement::StatementHandle},
+    sqlite::{SqliteDataType, Text, Value, statement::StatementHandle},
 };
 
 /// Implementation of [`Row`] for SQLite.
@@ -20,6 +20,8 @@ pub struct Row {
     columns: Arc<Vec<Column>>,
     /// Column name lookup table.
     pub(crate) column_names: Arc<HashMap<Arc<str>, usize>>,
+    /// Column names in index order.
+    column_name_list: Arc<[Arc<str>]>,
 }
 
 impl Row {
@@ -28,6 +30,7 @@ impl Row {
         statement: &StatementHandle,
         columns: &Arc<Vec<Column>>,
         column_names: &Arc<HashMap<Arc<str>, usize>>,
+        column_name_list: &Arc<[Arc<str>]>,
     ) -> Result<Self> {
         use libsqlite3_sys::{SQLITE_BLOB, SQLITE_NULL, SQLITE_TEXT};
 
@@ -122,7 +125,10 @@ impl Row {
         for (idx, kind, range, type_info) in deferred {
             let value = shared.slice(range);
             values[idx] = match kind {
-                DeferredKind::Text => Value::Text { value, type_info },
+                DeferredKind::Text => Value::Text {
+                    value: Text::from_utf8_unchecked(value),
+                    type_info,
+                },
                 DeferredKind::Blob => Value::Blob { value, type_info },
             };
         }
@@ -131,6 +137,7 @@ impl Row {
             values: values.into_boxed_slice(),
             columns: Arc::clone(columns),
             column_names: Arc::clone(column_names),
+            column_name_list: Arc::clone(column_name_list),
         })
     }
 
@@ -146,13 +153,7 @@ impl Row {
 
     /// Return the visible column names in column-index order.
     pub fn column_names(&self) -> Vec<&str> {
-        let mut names = self
-            .column_names
-            .iter()
-            .map(|(name, &idx)| (idx, &**name))
-            .collect::<Vec<_>>();
-        names.sort_by_key(|(idx, _)| *idx);
-        names.into_iter().map(|(_, name)| name).collect()
+        self.column_name_list.iter().map(|name| &**name).collect()
     }
 
     /// Return whether this row contains a column with the provided name.
@@ -176,10 +177,9 @@ impl Row {
 
         T::decode(value).map_err(|source| {
             let column_name = self
-                .column_names
-                .iter()
-                .find_map(|(name, &idx)| if idx == index { Some(&**name) } else { None })
-                .unwrap_or("unknown")
+                .column_name_list
+                .get(index)
+                .map_or("unknown", |name| &**name)
                 .to_string();
 
             Error::ColumnDecode {

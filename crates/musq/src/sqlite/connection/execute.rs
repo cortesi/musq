@@ -104,7 +104,12 @@ impl Iterator for ExecuteIter<'_> {
             Ok(true) => {
                 self.logger.inc_rows_returned();
 
-                match Row::current(statement.handle, statement.columns, statement.column_names) {
+                match Row::current(
+                    statement.handle,
+                    statement.columns,
+                    statement.column_names,
+                    statement.column_name_list,
+                ) {
                     Ok(row) => Some(Ok(Either::Right(row))),
                     Err(e) => Some(Err(e)),
                 }

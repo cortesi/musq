@@ -15,7 +15,7 @@ impl Encode for JsonRecord {
         let v = serde_json::to_string(self)
             .map_err(|e| EncodeError::Conversion(format!("failed to encode: {e}")))?;
         Ok(Value::Text {
-            value: bytes::Bytes::from(v),
+            value: v.into(),
             type_info: None,
         })
     }

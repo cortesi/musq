@@ -7,7 +7,7 @@ pub use error::SqliteError;
 pub use function::FunctionFlags;
 pub use hooks::{UpdateEvent, UpdateOp};
 pub use type_info::SqliteDataType;
-pub use value::Value;
+pub use value::{Text, Value};
 
 /// Argument parsing and binding.
 mod arguments;

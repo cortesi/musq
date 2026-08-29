@@ -61,7 +61,7 @@ mod tests {
         let value = String::from("hello");
         let result = value.encode().unwrap();
         if let Value::Text { value: encoded, .. } = result {
-            assert_eq!(encoded.as_ref(), b"hello");
+            assert_eq!(encoded.as_str(), "hello");
         } else {
             panic!("Expected Text value");
         }
@@ -76,7 +76,7 @@ mod tests {
         // This should now work without the Copy error
         let result = ref_tag.encode().unwrap();
         if let Value::Text { value: encoded, .. } = result {
-            assert_eq!(encoded.as_ref(), b"test_tag");
+            assert_eq!(encoded.as_str(), "test_tag");
         } else {
             panic!("Expected Text value");
         }

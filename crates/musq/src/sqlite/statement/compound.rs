@@ -40,6 +40,9 @@ pub struct CompoundStatement {
 
     /// Column name lookup tables for each statement.
     column_names: Vec<Arc<HashMap<Arc<str>, usize>>>,
+
+    /// Column names in index order for each statement.
+    column_name_list: Vec<Arc<[Arc<str>]>>,
 }
 
 /// Prepared statement metadata for the current statement.
@@ -50,6 +53,8 @@ pub struct PreparedStatement<'a> {
     pub(crate) columns: &'a Arc<Vec<Column>>,
     /// Column name lookup table.
     pub(crate) column_names: &'a Arc<HashMap<Arc<str>, usize>>,
+    /// Column names in index order.
+    pub(crate) column_name_list: &'a Arc<[Arc<str>]>,
 }
 
 impl CompoundStatement {
@@ -70,6 +75,7 @@ impl CompoundStatement {
             index: None,
             columns: Vec::new(),
             column_names: Vec::new(),
+            column_name_list: Vec::new(),
         })
     }
 
@@ -95,6 +101,7 @@ impl CompoundStatement {
 
                     let mut columns = Vec::with_capacity(num);
                     let mut column_names = HashMap::with_capacity(num);
+                    let mut column_name_list = Vec::with_capacity(num);
 
                     for i in 0..num {
                         let name: Arc<str> = statement.column_name(i)?.into();
@@ -104,13 +111,15 @@ impl CompoundStatement {
                             .unwrap_or(SqliteDataType::Null);
 
                         columns.push(Column { type_info });
-
-                        column_names.insert(name, i);
+                        column_names.insert(Arc::clone(&name), i);
+                        column_name_list.push(name);
                     }
 
                     self.handles.push(statement);
                     self.columns.push(Arc::new(columns));
                     self.column_names.push(Arc::new(column_names));
+                    self.column_name_list
+                        .push(Arc::from(column_name_list.into_boxed_slice()));
                 }
                 None => {
                     // nothing more to prepare
@@ -130,6 +139,7 @@ impl CompoundStatement {
                 handle: &mut self.handles[idx],
                 columns: &self.columns[idx],
                 column_names: &self.column_names[idx],
+                column_name_list: &self.column_name_list[idx],
             })
     }
 

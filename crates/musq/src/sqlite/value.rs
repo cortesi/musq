@@ -5,9 +5,68 @@ use bytes::Bytes;
 use crate::{
     Result,
     decode::Decode,
-    error::{DecodeError, Error},
+    error::DecodeError,
     sqlite::{statement::StatementHandle, type_info::SqliteDataType},
 };
+
+/// UTF-8 text stored in a [`Value`].
+#[derive(Clone, Debug, Eq, Hash, PartialEq)]
+pub struct Text {
+    /// Validated UTF-8 bytes.
+    value: Bytes,
+}
+
+impl Text {
+    /// Create text from a `String`.
+    pub fn new(value: String) -> Self {
+        Self {
+            value: Bytes::from(value),
+        }
+    }
+
+    /// Create text from UTF-8 bytes.
+    pub fn from_utf8(value: Bytes) -> StdResult<Self, str::Utf8Error> {
+        str::from_utf8(&value)?;
+        Ok(Self { value })
+    }
+
+    /// Create text from bytes that are already valid UTF-8.
+    pub(crate) fn from_utf8_unchecked(value: Bytes) -> Self {
+        debug_assert!(str::from_utf8(&value).is_ok());
+        Self { value }
+    }
+
+    /// Return the text as a string slice.
+    pub fn as_str(&self) -> &str {
+        // SAFETY: every constructor stores validated UTF-8.
+        unsafe { str::from_utf8_unchecked(&self.value) }
+    }
+
+    /// Return the UTF-8 bytes.
+    pub fn as_bytes(&self) -> &[u8] {
+        &self.value
+    }
+}
+
+impl From<&str> for Text {
+    fn from(value: &str) -> Self {
+        Self {
+            value: Bytes::copy_from_slice(value.as_bytes()),
+        }
+    }
+}
+
+impl From<String> for Text {
+    fn from(value: String) -> Self {
+        Self::new(value)
+    }
+}
+
+impl AsRef<str> for Text {
+    fn as_ref(&self) -> &str {
+        self.as_str()
+    }
+}
 
 /// Owned representation of a SQLite value.
 ///
@@ -46,8 +105,8 @@ pub enum Value {
     },
     /// A UTF-8 text value.
     Text {
-        /// UTF-8 encoded bytes.
-        value: Bytes,
+        /// Validated UTF-8 text.
+        value: Text,
         /// Original declared type, if known.
         type_info: Option<SqliteDataType>,
     },
@@ -102,7 +161,7 @@ impl Value {
     pub fn blob(&self) -> StdResult<&[u8], DecodeError> {
         match self {
             Self::Blob { value, .. } => Ok(value.as_ref()),
-            Self::Text { value, .. } => Ok(value.as_ref()),
+            Self::Text { value, .. } => Ok(value.as_bytes()),
             Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
             _ => Err(DecodeError::Conversion("not blob".into())),
         }
@@ -113,8 +172,7 @@ impl Value {
     /// Returns an error if the value is not [`Value::Text`].
     pub fn text(&self) -> StdResult<&str, DecodeError> {
         match self {
-            Self::Text { value, .. } => str::from_utf8(value.as_ref())
-                .map_err(|e| DecodeError::Conversion(format!("invalid UTF-8: {e}"))),
+            Self::Text { value, .. } => Ok(value.as_str()),
             Self::Null { .. } => Err(DecodeError::Conversion("unexpected NULL".into())),
             _ => Err(DecodeError::Conversion("not text".into())),
         }
@@ -145,11 +203,7 @@ impl Value {
     /// altering the stored value.
     pub(crate) fn bind(&self, handle: &StatementHandle, i: usize) -> Result<()> {
         match self {
-            Self::Text { value, .. } => {
-                let text = str::from_utf8(value.as_ref())
-                    .map_err(|e| Error::Decode(DecodeError::Conversion(e.to_string())))?;
-                handle.bind_text(i, text)?;
-            }
+            Self::Text { value, .. } => handle.bind_text(i, value.as_str())?,
             Self::Blob { value, .. } => handle.bind_blob(i, value.as_ref())?,
             Self::Integer { value, .. } => handle.bind_int64(i, *value)?,
             Self::Double { value, .. } => handle.bind_double(i, *value)?,
@@ -163,5 +217,23 @@ impl Value {
 impl<'r> Decode<'r> for Value {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         Ok(value.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Text;
+
+    #[test]
+    fn text_from_utf8_rejects_invalid_bytes() {
+        let bytes = bytes::Bytes::from_static(&[0xff, 0xfe]);
+        assert!(Text::from_utf8(bytes).is_err());
+    }
+
+    #[test]
+    fn text_from_str_round_trips() {
+        let text = Text::from("hello");
+        assert_eq!(text.as_str(), "hello");
+        assert_eq!(text.as_bytes(), b"hello");
     }
 }

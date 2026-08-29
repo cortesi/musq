@@ -17,7 +17,7 @@ use libsqlite3_sys::{
     sqlite3_value,
 };
 
-use crate::{Result, Value, error::Error, sqlite::error::SqliteError};
+use crate::{Result, Text, Value, error::Error, sqlite::error::SqliteError};
 
 /// Flags for a user-defined scalar function.
 ///
@@ -294,9 +294,12 @@ unsafe fn value_from_sqlite(value: *mut sqlite3_value) -> Value {
                     slice::from_raw_parts(ptr, usize::try_from(len).unwrap_or(0))
                 })
             };
-            Value::Text {
-                value: bytes,
-                type_info: None,
+            match Text::from_utf8(bytes) {
+                Ok(text) => Value::Text {
+                    value: text,
+                    type_info: None,
+                },
+                Err(_) => Value::Null { type_info: None },
             }
         }
         SQLITE_BLOB => {
@@ -325,10 +328,11 @@ unsafe fn result_value(ctx: *mut sqlite3_context, value: &Value) {
         Value::Integer { value, .. } => unsafe { ffi_sys::sqlite3_result_int64(ctx, *value) },
         Value::Double { value, .. } => unsafe { ffi_sys::sqlite3_result_double(ctx, *value) },
         Value::Text { value, .. } => unsafe {
+            let bytes = value.as_bytes();
             ffi_sys::sqlite3_result_text64(
                 ctx,
-                value.as_ptr().cast::<c_char>(),
-                value.len() as u64,
+                bytes.as_ptr().cast::<c_char>(),
+                bytes.len() as u64,
                 ffi_sys::SQLITE_TRANSIENT(),
                 SQLITE_UTF8 as u8,
             );

@@ -1092,7 +1092,7 @@ deprecation shim or a transition default.
    and `rewrite_named_parameters`, with a table test.
 6. [x] §27. One `emit_at!` macro in `logger.rs`; merge the duplicated
    row-counter methods.
-7. [ ] §28. `Arc<[Arc<str>]>` name list in `CompoundStatement`; `Text`
+7. [x] §28. `Arc<[Arc<str>]>` name list in `CompoundStatement`; `Text`
    newtype with private validated bytes in `Value::Text`.
 8. [ ] §29. Delete `Column`, `Error::TypeNotFound`,
    `Error::UnknownColumnType`; `SqliteDataType::from_str` returns `Option`.

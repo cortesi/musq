@@ -77,7 +77,7 @@ mod tests {
         let encoded = opt.encode().unwrap();
 
         if let Value::Text { value, type_info } = encoded {
-            assert_eq!(value.as_ref(), b"hello");
+            assert_eq!(value.as_str(), "hello");
             assert_eq!(type_info, None);
         } else {
             panic!("Expected Text value, got {:?}", encoded);
@@ -153,7 +153,7 @@ mod tests {
         let encoded = opt.encode().unwrap();
 
         if let Value::Text { value, type_info } = encoded {
-            assert_eq!(value.as_ref(), b"world");
+            assert_eq!(value.as_str(), "world");
             assert_eq!(type_info, None);
         } else {
             panic!("Expected Text value, got {:?}", encoded);
