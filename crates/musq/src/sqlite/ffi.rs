@@ -711,11 +711,13 @@ pub fn step(stmt: *mut sqlite3_stmt) -> StdResult<i32, SqliteError> {
 #[inline]
 #[must_use = "handle the Result"]
 pub fn finalize(stmt: *mut sqlite3_stmt) -> StdResult<(), SqliteError> {
+    // sqlite3_finalize frees the statement even when it returns an error, so
+    // the database pointer must be captured first.
+    let db = unsafe { ffi_sys::sqlite3_db_handle(stmt) };
     let rc = unsafe { ffi_sys::sqlite3_finalize(stmt) };
     if rc == ffi_sys::SQLITE_OK {
         Ok(())
     } else {
-        let db = unsafe { ffi_sys::sqlite3_db_handle(stmt) };
         Err(SqliteError::new(db))
     }
 }
@@ -775,6 +777,42 @@ mod tests {
         let count = unsafe { libsqlite3_sys::sqlite3_column_int(stmt, 0) };
         finalize(stmt).unwrap();
         assert_eq!(count, 1);
+
+        close(handle).unwrap();
+    }
+
+    #[test]
+    fn finalize_after_failed_step_reads_error_from_connection() {
+        let filename = CString::new(":memory:").unwrap();
+        let mut handle = ptr::null_mut();
+        open_v2(
+            filename.as_ptr(),
+            &mut handle,
+            libsqlite3_sys::SQLITE_OPEN_READWRITE
+                | libsqlite3_sys::SQLITE_OPEN_CREATE
+                | libsqlite3_sys::SQLITE_OPEN_MEMORY,
+            ptr::null(),
+        )
+        .unwrap();
+
+        let create_sql = CString::new("CREATE TABLE t (id INTEGER PRIMARY KEY);").unwrap();
+        exec(handle, create_sql.as_ptr()).unwrap();
+        let insert_sql = CString::new("INSERT INTO t VALUES (1);").unwrap();
+        exec(handle, insert_sql.as_ptr()).unwrap();
+
+        let dup_sql = CString::new("INSERT INTO t VALUES (1);").unwrap();
+        let mut stmt = ptr::null_mut();
+        prepare_v3(handle, dup_sql.as_ptr(), -1, 0, &mut stmt, ptr::null_mut()).unwrap();
+        assert!(step(stmt).is_err());
+
+        let err = finalize(stmt).expect_err("finalize should report the last step error");
+        assert_eq!(err.primary, PrimaryErrCode::Constraint);
+        assert!(
+            err.message.to_ascii_lowercase().contains("unique")
+                || err.message.to_ascii_lowercase().contains("constraint"),
+            "unexpected message: {}",
+            err.message
+        );
 
         close(handle).unwrap();
     }

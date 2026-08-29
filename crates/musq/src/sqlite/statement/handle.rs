@@ -10,12 +10,7 @@ use libsqlite3_sys::{
 };
 
 use super::unlock_notify;
-use crate::sqlite::{
-    DEFAULT_MAX_RETRIES,
-    error::{PrimaryErrCode, SqliteError},
-    ffi,
-    type_info::SqliteDataType,
-};
+use crate::sqlite::{DEFAULT_MAX_RETRIES, error::SqliteError, ffi, type_info::SqliteDataType};
 
 /// Wrapper around a raw SQLite statement handle.
 #[derive(Debug)]
@@ -285,20 +280,59 @@ impl Drop for StatementHandle {
             }
 
             // https://sqlite.org/c3ref/finalize.html
-            match ffi::finalize(self.0.as_ptr()) {
-                Ok(()) => {}
-                Err(e) => {
-                    if e.primary == PrimaryErrCode::Misuse {
-                        panic!("Detected sqlite3_finalize misuse.");
-                    } else {
-                        tracing::error!(
-                            db_ptr = ?unsafe { self.db_handle() },
-                            "sqlite3_finalize failed: {}",
-                            e
-                        );
-                    }
-                }
+            // Never touch the statement pointer after finalize, and never panic
+            // in Drop: a panic during unwind aborts the process.
+            if let Err(e) = ffi::finalize(self.0.as_ptr()) {
+                tracing::error!("sqlite3_finalize failed: {}", e);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::{
+        ffi::CString,
+        ptr::{self, NonNull},
+    };
+
+    use super::*;
+    use crate::sqlite::error::PrimaryErrCode;
+
+    fn open_memory() -> *mut sqlite3 {
+        let filename = CString::new(":memory:").unwrap();
+        let mut handle = ptr::null_mut();
+        ffi::open_v2(
+            filename.as_ptr(),
+            &mut handle,
+            libsqlite3_sys::SQLITE_OPEN_READWRITE
+                | libsqlite3_sys::SQLITE_OPEN_CREATE
+                | libsqlite3_sys::SQLITE_OPEN_MEMORY,
+            ptr::null(),
+        )
+        .unwrap();
+        handle
+    }
+
+    fn prepare_failing_insert(db: *mut sqlite3) -> NonNull<sqlite3_stmt> {
+        let create_sql = CString::new("CREATE TABLE t (id INTEGER PRIMARY KEY);").unwrap();
+        ffi::exec(db, create_sql.as_ptr()).unwrap();
+        let insert_sql = CString::new("INSERT INTO t VALUES (1);").unwrap();
+        ffi::exec(db, insert_sql.as_ptr()).unwrap();
+
+        let dup_sql = CString::new("INSERT INTO t VALUES (1);").unwrap();
+        let mut stmt = ptr::null_mut();
+        ffi::prepare_v3(db, dup_sql.as_ptr(), -1, 0, &mut stmt, ptr::null_mut()).unwrap();
+        let err = ffi::step(stmt).expect_err("duplicate insert must fail");
+        assert_eq!(err.primary, PrimaryErrCode::Constraint);
+        NonNull::new(stmt).expect("prepared statement pointer")
+    }
+
+    #[test]
+    fn drop_after_failed_step_does_not_panic() {
+        let db = open_memory();
+        let stmt = prepare_failing_insert(db);
+        drop(StatementHandle::new(stmt));
+        ffi::close(db).unwrap();
     }
 }
