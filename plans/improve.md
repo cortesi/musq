@@ -1093,7 +1093,7 @@ deprecation shim or a transition default.
    newtype with private validated bytes in `Value::Text`.
 8. [ ] §29. Delete `Column`, `Error::TypeNotFound`,
    `Error::UnknownColumnType`; `SqliteDataType::from_str` returns `Option`.
-9. [ ] §30. Delete `is_shutdown`, stale comments, the `TODO`, and the
+9. [x] §30. Delete `is_shutdown`, stale comments, the `TODO`, and the
    remaining `dead_code` allows.
 10. [ ] §34. Rewrite the close docs; delete `musq-cli` and SQLx references;
     document each error-code variant.

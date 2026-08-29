@@ -40,7 +40,6 @@ pub mod establish;
 /// Query execution helpers for connections.
 pub mod execute;
 
-// removed executor trait implementation module
 /// Low-level connection handle.
 mod handle;
 /// Worker task driving the connection.

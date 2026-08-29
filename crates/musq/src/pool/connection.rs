@@ -79,7 +79,6 @@ const EXPECT_MSG: &str = "BUG: inner connection already taken!";
 
 impl Debug for PoolConnection {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // TODO: Show the type name of the connection ?
         f.debug_struct("PoolConnection").finish()
     }
 }

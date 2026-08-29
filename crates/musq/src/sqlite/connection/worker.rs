@@ -195,7 +195,6 @@ unsafe extern "C" fn progress_callback(p_arg: *mut c_void) -> c_int {
     c_int::from(matches!(deadline.get(), Some(deadline) if Instant::now() >= deadline))
 }
 
-#[allow(dead_code)]
 /// Commands sent to the worker thread.
 enum Command {
     /// Prepare a statement and return it.
@@ -755,15 +754,6 @@ impl ConnectionWorker {
         })
     }
 
-    #[allow(dead_code)]
-    /// Returns whether the worker has been shut down.
-    pub(crate) fn is_shutdown(&self) -> bool {
-        // For now, just return false as checking would require async
-        // This is only used in drop, so it's not critical
-        false
-    }
-
-    #[allow(dead_code)]
     /// Prepare a SQL statement on the worker thread.
     pub(crate) async fn prepare(&self, query: &str) -> Result<()> {
         self.oneshot_cmd(|tx| Command::Prepare {
@@ -935,7 +925,6 @@ impl ConnectionWorker {
             .await?
     }
 
-    #[allow(dead_code)]
     /// Send a oneshot command and await the response.
     async fn oneshot_cmd<F, T>(&self, command: F) -> Result<T>
     where
