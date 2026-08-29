@@ -26,6 +26,23 @@ pub enum TransactionBehavior {
     Exclusive,
 }
 
+/// SQLite transaction lock state reported by [`sqlite3_txn_state`].
+///
+/// This is the actual connection state. It does not report savepoint
+/// nesting. [`Connection::is_autocommit`] reports whether an explicit
+/// transaction is open.
+///
+/// [`sqlite3_txn_state`]: https://www.sqlite.org/c3ref/txn_state.html
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum TxnState {
+    /// No transaction is active (`SQLITE_TXN_NONE`).
+    None,
+    /// A read transaction is active (`SQLITE_TXN_READ`).
+    Read,
+    /// A write transaction is active (`SQLITE_TXN_WRITE`).
+    Write,
+}
+
 /// An in-progress database transaction or savepoint.
 ///
 /// A transaction is a sequence of operations performed as a single logical unit of work. All

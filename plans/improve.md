@@ -1041,12 +1041,14 @@ deprecation shim or a transition default.
    interrupted write inside a transaction makes `commit` return
    `TransactionAborted`; `interrupt` racing `close` in a 1000-iteration loop
    does not crash; `statement_timeout` fires inside a transaction.
-6. [ ] §12. Add `Connection::transaction_state()` and
+6. [x] §12. Add `Connection::transaction_state()` and
    `Connection::is_autocommit()` worker commands. Debug-assert the counter
    against `is_autocommit` at `Commit` and `Rollback`.
+   `is_autocommit()` was added in Stage 2; this step adds `transaction_state()`
+   (`TxnState::{None, Read, Write}`) and the debug asserts.
 7. [x] §13. Add `SQLITE_OPEN_EXRESCODE` to open flags; delete
    `ffi::extended_result_codes`.
-8. [ ] Stage gate.
+8. [x] Stage gate.
 
 ### Stage 6: New Capability
 

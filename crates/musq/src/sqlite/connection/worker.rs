@@ -26,7 +26,7 @@ use crate::{
         },
         ffi,
     },
-    transaction::{TransactionBehavior, begin_sql, commit_sql, rollback_sql},
+    transaction::{TransactionBehavior, TxnState, begin_sql, commit_sql, rollback_sql},
 };
 
 /// Number of VM opcodes between progress-handler callbacks.
@@ -187,6 +187,11 @@ enum Command {
         /// Response channel.
         tx: oneshot::Sender<Result<bool>>,
     },
+    /// Report the SQLite transaction lock state.
+    TransactionState {
+        /// Response channel.
+        tx: oneshot::Sender<Result<TxnState>>,
+    },
     /// Commit a transaction.
     Commit {
         /// Response channel.
@@ -331,6 +336,9 @@ impl WorkerSession {
                 }))
                 .ok();
             }
+            Command::TransactionState { tx } => {
+                tx.send(txn_state(&self.conn)).ok();
+            }
             Command::Commit { tx } => self.commit(tx),
             Command::Rollback { tx } => self.rollback(tx),
             Command::DbStatus {
@@ -434,6 +442,7 @@ impl WorkerSession {
             return;
         }
 
+        debug_assert_depth_matches_autocommit(&self.conn);
         let _timeout = arm_timeout(self.timeout.as_deref());
         let depth = self.conn.transaction_depth;
         let res = if depth > 0 {
@@ -450,6 +459,8 @@ impl WorkerSession {
                 e,
                 &mut self.transaction_aborted,
             );
+        } else {
+            debug_assert_depth_matches_autocommit(&self.conn);
         }
         let res_ok = res.is_ok();
         if tx.blocking_send(res).is_err() && res_ok {
@@ -471,6 +482,7 @@ impl WorkerSession {
             return;
         }
 
+        debug_assert_depth_matches_autocommit(&self.conn);
         let _timeout = arm_timeout(self.timeout.as_deref());
         let depth = self.conn.transaction_depth;
         let res = if depth > 0 {
@@ -487,6 +499,8 @@ impl WorkerSession {
                 e,
                 &mut self.transaction_aborted,
             );
+        } else {
+            debug_assert_depth_matches_autocommit(&self.conn);
         }
         let res_ok = res.is_ok();
         if let Some(tx) = tx
@@ -615,6 +629,12 @@ impl ConnectionWorker {
     /// Report whether SQLite is in autocommit mode.
     pub(crate) async fn is_autocommit(&self) -> Result<bool> {
         self.oneshot_cmd(|tx| Command::IsAutocommit { tx }).await?
+    }
+
+    /// Report the SQLite transaction lock state.
+    pub(crate) async fn transaction_state(&self) -> Result<TxnState> {
+        self.oneshot_cmd(|tx| Command::TransactionState { tx })
+            .await?
     }
 
     /// Interrupt the statement currently running on this connection.
@@ -850,6 +870,30 @@ fn parser_depth_limit(conn: &ConnectionState) -> Result<u32> {
 /// Convert SQLite frame counts where `-1` means unavailable.
 fn frames_to_option(frames: i32) -> Option<i32> {
     if frames < 0 { None } else { Some(frames) }
+}
+
+/// Map `sqlite3_txn_state` to [`TxnState`].
+fn txn_state(conn: &ConnectionState) -> Result<TxnState> {
+    let state = unsafe { ffi::txn_state(conn.handle.as_ptr(), ptr::null()) };
+    match state {
+        libsqlite3_sys::SQLITE_TXN_NONE => Ok(TxnState::None),
+        libsqlite3_sys::SQLITE_TXN_READ => Ok(TxnState::Read),
+        libsqlite3_sys::SQLITE_TXN_WRITE => Ok(TxnState::Write),
+        other => Err(Error::Protocol(format!(
+            "sqlite3_txn_state returned {other}"
+        ))),
+    }
+}
+
+/// Catch a mismatch between Musq depth and SQLite autocommit in tests.
+fn debug_assert_depth_matches_autocommit(conn: &ConnectionState) {
+    let autocommit = unsafe { ffi::get_autocommit(conn.handle.as_ptr()) };
+    debug_assert_eq!(
+        conn.transaction_depth == 0,
+        autocommit,
+        "transaction_depth is {} but sqlite3_get_autocommit is {autocommit}",
+        conn.transaction_depth
+    );
 }
 
 // A oneshot channel where send completes only after the receiver receives the value.

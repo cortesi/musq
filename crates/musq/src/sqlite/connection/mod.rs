@@ -28,7 +28,7 @@ use crate::{
         ffi,
     },
     statement_cache::StatementCache,
-    transaction::Transaction,
+    transaction::{Transaction, TxnState},
 };
 /// Connection diagnostics and control helpers.
 mod control;
@@ -158,6 +158,15 @@ impl Connection {
     /// Return whether SQLite currently has no explicit transaction open.
     pub async fn is_autocommit(&self) -> Result<bool> {
         self.worker.is_autocommit().await
+    }
+
+    /// Return SQLite's transaction lock state for this connection.
+    ///
+    /// This reports `NONE`, `READ`, or `WRITE` from `sqlite3_txn_state`.
+    /// It does not report savepoint nesting. Use [`Self::is_autocommit`]
+    /// to see whether an explicit transaction is open.
+    pub async fn transaction_state(&self) -> Result<TxnState> {
+        self.worker.transaction_state().await
     }
 
     /// Interrupt the statement currently running on this connection.

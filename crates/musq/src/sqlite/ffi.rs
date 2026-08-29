@@ -371,6 +371,18 @@ pub(in crate::sqlite) unsafe fn get_autocommit(db: *mut sqlite3) -> bool {
     unsafe { ffi_sys::sqlite3_get_autocommit(db) != 0 }
 }
 
+/// Wrapper around [`sqlite3_txn_state`].
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+/// - `schema` must be null or a valid UTF-8 C string.
+///
+/// See <https://www.sqlite.org/c3ref/txn_state.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn txn_state(db: *mut sqlite3, schema: *const c_char) -> i32 {
+    unsafe { ffi_sys::sqlite3_txn_state(db, schema) }
+}
+
 /// Wrapper around [`sqlite3_interrupt`].
 ///
 /// # Safety

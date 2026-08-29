@@ -5,7 +5,7 @@ mod tests {
     use std::time::Duration;
 
     use musq::{
-        JournalMode, Musq, TransactionBehavior,
+        JournalMode, Musq, TransactionBehavior, TxnState,
         error::{ExtendedErrCode, PrimaryErrCode},
         query, query_scalar,
     };
@@ -29,6 +29,33 @@ mod tests {
         let mode: String = query_scalar("PRAGMA journal_mode").fetch_one(&pool).await?;
         assert_eq!(mode.to_ascii_lowercase(), "wal");
         Ok(pool)
+    }
+
+    #[tokio::test]
+    async fn transaction_state_complements_autocommit() -> anyhow::Result<()> {
+        let mut conn = musq::Connection::connect_with(&Musq::new()).await?;
+        assert_eq!(conn.transaction_state().await?, TxnState::None);
+        assert!(conn.is_autocommit().await?);
+
+        let tx = conn.begin().await?;
+        assert_eq!(tx.transaction_state().await?, TxnState::Write);
+        assert!(!tx.is_autocommit().await?);
+        tx.commit().await?;
+        assert_eq!(conn.transaction_state().await?, TxnState::None);
+        assert!(conn.is_autocommit().await?);
+
+        query("CREATE TABLE t (x INTEGER)").execute(&conn).await?;
+        let tx = conn.begin_with(TransactionBehavior::Deferred).await?;
+        assert!(!tx.is_autocommit().await?);
+        assert_eq!(tx.transaction_state().await?, TxnState::None);
+        query("SELECT x FROM t").execute(&tx).await?;
+        assert_eq!(tx.transaction_state().await?, TxnState::Read);
+        query("INSERT INTO t (x) VALUES (1)").execute(&tx).await?;
+        assert_eq!(tx.transaction_state().await?, TxnState::Write);
+        tx.rollback().await?;
+        assert_eq!(conn.transaction_state().await?, TxnState::None);
+        assert!(conn.is_autocommit().await?);
+        Ok(())
     }
 
     #[tokio::test]

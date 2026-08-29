@@ -86,7 +86,7 @@ pub use crate::{
         InterruptHandle, SqliteDataType, SqliteError, SqliteRuntimeInfo, Value, WalCheckpoint,
         WalCheckpointMode,
     },
-    transaction::{Transaction, TransactionBehavior},
+    transaction::{Transaction, TransactionBehavior, TxnState},
     values::{IntoValuesEntry, Values, ValuesEntry},
 };
 
