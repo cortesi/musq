@@ -1,8 +1,4 @@
-use std::{
-    fmt::{self, Display, Formatter},
-    result::Result as StdResult,
-    str::FromStr,
-};
+use std::fmt::{self, Display, Formatter};
 
 use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQLITE_TEXT};
 
@@ -70,31 +66,16 @@ impl SqliteDataType {
         }
     }
 
-    /// Convert a SQLite type code into a data type.
-    pub(crate) fn from_code(code: i32) -> Option<Self> {
-        match code {
-            SQLITE_INTEGER => Some(Self::Int),
-            SQLITE_FLOAT => Some(Self::Float),
-            SQLITE_BLOB => Some(Self::Blob),
-            SQLITE_NULL => Some(Self::Null),
-            SQLITE_TEXT => Some(Self::Text),
-
-            // https://sqlite.org/c3ref/c_blob.html
-            _ => None,
-        }
-    }
-}
-
-// note: this implementation is particularly important as this is how the macros determine
-//       what Rust type maps to what *declared* SQL type
-// <https://www.sqlite.org/datatype3.html#affname>
-impl FromStr for SqliteDataType {
-    type Err = crate::Error;
-
-    fn from_str(s: &str) -> StdResult<Self, Self::Err> {
-        let original = s.to_owned();
-        let s = original.to_ascii_lowercase();
-        Ok(match &*s {
+    /// Parse a declared SQL type name using SQLite affinity rules.
+    ///
+    /// See <https://www.sqlite.org/datatype3.html#affname>.
+    #[allow(
+        clippy::should_implement_trait,
+        reason = "this parser returns Option, not Result"
+    )]
+    pub fn from_str(s: &str) -> Option<Self> {
+        let s = s.to_ascii_lowercase();
+        Some(match &*s {
             "int4" => Self::Int,
             "int8" => Self::Int64,
             "boolean" | "bool" => Self::Bool,
@@ -113,12 +94,22 @@ impl FromStr for SqliteDataType {
 
             _ if s.contains("num") || s.contains("dec") => Self::Numeric,
 
-            _ => {
-                return Err(crate::Error::TypeNotFound {
-                    type_name: original,
-                });
-            }
+            _ => return None,
         })
+    }
+
+    /// Convert a SQLite type code into a data type.
+    pub(crate) fn from_code(code: i32) -> Option<Self> {
+        match code {
+            SQLITE_INTEGER => Some(Self::Int),
+            SQLITE_FLOAT => Some(Self::Float),
+            SQLITE_BLOB => Some(Self::Blob),
+            SQLITE_NULL => Some(Self::Null),
+            SQLITE_TEXT => Some(Self::Text),
+
+            // https://sqlite.org/c3ref/c_blob.html
+            _ => None,
+        }
     }
 }
 
@@ -128,50 +119,88 @@ mod tests {
     use super::*;
 
     #[test]
-    fn test_data_type_from_str() -> crate::Result<()> {
-        assert_eq!(SqliteDataType::Int, "INT4".parse()?);
+    fn test_data_type_from_str() {
+        assert_eq!(SqliteDataType::from_str("INT4"), Some(SqliteDataType::Int));
 
-        assert_eq!(SqliteDataType::Int64, "INT".parse()?);
-        assert_eq!(SqliteDataType::Int64, "INTEGER".parse()?);
-        assert_eq!(SqliteDataType::Int64, "INTBIG".parse()?);
-        assert_eq!(SqliteDataType::Int64, "MEDIUMINT".parse()?);
+        assert_eq!(SqliteDataType::from_str("INT"), Some(SqliteDataType::Int64));
+        assert_eq!(
+            SqliteDataType::from_str("INTEGER"),
+            Some(SqliteDataType::Int64)
+        );
+        assert_eq!(
+            SqliteDataType::from_str("INTBIG"),
+            Some(SqliteDataType::Int64)
+        );
+        assert_eq!(
+            SqliteDataType::from_str("MEDIUMINT"),
+            Some(SqliteDataType::Int64)
+        );
 
-        assert_eq!(SqliteDataType::Int64, "BIGINT".parse()?);
-        assert_eq!(SqliteDataType::Int64, "UNSIGNED BIG INT".parse()?);
-        assert_eq!(SqliteDataType::Int64, "INT8".parse()?);
+        assert_eq!(
+            SqliteDataType::from_str("BIGINT"),
+            Some(SqliteDataType::Int64)
+        );
+        assert_eq!(
+            SqliteDataType::from_str("UNSIGNED BIG INT"),
+            Some(SqliteDataType::Int64)
+        );
+        assert_eq!(
+            SqliteDataType::from_str("INT8"),
+            Some(SqliteDataType::Int64)
+        );
 
-        assert_eq!(SqliteDataType::Text, "CHARACTER(20)".parse()?);
-        assert_eq!(SqliteDataType::Text, "NCHAR(55)".parse()?);
-        assert_eq!(SqliteDataType::Text, "TEXT".parse()?);
-        assert_eq!(SqliteDataType::Text, "CLOB".parse()?);
+        assert_eq!(
+            SqliteDataType::from_str("CHARACTER(20)"),
+            Some(SqliteDataType::Text)
+        );
+        assert_eq!(
+            SqliteDataType::from_str("NCHAR(55)"),
+            Some(SqliteDataType::Text)
+        );
+        assert_eq!(SqliteDataType::from_str("TEXT"), Some(SqliteDataType::Text));
+        assert_eq!(SqliteDataType::from_str("CLOB"), Some(SqliteDataType::Text));
 
-        assert_eq!(SqliteDataType::Blob, "BLOB".parse()?);
+        assert_eq!(SqliteDataType::from_str("BLOB"), Some(SqliteDataType::Blob));
 
-        assert_eq!(SqliteDataType::Float, "REAL".parse()?);
-        assert_eq!(SqliteDataType::Float, "FLOAT".parse()?);
-        assert_eq!(SqliteDataType::Float, "DOUBLE PRECISION".parse()?);
+        assert_eq!(
+            SqliteDataType::from_str("REAL"),
+            Some(SqliteDataType::Float)
+        );
+        assert_eq!(
+            SqliteDataType::from_str("FLOAT"),
+            Some(SqliteDataType::Float)
+        );
+        assert_eq!(
+            SqliteDataType::from_str("DOUBLE PRECISION"),
+            Some(SqliteDataType::Float)
+        );
 
-        assert_eq!(SqliteDataType::Numeric, "NUMERIC".parse()?);
-        assert_eq!(SqliteDataType::Numeric, "DECIMAL(10,5)".parse()?);
+        assert_eq!(
+            SqliteDataType::from_str("NUMERIC"),
+            Some(SqliteDataType::Numeric)
+        );
+        assert_eq!(
+            SqliteDataType::from_str("DECIMAL(10,5)"),
+            Some(SqliteDataType::Numeric)
+        );
 
-        assert_eq!(SqliteDataType::Bool, "BOOLEAN".parse()?);
-        assert_eq!(SqliteDataType::Bool, "BOOL".parse()?);
+        assert_eq!(
+            SqliteDataType::from_str("BOOLEAN"),
+            Some(SqliteDataType::Bool)
+        );
+        assert_eq!(SqliteDataType::from_str("BOOL"), Some(SqliteDataType::Bool));
 
-        assert_eq!(SqliteDataType::Datetime, "DATETIME".parse()?);
-        assert_eq!(SqliteDataType::Time, "TIME".parse()?);
-        assert_eq!(SqliteDataType::Date, "DATE".parse()?);
-
-        Ok(())
+        assert_eq!(
+            SqliteDataType::from_str("DATETIME"),
+            Some(SqliteDataType::Datetime)
+        );
+        assert_eq!(SqliteDataType::from_str("TIME"), Some(SqliteDataType::Time));
+        assert_eq!(SqliteDataType::from_str("DATE"), Some(SqliteDataType::Date));
     }
 
     #[test]
     fn test_unknown_type_from_str() {
-        match "UNKNOWN".parse::<SqliteDataType>() {
-            Err(crate::Error::TypeNotFound { type_name }) => {
-                assert_eq!(type_name, "UNKNOWN");
-            }
-            _ => panic!("expected TypeNotFound error"),
-        }
+        assert_eq!(SqliteDataType::from_str("UNKNOWN"), None);
     }
 
     #[test]

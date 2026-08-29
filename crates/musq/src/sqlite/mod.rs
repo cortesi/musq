@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 pub use arguments::Arguments;
 pub use connection::{
     BackupReport, Connection, DbStatus, DbStatusKind, DeserializeMode, ForeignKeyViolation,
@@ -8,6 +10,9 @@ pub use function::FunctionFlags;
 pub use hooks::{UpdateEvent, UpdateOp};
 pub use type_info::SqliteDataType;
 pub use value::{Text, Value};
+
+/// Name and declared type of one result column.
+pub type ColumnDecl = (Arc<str>, SqliteDataType);
 
 /// Argument parsing and binding.
 mod arguments;

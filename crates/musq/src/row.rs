@@ -4,11 +4,10 @@ use bytes::BytesMut;
 
 use crate::{
     Result,
-    column::Column,
     decode::Decode,
     error::{DecodeError, Error},
     from_row::FromRow,
-    sqlite::{SqliteDataType, Text, Value, statement::StatementHandle},
+    sqlite::{ColumnDecl, SqliteDataType, Text, Value, statement::StatementHandle},
 };
 
 /// Implementation of [`Row`] for SQLite.
@@ -16,21 +15,18 @@ use crate::{
 pub struct Row {
     /// Values for each column in the row.
     values: Box<[Value]>,
-    /// Column metadata.
-    columns: Arc<Vec<Column>>,
+    /// Column names and declared types in index order.
+    columns: Arc<[ColumnDecl]>,
     /// Column name lookup table.
     pub(crate) column_names: Arc<HashMap<Arc<str>, usize>>,
-    /// Column names in index order.
-    column_name_list: Arc<[Arc<str>]>,
 }
 
 impl Row {
     /// Build a row from the current statement position.
     pub(crate) fn current(
         statement: &StatementHandle,
-        columns: &Arc<Vec<Column>>,
+        columns: &Arc<[ColumnDecl]>,
         column_names: &Arc<HashMap<Arc<str>, usize>>,
-        column_name_list: &Arc<[Arc<str>]>,
     ) -> Result<Self> {
         use libsqlite3_sys::{SQLITE_BLOB, SQLITE_NULL, SQLITE_TEXT};
 
@@ -61,7 +57,7 @@ impl Row {
             Vec::new();
 
         for i in 0..size {
-            let declared_type = columns[i].type_info;
+            let declared_type = columns[i].1;
             let type_info = (declared_type != SqliteDataType::Null).then_some(declared_type);
 
             let code = statement.column_type(i);
@@ -117,7 +113,11 @@ impl Row {
                     values.push(Value::Null { type_info: None });
                     deferred.push((idx, DeferredKind::Blob, start..end, type_info));
                 }
-                _ => return Err(Error::UnknownColumnType(code)),
+                _ => {
+                    return Err(Error::Protocol(format!(
+                        "unknown SQLite column type code {code}"
+                    )));
+                }
             }
         }
 
@@ -137,7 +137,6 @@ impl Row {
             values: values.into_boxed_slice(),
             columns: Arc::clone(columns),
             column_names: Arc::clone(column_names),
-            column_name_list: Arc::clone(column_name_list),
         })
     }
 
@@ -153,7 +152,7 @@ impl Row {
 
     /// Return the visible column names in column-index order.
     pub fn column_names(&self) -> Vec<&str> {
-        self.column_name_list.iter().map(|name| &**name).collect()
+        self.columns.iter().map(|(name, _)| &**name).collect()
     }
 
     /// Return whether this row contains a column with the provided name.
@@ -177,9 +176,9 @@ impl Row {
 
         T::decode(value).map_err(|source| {
             let column_name = self
-                .column_name_list
+                .columns
                 .get(index)
-                .map_or("unknown", |name| &**name)
+                .map_or("unknown", |(name, _)| &**name)
                 .to_string();
 
             Error::ColumnDecode {

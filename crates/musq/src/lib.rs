@@ -27,8 +27,6 @@ pub mod __private {
     pub use serde_json;
 }
 
-/// Column metadata utilities.
-mod column;
 /// Typed condition collection.
 mod conditions;
 /// Debug formatting helpers.

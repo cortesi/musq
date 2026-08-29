@@ -79,13 +79,6 @@ pub enum Error {
     #[error("no rows returned by a query that expected to return at least one row")]
     RowNotFound,
 
-    /// Type in query doesn't exist. Likely due to typo or missing user type.
-    #[error("type named {type_name} not found")]
-    TypeNotFound {
-        /// Name of the missing type.
-        type_name: String,
-    },
-
     /// Column index was out of bounds.
     #[error("column index out of bounds: the len is {len}, but the index is {index}")]
     ColumnIndexOutOfBounds {
@@ -98,10 +91,6 @@ pub enum Error {
     /// No column found for the given name.
     #[error("no column found for name: {0}")]
     ColumnNotFound(String),
-
-    /// Encountered an unknown column type code.
-    #[error("unknown column type: {0}")]
-    UnknownColumnType(i32),
 
     /// Error occurred while decoding a value from a specific column.
     #[error(

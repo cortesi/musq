@@ -11,9 +11,8 @@ use libsqlite3_sys::{SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_stmt};
 
 use crate::{
     SqliteDataType,
-    column::Column,
     error::{Error, Result},
-    sqlite::{connection::ConnectionHandle, ffi, statement::StatementHandle},
+    sqlite::{ColumnDecl, connection::ConnectionHandle, ffi, statement::StatementHandle},
 };
 
 // A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
@@ -35,26 +34,21 @@ pub struct CompoundStatement {
     /// Underlying SQLite handles for each inner statement.
     handles: Vec<StatementHandle>,
 
-    /// Columns metadata for each statement.
-    columns: Vec<Arc<Vec<Column>>>,
+    /// Column names and declared types for each statement, in index order.
+    columns: Vec<Arc<[ColumnDecl]>>,
 
     /// Column name lookup tables for each statement.
     column_names: Vec<Arc<HashMap<Arc<str>, usize>>>,
-
-    /// Column names in index order for each statement.
-    column_name_list: Vec<Arc<[Arc<str>]>>,
 }
 
 /// Prepared statement metadata for the current statement.
 pub struct PreparedStatement<'a> {
     /// Statement handle.
     pub(crate) handle: &'a mut StatementHandle,
-    /// Column metadata.
-    pub(crate) columns: &'a Arc<Vec<Column>>,
+    /// Column names and declared types in index order.
+    pub(crate) columns: &'a Arc<[ColumnDecl]>,
     /// Column name lookup table.
     pub(crate) column_names: &'a Arc<HashMap<Arc<str>, usize>>,
-    /// Column names in index order.
-    pub(crate) column_name_list: &'a Arc<[Arc<str>]>,
 }
 
 impl CompoundStatement {
@@ -75,7 +69,6 @@ impl CompoundStatement {
             index: None,
             columns: Vec::new(),
             column_names: Vec::new(),
-            column_name_list: Vec::new(),
         })
     }
 
@@ -101,7 +94,6 @@ impl CompoundStatement {
 
                     let mut columns = Vec::with_capacity(num);
                     let mut column_names = HashMap::with_capacity(num);
-                    let mut column_name_list = Vec::with_capacity(num);
 
                     for i in 0..num {
                         let name: Arc<str> = statement.column_name(i)?.into();
@@ -110,16 +102,13 @@ impl CompoundStatement {
                             .or_else(|| statement.column_type_info(i))
                             .unwrap_or(SqliteDataType::Null);
 
-                        columns.push(Column { type_info });
                         column_names.insert(Arc::clone(&name), i);
-                        column_name_list.push(name);
+                        columns.push((name, type_info));
                     }
 
                     self.handles.push(statement);
-                    self.columns.push(Arc::new(columns));
+                    self.columns.push(Arc::from(columns));
                     self.column_names.push(Arc::new(column_names));
-                    self.column_name_list
-                        .push(Arc::from(column_name_list.into_boxed_slice()));
                 }
                 None => {
                     // nothing more to prepare
@@ -139,7 +128,6 @@ impl CompoundStatement {
                 handle: &mut self.handles[idx],
                 columns: &self.columns[idx],
                 column_names: &self.column_names[idx],
-                column_name_list: &self.column_name_list[idx],
             })
     }
 

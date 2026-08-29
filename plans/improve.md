@@ -1094,7 +1094,7 @@ deprecation shim or a transition default.
    row-counter methods.
 7. [x] §28. `Arc<[Arc<str>]>` name list in `CompoundStatement`; `Text`
    newtype with private validated bytes in `Value::Text`.
-8. [ ] §29. Delete `Column`, `Error::TypeNotFound`,
+8. [x] §29. Delete `Column`, `Error::TypeNotFound`,
    `Error::UnknownColumnType`; `SqliteDataType::from_str` returns `Option`.
 9. [x] §30. Delete `is_shutdown`, stale comments, the `TODO`, and the
    remaining `dead_code` allows.

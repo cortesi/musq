@@ -89,9 +89,7 @@ impl StatementHandle {
         }
 
         let decl = unsafe { CStr::from_ptr(decl).to_string_lossy() };
-        let ty: SqliteDataType = decl.parse().ok()?;
-
-        Some(ty)
+        SqliteDataType::from_str(&decl)
     }
 
     // Number Of SQL Parameters
