@@ -76,9 +76,6 @@ impl QueryBuilder {
             self.sql.push('?');
             self.arguments.add(&v)?;
         }
-        if first {
-            return Err(crate::Error::Query("empty values".into()));
-        }
         Ok(())
     }
 

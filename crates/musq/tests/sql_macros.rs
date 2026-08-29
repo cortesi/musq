@@ -95,6 +95,22 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn empty_values_list_is_in_empty() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        let ids: [i32; 0] = [];
+        let rows = sql!("SELECT 1 WHERE 1 IN ({values:ids})")?
+            .fetch_all(&conn)
+            .await?;
+        assert!(rows.is_empty());
+
+        let rows = sql!("SELECT 1 WHERE 1 NOT IN ({values:ids})")?
+            .fetch_all(&conn)
+            .await?;
+        assert_eq!(rows.len(), 1);
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn test_raw_and_taint() -> anyhow::Result<()> {
         let conn = connection().await?;
         sql!("CREATE TABLE t (id INTEGER)")?.execute(&conn).await?;

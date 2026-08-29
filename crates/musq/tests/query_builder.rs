@@ -7,13 +7,13 @@ mod tests {
     use musq::{Conditions, Error, Execute, Musq, QueryBuilder, query};
 
     #[test]
-    fn push_values_empty_iterator_returns_error() {
+    fn push_values_empty_iterator_emits_nothing() -> anyhow::Result<()> {
         let mut builder = QueryBuilder::new();
-        let result = builder.push_values(empty::<i32>());
-        match result {
-            Err(Error::Query(msg)) => assert!(msg.contains("empty values")),
-            other => panic!("expected query error, got {other:?}"),
-        }
+        builder.push_sql("SELECT 1 WHERE 1 IN (");
+        builder.push_values(empty::<i32>())?;
+        builder.push_sql(")");
+        assert_eq!(builder.build().sql(), "SELECT 1 WHERE 1 IN ()");
+        Ok(())
     }
 
     #[test]
