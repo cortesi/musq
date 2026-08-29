@@ -196,7 +196,7 @@ impl PoolInner {
     ) -> StdResult<DecrementSizeGuard, SemaphorePermit<'a>> {
         match self
             .size
-            .fetch_update(Ordering::AcqRel, Ordering::Acquire, |size| {
+            .try_update(Ordering::AcqRel, Ordering::Acquire, |size| {
                 if self.is_closed() {
                     return None;
                 }

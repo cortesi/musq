@@ -1,7 +1,9 @@
 use std::{
     collections::HashSet,
     fmt,
+    future::Future,
     ops::{Deref, DerefMut},
+    pin::Pin,
 };
 
 use async_trait::async_trait;
@@ -194,20 +196,39 @@ pub struct Map<F> {
 }
 
 /// Execute queries without exposing the legacy `Executor` trait.
-#[async_trait]
 pub trait QueryExecutor {
     /// Execute the query and return a summary of changes.
-    async fn execute_query(self, query: Query) -> Result<QueryResult>;
+    fn execute_query<'async_trait>(
+        self,
+        query: Query,
+    ) -> Pin<Box<dyn Future<Output = Result<QueryResult>> + Send + 'async_trait>>
+    where
+        Self: 'async_trait;
     /// Execute the query and stream rows as they are produced.
     fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
     where
         Self: 'c;
     /// Execute the query and collect all rows.
-    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>>;
+    fn fetch_all_query<'async_trait>(
+        self,
+        query: Query,
+    ) -> Pin<Box<dyn Future<Output = Result<Vec<Row>>> + Send + 'async_trait>>
+    where
+        Self: 'async_trait;
     /// Execute the query and fetch exactly one row.
-    async fn fetch_one_query(self, query: Query) -> Result<Row>;
+    fn fetch_one_query<'async_trait>(
+        self,
+        query: Query,
+    ) -> Pin<Box<dyn Future<Output = Result<Row>> + Send + 'async_trait>>
+    where
+        Self: 'async_trait;
     /// Execute the query and fetch at most one row.
-    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>>;
+    fn fetch_optional_query<'async_trait>(
+        self,
+        query: Query,
+    ) -> Pin<Box<dyn Future<Output = Result<Option<Row>>> + Send + 'async_trait>>
+    where
+        Self: 'async_trait;
 }
 
 // Implement QueryExecutor for &Pool

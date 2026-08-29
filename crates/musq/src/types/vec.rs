@@ -46,8 +46,8 @@ impl<'r> Decode<'r> for VecF32 {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob);
         let bytes = value.blob()?;
-        let chunks = bytes.chunks_exact(4);
-        if !chunks.remainder().is_empty() {
+        let (chunks, remainder) = bytes.as_chunks::<4>();
+        if !remainder.is_empty() {
             return Err(DecodeError::Conversion(format!(
                 "invalid float32 blob length {}; expected multiple of 4 bytes",
                 bytes.len()
@@ -56,7 +56,7 @@ impl<'r> Decode<'r> for VecF32 {
 
         let mut out = Vec::with_capacity(bytes.len() / 4);
         for chunk in chunks {
-            out.push(f32::from_ne_bytes([chunk[0], chunk[1], chunk[2], chunk[3]]));
+            out.push(f32::from_ne_bytes(*chunk));
         }
 
         Ok(Self(out))
