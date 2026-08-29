@@ -391,214 +391,286 @@ fn is_ident_char(b: u8) -> bool {
     b.is_ascii_alphanumeric() || b == b'_'
 }
 
-/// Returns `true` if SQL contains `?NNN` or numeric `$NNN` placeholders outside
-/// strings, quoted identifiers, and comments.
-fn contains_numeric_parameter(sql: &str) -> bool {
-    #[derive(Clone, Copy, Debug)]
-    enum State {
-        Normal,
-        SingleQuote,
-        DoubleQuote,
-        LineComment,
-        BlockComment,
-    }
+/// SQL span outside strings and comments.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum SqlToken<'a> {
+    /// Literal text, including quoted strings and comments.
+    Text(&'a str),
+    /// Named placeholder such as `:name`, `@name`, or `$name`.
+    Placeholder {
+        /// `$`, `:`, or `@`.
+        prefix: char,
+        /// Name without the prefix.
+        name: &'a str,
+    },
+    /// Numeric placeholder such as `?1` or `$2`.
+    Numeric {
+        /// `?` or `$`.
+        prefix: char,
+        /// Decimal digits after the prefix.
+        digits: &'a str,
+    },
+}
 
-    let mut i = 0;
+/// Scanner state for strings, quoted identifiers, and comments.
+#[derive(Clone, Copy)]
+enum ScanState {
+    /// Outside quotes and comments.
+    Normal,
+    /// Inside a single-quoted string.
+    SingleQuote,
+    /// Inside a double-quoted identifier or string.
+    DoubleQuote,
+    /// Inside a `--` line comment.
+    LineComment,
+    /// Inside a `/* */` block comment.
+    BlockComment,
+}
+
+/// Walk `sql` and visit tokens outside strings and comments.
+fn scan_sql(sql: &str, mut visit: impl FnMut(SqlToken<'_>)) {
     let bytes = sql.as_bytes();
-    let mut state = State::Normal;
+    let mut i = 0;
+    let mut text_start = 0;
+    let mut state = ScanState::Normal;
 
     while i < bytes.len() {
         match state {
-            State::Normal => match bytes[i] {
+            ScanState::Normal => match bytes[i] {
                 b'\'' => {
                     i += 1;
-                    state = State::SingleQuote;
+                    state = ScanState::SingleQuote;
                 }
                 b'"' => {
                     i += 1;
-                    state = State::DoubleQuote;
+                    state = ScanState::DoubleQuote;
                 }
                 b'-' if bytes.get(i + 1) == Some(&b'-') => {
                     i += 2;
-                    state = State::LineComment;
+                    state = ScanState::LineComment;
                 }
                 b'/' if bytes.get(i + 1) == Some(&b'*') => {
                     i += 2;
-                    state = State::BlockComment;
+                    state = ScanState::BlockComment;
                 }
-                b'?' if bytes.get(i + 1).is_some_and(u8::is_ascii_digit) => return true,
-                b'$' if bytes.get(i + 1).is_some_and(u8::is_ascii_digit) => {
-                    let mut end = i + 2;
-                    while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+                b'?' if bytes.get(i + 1).is_some_and(u8::is_ascii_digit) => {
+                    let start = i;
+                    i += 1;
+                    while bytes.get(i).is_some_and(u8::is_ascii_digit) {
+                        i += 1;
+                    }
+                    if start > text_start {
+                        visit(SqlToken::Text(&sql[text_start..start]));
+                    }
+                    visit(SqlToken::Numeric {
+                        prefix: '?',
+                        digits: &sql[start + 1..i],
+                    });
+                    text_start = i;
+                }
+                b'$' | b':' | b'@' => {
+                    let prefix = bytes[i] as char;
+                    let name_start = i + 1;
+                    let mut end = name_start;
+                    while end < bytes.len() && is_ident_char(bytes[end]) {
                         end += 1;
                     }
-                    if bytes.get(end).is_none_or(|b| !is_ident_char(*b)) {
-                        return true;
+                    if end > name_start {
+                        let name = &sql[name_start..end];
+                        let all_digits = name.as_bytes().iter().all(u8::is_ascii_digit);
+                        if i > text_start {
+                            visit(SqlToken::Text(&sql[text_start..i]));
+                        }
+                        if prefix == '$' && all_digits {
+                            visit(SqlToken::Numeric {
+                                prefix: '$',
+                                digits: name,
+                            });
+                        } else {
+                            visit(SqlToken::Placeholder { prefix, name });
+                        }
+                        i = end;
+                        text_start = i;
+                    } else {
+                        i += 1;
                     }
-                    i = end;
                 }
                 _ => i += 1,
             },
-            State::SingleQuote => {
+            ScanState::SingleQuote => {
                 if bytes[i] == b'\'' {
                     if bytes.get(i + 1) == Some(&b'\'') {
                         i += 2;
                     } else {
                         i += 1;
-                        state = State::Normal;
+                        state = ScanState::Normal;
                     }
                 } else {
                     i += 1;
                 }
             }
-            State::DoubleQuote => {
+            ScanState::DoubleQuote => {
                 if bytes[i] == b'"' {
                     if bytes.get(i + 1) == Some(&b'"') {
                         i += 2;
                     } else {
                         i += 1;
-                        state = State::Normal;
+                        state = ScanState::Normal;
                     }
                 } else {
                     i += 1;
                 }
             }
-            State::LineComment => {
+            ScanState::LineComment => {
                 if bytes[i] == b'\n' {
-                    state = State::Normal;
+                    state = ScanState::Normal;
                 }
                 i += 1;
             }
-            State::BlockComment => {
+            ScanState::BlockComment => {
                 if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
                     i += 2;
-                    state = State::Normal;
+                    state = ScanState::Normal;
                 } else {
                     i += 1;
                 }
             }
         }
     }
+    if bytes.len() > text_start {
+        visit(SqlToken::Text(&sql[text_start..]));
+    }
+}
 
-    false
+/// Returns `true` if SQL contains `?NNN` or numeric `$NNN` placeholders outside
+/// strings, quoted identifiers, and comments.
+fn contains_numeric_parameter(sql: &str) -> bool {
+    let mut found = false;
+    scan_sql(sql, |token| {
+        if matches!(token, SqlToken::Numeric { .. }) {
+            found = true;
+        }
+    });
+    found
 }
 
 /// Rewrites named parameters (e.g. `:name`, `@name`, `$name`) according to the
 /// provided mapping, skipping string literals, quoted identifiers, and comments.
 fn rewrite_named_parameters(sql: &str, renames: &HashMap<String, String>) -> String {
-    #[derive(Clone, Copy, Debug)]
-    enum State {
-        Normal,
-        SingleQuote,
-        DoubleQuote,
-        LineComment,
-        BlockComment,
-    }
-
-    let mut out = Vec::with_capacity(sql.len());
-    let mut i = 0;
-    let bytes = sql.as_bytes();
-    let mut state = State::Normal;
-
-    while i < bytes.len() {
-        match state {
-            State::Normal => match bytes[i] {
-                b'\'' => {
-                    out.push(bytes[i]);
-                    i += 1;
-                    state = State::SingleQuote;
-                }
-                b'"' => {
-                    out.push(bytes[i]);
-                    i += 1;
-                    state = State::DoubleQuote;
-                }
-                b'-' if bytes.get(i + 1) == Some(&b'-') => {
-                    out.extend_from_slice(b"--");
-                    i += 2;
-                    state = State::LineComment;
-                }
-                b'/' if bytes.get(i + 1) == Some(&b'*') => {
-                    out.extend_from_slice(b"/*");
-                    i += 2;
-                    state = State::BlockComment;
-                }
-                b':' | b'@' | b'$' => {
-                    let prefix = bytes[i];
-                    let start = i + 1;
-                    let mut end = start;
-                    while end < bytes.len() && is_ident_char(bytes[end]) {
-                        end += 1;
-                    }
-
-                    if end > start {
-                        let name = &sql[start..end];
-                        if let Some(new_name) = renames.get(name) {
-                            out.push(prefix);
-                            out.extend_from_slice(new_name.as_bytes());
-                        } else {
-                            out.extend_from_slice(&bytes[i..end]);
-                        }
-                        i = end;
-                    } else {
-                        out.push(prefix);
-                        i += 1;
-                    }
-                }
-                _ => {
-                    out.push(bytes[i]);
-                    i += 1;
-                }
-            },
-            State::SingleQuote => {
-                if bytes[i] == b'\'' {
-                    if bytes.get(i + 1) == Some(&b'\'') {
-                        out.extend_from_slice(b"''");
-                        i += 2;
-                    } else {
-                        out.push(bytes[i]);
-                        i += 1;
-                        state = State::Normal;
-                    }
-                } else {
-                    out.push(bytes[i]);
-                    i += 1;
-                }
-            }
-            State::DoubleQuote => {
-                if bytes[i] == b'"' {
-                    if bytes.get(i + 1) == Some(&b'"') {
-                        out.extend_from_slice(br#""""#);
-                        i += 2;
-                    } else {
-                        out.push(bytes[i]);
-                        i += 1;
-                        state = State::Normal;
-                    }
-                } else {
-                    out.push(bytes[i]);
-                    i += 1;
-                }
-            }
-            State::LineComment => {
-                out.push(bytes[i]);
-                i += 1;
-                if out.last() == Some(&b'\n') {
-                    state = State::Normal;
-                }
-            }
-            State::BlockComment => {
-                if bytes[i] == b'*' && bytes.get(i + 1) == Some(&b'/') {
-                    out.extend_from_slice(b"*/");
-                    i += 2;
-                    state = State::Normal;
-                } else {
-                    out.push(bytes[i]);
-                    i += 1;
-                }
+    let mut out = String::with_capacity(sql.len());
+    scan_sql(sql, |token| match token {
+        SqlToken::Text(text) => out.push_str(text),
+        SqlToken::Numeric { prefix, digits } => {
+            out.push(prefix);
+            out.push_str(digits);
+        }
+        SqlToken::Placeholder { prefix, name } => {
+            out.push(prefix);
+            if let Some(new_name) = renames.get(name) {
+                out.push_str(new_name);
+            } else {
+                out.push_str(name);
             }
         }
+    });
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::HashMap;
+
+    use super::{contains_numeric_parameter, rewrite_named_parameters, scan_sql};
+
+    #[derive(Debug, PartialEq, Eq)]
+    enum OwnedToken {
+        Text(String),
+        Placeholder { prefix: char, name: String },
+        Numeric { prefix: char, digits: String },
     }
 
-    String::from_utf8(out).expect("rewriting should preserve UTF-8")
+    fn collect(sql: &str) -> Vec<OwnedToken> {
+        let mut out = Vec::new();
+        scan_sql(sql, |token| {
+            out.push(match token {
+                super::SqlToken::Text(text) => OwnedToken::Text(text.to_owned()),
+                super::SqlToken::Placeholder { prefix, name } => OwnedToken::Placeholder {
+                    prefix,
+                    name: name.to_owned(),
+                },
+                super::SqlToken::Numeric { prefix, digits } => OwnedToken::Numeric {
+                    prefix,
+                    digits: digits.to_owned(),
+                },
+            });
+        });
+        out
+    }
+
+    #[test]
+    fn scan_sql_table() {
+        assert_eq!(collect("SELECT 1"), [OwnedToken::Text("SELECT 1".into())]);
+        assert_eq!(
+            collect("WHERE id = :id"),
+            [
+                OwnedToken::Text("WHERE id = ".into()),
+                OwnedToken::Placeholder {
+                    prefix: ':',
+                    name: "id".into()
+                },
+            ]
+        );
+        assert_eq!(
+            collect("a $2 b"),
+            [
+                OwnedToken::Text("a ".into()),
+                OwnedToken::Numeric {
+                    prefix: '$',
+                    digits: "2".into()
+                },
+                OwnedToken::Text(" b".into()),
+            ]
+        );
+        assert_eq!(
+            collect("a ?1 b"),
+            [
+                OwnedToken::Text("a ".into()),
+                OwnedToken::Numeric {
+                    prefix: '?',
+                    digits: "1".into()
+                },
+                OwnedToken::Text(" b".into()),
+            ]
+        );
+        assert_eq!(collect("':id'"), [OwnedToken::Text("':id'".into())]);
+        assert_eq!(
+            collect("-- :id\n:x"),
+            [
+                OwnedToken::Text("-- :id\n".into()),
+                OwnedToken::Placeholder {
+                    prefix: ':',
+                    name: "x".into()
+                },
+            ]
+        );
+        assert_eq!(
+            collect("$2foo"),
+            [OwnedToken::Placeholder {
+                prefix: '$',
+                name: "2foo".into()
+            }]
+        );
+        assert!(contains_numeric_parameter("SELECT ?1"));
+        assert!(!contains_numeric_parameter("SELECT :id"));
+        let mut renames = HashMap::new();
+        renames.insert("id".into(), "id_0".into());
+        assert_eq!(
+            rewrite_named_parameters("WHERE x = :id", &renames),
+            "WHERE x = :id_0"
+        );
+        assert_eq!(
+            rewrite_named_parameters("WHERE x = ':id'", &renames),
+            "WHERE x = ':id'"
+        );
+    }
 }
