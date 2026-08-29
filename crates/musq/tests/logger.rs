@@ -14,7 +14,7 @@ mod tests {
     };
 
     use log::LevelFilter;
-    use logger::{LogSettings, QueryLogger};
+    use logger::{LogSettings, QueryLog, QueryLogger};
     use tracing::{
         Event, Level, Metadata, Subscriber, dispatcher,
         field::{Field, Visit},
@@ -92,8 +92,8 @@ mod tests {
         settings.log_slow_statements(LevelFilter::Warn, Duration::from_secs(60));
 
         let mut logger = QueryLogger::new("SELECT 1", settings);
-        logger.increment_rows_returned();
-        logger.increase_rows_affected(2);
+        logger.inc_rows_returned();
+        logger.inc_rows_affected(2);
         drop(logger);
         drop(_guard);
 
@@ -116,7 +116,7 @@ mod tests {
         settings.log_slow_statements(LevelFilter::Warn, Duration::from_millis(0));
 
         let mut logger = QueryLogger::new("UPDATE foo", settings);
-        logger.increase_rows_affected(5);
+        logger.inc_rows_affected(5);
         drop(logger);
         drop(_guard);
 

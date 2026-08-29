@@ -70,6 +70,21 @@ fn tracing_enabled_for(level: Level) -> bool {
     }
 }
 
+/// Emit a tracing event. `tracing::event!` needs a constant level.
+macro_rules! emit_at {
+    ($lvl:expr, $summary:expr, $sql:expr, $rows_affected:expr, $rows_returned:expr, $elapsed:expr) => {
+        tracing::event!(
+            target: "query",
+            $lvl,
+            summary = $summary,
+            db.statement = $sql,
+            rows_affected = $rows_affected,
+            rows_returned = $rows_returned,
+            elapsed = ?$elapsed,
+        )
+    };
+}
+
 /// Emit a tracing event with a dynamically chosen log level.
 fn emit_query_event(
     tracing_level: Level,
@@ -80,106 +95,71 @@ fn emit_query_event(
     elapsed: Duration,
 ) {
     match tracing_level {
-        Level::ERROR => emit_query_event_error(summary, sql, rows_affected, rows_returned, elapsed),
-        Level::WARN => emit_query_event_warn(summary, sql, rows_affected, rows_returned, elapsed),
-        Level::INFO => emit_query_event_info(summary, sql, rows_affected, rows_returned, elapsed),
-        Level::DEBUG => emit_query_event_debug(summary, sql, rows_affected, rows_returned, elapsed),
-        Level::TRACE => emit_query_event_trace(summary, sql, rows_affected, rows_returned, elapsed),
+        Level::ERROR => emit_error(summary, sql, rows_affected, rows_returned, elapsed),
+        Level::WARN => emit_warn(summary, sql, rows_affected, rows_returned, elapsed),
+        Level::INFO => emit_info(summary, sql, rows_affected, rows_returned, elapsed),
+        Level::DEBUG => emit_debug(summary, sql, rows_affected, rows_returned, elapsed),
+        Level::TRACE => emit_trace(summary, sql, rows_affected, rows_returned, elapsed),
     }
 }
 
 /// Emit an error-level query event.
-fn emit_query_event_error(
-    summary: &str,
-    sql: &str,
-    rows_affected: u64,
-    rows_returned: u64,
-    elapsed: Duration,
-) {
-    tracing::event!(
-        target: "query",
+fn emit_error(summary: &str, sql: &str, rows_affected: u64, rows_returned: u64, elapsed: Duration) {
+    emit_at!(
         Level::ERROR,
         summary,
-        db.statement = sql,
+        sql,
         rows_affected,
         rows_returned,
-        ?elapsed,
+        elapsed
     );
 }
 
 /// Emit a warn-level query event.
-fn emit_query_event_warn(
-    summary: &str,
-    sql: &str,
-    rows_affected: u64,
-    rows_returned: u64,
-    elapsed: Duration,
-) {
-    tracing::event!(
-        target: "query",
+fn emit_warn(summary: &str, sql: &str, rows_affected: u64, rows_returned: u64, elapsed: Duration) {
+    emit_at!(
         Level::WARN,
         summary,
-        db.statement = sql,
+        sql,
         rows_affected,
         rows_returned,
-        ?elapsed,
+        elapsed
     );
 }
 
 /// Emit an info-level query event.
-fn emit_query_event_info(
-    summary: &str,
-    sql: &str,
-    rows_affected: u64,
-    rows_returned: u64,
-    elapsed: Duration,
-) {
-    tracing::event!(
-        target: "query",
+fn emit_info(summary: &str, sql: &str, rows_affected: u64, rows_returned: u64, elapsed: Duration) {
+    emit_at!(
         Level::INFO,
         summary,
-        db.statement = sql,
+        sql,
         rows_affected,
         rows_returned,
-        ?elapsed,
+        elapsed
     );
 }
 
 /// Emit a debug-level query event.
-fn emit_query_event_debug(
-    summary: &str,
-    sql: &str,
-    rows_affected: u64,
-    rows_returned: u64,
-    elapsed: Duration,
-) {
-    tracing::event!(
-        target: "query",
+fn emit_debug(summary: &str, sql: &str, rows_affected: u64, rows_returned: u64, elapsed: Duration) {
+    emit_at!(
         Level::DEBUG,
         summary,
-        db.statement = sql,
+        sql,
         rows_affected,
         rows_returned,
-        ?elapsed,
+        elapsed
     );
 }
 
 /// Emit a trace-level query event.
-fn emit_query_event_trace(
-    summary: &str,
-    sql: &str,
-    rows_affected: u64,
-    rows_returned: u64,
-    elapsed: Duration,
-) {
-    tracing::event!(
-        target: "query",
+fn emit_trace(summary: &str, sql: &str, rows_affected: u64, rows_returned: u64, elapsed: Duration) {
+    emit_at!(
         Level::TRACE,
         summary,
-        db.statement = sql,
+        sql,
         rows_affected,
         rows_returned,
-        ?elapsed,
+        elapsed
     );
 }
 
@@ -215,16 +195,6 @@ impl<'q> QueryLogger<'q> {
             start: Instant::now(),
             settings,
         }
-    }
-
-    /// Increment the rows-returned counter.
-    pub fn increment_rows_returned(&mut self) {
-        self.rows_returned += 1;
-    }
-
-    /// Increment the rows-affected counter.
-    pub fn increase_rows_affected(&mut self, n: u64) {
-        self.rows_affected += n;
     }
 
     /// Emit a log event for the completed query.
@@ -291,13 +261,13 @@ impl<'q> Drop for QueryLogger<'q> {
     }
 }
 
-impl<'q> QueryLog for QueryLogger<'q> {
+impl QueryLog for QueryLogger<'_> {
     fn inc_rows_returned(&mut self) {
-        self.increment_rows_returned();
+        self.rows_returned += 1;
     }
 
     fn inc_rows_affected(&mut self, n: u64) {
-        self.increase_rows_affected(n);
+        self.rows_affected += n;
     }
 }
 

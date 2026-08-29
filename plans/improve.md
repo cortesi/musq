@@ -1088,7 +1088,7 @@ deprecation shim or a transition default.
    Also dropped the `atoi` crate; `$NNN` uses `str::parse`.
 5. [ ] §26. One `scan_sql` tokenizer under both `contains_numeric_parameter`
    and `rewrite_named_parameters`, with a table test.
-6. [ ] §27. One `emit_at!` macro in `logger.rs`; merge the duplicated
+6. [x] §27. One `emit_at!` macro in `logger.rs`; merge the duplicated
    row-counter methods.
 7. [ ] §28. `Arc<[Arc<str>]>` name list in `CompoundStatement`; `Text`
    newtype with private validated bytes in `Value::Text`.
@@ -1114,6 +1114,8 @@ date and reason.
 - 2026-08-29: Stage 2 removed the `SQLITE_BUSY` unlock-notify retry in
   `StatementHandle::step` so a blocked Immediate writer returns
   `PrimaryErrCode::Busy`. Stage 3 still deletes remaining unlock-notify.
-- 2026-08-29: Stage 5 §5 added public `InterruptHandle` so a task can
+- 2026-08-29: Stage 7 §27 keeps five one-line emit helpers that call
+  `emit_at!`. `tracing::event!` needs a constant level, and a match that
+  expands the macro in one function trips `clippy::cognitive_complexity`.
   interrupt after `Connection` is moved into `close(self)`. The race test
   in `tests/interrupt.rs` requires that cloneable handle.
