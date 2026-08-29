@@ -419,6 +419,45 @@ pub(in crate::sqlite) unsafe fn free(ptr: *mut c_void) {
     unsafe { ffi_sys::sqlite3_free(ptr) }
 }
 
+/// Wrapper around [`sqlite3_malloc64`].
+///
+/// # Safety
+/// - The returned pointer, if non-null, must be passed to [`free`].
+///
+/// See <https://www.sqlite.org/c3ref/free.html>
+#[inline]
+#[must_use]
+pub(in crate::sqlite) unsafe fn malloc64(size: u64) -> *mut c_void {
+    unsafe { ffi_sys::sqlite3_malloc64(size) }
+}
+
+/// Wrapper around [`sqlite3_deserialize`].
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+/// - `schema` must be a valid UTF-8 C string.
+/// - `data` must point to `buf_size` bytes allocated by SQLite when
+///   `FREEONCLOSE` is set.
+///
+/// See <https://www.sqlite.org/c3ref/deserialize.html>
+#[inline]
+#[must_use = "handle the Result"]
+pub(in crate::sqlite) unsafe fn deserialize(
+    db: *mut sqlite3,
+    schema: *const c_char,
+    data: *mut u8,
+    db_size: i64,
+    buf_size: i64,
+    flags: u32,
+) -> StdResult<(), SqliteError> {
+    let rc = unsafe { ffi_sys::sqlite3_deserialize(db, schema, data, db_size, buf_size, flags) };
+    if rc == ffi_sys::SQLITE_OK {
+        Ok(())
+    } else {
+        Err(SqliteError::new(db))
+    }
+}
+
 /// Wrapper around [`sqlite3_interrupt`].
 ///
 /// # Safety

@@ -1,6 +1,7 @@
 use std::{
     cell::Cell,
     ffi::{CString, c_void},
+    io,
     os::raw::c_int,
     ptr::{self, NonNull},
     slice,
@@ -22,8 +23,8 @@ use crate::{
     sqlite::{
         Arguments,
         connection::{
-            ConnectionState, DbStatus, DbStatusKind, WalCheckpoint, WalCheckpointMode,
-            establish::EstablishParams, execute,
+            ConnectionState, DbStatus, DbStatusKind, DeserializeMode, WalCheckpoint,
+            WalCheckpointMode, establish::EstablishParams, execute,
         },
         ffi,
     },
@@ -209,6 +210,17 @@ enum Command {
         /// Response channel.
         tx: oneshot::Sender<Result<Vec<u8>>>,
     },
+    /// Replace a schema from a byte image.
+    Deserialize {
+        /// Schema name, such as `main`.
+        schema: CString,
+        /// Database image.
+        bytes: Vec<u8>,
+        /// How SQLite should treat the buffer.
+        mode: DeserializeMode,
+        /// Response channel.
+        tx: oneshot::Sender<Result<()>>,
+    },
     /// Commit a transaction.
     Commit {
         /// Response channel.
@@ -358,6 +370,15 @@ impl WorkerSession {
             }
             Command::Serialize { schema, tx } => {
                 tx.send(serialize_schema(&self.conn, &schema)).ok();
+            }
+            Command::Deserialize {
+                schema,
+                bytes,
+                mode,
+                tx,
+            } => {
+                tx.send(deserialize_schema(&mut self.conn, &schema, &bytes, mode))
+                    .ok();
             }
             Command::Commit { tx } => self.commit(tx),
             Command::Rollback { tx } => self.rollback(tx),
@@ -663,6 +684,22 @@ impl ConnectionWorker {
             .await?
     }
 
+    /// Replace `schema` from a SQLite database image.
+    pub(crate) async fn deserialize(
+        &self,
+        schema: CString,
+        bytes: Vec<u8>,
+        mode: DeserializeMode,
+    ) -> Result<()> {
+        self.oneshot_cmd(|tx| Command::Deserialize {
+            schema,
+            bytes,
+            mode,
+            tx,
+        })
+        .await?
+    }
+
     /// Interrupt the statement currently running on this connection.
     pub(crate) fn interrupt(&self) {
         self.shared.interrupt();
@@ -919,6 +956,68 @@ fn serialize_schema(conn: &ConnectionState, schema: &CString) -> Result<Vec<u8>>
         .map_err(|_| Error::Protocol(format!("sqlite3_serialize returned invalid size {size}")))?;
     // SAFETY: `ptr` is a SQLite allocation of `size` bytes.
     Ok(unsafe { slice::from_raw_parts(ptr, size) }.to_vec())
+}
+
+/// Return whether a database image uses the WAL file format.
+fn is_wal_image(bytes: &[u8]) -> bool {
+    bytes.len() >= 20 && (bytes[18] == 2 || bytes[19] == 2)
+}
+
+/// Load a SQLite schema image, taking ownership of a SQLite-allocated buffer.
+fn deserialize_schema(
+    conn: &mut ConnectionState,
+    schema: &CString,
+    bytes: &[u8],
+    mode: DeserializeMode,
+) -> Result<()> {
+    if conn.transaction_depth > 0 || !unsafe { ffi::get_autocommit(conn.handle.as_ptr()) } {
+        return Err(Error::Configuration(
+            "cannot deserialize while a transaction is open".into(),
+        ));
+    }
+    if is_wal_image(bytes) {
+        return Err(Error::Configuration(
+            "cannot deserialize a WAL-mode database image".into(),
+        ));
+    }
+
+    conn.statements.clear();
+
+    let size = i64::try_from(bytes.len())
+        .map_err(|_| Error::Configuration("deserialize image is too large".into()))?;
+    let ptr = unsafe { ffi::malloc64(bytes.len() as u64) };
+    if ptr.is_null() {
+        return Err(Error::Io(io::Error::new(
+            io::ErrorKind::OutOfMemory,
+            "sqlite3_malloc64 failed",
+        )));
+    }
+    unsafe {
+        ptr::copy_nonoverlapping(bytes.as_ptr(), ptr.cast::<u8>(), bytes.len());
+    }
+
+    let flags = libsqlite3_sys::SQLITE_DESERIALIZE_FREEONCLOSE
+        | match mode {
+            DeserializeMode::ReadOnly => libsqlite3_sys::SQLITE_DESERIALIZE_READONLY,
+            DeserializeMode::Resizable => libsqlite3_sys::SQLITE_DESERIALIZE_RESIZEABLE,
+        };
+
+    match unsafe {
+        ffi::deserialize(
+            conn.handle.as_ptr(),
+            schema.as_ptr(),
+            ptr.cast::<u8>(),
+            size,
+            size,
+            flags,
+        )
+    } {
+        Ok(()) => Ok(()),
+        Err(error) => {
+            unsafe { ffi::free(ptr) };
+            Err(error.into())
+        }
+    }
 }
 
 /// Catch a mismatch between Musq depth and SQLite autocommit in tests.

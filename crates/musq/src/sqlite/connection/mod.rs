@@ -43,6 +43,15 @@ mod handle;
 /// Worker task driving the connection.
 mod worker;
 
+/// How [`Connection::deserialize`] treats the loaded image.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DeserializeMode {
+    /// Load the image as a read-only database.
+    ReadOnly,
+    /// Load the image so SQLite may grow the buffer on write.
+    Resizable,
+}
+
 /// A single, standalone connection to a SQLite database.
 ///
 /// This represents a single physical connection and is the fundamental primitive for database
@@ -178,6 +187,23 @@ impl Connection {
         let schema = CString::new(schema)
             .map_err(|_| Error::Configuration("serialize schema contains nul bytes".into()))?;
         self.worker.serialize(schema).await
+    }
+
+    /// Replace `schema` with a SQLite database image.
+    ///
+    /// Refuses to run while a transaction is open. Cached statements are
+    /// cleared because they bind to the previous schema. WAL-mode images
+    /// are rejected. `mode` chooses a read-only load or a resizable buffer.
+    /// SQLite takes ownership of a copy allocated with `sqlite3_malloc64`.
+    pub async fn deserialize(
+        &self,
+        schema: &str,
+        bytes: Vec<u8>,
+        mode: DeserializeMode,
+    ) -> Result<()> {
+        let schema = CString::new(schema)
+            .map_err(|_| Error::Configuration("deserialize schema contains nul bytes".into()))?;
+        self.worker.deserialize(schema, bytes, mode).await
     }
 
     /// Interrupt the statement currently running on this connection.

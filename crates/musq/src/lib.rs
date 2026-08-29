@@ -82,9 +82,9 @@ pub use crate::{
     query_result::QueryResult,
     row::Row,
     sqlite::{
-        Arguments, Connection, DbStatus, DbStatusKind, ForeignKeyViolation, IntegrityReport,
-        InterruptHandle, SqliteDataType, SqliteError, SqliteRuntimeInfo, Value, WalCheckpoint,
-        WalCheckpointMode,
+        Arguments, Connection, DbStatus, DbStatusKind, DeserializeMode, ForeignKeyViolation,
+        IntegrityReport, InterruptHandle, SqliteDataType, SqliteError, SqliteRuntimeInfo, Value,
+        WalCheckpoint, WalCheckpointMode,
     },
     transaction::{Transaction, TransactionBehavior, TxnState},
     values::{IntoValuesEntry, Values, ValuesEntry},
