@@ -42,12 +42,6 @@ pub struct ConnectionWorker {
     join_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
 }
 
-// ConnectionWorker is safe to share between threads because:
-// - command_tx is Sync (flume::Sender implements Sync)
-// - shared is Arc<WorkerSharedState> which is Sync
-// - join_handle is Arc<Mutex<>> which is Sync
-unsafe impl Sync for ConnectionWorker {}
-
 /// Shared state between async tasks and the worker thread.
 pub struct WorkerSharedState {
     /// Cached statement size tracking.
@@ -618,5 +612,17 @@ mod rendezvous_oneshot {
             ack_tx.send(()).map_err(|_| Canceled)?;
             Ok(value)
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::ConnectionWorker;
+
+    fn assert_send_sync<T: Send + Sync>() {}
+
+    #[test]
+    fn connection_worker_is_send_sync() {
+        assert_send_sync::<ConnectionWorker>();
     }
 }

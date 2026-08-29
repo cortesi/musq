@@ -22,15 +22,6 @@ pub struct Row {
     pub(crate) column_names: Arc<HashMap<Arc<str>, usize>>,
 }
 
-// Accessing values from the statement object is
-// safe across threads as long as we don't call [sqlite3_step]
-
-// we block ourselves from doing that by only exposing
-// a set interface on [StatementHandle]
-
-unsafe impl Send for Row {}
-unsafe impl Sync for Row {}
-
 impl Row {
     /// Build a row from the current statement position.
     pub(crate) fn current(
@@ -217,5 +208,17 @@ impl Row {
 impl<'r> FromRow<'r> for Row {
     fn from_row(_prefix: &str, row: &'r Row) -> Result<Self> {
         Ok(row.clone())
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Row;
+
+    fn assert_send_sync<T: Send + Sync>() {}
+
+    #[test]
+    fn row_is_send_sync() {
+        assert_send_sync::<Row>();
     }
 }

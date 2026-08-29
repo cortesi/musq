@@ -943,7 +943,7 @@ deprecation shim or a transition default.
    `establish.rs` (SQLite did not honor `FP_DIGITS`).
 4. [x] §8. Add `ffi::changes64`; use it in `StatementHandle::changes`. Delete
    `ffi::changes`.
-5. [ ] §9. Delete `unsafe impl Sync for Connection`, `unsafe impl Sync for
+5. [x] §9. Delete `unsafe impl Sync for Connection`, `unsafe impl Sync for
    ConnectionWorker`, `unsafe impl Send/Sync for Row`, and the empty
    `impl Drop for Connection`. Add `assert_send_sync::<T>()` checks in each
    file's test module.

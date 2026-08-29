@@ -72,12 +72,6 @@ pub struct Connection {
     pub(crate) row_channel_size: usize,
 }
 
-// Connection is safe to share between threads because:
-// - optimize_on_close is just an enum, safe to share
-// - worker is ConnectionWorker which we've marked as Sync
-// - row_channel_size is just a usize, safe to share
-unsafe impl Sync for Connection {}
-
 /// Internal state for an active connection.
 pub struct ConnectionState {
     /// Low-level SQLite handle.
@@ -439,17 +433,21 @@ impl Connection {
     }
 }
 
-impl Drop for Connection {
-    fn drop(&mut self) {
-        // Drop is called when Connection is being destroyed,
-        // so we don't need to properly shut down the worker here
-        // The worker thread will naturally terminate when the command channel is dropped
-    }
-}
-
 impl Drop for ConnectionState {
     fn drop(&mut self) {
         // explicitly drop statements before the connection handle is dropped
         self.statements.clear();
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::Connection;
+
+    fn assert_send_sync<T: Send + Sync>() {}
+
+    #[test]
+    fn connection_is_send_sync() {
+        assert_send_sync::<Connection>();
     }
 }
