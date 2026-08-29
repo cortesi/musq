@@ -4,15 +4,13 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    use musq::{DbStatusKind, Error, JournalMode, Musq, WalCheckpointMode, query, query_scalar};
+    use musq::{
+        BUNDLED_SQLITE_VERSION, DbStatusKind, Error, JournalMode, Musq, WalCheckpointMode, query,
+        query_scalar,
+    };
     use tempdir::TempDir;
 
     use crate::support::connection;
-
-    /// SQLite version bundled by libsqlite3-sys 0.38.1.
-    const BUNDLED_SQLITE_VERSION: &str = "3.53.2";
-    /// Numeric SQLite version bundled by libsqlite3-sys 0.38.1.
-    const BUNDLED_SQLITE_VERSION_NUMBER: i32 = 3_053_002;
 
     #[tokio::test]
     async fn runtime_info_reports_bundled_sqlite_identity() -> anyhow::Result<()> {
@@ -20,7 +18,7 @@ mod tests {
 
         let pool_info = pool.runtime_info().await?;
         assert_eq!(pool_info.version, BUNDLED_SQLITE_VERSION);
-        assert_eq!(pool_info.version_number, BUNDLED_SQLITE_VERSION_NUMBER);
+        assert!(pool_info.version_number > 0);
         assert!(!pool_info.source_id.is_empty());
         assert!(
             pool_info

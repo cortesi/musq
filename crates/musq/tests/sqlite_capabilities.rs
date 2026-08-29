@@ -6,10 +6,7 @@
 mod tests {
     use std::collections::BTreeSet;
 
-    use musq::{Musq, query_as, query_scalar};
-
-    /// SQLite version bundled by libsqlite3-sys 0.38.1.
-    const BUNDLED_SQLITE_VERSION: &str = "3.53.2";
+    use musq::{BUNDLED_SQLITE_VERSION, Musq, query_as, query_scalar};
 
     #[tokio::test]
     async fn bundled_sqlite_version_and_compile_options_are_active() -> anyhow::Result<()> {

@@ -1083,7 +1083,7 @@ deprecation shim or a transition default.
 2. [x] §32. Delete `crates/musq-test`. Move `examples/vec.rs` and a fixed
    `examples/custom_type.rs` into `crates/musq/examples/`; delete the
    `include!` shim and the root `examples/` directory.
-3. [ ] §33. `build.rs` exports `BUNDLED_SQLITE_VERSION` from
+3. [x] §33. `build.rs` exports `BUNDLED_SQLITE_VERSION` from
    `DEP_SQLITE3_INCLUDE`; capability test uses it; README and `lib.rs` stop
    naming a literal version.
 4. [x] §25. One shared named-lookup path in `Arguments::bind`.

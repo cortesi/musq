@@ -430,10 +430,11 @@ musq = { version = "0.0.4", default-features = false }
 
 ## SQLite runtime
 
-Musq supports exactly the SQLite release bundled by its `libsqlite3-sys`
-dependency — currently SQLite 3.53.2 via `libsqlite3-sys 0.38.1`. Linking
-against older or system SQLite libraries is not supported; leave
-`LIBSQLITE3_SYS_USE_PKG_CONFIG` and `SQLITE3_*` environment variables unset.
+Musq supports the SQLite release bundled by the pinned `libsqlite3-sys`
+crate. Read the version from `musq::BUNDLED_SQLITE_VERSION` or
+`runtime_info()`. Linking against older or system SQLite libraries is not
+supported; leave `LIBSQLITE3_SYS_USE_PKG_CONFIG` and `SQLITE3_*`
+environment variables unset.
 
 Runtime introspection and control:
 

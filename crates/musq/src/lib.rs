@@ -2,9 +2,10 @@
 
 //! An async SQLite driver focused on performance, correctness, and flexibility.
 //!
-//! Musq supports the SQLite release bundled by its `libsqlite3-sys` dependency.
-//! It does not support linking against older or system SQLite libraries.
-//! With `libsqlite3-sys 0.38.1`, the bundled SQLite release is 3.53.2.
+//! Musq supports the SQLite release bundled by the pinned `libsqlite3-sys`
+//! crate. It does not support linking against older or system SQLite libraries.
+//! Read the bundled version from [`BUNDLED_SQLITE_VERSION`] or
+//! [`SqliteRuntimeInfo`].
 
 /// SQLite backend implementation.
 mod sqlite;
@@ -13,6 +14,11 @@ mod sqlite;
 mod enum_mode;
 
 pub use musq_macros::*;
+
+/// SQLite release bundled by the pinned `libsqlite3-sys` crate.
+///
+/// Compare this value with [`SqliteRuntimeInfo::version`] from `runtime_info()`.
+pub const BUNDLED_SQLITE_VERSION: &str = env!("BUNDLED_SQLITE_VERSION");
 
 /// Re-exports used by proc-macro expansions.
 #[cfg(feature = "json")]

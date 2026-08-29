@@ -1,6 +1,11 @@
 //! Build-time SQLite linkage policy checks.
 
-use std::{env, ffi::OsStr};
+use std::{
+    env,
+    ffi::OsStr,
+    fs,
+    path::{Path, PathBuf},
+};
 
 /// Environment variables that can redirect libsqlite3-sys to an external SQLite.
 const UNSUPPORTED_SQLITE_LINK_ENV_VARS: &[&str] = &[
@@ -19,6 +24,39 @@ fn main() {
              unset {name} to build with the bundled library"
         );
     }
+
+    let header = sqlite3_header_path();
+    println!("cargo:rerun-if-changed={}", header.display());
+    let version = bundled_sqlite_version(&header);
+    println!("cargo:rustc-env=BUNDLED_SQLITE_VERSION={version}");
+}
+
+/// Path to the `sqlite3.h` header exported by `libsqlite3-sys`.
+fn sqlite3_header_path() -> PathBuf {
+    let include = env::var("DEP_SQLITE3_INCLUDE").expect(
+        "DEP_SQLITE3_INCLUDE is missing; musq requires libsqlite3-sys with the bundled feature",
+    );
+    Path::new(&include).join("sqlite3.h")
+}
+
+/// Read `SQLITE_VERSION` from the amalgamation header.
+fn bundled_sqlite_version(header: &Path) -> String {
+    let text = fs::read_to_string(header).unwrap_or_else(|error| {
+        panic!("failed to read {}: {error}", header.display());
+    });
+    for line in text.lines() {
+        let Some(rest) = line.trim().strip_prefix("#define SQLITE_VERSION") else {
+            continue;
+        };
+        if rest.starts_with('_') {
+            continue;
+        }
+        let rest = rest.trim();
+        if let Some(version) = rest.strip_prefix('"').and_then(|s| s.strip_suffix('"')) {
+            return version.to_string();
+        }
+    }
+    panic!("SQLITE_VERSION not found in {}", header.display());
 }
 
 /// Return whether an environment variable has a meaningful override value.
