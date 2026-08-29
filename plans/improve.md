@@ -1102,8 +1102,13 @@ deprecation shim or a transition default.
     document each error-code variant.
 11. [x] §35. `Ident::parse_any` in `UpsertArgs::parse`; format-literal spans
     for `sql!` errors.
-12. [ ] Stage gate. Also run `cargo outdated --root-deps-only --workspace`
+12. [x] Stage gate. Also run `cargo outdated --root-deps-only --workspace`
     and record the result here.
+    2026-08-29: most root deps have patch-level updates only. Remaining
+    non-patch: `darling 0.23.0` (latest 0.24.1) and `syn 2.0.118` (latest
+    3.0.4). `libsqlite3-sys` is 0.38.1; latest 0.38.2 still bundles
+    SQLite 3.53.2. `cargo test -p musq --no-default-features` and
+    `cargo test -p musq --features vec` passed.
 
 ### Checklist Adjustments
 
