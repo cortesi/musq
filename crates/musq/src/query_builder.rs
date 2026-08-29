@@ -1,7 +1,5 @@
 use std::collections::{HashMap, HashSet};
 
-use either::Either;
-
 use crate::{
     Arguments, Conditions, Error, Result, Row,
     encode::Encode,
@@ -272,10 +270,7 @@ impl QueryBuilder {
             if !self.sql.is_empty() {
                 self.sql.push(' ');
             }
-            let sql = match query.statement {
-                Either::Left(sql) => sql,
-                Either::Right(statement) => statement.sql,
-            };
+            let sql = query.sql;
             if let Err(err) =
                 self.push_fragment(sql, query.arguments.unwrap_or_default(), tainted, false)
             {
@@ -347,7 +342,7 @@ impl QueryBuilder {
     /// Finalize the builder into a [`Query`].
     pub fn build(self) -> Query {
         Query {
-            statement: Either::Left(self.sql),
+            sql: self.sql,
             arguments: Some(self.arguments),
             tainted: self.tainted,
         }

@@ -4,7 +4,6 @@ pub use connection::{
     WalCheckpoint, WalCheckpointMode,
 };
 pub use error::SqliteError;
-pub use statement::Prepared;
 pub use type_info::SqliteDataType;
 pub use value::Value;
 

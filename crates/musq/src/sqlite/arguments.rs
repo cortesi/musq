@@ -177,7 +177,7 @@ impl Arguments {
 #[cfg(test)]
 mod tests {
     use super::parse_question_param;
-    use crate::{Arguments, Connection, Error, Musq, query, query_as};
+    use crate::{Arguments, Connection, Error, Musq, query, query_as, query_as_with};
 
     #[test]
     fn test_parse_question_param_invalid() {
@@ -351,12 +351,14 @@ mod tests {
     #[tokio::test]
     async fn test_repeated_named_parameters_add_and_named() -> anyhow::Result<()> {
         let conn = Connection::connect_with(&Musq::new()).await?;
-        let stmt = conn.prepare("SELECT :a, :a, ?2").await?;
+        conn.prepare("SELECT :a, :a, ?2").await?;
         let mut args = Arguments::default();
         args.add_named("a", &7_i32)?;
         args.add(&9_i32)?;
 
-        let (x, y, z): (i32, i32, i32) = stmt.query_as_with(args).fetch_one(&conn).await?;
+        let (x, y, z): (i32, i32, i32) = query_as_with("SELECT :a, :a, ?2", args)
+            .fetch_one(&conn)
+            .await?;
 
         assert_eq!((x, y, z), (7, 7, 9));
 

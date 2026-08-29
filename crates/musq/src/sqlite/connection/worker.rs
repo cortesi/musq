@@ -21,7 +21,6 @@ use crate::{
             establish::EstablishParams, execute,
         },
         ffi,
-        statement::Statement,
     },
     transaction::{TransactionBehavior, begin_sql, commit_sql, rollback_sql},
 };
@@ -56,7 +55,7 @@ enum Command {
         /// SQL text to prepare.
         query: Box<str>,
         /// Response channel.
-        tx: oneshot::Sender<Result<Statement>>,
+        tx: oneshot::Sender<Result<()>>,
     },
     /// Execute a statement and stream results.
     Execute {
@@ -337,7 +336,7 @@ impl ConnectionWorker {
 
     #[allow(dead_code)]
     /// Prepare a SQL statement on the worker thread.
-    pub(crate) async fn prepare(&self, query: &str) -> Result<Statement> {
+    pub(crate) async fn prepare(&self, query: &str) -> Result<()> {
         self.oneshot_cmd(|tx| Command::Prepare {
             query: query.into(),
             tx,
@@ -497,7 +496,7 @@ impl ConnectionWorker {
 }
 
 /// Prepare a SQL statement, using the cache when possible.
-fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement> {
+fn prepare(conn: &mut ConnectionState, query: &str) -> Result<()> {
     // prepare statement object (or checkout from cache)
     let statement = conn.statements.get(query)?;
 
@@ -505,9 +504,7 @@ fn prepare(conn: &mut ConnectionState, query: &str) -> Result<Statement> {
         // prepare all statements in the compound query
     }
 
-    Ok(Statement {
-        sql: query.to_string(),
-    })
+    Ok(())
 }
 
 /// Update the cached statement size metric.

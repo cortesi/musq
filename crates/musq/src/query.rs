@@ -1,27 +1,18 @@
-use std::{
-    collections::HashSet,
-    fmt,
-    future::Future,
-    ops::DerefMut,
-};
+use std::{collections::HashSet, fmt, future::Future, ops::DerefMut};
 
-use either::Either;
 use futures_core::stream::BoxStream;
 
 use crate::{
-    Arguments, Connection, QueryResult, Result, Row, Transaction,
-    encode::Encode,
-    executor::Execute,
-    pool::PoolConnection,
-    sqlite::{Value, statement::Statement},
+    Arguments, Connection, QueryResult, Result, Row, Transaction, encode::Encode,
+    executor::Execute, pool::PoolConnection, sqlite::Value,
 };
 
 /// Raw SQL query with bind parameters. Returned by [`query`].
 #[must_use = "query must be executed to affect database"]
 #[derive(Clone)]
 pub struct Query {
-    /// SQL text or prepared statement reference.
-    pub(crate) statement: Either<String, Statement>,
+    /// SQL text.
+    pub(crate) sql: String,
     /// Bound arguments for the query.
     pub(crate) arguments: Option<Arguments>,
     /// Whether the query contains raw SQL fragments.
@@ -351,10 +342,7 @@ impl QueryExecutor for &crate::Pool {
 
 impl Execute for Query {
     fn sql(&self) -> &str {
-        match &self.statement {
-            Either::Right(statement) => statement.sql(),
-            Either::Left(sql) => sql,
-        }
+        &self.sql
     }
 
     fn arguments(&mut self) -> Option<Arguments> {
@@ -631,29 +619,11 @@ where
     }
 }
 
-/// Make a SQL query from a prepared statement.
-pub(crate) fn query_statement(statement: &Statement) -> Query {
-    Query {
-        arguments: Some(Default::default()),
-        statement: Either::Right(statement.clone()),
-        tainted: false,
-    }
-}
-
-/// Make a SQL query from a prepared statement with the given arguments.
-pub(crate) fn query_statement_with(statement: &Statement, arguments: Arguments) -> Query {
-    Query {
-        arguments: Some(arguments),
-        statement: Either::Right(statement.clone()),
-        tainted: false,
-    }
-}
-
 /// Make a SQL query.
 pub fn query(sql: &str) -> Query {
     Query {
         arguments: Some(Default::default()),
-        statement: Either::Left(sql.to_string()),
+        sql: sql.to_string(),
         tainted: false,
     }
 }
@@ -662,7 +632,7 @@ pub fn query(sql: &str) -> Query {
 pub fn query_with(sql: &str, arguments: Arguments) -> Query {
     Query {
         arguments: Some(arguments),
-        statement: Either::Left(sql.to_string()),
+        sql: sql.to_string(),
         tainted: false,
     }
 }
@@ -688,27 +658,6 @@ where
     query_with(sql, arguments).try_map(|row| O::from_row("", &row))
 }
 
-/// Build a typed query from a prepared statement.
-pub(crate) fn query_statement_as<'q, O>(
-    statement: &'q Statement,
-) -> Map<impl FnMut(Row) -> Result<O> + Send>
-where
-    O: Send + Unpin + for<'r> FromRow<'r>,
-{
-    query_statement(statement).try_map(|row| O::from_row("", &row))
-}
-
-/// Build a typed query from a prepared statement and arguments.
-pub(crate) fn query_statement_as_with<'q, O>(
-    statement: &'q Statement,
-    arguments: Arguments,
-) -> Map<impl FnMut(Row) -> Result<O> + Send>
-where
-    O: Send + Unpin + for<'r> FromRow<'r>,
-{
-    query_statement_with(statement, arguments).try_map(|row| O::from_row("", &row))
-}
-
 /// Build a scalar query that maps a single column into `O`.
 pub fn query_scalar<'q, O>(sql: &'q str) -> Map<impl FnMut(Row) -> Result<O> + Send>
 where
@@ -728,29 +677,6 @@ where
     O: Send + Unpin,
 {
     query_as_with(sql, arguments).map(|(o,)| o)
-}
-
-/// Build a scalar query from a prepared statement.
-pub(crate) fn query_statement_scalar<'q, O>(
-    statement: &'q Statement,
-) -> Map<impl FnMut(Row) -> Result<O> + Send>
-where
-    (O,): for<'r> FromRow<'r>,
-    O: Send + Unpin,
-{
-    query_statement_as(statement).map(|(o,)| o)
-}
-
-/// Build a scalar query from a prepared statement and arguments.
-pub(crate) fn query_statement_scalar_with<'q, O>(
-    statement: &'q Statement,
-    arguments: Arguments,
-) -> Map<impl FnMut(Row) -> Result<O> + Send>
-where
-    (O,): for<'r> FromRow<'r>,
-    O: Send + Unpin,
-{
-    query_statement_as_with(statement, arguments).map(|(o,)| o)
 }
 
 /// Quote an identifier for use in a SQL statement.

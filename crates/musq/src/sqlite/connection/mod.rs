@@ -24,7 +24,6 @@ use crate::{
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
         ffi,
-        statement::{Prepared, Statement},
     },
     statement_cache::StatementCache,
     transaction::Transaction,
@@ -357,24 +356,11 @@ impl Connection {
         })
     }
 
-    #[allow(dead_code)]
-    /// Prepare a SQL statement without caching.
-    pub(crate) fn prepare_with<'c, 'q: 'c>(
-        &'c self,
-        sql: &'q str,
-    ) -> BoxFuture<'c, Result<Prepared>> {
-        Box::pin(async move {
-            self.worker.prepare(sql).await?;
-
-            Ok(Prepared {
-                statement: Statement { sql: sql.into() },
-            })
-        })
-    }
-
-    /// Prepare a SQL statement using the cache.
-    pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<Prepared>> {
-        self.prepare_with(sql)
+    /// Compile `sql` to validate it and warm the statement cache.
+    ///
+    /// This does not execute the statement.
+    pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<()>> {
+        Box::pin(async move { self.worker.prepare(sql).await })
     }
 
     /// Execute a query and stream only rows.

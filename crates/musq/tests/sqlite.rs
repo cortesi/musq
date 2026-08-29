@@ -564,9 +564,12 @@ mod tests {
 
         let tweet_id: i32 = 2;
 
-        let statement = tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
+        tx.prepare("SELECT * FROM tweet WHERE id = ?1").await?;
 
-        let row = statement.query().bind(tweet_id).fetch_one(&tx).await?;
+        let row = query("SELECT * FROM tweet WHERE id = ?1")
+            .bind(tweet_id)
+            .fetch_one(&tx)
+            .await?;
         let tweet_text: &str = row.get_value("text")?;
 
         assert_eq!(tweet_text, "Hello, World");
@@ -589,15 +592,20 @@ mod tests {
             .execute(&conn)
             .await?;
 
-        let stmt = conn
-            .prepare("SELECT price FROM products WHERE product_no = ?")
+        conn.prepare("SELECT price FROM products WHERE product_no = ?")
             .await?;
 
-        let row = stmt.query().bind(1_i32).fetch_one(&conn).await?;
+        let row = query("SELECT price FROM products WHERE product_no = ?")
+            .bind(1_i32)
+            .fetch_one(&conn)
+            .await?;
         let price: f64 = row.get_value_idx(0)?;
         assert_eq!(price, 9.99_f64);
 
-        let row = stmt.query().bind(2_i32).fetch_one(&conn).await?;
+        let row = query("SELECT price FROM products WHERE product_no = ?")
+            .bind(2_i32)
+            .fetch_one(&conn)
+            .await?;
         let price: f64 = row.get_value_idx(0)?;
         assert_eq!(price, 19.95_f64);
 

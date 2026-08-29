@@ -11,8 +11,6 @@
 //! Use curated helpers (like [`crate::expr::now_rfc3339_utc`]) whenever possible. If you must embed
 //! ad-hoc SQL, use [`crate::expr::raw`], which will taint the resulting query.
 
-use either::Either;
-
 use crate::{Arguments, Query, Value, error::EncodeError};
 
 /// A SQL expression fragment with optional bound parameters.
@@ -43,10 +41,7 @@ impl Expr {
 
 impl From<Query> for Expr {
     fn from(query: Query) -> Self {
-        let sql = match query.statement {
-            Either::Left(sql) => sql,
-            Either::Right(statement) => statement.sql,
-        };
+        let sql = query.sql;
         let arguments = query.arguments.unwrap_or_default();
         Self {
             sql,

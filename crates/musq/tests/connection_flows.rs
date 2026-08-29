@@ -17,9 +17,11 @@ mod tests {
             .execute(&conn)
             .await?;
 
-        let stmt = conn.prepare("INSERT INTO t (val) VALUES (?1)").await?;
-        stmt.query().bind("hello").execute(&conn).await?;
-        drop(stmt);
+        conn.prepare("INSERT INTO t (val) VALUES (?1)").await?;
+        query("INSERT INTO t (val) VALUES (?1)")
+            .bind("hello")
+            .execute(&conn)
+            .await?;
 
         let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
             .fetch_one(&conn)

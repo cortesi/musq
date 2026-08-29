@@ -1001,7 +1001,7 @@ deprecation shim or a transition default.
    `&mut T`; one impl for `&Pool`. Replace `#[async_trait]` with native
    `async fn` in trait. Seal and re-export `QueryExecutor`. Delete
    `impl Execute for &str`. Remove `async-trait` from `Cargo.toml`.
-2. [ ] §19. Delete `Statement`, `Prepared`, `prepare_with`, the
+2. [x] §19. Delete `Statement`, `Prepared`, `prepare_with`, the
    `query_statement_*` functions, and the `rc_buffer` allow. Store
    `sql: String` in `Query`. Keep `Connection::prepare(&str) -> Result<()>`
    as validation. Remove `either` from `Query`.
