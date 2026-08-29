@@ -1,8 +1,10 @@
 use std::{
     cell::Cell,
-    ffi::{CString, c_void},
+    env,
+    ffi::{CStr, CString, c_void},
     io,
     os::raw::c_int,
+    path::{Path, PathBuf},
     ptr::{self, NonNull},
     slice,
     sync::{
@@ -14,7 +16,7 @@ use std::{
 };
 
 use either::Either;
-use libsqlite3_sys::sqlite3;
+use libsqlite3_sys::{sqlite3, sqlite3_backup};
 use tokio::sync::{Mutex as TokioMutex, oneshot};
 
 use crate::{
@@ -23,9 +25,10 @@ use crate::{
     sqlite::{
         Arguments,
         connection::{
-            ConnectionState, DbStatus, DbStatusKind, DeserializeMode, WalCheckpoint,
+            BackupReport, ConnectionState, DbStatus, DbStatusKind, DeserializeMode, WalCheckpoint,
             WalCheckpointMode, establish::EstablishParams, execute,
         },
+        error::SqliteError,
         ffi,
     },
     transaction::{TransactionBehavior, TxnState, begin_sql, commit_sql, rollback_sql},
@@ -93,6 +96,29 @@ struct SqliteAlloc(*mut u8);
 impl Drop for SqliteAlloc {
     fn drop(&mut self) {
         unsafe { ffi::free(self.0.cast()) }
+    }
+}
+
+/// Closes a destination SQLite handle opened for backup.
+struct DestGuard(*mut sqlite3);
+
+impl Drop for DestGuard {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe { ffi::close(self.0) }.ok();
+        }
+    }
+}
+
+/// Finishes an online backup handle.
+struct BackupFinish(*mut sqlite3_backup);
+
+impl Drop for BackupFinish {
+    fn drop(&mut self) {
+        if !self.0.is_null() {
+            unsafe { ffi::backup_finish(self.0) };
+            self.0 = ptr::null_mut();
+        }
     }
 }
 
@@ -209,6 +235,17 @@ enum Command {
         schema: CString,
         /// Response channel.
         tx: oneshot::Sender<Result<Vec<u8>>>,
+    },
+    /// Copy the source database to a destination file.
+    BackupToPath {
+        /// Destination file as a C string.
+        dest: CString,
+        /// Destination path for same-file comparison.
+        dest_path: PathBuf,
+        /// Pages to copy per `sqlite3_backup_step`. Zero copies all remaining.
+        pages_per_step: i32,
+        /// Response channel.
+        tx: oneshot::Sender<Result<BackupReport>>,
     },
     /// Replace a schema from a byte image.
     Deserialize {
@@ -379,6 +416,20 @@ impl WorkerSession {
             } => {
                 tx.send(deserialize_schema(&mut self.conn, &schema, &bytes, mode))
                     .ok();
+            }
+            Command::BackupToPath {
+                dest,
+                dest_path,
+                pages_per_step,
+                tx,
+            } => {
+                tx.send(backup_to_path(
+                    &self.conn,
+                    &dest,
+                    &dest_path,
+                    pages_per_step,
+                ))
+                .ok();
             }
             Command::Commit { tx } => self.commit(tx),
             Command::Rollback { tx } => self.rollback(tx),
@@ -695,6 +746,22 @@ impl ConnectionWorker {
             schema,
             bytes,
             mode,
+            tx,
+        })
+        .await?
+    }
+
+    /// Copy this database to `dest` with `sqlite3_backup`.
+    pub(crate) async fn backup_to_path(
+        &self,
+        dest: CString,
+        dest_path: PathBuf,
+        pages_per_step: i32,
+    ) -> Result<BackupReport> {
+        self.oneshot_cmd(|tx| Command::BackupToPath {
+            dest,
+            dest_path,
+            pages_per_step,
             tx,
         })
         .await?
@@ -1018,6 +1085,89 @@ fn deserialize_schema(
             Err(error.into())
         }
     }
+}
+
+/// Return whether `dest` names the same file as the live source database.
+fn is_same_sqlite_file(source_filename: &str, dest: &Path) -> bool {
+    if source_filename.is_empty() || source_filename == ":memory:" {
+        return false;
+    }
+    let source = Path::new(source_filename);
+    if let (Ok(left), Ok(right)) = (source.canonicalize(), dest.canonicalize()) {
+        return left == right;
+    }
+    let dest_abs = if dest.is_absolute() {
+        dest.to_path_buf()
+    } else {
+        env::current_dir()
+            .map(|cwd| cwd.join(dest))
+            .unwrap_or_else(|_| dest.to_path_buf())
+    };
+    source == dest_abs || source == dest
+}
+
+/// Copy the source database to `dest` using the SQLite backup API.
+fn backup_to_path(
+    conn: &ConnectionState,
+    dest: &CString,
+    dest_path: &Path,
+    pages_per_step: i32,
+) -> Result<BackupReport> {
+    let source_name = unsafe { ffi::db_filename(conn.handle.as_ptr(), c"main".as_ptr()) };
+    if !source_name.is_null() {
+        let source = unsafe { CStr::from_ptr(source_name) }.to_string_lossy();
+        if is_same_sqlite_file(&source, dest_path) {
+            return Err(Error::Configuration(
+                "backup destination path is the same as the source database".into(),
+            ));
+        }
+    }
+
+    let mut dest_db = ptr::null_mut();
+    unsafe {
+        ffi::open_v2(
+            dest.as_ptr(),
+            &mut dest_db,
+            libsqlite3_sys::SQLITE_OPEN_READWRITE
+                | libsqlite3_sys::SQLITE_OPEN_CREATE
+                | libsqlite3_sys::SQLITE_OPEN_EXRESCODE,
+            ptr::null(),
+        )
+    }?;
+    let dest_guard = DestGuard(dest_db);
+
+    let backup = unsafe {
+        ffi::backup_init(
+            dest_db,
+            c"main".as_ptr(),
+            conn.handle.as_ptr(),
+            c"main".as_ptr(),
+        )
+    };
+    if backup.is_null() {
+        return Err(SqliteError::new(dest_db).into());
+    }
+    let mut backup_guard = BackupFinish(backup);
+
+    loop {
+        let rc = unsafe { ffi::backup_step(backup, pages_per_step) };
+        if rc == libsqlite3_sys::SQLITE_DONE {
+            break;
+        }
+        if rc != libsqlite3_sys::SQLITE_OK {
+            return Err(SqliteError::new(dest_db).into());
+        }
+    }
+
+    let pages = unsafe { ffi::backup_pagecount(backup) };
+    let remaining = unsafe { ffi::backup_remaining(backup) };
+    let finish_rc = unsafe { ffi::backup_finish(backup) };
+    backup_guard.0 = ptr::null_mut();
+    if finish_rc != libsqlite3_sys::SQLITE_OK {
+        return Err(SqliteError::new(dest_db).into());
+    }
+    drop(dest_guard);
+    Ok(BackupReport { pages, remaining })
 }
 
 /// Catch a mismatch between Musq depth and SQLite autocommit in tests.

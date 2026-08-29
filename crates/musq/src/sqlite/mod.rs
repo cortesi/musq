@@ -1,7 +1,7 @@
 pub use arguments::Arguments;
 pub use connection::{
-    Connection, DbStatus, DbStatusKind, DeserializeMode, ForeignKeyViolation, IntegrityReport,
-    InterruptHandle, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode,
+    BackupReport, Connection, DbStatus, DbStatusKind, DeserializeMode, ForeignKeyViolation,
+    IntegrityReport, InterruptHandle, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode,
 };
 pub use error::SqliteError;
 pub use type_info::SqliteDataType;

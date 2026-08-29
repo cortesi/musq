@@ -99,4 +99,52 @@ mod tests {
         );
         Ok(())
     }
+
+    #[tokio::test]
+    async fn backup_to_path_copies_a_file_database() -> anyhow::Result<()> {
+        let dir = TempDir::new("musq-backup")?;
+        let source = dir.path().join("source.db");
+        let dest = dir.path().join("copy.db");
+        let pool = Musq::new().create_if_missing(true).open(&source).await?;
+        query("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+            .execute(&pool)
+            .await?;
+        query("INSERT INTO t (id, name) VALUES (1, 'one')")
+            .execute(&pool)
+            .await?;
+
+        let conn = pool.acquire().await?;
+        let report = conn.backup_to_path(&dest, 5).await?;
+        assert!(report.pages > 0);
+        assert_eq!(report.remaining, 0);
+        drop(conn);
+
+        query("INSERT INTO t (id, name) VALUES (2, 'two')")
+            .execute(&pool)
+            .await?;
+
+        let copy = Musq::new().open(&dest).await?;
+        let names: Vec<String> = query_scalar("SELECT name FROM t ORDER BY id")
+            .fetch_all(&copy)
+            .await?;
+        assert_eq!(names, ["one"]);
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn backup_to_path_rejects_the_source_file() -> anyhow::Result<()> {
+        let dir = TempDir::new("musq-backup-same")?;
+        let source = dir.path().join("source.db");
+        let pool = Musq::new().create_if_missing(true).open(&source).await?;
+        query("CREATE TABLE t (id INTEGER PRIMARY KEY)")
+            .execute(&pool)
+            .await?;
+        let conn = pool.acquire().await?;
+        let err = conn.backup_to_path(&source, 1).await.unwrap_err();
+        assert!(
+            matches!(err, Error::Configuration(ref msg) if msg.contains("same")),
+            "got {err:?}"
+        );
+        Ok(())
+    }
 }

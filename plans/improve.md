@@ -1056,7 +1056,7 @@ deprecation shim or a transition default.
 2. [x] §14b. `Connection::deserialize(schema, bytes, DeserializeMode)` with
    `sqlite3_malloc64` + `FREEONCLOSE`, refusal inside a transaction, cache
    clear, WAL-image rejection. Round-trip test.
-3. [ ] §14c. `Connection::backup_to_path(path, pages_per_step) ->
+3. [x] §14c. `Connection::backup_to_path(path, pages_per_step) ->
    Result<BackupReport>` on the source worker, `backup_finish` on every
    exit path, same-file rejection. Test backs up a file DB and opens the
    copy.

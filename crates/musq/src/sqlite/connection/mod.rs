@@ -1,7 +1,9 @@
 use std::{
     ffi::CString,
     fmt::{self, Debug, Formatter},
+    io,
     ops::AsyncFnOnce,
+    path::Path,
     result::Result as StdResult,
     sync::atomic::Ordering,
 };
@@ -50,6 +52,15 @@ pub enum DeserializeMode {
     ReadOnly,
     /// Load the image so SQLite may grow the buffer on write.
     Resizable,
+}
+
+/// Progress from [`Connection::backup_to_path`].
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct BackupReport {
+    /// Total pages in the backup source.
+    pub pages: i32,
+    /// Pages still to copy after the last step. Zero when the copy finished.
+    pub remaining: i32,
 }
 
 /// A single, standalone connection to a SQLite database.
@@ -204,6 +215,36 @@ impl Connection {
         let schema = CString::new(schema)
             .map_err(|_| Error::Configuration("deserialize schema contains nul bytes".into()))?;
         self.worker.deserialize(schema, bytes, mode).await
+    }
+
+    /// Copy this database to `path` with the SQLite backup API.
+    ///
+    /// The worker opens the destination on its own thread, copies
+    /// `pages_per_step` pages per step, and calls `backup_finish` on every
+    /// exit path. `pages_per_step` of zero copies all remaining pages in one
+    /// step. The destination path must not be the source file.
+    pub async fn backup_to_path(
+        &self,
+        path: impl AsRef<Path>,
+        pages_per_step: u32,
+    ) -> Result<BackupReport> {
+        let path = path.as_ref();
+        let dest = path.to_str().ok_or_else(|| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "filename passed to SQLite must be valid UTF-8",
+            )
+        })?;
+        let dest = CString::new(dest).map_err(|_| {
+            io::Error::new(
+                io::ErrorKind::InvalidData,
+                "filename passed to SQLite must not contain nul bytes",
+            )
+        })?;
+        let pages_per_step = i32::try_from(pages_per_step).unwrap_or(i32::MAX);
+        self.worker
+            .backup_to_path(dest, path.to_path_buf(), pages_per_step)
+            .await
     }
 
     /// Interrupt the statement currently running on this connection.

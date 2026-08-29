@@ -13,7 +13,7 @@ use std::{
     result::Result as StdResult,
 };
 
-use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
+use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_backup, sqlite3_stmt};
 #[cfg(feature = "vec")]
 use sqlite_vec::sqlite3_vec_init;
 
@@ -456,6 +456,82 @@ pub(in crate::sqlite) unsafe fn deserialize(
     } else {
         Err(SqliteError::new(db))
     }
+}
+
+/// Wrapper around [`sqlite3_db_filename`].
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+/// - `schema` must be a valid UTF-8 C string.
+///
+/// See <https://www.sqlite.org/c3ref/db_filename.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn db_filename(
+    db: *mut sqlite3,
+    schema: *const c_char,
+) -> *const c_char {
+    unsafe { ffi_sys::sqlite3_db_filename(db, schema) }
+}
+
+/// Wrapper around [`sqlite3_backup_init`].
+///
+/// # Safety
+/// - `dest` and `source` must be valid SQLite connection handles.
+/// - `dest_name` and `source_name` must be valid UTF-8 C strings.
+///
+/// See <https://www.sqlite.org/c3ref/backup_finish.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn backup_init(
+    dest: *mut sqlite3,
+    dest_name: *const c_char,
+    source: *mut sqlite3,
+    source_name: *const c_char,
+) -> *mut sqlite3_backup {
+    unsafe { ffi_sys::sqlite3_backup_init(dest, dest_name, source, source_name) }
+}
+
+/// Wrapper around [`sqlite3_backup_step`].
+///
+/// # Safety
+/// - `backup` must be a valid backup handle from [`backup_init`].
+///
+/// See <https://www.sqlite.org/c3ref/backup_finish.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn backup_step(backup: *mut sqlite3_backup, pages: i32) -> c_int {
+    unsafe { ffi_sys::sqlite3_backup_step(backup, pages as c_int) }
+}
+
+/// Wrapper around [`sqlite3_backup_finish`].
+///
+/// # Safety
+/// - `backup` must be a valid backup handle from [`backup_init`].
+///
+/// See <https://www.sqlite.org/c3ref/backup_finish.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn backup_finish(backup: *mut sqlite3_backup) -> c_int {
+    unsafe { ffi_sys::sqlite3_backup_finish(backup) }
+}
+
+/// Wrapper around [`sqlite3_backup_remaining`].
+///
+/// # Safety
+/// - `backup` must be a valid backup handle from [`backup_init`].
+///
+/// See <https://www.sqlite.org/c3ref/backup_finish.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn backup_remaining(backup: *mut sqlite3_backup) -> i32 {
+    unsafe { ffi_sys::sqlite3_backup_remaining(backup) }
+}
+
+/// Wrapper around [`sqlite3_backup_pagecount`].
+///
+/// # Safety
+/// - `backup` must be a valid backup handle from [`backup_init`].
+///
+/// See <https://www.sqlite.org/c3ref/backup_finish.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn backup_pagecount(backup: *mut sqlite3_backup) -> i32 {
+    unsafe { ffi_sys::sqlite3_backup_pagecount(backup) }
 }
 
 /// Wrapper around [`sqlite3_interrupt`].
