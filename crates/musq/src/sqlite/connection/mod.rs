@@ -14,6 +14,7 @@ use either::Either;
 use futures_core::{future::BoxFuture, stream::BoxStream};
 use futures_util::{FutureExt, StreamExt, TryFutureExt, TryStreamExt, future};
 pub use handle::ConnectionHandle;
+pub use worker::InterruptHandle;
 
 use crate::{
     QueryResult, Result, Row,
@@ -157,6 +158,27 @@ impl Connection {
     /// Return whether SQLite currently has no explicit transaction open.
     pub async fn is_autocommit(&self) -> Result<bool> {
         self.worker.is_autocommit().await
+    }
+
+    /// Interrupt the statement currently running on this connection.
+    ///
+    /// The in-flight statement fails with `SQLITE_INTERRUPT`. If that
+    /// statement was a write inside an explicit transaction, SQLite rolls
+    /// the transaction back. The next `commit` or `rollback` then returns
+    /// [`Error::TransactionAborted`]. Later statements run normally.
+    ///
+    /// This method is safe to call from another thread while a query runs.
+    /// Use [`Self::interrupt_handle`] when you need to interrupt after this
+    /// connection has been moved into `close`.
+    pub fn interrupt(&self) {
+        self.worker.interrupt();
+    }
+
+    /// Return a cloneable handle that can interrupt this connection.
+    ///
+    /// A call after the worker has closed the database pointer is a no-op.
+    pub fn interrupt_handle(&self) -> InterruptHandle {
+        self.worker.interrupt_handle()
     }
 
     /// Return the current cached statement count.

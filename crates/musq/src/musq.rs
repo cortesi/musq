@@ -135,6 +135,8 @@ pub struct Musq {
     pub(crate) trusted_schema: bool,
     /// Whether SQLite defensive mode is enabled.
     pub(crate) defensive: bool,
+    /// Optional per-statement runtime limit.
+    pub(crate) statement_timeout: Option<Duration>,
 }
 
 impl Default for Musq {
@@ -160,6 +162,7 @@ impl Musq {
     /// | pool_acquire_timeout | 30 seconds |
     /// | optimize_on_close | `false` |
     /// | default_transaction_behavior | [`TransactionBehavior::Immediate`] |
+    /// | statement_timeout | unset |
     #[must_use]
     pub fn new() -> Self {
         let mut pragmas: IndexMap<String, Option<String>> = IndexMap::new();
@@ -224,6 +227,7 @@ impl Musq {
             double_quoted_strings: false,
             trusted_schema: false,
             defensive: false,
+            statement_timeout: None,
         }
     }
 
@@ -499,6 +503,18 @@ impl Musq {
     #[must_use]
     pub fn defensive(mut self, on: bool) -> Self {
         self.defensive = on;
+        self
+    }
+
+    /// Cancel a statement that runs longer than `timeout`.
+    ///
+    /// Musq uses `sqlite3_progress_handler` on the worker thread. The
+    /// handler returns non-zero when the deadline passes, which SQLite
+    /// treats as an interrupt. The deadline resets at the start of each
+    /// statement. Unset by default.
+    #[must_use]
+    pub fn statement_timeout(mut self, timeout: Duration) -> Self {
+        self.statement_timeout = Some(timeout);
         self
     }
 

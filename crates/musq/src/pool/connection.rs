@@ -99,6 +99,20 @@ impl DerefMut for PoolConnection {
 }
 
 impl PoolConnection {
+    /// Interrupt the statement currently running on this connection.
+    ///
+    /// See [`Connection::interrupt`].
+    pub fn interrupt(&self) {
+        Connection::interrupt(self)
+    }
+
+    /// Return a cloneable handle that can interrupt this connection.
+    ///
+    /// See [`Connection::interrupt_handle`].
+    pub fn interrupt_handle(&self) -> crate::InterruptHandle {
+        Connection::interrupt_handle(self)
+    }
+
     /// Close this connection, allowing the pool to open a replacement.
     ///
     /// The connection permit is retained for the duration so the pool will not

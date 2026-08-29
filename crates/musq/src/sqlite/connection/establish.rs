@@ -44,6 +44,8 @@ pub struct EstablishParams {
     trusted_schema: bool,
     /// Whether SQLite defensive mode is enabled.
     defensive: bool,
+    /// Optional per-statement runtime limit.
+    pub(crate) statement_timeout: Option<Duration>,
     /// Thread name for connection worker.
     pub(crate) thread_name: String,
     /// Size of the command channel to the worker.
@@ -120,6 +122,7 @@ impl EstablishParams {
             double_quoted_strings: options.double_quoted_strings,
             trusted_schema: options.trusted_schema,
             defensive: options.defensive,
+            statement_timeout: options.statement_timeout,
             thread_name: (options.thread_name)(THREAD_ID.fetch_add(1, Ordering::AcqRel)),
             command_channel_size: options.command_channel_size,
         })

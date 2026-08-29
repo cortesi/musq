@@ -78,8 +78,8 @@ let pool = Musq::new()
 
 Defaults: foreign keys on, busy timeout 5s, 10 pool connections, journal mode
 left unchanged (set `JournalMode::Wal` explicitly for WAL), double-quoted
-string literals off, trusted schema off. Any pragma can be set with
-`.pragma(key, value)`.
+string literals off, trusted schema off, no statement timeout. Any pragma can
+be set with `.pragma(key, value)`.
 
 ## Queries
 
@@ -243,6 +243,12 @@ Calling `begin` on an existing transaction creates a savepoint. `commit` and
 it back. `Pool::transaction` and `Connection::transaction` run an async
 closure and commit or roll back based on its result. The closure may borrow
 locals across `await`.
+
+`Connection::interrupt` cancels the statement that is currently running. An
+interrupted write inside a transaction rolls that transaction back, and the
+next `commit` or `rollback` returns `Error::TransactionAborted`. Later
+statements run normally. `Musq::statement_timeout` sets a per-statement
+deadline through `sqlite3_progress_handler`.
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#transaction -->
 ```rust

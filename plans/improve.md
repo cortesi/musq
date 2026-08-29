@@ -1027,16 +1027,17 @@ deprecation shim or a transition default.
    `TRUSTED_SCHEMA` off at establish. Add `Musq::double_quoted_strings`,
    `Musq::trusted_schema`, `Musq::defensive`. Test that
    `SELECT "no_such_column"` fails. README defaults note.
-2. [ ] §5. Give `ConnectionState` to the worker by value. New
+2. [x] §5. Give `ConnectionState` to the worker by value. New
    `WorkerSharedState { cached_statements_size, transaction_depth,
    db: Mutex<Option<NonNull<sqlite3>>> }` with a drop guard that clears `db`
    on every worker exit path. `Transaction::fmt` reads the atomic.
-3. [ ] §5. Add `Connection::interrupt` and `PoolConnection::interrupt`.
+3. [x] §5. Add `Connection::interrupt` and `PoolConnection::interrupt`.
    After any `SQLITE_INTERRUPT`, reconcile `transaction_depth` through
    `sqlite3_get_autocommit`; add `Error::TransactionAborted`.
-4. [ ] §5. Add `Musq::statement_timeout(Duration)` through
+   Also add cloneable `InterruptHandle` so interrupt can race `close(self)`.
+4. [x] §5. Add `Musq::statement_timeout(Duration)` through
    `sqlite3_progress_handler`.
-5. [ ] §5 tests in a new `tests/interrupt.rs`: interrupt a recursive CTE;
+5. [x] §5 tests in a new `tests/interrupt.rs`: interrupt a recursive CTE;
    interrupted write inside a transaction makes `commit` return
    `TransactionAborted`; `interrupt` racing `close` in a 1000-iteration loop
    does not crash; `statement_timeout` fires inside a transaction.
@@ -1110,3 +1111,6 @@ date and reason.
 - 2026-08-29: Stage 2 removed the `SQLITE_BUSY` unlock-notify retry in
   `StatementHandle::step` so a blocked Immediate writer returns
   `PrimaryErrCode::Busy`. Stage 3 still deletes remaining unlock-notify.
+- 2026-08-29: Stage 5 §5 added public `InterruptHandle` so a task can
+  interrupt after `Connection` is moved into `close(self)`. The race test
+  in `tests/interrupt.rs` requires that cloneable handle.

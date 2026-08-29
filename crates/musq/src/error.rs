@@ -2,8 +2,6 @@
 
 use std::{io, num::TryFromIntError, result::Result as StdResult, sync::PoisonError};
 
-use tokio::sync::TryLockError;
-
 pub use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode};
 use crate::{
     SqliteDataType,
@@ -147,6 +145,13 @@ pub enum Error {
     /// A background worker has crashed.
     #[error("attempted to communicate with a crashed background worker")]
     WorkerCrashed,
+
+    /// An interrupted write rolled the explicit transaction back.
+    ///
+    /// The next `commit` or `rollback` on this connection returns this error
+    /// instead of running SQL at depth zero. Later statements run normally.
+    #[error("the transaction was aborted by an interrupt")]
+    TransactionAborted,
 }
 
 impl Error {
@@ -177,12 +182,6 @@ impl Error {
 
 impl<T> From<PoisonError<T>> for Error {
     fn from(_: PoisonError<T>) -> Self {
-        Self::WorkerCrashed
-    }
-}
-
-impl From<TryLockError> for Error {
-    fn from(_: TryLockError) -> Self {
         Self::WorkerCrashed
     }
 }

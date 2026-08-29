@@ -1,6 +1,7 @@
 use std::{
     fmt::{self, Debug, Formatter},
     ops::{Deref, DerefMut},
+    sync::atomic::Ordering,
 };
 
 use futures_core::future::BoxFuture;
@@ -105,26 +106,19 @@ where
     C: DerefMut<Target = Connection> + Debug + Send,
 {
     fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        // Try to read the current transaction depth. If the lock is currently
-        // held elsewhere, we simply omit the value.
-        let depth = self
-            .connection
-            .deref()
-            .worker
-            .shared
-            .conn
-            .try_lock()
-            .map(|guard| guard.transaction_depth);
-
-        let mut debug = f.debug_struct("Transaction");
-        debug.field("open", &self.open);
-
-        match depth {
-            Ok(depth) => debug.field("transaction_depth", &depth),
-            Err(_) => debug.field("transaction_depth", &"<locked>"),
-        };
-
-        debug.finish()
+        f.debug_struct("Transaction")
+            .field("open", &self.open)
+            .field(
+                "transaction_depth",
+                &self
+                    .connection
+                    .deref()
+                    .worker
+                    .shared
+                    .transaction_depth
+                    .load(Ordering::Acquire),
+            )
+            .finish()
     }
 }
 

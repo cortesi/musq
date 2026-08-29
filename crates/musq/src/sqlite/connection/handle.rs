@@ -39,6 +39,11 @@ impl ConnectionHandle {
         self.ptr.as_ptr()
     }
 
+    /// Return the SQLite pointer as [`NonNull`].
+    pub(crate) fn as_non_null(&self) -> NonNull<sqlite3> {
+        self.ptr
+    }
+
     /// Return the last inserted row id for this connection.
     pub(crate) fn last_insert_rowid(&self) -> i64 {
         // SAFETY: this handle owns a live connection.

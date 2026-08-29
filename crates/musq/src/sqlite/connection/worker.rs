@@ -1,19 +1,23 @@
 use std::{
-    ffi::CString,
-    ptr,
+    cell::Cell,
+    ffi::{CString, c_void},
+    os::raw::c_int,
+    ptr::{self, NonNull},
     sync::{
-        Arc,
+        Arc, Mutex, PoisonError,
         atomic::{AtomicUsize, Ordering},
     },
     thread::{self, JoinHandle},
+    time::{Duration, Instant},
 };
 
 use either::Either;
-use tokio::sync::{Mutex, oneshot};
+use libsqlite3_sys::sqlite3;
+use tokio::sync::{Mutex as TokioMutex, oneshot};
 
 use crate::{
     QueryResult, Row,
-    error::{Error, Result},
+    error::{Error, PrimaryErrCode, Result},
     sqlite::{
         Arguments,
         connection::{
@@ -25,6 +29,9 @@ use crate::{
     transaction::{TransactionBehavior, begin_sql, commit_sql, rollback_sql},
 };
 
+/// Number of VM opcodes between progress-handler callbacks.
+const PROGRESS_INTERVAL: i32 = 1000;
+
 // Each SQLite connection has a dedicated thread. It's possible to create a worker pool for this,
 // but given typical application usage patterns for SQLite, the simplicity of a single-threaded
 // worker is preferred.
@@ -33,18 +40,120 @@ use crate::{
 pub struct ConnectionWorker {
     /// Command channel to the worker thread.
     command_tx: flume::Sender<Command>,
-    /// Mutex for locking access to the database.
+    /// Shared cancellation and depth state.
     pub(crate) shared: Arc<WorkerSharedState>,
     /// Join handle for the worker thread.
-    join_handle: Arc<Mutex<Option<JoinHandle<()>>>>,
+    join_handle: Arc<TokioMutex<Option<JoinHandle<()>>>>,
 }
 
 /// Shared state between async tasks and the worker thread.
 pub struct WorkerSharedState {
     /// Cached statement size tracking.
     pub(crate) cached_statements_size: AtomicUsize,
-    /// Mutex-protected connection state.
-    pub(crate) conn: Mutex<ConnectionState>,
+    /// Nested transaction depth maintained by the worker.
+    pub(crate) transaction_depth: AtomicUsize,
+    /// Live SQLite handle for [`sqlite3_interrupt`], or `None` after close.
+    db: Mutex<Option<PublishedDb>>,
+}
+
+/// Raw SQLite handle published for [`sqlite3_interrupt`].
+///
+/// The worker stores `Some` after open and `None` before `sqlite3_close`.
+/// [`WorkerSharedState::interrupt`] takes the mutex and calls
+/// `sqlite3_interrupt` only while the value is `Some`.
+#[derive(Clone, Copy)]
+struct PublishedDb(NonNull<sqlite3>);
+
+// SAFETY: the pointer is only used to call `sqlite3_interrupt` while the
+// publishing mutex is held, and only when the worker has not closed the handle.
+unsafe impl Send for PublishedDb {}
+unsafe impl Sync for PublishedDb {}
+
+/// Clears the published SQLite pointer before the worker drops the handle.
+struct ClearDbOnDrop {
+    /// Shared state that publishes the handle.
+    shared: Arc<WorkerSharedState>,
+}
+
+impl Drop for ClearDbOnDrop {
+    fn drop(&mut self) {
+        *self
+            .shared
+            .db
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = None;
+    }
+}
+
+/// A cloneable handle that interrupts a running statement.
+///
+/// Call [`interrupt`](Self::interrupt) from another task while a query runs
+/// on the connection. A call after the connection has closed is a no-op.
+#[derive(Clone)]
+pub struct InterruptHandle {
+    /// Shared worker state that publishes the SQLite handle.
+    shared: Arc<WorkerSharedState>,
+}
+
+impl InterruptHandle {
+    /// Interrupt the statement currently running on the connection.
+    ///
+    /// The in-flight statement fails with `SQLITE_INTERRUPT`. If that
+    /// statement was a write inside an explicit transaction, SQLite rolls
+    /// the transaction back. The next `commit` or `rollback` then returns
+    /// [`Error::TransactionAborted`]. Later statements run normally.
+    pub fn interrupt(&self) {
+        self.shared.interrupt();
+    }
+}
+
+impl WorkerSharedState {
+    /// Interrupt the published handle, if the worker has not closed it.
+    fn interrupt(&self) {
+        let db = self.db.lock().unwrap_or_else(PoisonError::into_inner);
+        if let Some(handle) = *db {
+            // SAFETY: the mutex is held and the pointer is `Some`, so the
+            // worker has not closed this connection.
+            unsafe { ffi::interrupt(handle.0.as_ptr()) }
+        }
+    }
+}
+
+/// Per-statement deadline enforced by [`sqlite3_progress_handler`].
+struct StatementTimeout {
+    /// Maximum time a statement may run.
+    duration: Duration,
+    /// Deadline for the statement that is currently running.
+    deadline: Cell<Option<Instant>>,
+}
+
+/// Clears the progress-handler deadline when a command finishes.
+struct TimeoutGuard<'a> {
+    /// Timeout state that owns the deadline cell.
+    timeout: &'a StatementTimeout,
+}
+
+impl Drop for TimeoutGuard<'_> {
+    fn drop(&mut self) {
+        self.timeout.deadline.set(None);
+    }
+}
+
+/// Arm the progress-handler deadline for one command.
+fn arm_timeout(timeout: Option<&StatementTimeout>) -> Option<TimeoutGuard<'_>> {
+    let timeout = timeout?;
+    timeout
+        .deadline
+        .set(Some(Instant::now() + timeout.duration));
+    Some(TimeoutGuard { timeout })
+}
+
+/// SQLite progress-handler callback. Returns non-zero when the deadline has passed.
+unsafe extern "C" fn progress_callback(p_arg: *mut c_void) -> c_int {
+    // SAFETY: the worker registers this pointer as `&Cell<Option<Instant>>`
+    // and keeps that cell alive until the connection is closed.
+    let deadline = unsafe { &*p_arg.cast::<Cell<Option<Instant>>>() };
+    c_int::from(matches!(deadline.get(), Some(deadline) if Instant::now() >= deadline))
 }
 
 #[allow(dead_code)]
@@ -126,6 +235,307 @@ enum Command {
     },
 }
 
+/// Per-connection state owned by the worker thread.
+struct WorkerSession {
+    /// SQLite connection owned by this worker.
+    conn: ConnectionState,
+    /// Shared interrupt and depth state.
+    shared: Arc<WorkerSharedState>,
+    /// Optional per-statement timeout.
+    timeout: Option<Box<StatementTimeout>>,
+    /// Skip the next drop-triggered rollback after a lost commit or rollback ack.
+    ignore_next_start_rollback: bool,
+    /// Set when an interrupt rolled back an explicit transaction.
+    transaction_aborted: bool,
+    /// Clears the published handle on every worker exit path.
+    _clear_db: ClearDbOnDrop,
+}
+
+impl WorkerSession {
+    /// Open SQLite, publish the interrupt handle, and report the command channel.
+    fn start(
+        params: &EstablishParams,
+        command_tx: flume::Sender<Command>,
+        establish_tx: oneshot::Sender<Result<(flume::Sender<Command>, Arc<WorkerSharedState>)>>,
+    ) -> Option<Self> {
+        let conn = match params.establish() {
+            Ok(conn) => conn,
+            Err(e) => {
+                establish_tx.send(Err(e)).ok();
+                return None;
+            }
+        };
+
+        let timeout = params.statement_timeout.map(|duration| {
+            Box::new(StatementTimeout {
+                duration,
+                deadline: Cell::new(None),
+            })
+        });
+        if let Some(timeout) = timeout.as_ref() {
+            // SAFETY: the handle is live and `timeout` lives until this
+            // worker returns, after which the connection is closed.
+            unsafe {
+                ffi::progress_handler(
+                    conn.handle.as_ptr(),
+                    PROGRESS_INTERVAL,
+                    Some(progress_callback),
+                    ptr::from_ref(&timeout.deadline).cast::<c_void>().cast_mut(),
+                );
+            }
+        }
+
+        let shared = Arc::new(WorkerSharedState {
+            cached_statements_size: AtomicUsize::new(0),
+            transaction_depth: AtomicUsize::new(0),
+            db: Mutex::new(None),
+        });
+        let clear_db = ClearDbOnDrop {
+            shared: Arc::clone(&shared),
+        };
+        {
+            let mut db = shared.db.lock().unwrap_or_else(PoisonError::into_inner);
+            *db = Some(PublishedDb(conn.handle.as_non_null()));
+        }
+
+        if establish_tx
+            .send(Ok((command_tx, Arc::clone(&shared))))
+            .is_err()
+        {
+            return None;
+        }
+
+        Some(Self {
+            conn,
+            shared,
+            timeout,
+            ignore_next_start_rollback: false,
+            transaction_aborted: false,
+            _clear_db: clear_db,
+        })
+    }
+
+    /// Handle one command. Returns `true` when the worker should stop.
+    fn handle(&mut self, cmd: Command) -> bool {
+        match cmd {
+            Command::Prepare { query, tx } => self.prepare(&query, tx),
+            Command::Execute {
+                query,
+                arguments,
+                tx,
+            } => self.execute(&query, arguments, &tx),
+            Command::Begin { behavior, tx } => return self.begin(behavior, tx),
+            Command::IsAutocommit { tx } => {
+                tx.send(Ok(unsafe {
+                    ffi::get_autocommit(self.conn.handle.as_ptr())
+                }))
+                .ok();
+            }
+            Command::Commit { tx } => self.commit(tx),
+            Command::Rollback { tx } => self.rollback(tx),
+            Command::DbStatus {
+                kind,
+                reset_highwater,
+                tx,
+            } => {
+                tx.send(db_status(&self.conn, kind, reset_highwater)).ok();
+            }
+            Command::WalCheckpoint { schema, mode, tx } => {
+                let _timeout = arm_timeout(self.timeout.as_deref());
+                tx.send(wal_checkpoint(&self.conn, schema.as_ref(), mode))
+                    .ok();
+            }
+            Command::ParserDepthLimit { tx } => {
+                tx.send(parser_depth_limit(&self.conn)).ok();
+            }
+            #[cfg(test)]
+            Command::ClearCache { tx } => {
+                self.conn.statements.clear();
+                update_cached_statements_size(&self.conn, &self.shared.cached_statements_size);
+                tx.send(()).ok();
+            }
+            Command::Shutdown { tx } => {
+                self.shutdown(tx);
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Compile `query` and warm the statement cache.
+    fn prepare(&mut self, query: &str, tx: oneshot::Sender<Result<()>>) {
+        let _timeout = arm_timeout(self.timeout.as_deref());
+        let res = prepare(&mut self.conn, query).inspect(|_prepared| {
+            update_cached_statements_size(&self.conn, &self.shared.cached_statements_size);
+        });
+        if let Err(ref e) = res {
+            reconcile_interrupt(
+                &mut self.conn,
+                &self.shared,
+                e,
+                &mut self.transaction_aborted,
+            );
+        }
+        tx.send(res).ok();
+    }
+
+    /// Execute `query` and stream rows until completion, interrupt, or cancel.
+    fn execute(
+        &mut self,
+        query: &str,
+        arguments: Option<Arguments>,
+        tx: &flume::Sender<Result<Either<QueryResult, Row>>>,
+    ) {
+        let _timeout = arm_timeout(self.timeout.as_deref());
+        if stream_rows(&mut self.conn, query, arguments, tx) {
+            reconcile_after_interrupt(&mut self.conn, &self.shared, &mut self.transaction_aborted);
+        }
+        update_cached_statements_size(&self.conn, &self.shared.cached_statements_size);
+    }
+
+    /// Begin a transaction or savepoint. Returns `true` if the worker should stop.
+    fn begin(
+        &mut self,
+        behavior: TransactionBehavior,
+        tx: rendezvous_oneshot::Sender<Result<()>>,
+    ) -> bool {
+        self.transaction_aborted = false;
+        let _timeout = arm_timeout(self.timeout.as_deref());
+        let depth = self.conn.transaction_depth;
+        let res = self.conn.handle.exec(begin_sql(depth, behavior)).map(|_| {
+            set_transaction_depth(&mut self.conn, &self.shared, depth + 1);
+        });
+        if let Err(ref e) = res {
+            reconcile_interrupt(
+                &mut self.conn,
+                &self.shared,
+                e,
+                &mut self.transaction_aborted,
+            );
+        }
+        let res_ok = res.is_ok();
+
+        if tx.blocking_send(res).is_err() && res_ok {
+            let depth = self.conn.transaction_depth;
+            if let Err(error) = self.conn.handle.exec(rollback_sql(depth)).map(|_| {
+                set_transaction_depth(&mut self.conn, &self.shared, depth - 1);
+            }) {
+                tracing::error!(%error, "failed to rollback cancelled transaction");
+                return true;
+            }
+        }
+        false
+    }
+
+    /// Commit the current transaction or savepoint.
+    fn commit(&mut self, tx: rendezvous_oneshot::Sender<Result<()>>) {
+        if self.transaction_aborted {
+            tx.blocking_send(Err(Error::TransactionAborted)).ok();
+            return;
+        }
+
+        let _timeout = arm_timeout(self.timeout.as_deref());
+        let depth = self.conn.transaction_depth;
+        let res = if depth > 0 {
+            self.conn.handle.exec(commit_sql(depth)).map(|_| {
+                set_transaction_depth(&mut self.conn, &self.shared, depth - 1);
+            })
+        } else {
+            Ok(())
+        };
+        if let Err(ref e) = res {
+            reconcile_interrupt(
+                &mut self.conn,
+                &self.shared,
+                e,
+                &mut self.transaction_aborted,
+            );
+        }
+        let res_ok = res.is_ok();
+        if tx.blocking_send(res).is_err() && res_ok {
+            self.ignore_next_start_rollback = true;
+        }
+    }
+
+    /// Roll back the current transaction or savepoint.
+    fn rollback(&mut self, tx: Option<rendezvous_oneshot::Sender<Result<()>>>) {
+        if self.ignore_next_start_rollback && tx.is_none() {
+            self.ignore_next_start_rollback = false;
+            return;
+        }
+
+        if self.transaction_aborted {
+            if let Some(tx) = tx {
+                tx.blocking_send(Err(Error::TransactionAborted)).ok();
+            }
+            return;
+        }
+
+        let _timeout = arm_timeout(self.timeout.as_deref());
+        let depth = self.conn.transaction_depth;
+        let res = if depth > 0 {
+            self.conn.handle.exec(rollback_sql(depth)).map(|_| {
+                set_transaction_depth(&mut self.conn, &self.shared, depth - 1);
+            })
+        } else {
+            Ok(())
+        };
+        if let Err(ref e) = res {
+            reconcile_interrupt(
+                &mut self.conn,
+                &self.shared,
+                e,
+                &mut self.transaction_aborted,
+            );
+        }
+        let res_ok = res.is_ok();
+        if let Some(tx) = tx
+            && tx.blocking_send(res).is_err()
+            && res_ok
+        {
+            self.ignore_next_start_rollback = true;
+        }
+    }
+
+    /// Close the SQLite handle after clearing the published interrupt pointer.
+    fn shutdown(&mut self, tx: oneshot::Sender<Result<()>>) {
+        self.conn.statements.clear();
+        *self
+            .shared
+            .db
+            .lock()
+            .unwrap_or_else(PoisonError::into_inner) = None;
+        let res = self.conn.handle.close();
+        tx.send(res).ok();
+    }
+}
+
+/// Stream query results. Returns `true` when SQLite reported `SQLITE_INTERRUPT`.
+fn stream_rows(
+    conn: &mut ConnectionState,
+    query: &str,
+    arguments: Option<Arguments>,
+    tx: &flume::Sender<Result<Either<QueryResult, Row>>>,
+) -> bool {
+    let iter = match execute::iter(conn, query, arguments) {
+        Ok(iter) => iter,
+        Err(e) => {
+            let interrupted = is_interrupt(&e);
+            tx.send(Err(e)).ok();
+            return interrupted;
+        }
+    };
+    let mut interrupted = false;
+    for res in iter {
+        let this_interrupt = res.as_ref().err().is_some_and(is_interrupt);
+        interrupted |= this_interrupt;
+        if tx.send(res).is_err() || this_interrupt {
+            break;
+        }
+    }
+    interrupted
+}
+
 impl ConnectionWorker {
     /// Spawn a worker thread and establish the SQLite connection.
     pub(crate) async fn establish(params: EstablishParams) -> Result<Self> {
@@ -135,184 +545,13 @@ impl ConnectionWorker {
             .name(params.thread_name.clone())
             .spawn(move || {
                 let (command_tx, command_rx) = flume::bounded(params.command_channel_size);
-
-                let conn = match params.establish() {
-                    Ok(conn) => conn,
-                    Err(e) => {
-                        establish_tx.send(Err(e)).ok();
-                        return;
-                    }
-                };
-
-                let shared = Arc::new(WorkerSharedState {
-                    cached_statements_size: AtomicUsize::new(0),
-                    // note: this mutex is used to synchronize access to the
-                    // database from both the worker thread and async tasks.
-                    // tokio's mutex is fair so we do not need any additional
-                    // configuration here.
-                    conn: Mutex::new(conn),
-                });
-                let mut conn = match shared.conn.try_lock() {
-                    Ok(lock) => lock,
-                    Err(e) => {
-                        establish_tx.send(Err(e.into())).ok();
-                        return;
-                    }
-                };
-
-                if establish_tx
-                    .send(Ok((command_tx, Arc::clone(&shared))))
-                    .is_err()
-                {
+                let Some(mut session) = WorkerSession::start(&params, command_tx, establish_tx)
+                else {
                     return;
-                }
-
-                // If COMMIT or ROLLBACK is processed but not acknowledged, there would be another
-                // ROLLBACK sent when the `Transaction` drops. We need to ignore it otherwise we
-                // would rollback an already completed transaction.
-                let mut ignore_next_start_rollback = false;
-
+                };
                 for cmd in command_rx {
-                    match cmd {
-                        Command::Prepare { query, tx } => {
-                            tx.send(prepare(&mut conn, &query).inspect(|_prepared| {
-                                update_cached_statements_size(
-                                    &conn,
-                                    &shared.cached_statements_size,
-                                );
-                            }))
-                            .ok();
-                        }
-                        Command::Execute {
-                            query,
-                            arguments,
-                            tx,
-                        } => {
-                            let iter = match execute::iter(&mut conn, &query, arguments)
-                            {
-                                Ok(iter) => iter,
-                                Err(e) => {
-                                    tx.send(Err(e)).ok();
-                                    continue;
-                                }
-                            };
-
-                            for res in iter {
-                                if tx.send(res).is_err() {
-                                    break;
-                                }
-                            }
-
-                            update_cached_statements_size(&conn, &shared.cached_statements_size);
-                        }
-                        Command::Begin { behavior, tx } => {
-                            let depth = conn.transaction_depth;
-                            let res = conn.handle.exec(begin_sql(depth, behavior)).map(|_| {
-                                conn.transaction_depth += 1;
-                            });
-                            let res_ok = res.is_ok();
-
-                            if tx.blocking_send(res).is_err() && res_ok {
-                                // The BEGIN was processed but not acknowledged. This means no
-                                // `Transaction` was created and so there is no way to commit /
-                                // rollback this transaction. We need to roll it back
-                                // immediately otherwise it would remain started forever.
-                                if let Err(error) = conn
-                                    .handle
-                                    .exec(rollback_sql(conn.transaction_depth))
-                                    .map(|_| {
-                                        conn.transaction_depth -= 1;
-                                    })
-                                {
-                                    // The rollback failed. To prevent leaving the connection
-                                    // in an inconsistent state we shutdown this worker which
-                                    // causes any subsequent operation on the connection to fail.
-                                    tracing::error!(%error, "failed to rollback cancelled transaction");
-                                    break;
-                                }
-                            }
-                        }
-                        Command::Commit { tx } => {
-                            let depth = conn.transaction_depth;
-
-                            let res = if depth > 0 {
-                                conn.handle.exec(commit_sql(depth)).map(|_| {
-                                    conn.transaction_depth -= 1;
-                                })
-                            } else {
-                                Ok(())
-                            };
-                            let res_ok = res.is_ok();
-
-                            if tx.blocking_send(res).is_err() && res_ok {
-                                // The COMMIT was processed but not acknowledged. This means that
-                                // the `Transaction` doesn't know it was committed and will try to
-                                // rollback on drop. We need to ignore that rollback.
-                                ignore_next_start_rollback = true;
-                            }
-                        }
-                        Command::Rollback { tx } => {
-                            if ignore_next_start_rollback && tx.is_none() {
-                                ignore_next_start_rollback = false;
-                                continue;
-                            }
-
-                            let depth = conn.transaction_depth;
-
-                            let res = if depth > 0 {
-                                conn.handle.exec(rollback_sql(depth)).map(|_| {
-                                    conn.transaction_depth -= 1;
-                                })
-                            } else {
-                                Ok(())
-                            };
-
-                            let res_ok = res.is_ok();
-
-                            if let Some(tx) = tx && tx.blocking_send(res).is_err() && res_ok {
-                                // The ROLLBACK was processed but not acknowledged. This means
-                                // that the `Transaction` doesn't know it was rolled back and
-                                // will try to rollback again on drop. We need to ignore that
-                                // rollback.
-                                ignore_next_start_rollback = true;
-                            }
-                        }
-                        Command::DbStatus {
-                            kind,
-                            reset_highwater,
-                            tx,
-                        } => {
-                            tx.send(db_status(&conn, kind, reset_highwater)).ok();
-                        }
-                        Command::WalCheckpoint { schema, mode, tx } => {
-                            tx.send(wal_checkpoint(&conn, schema.as_ref(), mode)).ok();
-                        }
-                        Command::ParserDepthLimit { tx } => {
-                            tx.send(parser_depth_limit(&conn)).ok();
-                        }
-                        Command::IsAutocommit { tx } => {
-                            tx.send(Ok(unsafe { ffi::get_autocommit(conn.handle.as_ptr()) }))
-                                .ok();
-                        }
-
-                        #[cfg(test)]
-                        Command::ClearCache { tx } => {
-                            conn.statements.clear();
-                            update_cached_statements_size(&conn, &shared.cached_statements_size);
-                            tx.send(()).ok();
-                        }
-
-                        Command::Shutdown { tx } => {
-                            conn.statements.clear();
-                            let res = conn.handle.close();
-
-                            // drop the connection references before sending confirmation
-                            // and ending the command loop
-                            drop(conn);
-                            drop(shared);
-                            let _send_result = tx.send(res);
-                            return;
-                        }
+                    if session.handle(cmd) {
+                        return;
                     }
                 }
             })?;
@@ -322,7 +561,7 @@ impl ConnectionWorker {
         Ok(Self {
             command_tx,
             shared,
-            join_handle: Arc::new(Mutex::new(Some(join_handle))),
+            join_handle: Arc::new(TokioMutex::new(Some(join_handle))),
         })
     }
 
@@ -376,6 +615,18 @@ impl ConnectionWorker {
     /// Report whether SQLite is in autocommit mode.
     pub(crate) async fn is_autocommit(&self) -> Result<bool> {
         self.oneshot_cmd(|tx| Command::IsAutocommit { tx }).await?
+    }
+
+    /// Interrupt the statement currently running on this connection.
+    pub(crate) fn interrupt(&self) {
+        self.shared.interrupt();
+    }
+
+    /// Return a cloneable handle that can interrupt this connection.
+    pub(crate) fn interrupt_handle(&self) -> InterruptHandle {
+        InterruptHandle {
+            shared: Arc::clone(&self.shared),
+        }
     }
 
     /// Commit the current transaction on the worker thread.
@@ -512,6 +763,48 @@ fn update_cached_statements_size(conn: &ConnectionState, size: &AtomicUsize) {
     size.store(conn.statements.len(), Ordering::Release);
 }
 
+/// Record transaction depth on the worker-owned state and the shared atomic.
+fn set_transaction_depth(conn: &mut ConnectionState, shared: &WorkerSharedState, depth: usize) {
+    conn.transaction_depth = depth;
+    shared.transaction_depth.store(depth, Ordering::Release);
+}
+
+/// Return whether `err` is `SQLITE_INTERRUPT`.
+fn is_interrupt(err: &Error) -> bool {
+    matches!(
+        err.as_sqlite().map(|error| error.primary),
+        Some(PrimaryErrCode::Interrupt)
+    )
+}
+
+/// Reconcile Musq transaction depth after SQLite interrupts a statement.
+fn reconcile_interrupt(
+    conn: &mut ConnectionState,
+    shared: &WorkerSharedState,
+    err: &Error,
+    transaction_aborted: &mut bool,
+) {
+    if is_interrupt(err) {
+        reconcile_after_interrupt(conn, shared, transaction_aborted);
+    }
+}
+
+/// After `SQLITE_INTERRUPT`, reset the depth when SQLite has rolled back.
+fn reconcile_after_interrupt(
+    conn: &mut ConnectionState,
+    shared: &WorkerSharedState,
+    transaction_aborted: &mut bool,
+) {
+    // SAFETY: the worker owns a live connection handle.
+    let autocommit = unsafe { ffi::get_autocommit(conn.handle.as_ptr()) };
+    if autocommit {
+        if conn.transaction_depth > 0 {
+            *transaction_aborted = true;
+        }
+        set_transaction_depth(conn, shared, 0);
+    }
+}
+
 /// Return a database status counter for the active connection.
 fn db_status(
     conn: &ConnectionState,
@@ -615,12 +908,14 @@ mod rendezvous_oneshot {
 
 #[cfg(test)]
 mod tests {
-    use super::ConnectionWorker;
+    use super::{ConnectionWorker, InterruptHandle, WorkerSharedState};
 
     fn assert_send_sync<T: Send + Sync>() {}
 
     #[test]
     fn connection_worker_is_send_sync() {
         assert_send_sync::<ConnectionWorker>();
+        assert_send_sync::<WorkerSharedState>();
+        assert_send_sync::<InterruptHandle>();
     }
 }

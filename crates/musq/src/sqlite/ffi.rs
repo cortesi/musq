@@ -371,6 +371,34 @@ pub(in crate::sqlite) unsafe fn get_autocommit(db: *mut sqlite3) -> bool {
     unsafe { ffi_sys::sqlite3_get_autocommit(db) != 0 }
 }
 
+/// Wrapper around [`sqlite3_interrupt`].
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+///
+/// See <https://www.sqlite.org/c3ref/interrupt.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn interrupt(db: *mut sqlite3) {
+    unsafe { ffi_sys::sqlite3_interrupt(db) }
+}
+
+/// Wrapper around [`sqlite3_progress_handler`].
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+/// - `x_progress` and `p_arg` must remain valid until the handler is cleared.
+///
+/// See <https://www.sqlite.org/c3ref/progress_handler.html>
+#[inline]
+pub(in crate::sqlite) unsafe fn progress_handler(
+    db: *mut sqlite3,
+    n: i32,
+    x_progress: Option<unsafe extern "C" fn(*mut c_void) -> c_int>,
+    p_arg: *mut c_void,
+) {
+    unsafe { ffi_sys::sqlite3_progress_handler(db, n as c_int, x_progress, p_arg) }
+}
+
 /// Wrapper around [`sqlite3_db_handle`].
 ///
 /// # Safety
