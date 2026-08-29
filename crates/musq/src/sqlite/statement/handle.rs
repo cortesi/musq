@@ -5,12 +5,9 @@ use std::{
     result::Result as StdResult,
 };
 
-use libsqlite3_sys::{
-    SQLITE_DONE, SQLITE_LOCKED_SHAREDCACHE, SQLITE_MISUSE, SQLITE_ROW, sqlite3, sqlite3_stmt,
-};
+use libsqlite3_sys::{SQLITE_ROW, sqlite3, sqlite3_stmt};
 
-use super::unlock_notify;
-use crate::sqlite::{DEFAULT_MAX_RETRIES, error::SqliteError, ffi, type_info::SqliteDataType};
+use crate::sqlite::{error::SqliteError, ffi, type_info::SqliteDataType};
 
 /// Wrapper around a raw SQLite statement handle.
 #[derive(Debug)]
@@ -198,48 +195,8 @@ impl StatementHandle {
     }
 
     /// Step the statement, returning whether a row is available.
-    pub(crate) fn step(&mut self) -> crate::Result<bool> {
-        // SAFETY: we have exclusive access to the handle
-        let mut attempts = 0;
-        loop {
-            let rc = ffi::step(self.0.as_ptr()).map_err(crate::Error::from)?;
-            match rc {
-                SQLITE_ROW => return Ok(true),
-                SQLITE_DONE => return Ok(false),
-                SQLITE_MISUSE => {
-                    return Err(unsafe { SqliteError::new(self.db_handle()) }.into());
-                }
-                SQLITE_LOCKED_SHAREDCACHE | libsqlite3_sys::SQLITE_LOCKED => {
-                    // The shared cache is locked by another connection. Wait for unlock
-                    // notification and try again.
-                    if attempts >= DEFAULT_MAX_RETRIES {
-                        return Err(crate::Error::UnlockNotify);
-                    }
-                    attempts += 1;
-                    unlock_notify::wait(unsafe { self.db_handle() }, Some(self.0.as_ptr()))?;
-                    // Need to reset the handle after the unlock
-                    // (https://www.sqlite.org/unlock_notify.html)
-                    loop {
-                        if attempts >= DEFAULT_MAX_RETRIES {
-                            return Err(crate::Error::UnlockNotify);
-                        }
-                        attempts += 1;
-                        match ffi::reset(self.0.as_ptr()) {
-                            Ok(()) => break,
-                            Err(ref e) if e.should_retry() => {
-                                unlock_notify::wait(
-                                    unsafe { self.db_handle() },
-                                    Some(self.0.as_ptr()),
-                                )?;
-                                continue;
-                            }
-                            Err(e) => return Err(e.into()),
-                        }
-                    }
-                }
-                _ => return Err(unsafe { SqliteError::new(self.db_handle()) }.into()),
-            }
-        }
+    pub(crate) fn step(&self) -> crate::Result<bool> {
+        Ok(ffi::step(self.0.as_ptr()).map_err(crate::Error::from)? == SQLITE_ROW)
     }
 }
 

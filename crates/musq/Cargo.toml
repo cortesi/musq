@@ -49,7 +49,6 @@ futures-executor = "0.3.28"
 libsqlite3-sys = { version = "0.38", default-features = false, features = [
     "bundled",
     "pkg-config",
-    "unlock_notify",
     "vcpkg",
 ] }
 atoi = "3.1.0"

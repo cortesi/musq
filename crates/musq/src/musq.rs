@@ -90,14 +90,10 @@ enum_mode! {
 pub struct Musq {
     /// Database filename or URI.
     pub(crate) filename: PathBuf,
-    /// Whether the database is in-memory.
-    pub(crate) in_memory: bool,
     /// Whether to open the database read-only.
     pub(crate) read_only: bool,
     /// Whether to create the database if missing.
     pub(crate) create_if_missing: bool,
-    /// Whether to enable shared cache mode.
-    pub(crate) shared_cache: bool,
     /// Busy timeout duration.
     pub(crate) busy_timeout: Duration,
     /// Logging configuration.
@@ -204,10 +200,8 @@ impl Musq {
 
         Self {
             filename: ":memory:".into(),
-            in_memory: false,
             read_only: false,
             create_if_missing: false,
-            shared_cache: false,
             busy_timeout: Duration::from_secs(5),
             log_settings: Default::default(),
             immutable: false,
@@ -225,15 +219,6 @@ impl Musq {
             pool_max_connections: 10,
             default_transaction_behavior: TransactionBehavior::Immediate,
         }
-    }
-
-    /// Set the filename as in-memory.
-    ///
-    /// This is intended for internal use. External callers should use
-    /// [`open_in_memory`](Self::open_in_memory) to create an in-memory database.
-    pub(crate) fn in_memory(mut self, val: bool) -> Self {
-        self.in_memory = val;
-        self
     }
 
     /// Sets the name of the database file.
@@ -261,15 +246,6 @@ impl Musq {
     #[must_use]
     pub fn foreign_keys(self, on: bool) -> Self {
         self.pragma("foreign_keys", if on { "ON" } else { "OFF" })
-    }
-
-    /// Set the [`SQLITE_OPEN_SHAREDCACHE` flag](https://sqlite.org/sharedcache.html).
-    ///
-    /// By default, this is disabled.
-    #[must_use]
-    pub fn shared_cache(mut self, on: bool) -> Self {
-        self.shared_cache = on;
-        self
     }
 
     /// Sets the [journal mode](https://www.sqlite.org/pragma.html#pragma_journal_mode) for the database connection.
@@ -604,11 +580,14 @@ impl Musq {
     }
 
     /// Configure options for an in-memory database.
+    ///
+    /// Uses the `memdb` VFS and a unique `/musq-in-memory-N` name so every
+    /// connection in the pool shares one database without shared-cache mode.
     pub(crate) fn configure_in_memory(self) -> Self {
         let seqno = IN_MEMORY_DB_SEQ.fetch_add(1, Ordering::Relaxed);
-        self.in_memory(true)
-            .shared_cache(true)
-            .filename(format!("file:musq-in-memory-{seqno}"))
+        self.filename(format!("/musq-in-memory-{seqno}"))
+            .vfs("memdb")
+            .create_if_missing(true)
     }
 
     /// Open a file

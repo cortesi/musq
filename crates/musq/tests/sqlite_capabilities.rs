@@ -27,7 +27,6 @@ mod tests {
             "ENABLE_COLUMN_METADATA",
             "ENABLE_FTS5",
             "ENABLE_RTREE",
-            "ENABLE_UNLOCK_NOTIFY",
             "THREADSAFE=1",
         ] {
             assert!(

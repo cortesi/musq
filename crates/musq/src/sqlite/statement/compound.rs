@@ -13,11 +13,7 @@ use crate::{
     SqliteDataType,
     column::Column,
     error::{Error, Result},
-    sqlite::{
-        connection::ConnectionHandle,
-        ffi,
-        statement::{StatementHandle, unlock_notify},
-    },
+    sqlite::{connection::ConnectionHandle, ffi, statement::StatementHandle},
 };
 
 // A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
@@ -171,22 +167,15 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
         let query_len = query.len() as i32;
 
         // <https://www.sqlite.org/c3ref/prepare.html>
-        loop {
-            match ffi::prepare_v3(
-                conn,
-                query_ptr,
-                query_len,
-                flags,
-                &mut statement_handle,
-                &mut tail,
-            ) {
-                Ok(()) => break,
-                Err(e) if e.should_retry() => {
-                    unlock_notify::wait(conn, None)?;
-                }
-                Err(e) => return Err(e.into()),
-            }
-        }
+        ffi::prepare_v3(
+            conn,
+            query_ptr,
+            query_len,
+            flags,
+            &mut statement_handle,
+            &mut tail,
+        )
+        .map_err(Error::from)?;
 
         // tail should point to the first byte past the end of the first SQL
         // statement in zSql. these routines only compile the first statement,

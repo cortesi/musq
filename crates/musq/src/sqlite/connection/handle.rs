@@ -2,10 +2,7 @@ use std::{ffi::CString, ptr::NonNull};
 
 use libsqlite3_sys::sqlite3;
 
-use crate::{
-    Error, Result,
-    sqlite::{DEFAULT_MAX_RETRIES, ffi, statement::unlock_notify},
-};
+use crate::{Error, Result, sqlite::ffi};
 
 /// Managed handle to the raw SQLite3 database handle.
 /// The database handle will be closed when this is dropped and no `ConnectionHandleRef`s exist.
@@ -54,21 +51,7 @@ impl ConnectionHandle {
         let query =
             CString::new(query).map_err(|_| Error::Query("query contains nul bytes".into()))?;
 
-        // SAFETY: we have exclusive access to the database handle
-        let mut attempts = 0;
-        loop {
-            match ffi::exec(self.as_ptr(), query.as_ptr()) {
-                Ok(()) => return Ok(()),
-                Err(e) if e.should_retry() => {
-                    if attempts >= DEFAULT_MAX_RETRIES {
-                        return Err(Error::UnlockNotify);
-                    }
-                    attempts += 1;
-                    unlock_notify::wait(self.as_ptr(), None)?;
-                }
-                Err(e) => return Err(e.into()),
-            }
-        }
+        ffi::exec(self.as_ptr(), query.as_ptr()).map_err(Error::from)
     }
 
     /// Close the underlying SQLite handle.

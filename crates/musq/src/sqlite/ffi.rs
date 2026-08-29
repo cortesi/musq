@@ -245,28 +245,6 @@ pub fn prepare_v3(
     }
 }
 
-/// Wrapper around [`sqlite3_unlock_notify`].
-///
-/// # Safety
-/// - `db` must be a valid SQLite handle.
-/// - `callback` must remain valid until invocation.
-///
-/// See <https://www.sqlite.org/c3ref/unlock_notify.html>
-#[inline]
-#[must_use = "handle the Result"]
-pub fn unlock_notify(
-    db: *mut sqlite3,
-    callback: Option<unsafe extern "C" fn(*mut *mut c_void, c_int)>,
-    arg: *mut c_void,
-) -> StdResult<(), SqliteError> {
-    let rc = unsafe { ffi_sys::sqlite3_unlock_notify(db, callback, arg) };
-    if rc == ffi_sys::SQLITE_OK {
-        Ok(())
-    } else {
-        Err(SqliteError::new(db))
-    }
-}
-
 /// Wrapper around [`sqlite3_extended_errcode`].
 ///
 /// # Safety
@@ -712,14 +690,7 @@ pub fn reset(stmt: *mut sqlite3_stmt) -> StdResult<(), SqliteError> {
 #[must_use = "handle the Result"]
 pub fn step(stmt: *mut sqlite3_stmt) -> StdResult<i32, SqliteError> {
     let rc = unsafe { ffi_sys::sqlite3_step(stmt) };
-    if rc == ffi_sys::SQLITE_ROW
-        || rc == ffi_sys::SQLITE_DONE
-        || rc == ffi_sys::SQLITE_LOCKED_SHAREDCACHE
-        || rc == ffi_sys::SQLITE_LOCKED
-        || rc == ffi_sys::SQLITE_BUSY
-        || rc == ffi_sys::SQLITE_MISUSE
-        || rc == ffi_sys::SQLITE_OK
-    {
+    if rc == ffi_sys::SQLITE_ROW || rc == ffi_sys::SQLITE_DONE {
         Ok(rc as i32)
     } else {
         let db = unsafe { ffi_sys::sqlite3_db_handle(stmt) };

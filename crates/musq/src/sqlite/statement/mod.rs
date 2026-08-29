@@ -4,8 +4,6 @@ use crate::{Result, Row, from_row, query, sqlite::Arguments};
 mod compound;
 /// Low-level statement handle wrapper.
 mod handle;
-/// Unlock notify helpers.
-pub(super) mod unlock_notify;
 
 pub use compound::CompoundStatement;
 pub use handle::StatementHandle;

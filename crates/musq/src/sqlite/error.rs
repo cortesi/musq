@@ -554,13 +554,6 @@ impl SqliteError {
     pub fn codes(&self) -> (PrimaryErrCode, Option<ExtendedErrCode>) {
         (self.primary, self.extended)
     }
-
-    /// Returns `true` if the error indicates a retryable condition.
-    pub(crate) fn should_retry(&self) -> bool {
-        self.primary == PrimaryErrCode::Locked
-            || self.extended == Some(ExtendedErrCode::LockedSharedCache)
-            || self.is_busy()
-    }
 }
 
 impl Display for SqliteError {

@@ -147,11 +147,6 @@ pub enum Error {
     /// A background worker has crashed.
     #[error("attempted to communicate with a crashed background worker")]
     WorkerCrashed,
-
-    /// `sqlite3_unlock_notify` kept returning `SQLITE_LOCKED` even after
-    /// resetting the blocking statement.
-    #[error("unlock_notify failed after multiple attempts")]
-    UnlockNotify,
 }
 
 impl Error {

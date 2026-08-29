@@ -7,8 +7,8 @@ use std::{
 };
 
 use libsqlite3_sys::{
-    SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_MEMORY, SQLITE_OPEN_NOMUTEX,
-    SQLITE_OPEN_PRIVATECACHE, SQLITE_OPEN_READONLY, SQLITE_OPEN_READWRITE, SQLITE_OPEN_SHAREDCACHE,
+    SQLITE_OPEN_CREATE, SQLITE_OPEN_FULLMUTEX, SQLITE_OPEN_NOMUTEX, SQLITE_OPEN_READONLY,
+    SQLITE_OPEN_READWRITE,
 };
 
 use crate::{
@@ -74,16 +74,6 @@ impl EstablishParams {
             SQLITE_OPEN_CREATE | SQLITE_OPEN_READWRITE
         } else {
             SQLITE_OPEN_READWRITE
-        };
-
-        if options.in_memory {
-            flags |= SQLITE_OPEN_MEMORY;
-        }
-
-        flags |= if options.shared_cache {
-            SQLITE_OPEN_SHAREDCACHE
-        } else {
-            SQLITE_OPEN_PRIVATECACHE
         };
 
         let mut query_params: Vec<String> = vec![];

@@ -974,12 +974,12 @@ deprecation shim or a transition default.
 
 ### Stage 3: SQLite Locking Layer
 
-1. [ ] §2. Change `configure_in_memory` to `/musq-in-memory-N` plus
+1. [x] §2. Change `configure_in_memory` to `/musq-in-memory-N` plus
    `.vfs("memdb")`. Remove `shared_cache`, `in_memory`, and
    `SQLITE_OPEN_MEMORY`. Done when `tests/in_memory_settings.rs` and
    `tests/concurrent.rs` pass and `PRAGMA compile_options` is not consulted
    for `ENABLE_UNLOCK_NOTIFY`.
-2. [ ] §2. Delete `sqlite/statement/unlock_notify.rs`,
+2. [x] §2. Delete `sqlite/statement/unlock_notify.rs`,
    `Error::UnlockNotify`, `DEFAULT_MAX_RETRIES`, both retry arms in
    `StatementHandle::step`, the retry loop in `ConnectionHandle::exec`, and
    the `unlock_notify` feature in `crates/musq/Cargo.toml`. Make `ffi::step`
