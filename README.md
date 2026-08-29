@@ -113,7 +113,7 @@ Placeholders:
 | Placeholder                       | Expansion                                                     |
 | --------------------------------- | ------------------------------------------------------------- |
 | `{expr}`, `{}`                    | one bound parameter                                           |
-| `{values:list}`                   | `?, ?, ?` — one parameter per element, for `IN (...)`         |
+| `{values:list}`                   | `?, ?, ?` — one parameter per element, for `IN (...)`. An empty list yields `IN ()` (false) and `NOT IN ()` (true for every row) |
 | `{ident:expr}`                    | one quoted identifier                                         |
 | `{idents:list}`                   | comma-separated quoted identifiers                            |
 | `{insert:values}`                 | `(col, ...) VALUES (?, ...)`                                  |
@@ -211,7 +211,7 @@ async fn add_user(
 ```
 
 DB-side computed values come from `musq::expr` (`now_rfc3339_utc`, `jsonb`,
-`jsonb_text`, `jsonb_serde`, `raw`):
+`jsonb_serde`, `raw`):
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values-expr -->
 ```rust

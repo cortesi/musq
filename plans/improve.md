@@ -1005,19 +1005,19 @@ deprecation shim or a transition default.
    `query_statement_*` functions, and the `rc_buffer` allow. Store
    `sql: String` in `Query`. Keep `Connection::prepare(&str) -> Result<()>`
    as validation. Remove `either` from `Query`.
-3. [ ] §17. Change `Connection::transaction` to `AsyncFnOnce`. Add
+3. [x] §17. Change `Connection::transaction` to `AsyncFnOnce`. Add
    `Pool::transaction`. README example with a borrowed local across `await`.
-4. [ ] §20. Empty `push_values` renders nothing (`IN ()`). Keep the
+4. [x] §20. Empty `push_values` renders nothing (`IN ()`). Keep the
    compile-time empty-literal check. README placeholder table note on
    `IN ()` and `NOT IN ()`. Tests for both.
-5. [ ] §22. Remove the `default` clause from `enum_mode!`.
-6. [ ] §21. `filename` to `pub(crate)`; `optimize_on_close(bool)`;
+5. [x] §22. Remove the `default` clause from `enum_mode!`.
+6. [x] §21. `filename` to `pub(crate)`; `optimize_on_close(bool)`;
    `analysis_limit(u32)`; delete `OptimizeOnClose`; defaults table in
    `Musq::new` docs.
-7. [ ] §23. `pub struct Null;` with `Encode`; remove the alias and the lint
+7. [x] §23. `pub struct Null;` with `Encode`; remove the alias and the lint
    allow.
-8. [ ] §24. Delete `expr::jsonb_text`; reword `now_rfc3339_utc` docs.
-9. [ ] Stage gate. Run `cargo run -p musq --example readme_snippets` and
+8. [x] §24. Delete `expr::jsonb_text`; reword `now_rfc3339_utc` docs.
+9. [x] Stage gate. Run `cargo run -p musq --example readme_snippets` and
    `readme_quickstart` to confirm the README compiles.
 
 ### Stage 5: Connection Configuration And Worker State

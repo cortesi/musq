@@ -51,9 +51,9 @@ impl From<Query> for Expr {
     }
 }
 
-/// SQLite expression for the current UTC time, formatted as RFC3339.
+/// SQLite expression for the current UTC time as RFC3339 with a `Z` suffix.
 ///
-/// This is intended to match hb's documented storage format for timestamps.
+/// The format is `YYYY-MM-DDTHH:MM:SS.sssZ`.
 pub fn now_rfc3339_utc() -> Expr {
     Expr {
         sql: "STRFTIME('%Y-%m-%dT%H:%M:%fZ', 'now')".to_string(),
@@ -76,13 +76,6 @@ pub fn jsonb(json: &str) -> Expr {
         arguments,
         tainted: false,
     }
-}
-
-/// Wrap a JSON text value with SQLite's `jsonb(...)` function.
-///
-/// Alias for [`jsonb`].
-pub fn jsonb_text(json: &str) -> Expr {
-    jsonb(json)
 }
 
 /// Serialize a value to JSON and wrap it with SQLite's `jsonb(...)` function.
