@@ -225,28 +225,22 @@ impl Pool {
         }
     }
 
-    /// Shut down the connection pool, immediately waking all tasks waiting for a connection.
+    /// Shut down the connection pool and close idle SQLite connections.
     ///
-    /// Upon calling this method, any currently waiting or subsequent calls to [`Pool::acquire`] and
-    /// the like will immediately return [`Error::PoolClosed`] and no new connections will be opened.
-    /// Checked-out connections are unaffected, but will be gracefully closed on-drop
-    /// rather than being returned to the pool.
+    /// After this method, [`Pool::acquire`] returns [`Error::PoolClosed`] and the
+    /// pool does not open new connections. Connections that are still checked out
+    /// stay usable until drop, then close instead of returning to the pool.
     ///
-    /// This async method ensures all connections are gracefully closed. It will
-    /// first close any idle connections currently waiting in the pool, then wait
-    /// for all checked-out connections to be returned or closed.
+    /// This method first closes idle connections in the pool, then waits for
+    /// checked-out connections to return or close. Await the future so SQLite
+    /// can release file locks and memory. Tests that open a new pool for each
+    /// case should await `close` so later cases do not see a busy database file.
     ///
-    /// Waiting for connections to be gracefully closed is optional, but will allow SQLite to
-    /// clean up resources sooner rather than later. This is especially important for tests that
-    /// create a new pool every time, otherwise you may see errors about connection limits being
-    /// exhausted even when running tests in a single thread.
+    /// If the returned future is not awaited to completion, remaining
+    /// connections close when the last pool handle is dropped. That drop may
+    /// run in a task that `Pool` spawned, so the timing is not always obvious.
     ///
-    /// If the returned future is not awaited to completion, any remaining
-    /// connections will be dropped when the last handle for the given pool
-    /// instance is dropped, which could happen in a task spawned by `Pool`
-    /// internally and so may be unpredictable otherwise.
-    ///
-    /// `.close()` may be safely called and `.await`ed on multiple handles concurrently.
+    /// `.close()` may be called and `.await`ed on multiple handles concurrently.
     ///
     /// The returned future **must** be awaited to ensure the pool is fully
     /// closed.

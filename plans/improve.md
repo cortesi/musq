@@ -1098,7 +1098,7 @@ deprecation shim or a transition default.
    `Error::UnknownColumnType`; `SqliteDataType::from_str` returns `Option`.
 9. [x] §30. Delete `is_shutdown`, stale comments, the `TODO`, and the
    remaining `dead_code` allows.
-10. [ ] §34. Rewrite the close docs; delete `musq-cli` and SQLx references;
+10. [x] §34. Rewrite the close docs; delete `musq-cli` and SQLx references;
     document each error-code variant.
 11. [x] §35. `Ident::parse_any` in `UpsertArgs::parse`; format-literal spans
     for `sql!` errors.

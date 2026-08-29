@@ -291,9 +291,6 @@ impl Musq {
     ///
     /// The default journal mode for non-WAL databases is `DELETE`, or `MEMORY` for in-memory
     /// databases.
-    ///
-    /// For consistency, any commands in `musq-cli` which create a SQLite database will create it
-    /// in WAL mode.
     #[must_use]
     pub fn journal_mode(self, mode: JournalMode) -> Self {
         self.pragma("journal_mode", mode.as_str())
@@ -405,10 +402,9 @@ impl Musq {
     /// faults, but will also incur a significant performance penalty. You should leave this
     /// set to `false` if at all possible.
     ///
-    /// If you do end up needing to set this to `true` for some reason, please
-    /// [open an issue](https://github.com/launchbadge/sqlx/issues/new/choose) as this may indicate
-    /// a concurrency bug in Musq. Please provide clear instructions for reproducing the issue,
-    /// including a sample database schema if applicable.
+    /// If you need to set this to `true`, that may indicate a concurrency bug in
+    /// Musq. Include steps to reproduce the issue and a sample schema if you
+    /// report it.
     #[must_use]
     pub fn serialized(mut self, serialized: bool) -> Self {
         self.serialized = serialized;
@@ -622,9 +618,9 @@ impl Musq {
 
     /// Set the maximum number of connections that this pool should maintain.
     ///
-    /// Be mindful of the connection limits for your database as well as other applications
-    /// which may want to connect to the same database (or even multiple instances of the same
-    /// application in high-availability deployments).
+    /// Each connection is one SQLite handle on its own worker thread. One writer
+    /// still holds the database lock at a time. Raise this only when concurrent
+    /// work needs more handles.
     #[must_use]
     pub fn max_connections(mut self, max: u32) -> Self {
         self.pool_max_connections = max;

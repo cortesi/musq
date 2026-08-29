@@ -11,388 +11,171 @@ use crate::sqlite::ffi;
 // Error Codes And Messages
 // https://www.sqlite.org/c3ref/errcode.html
 
-/// Primary Sqlite error codes.
-///
-/// **Note:** This enum is marked `#[non_exhaustive]`; avoid exhaustive
-/// matches as new variants may be introduced.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum PrimaryErrCode {
-    /// SQLite error code variant.
-    Error,
-    /// SQLite error code variant.
-    Internal,
-    /// SQLite error code variant.
-    Perm,
-    /// SQLite error code variant.
-    Abort,
-    /// SQLite error code variant.
-    Busy,
-    /// SQLite error code variant.
-    Locked,
-    /// SQLite error code variant.
-    NoMem,
-    /// SQLite error code variant.
-    ReadOnly,
-    /// SQLite error code variant.
-    Interrupt,
-    /// SQLite error code variant.
-    IoErr,
-    /// SQLite error code variant.
-    Corrupt,
-    /// SQLite error code variant.
-    NotFound,
-    /// SQLite error code variant.
-    Full,
-    /// SQLite error code variant.
-    CantOpen,
-    /// SQLite error code variant.
-    Protocol,
-    /// SQLite error code variant.
-    Empty,
-    /// SQLite error code variant.
-    Schema,
-    /// SQLite error code variant.
-    TooBig,
-    /// SQLite error code variant.
-    Constraint,
-    /// SQLite error code variant.
-    Mismatch,
-    /// SQLite error code variant.
-    Misuse,
-    /// SQLite error code variant.
-    NoLfs,
-    /// SQLite error code variant.
-    Auth,
-    /// SQLite error code variant.
-    Format,
-    /// SQLite error code variant.
-    Range,
-    /// SQLite error code variant.
-    NotADB,
-    /// SQLite error code variant.
-    Notice,
-    /// SQLite error code variant.
-    Warning,
-    /// SQLite error code variant.
-    Unknown(u32),
+/// Generate a SQLite result-code enum with docs, mapping, and display names.
+macro_rules! sqlite_result_codes {
+    ($(#[$enum_doc:meta])* $name:ident, $($variant:ident = $const:ident : $doc:literal),+ $(,)?) => {
+        $(#[$enum_doc])*
+        #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+        #[non_exhaustive]
+        pub enum $name {
+            $(
+                #[doc = $doc]
+                $variant,
+            )+
+            /// Unrecognized SQLite result code.
+            Unknown(u32),
+        }
+
+        impl $name {
+            fn from_raw(code: i32) -> Self {
+                match code {
+                    $(libsqlite3_sys::$const => Self::$variant,)+
+                    _ => Self::Unknown(code as u32),
+                }
+            }
+        }
+
+        impl Display for $name {
+            fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+                match self {
+                    $(Self::$variant => f.write_str(stringify!($const)),)+
+                    Self::Unknown(code) => write!(f, "SQLITE_{code}"),
+                }
+            }
+        }
+    };
+}
+
+sqlite_result_codes! {
+    /// Primary Sqlite error codes.
+    ///
+    /// **Note:** This enum is marked `#[non_exhaustive]`; avoid exhaustive
+    /// matches as new variants may be introduced.
+    PrimaryErrCode,
+    Error = SQLITE_ERROR: "SQL error or missing database.",
+    Internal = SQLITE_INTERNAL: "Internal SQLite logic error.",
+    Perm = SQLITE_PERM: "Access permission denied.",
+    Abort = SQLITE_ABORT: "A callback requested that the operation abort.",
+    Busy = SQLITE_BUSY: "The database file is locked.",
+    Locked = SQLITE_LOCKED: "A table in the database is locked.",
+    NoMem = SQLITE_NOMEM: "A malloc() failed.",
+    ReadOnly = SQLITE_READONLY: "Attempt to write a read-only database.",
+    Interrupt = SQLITE_INTERRUPT: "Operation terminated by sqlite3_interrupt().",
+    IoErr = SQLITE_IOERR: "Some kind of disk I/O error occurred.",
+    Corrupt = SQLITE_CORRUPT: "The database disk image is malformed.",
+    NotFound = SQLITE_NOTFOUND: "Unknown opcode in sqlite3_file_control().",
+    Full = SQLITE_FULL: "Insertion failed because the database is full.",
+    CantOpen = SQLITE_CANTOPEN: "Unable to open the database file.",
+    Protocol = SQLITE_PROTOCOL: "Database lock protocol error.",
+    Empty = SQLITE_EMPTY: "Internal use only.",
+    Schema = SQLITE_SCHEMA: "The database schema changed.",
+    TooBig = SQLITE_TOOBIG: "String or BLOB exceeds size limit.",
+    Constraint = SQLITE_CONSTRAINT: "Abort due to constraint violation.",
+    Mismatch = SQLITE_MISMATCH: "Data type mismatch.",
+    Misuse = SQLITE_MISUSE: "Library used incorrectly.",
+    NoLfs = SQLITE_NOLFS: "Uses OS features not supported on host.",
+    Auth = SQLITE_AUTH: "Authorization denied.",
+    Format = SQLITE_FORMAT: "Not used.",
+    Range = SQLITE_RANGE: "2nd parameter to sqlite3_bind out of range.",
+    NotADB = SQLITE_NOTADB: "File opened that is not a database file.",
+    Notice = SQLITE_NOTICE: "Notifications from sqlite3_log().",
+    Warning = SQLITE_WARNING: "Warnings from sqlite3_log().",
 }
 
 impl PrimaryErrCode {
     /// Convert a raw SQLite error code into a primary code.
     fn from_code(code: i32) -> Self {
-        match code & 255 {
-            libsqlite3_sys::SQLITE_ERROR => Self::Error,
-            libsqlite3_sys::SQLITE_INTERNAL => Self::Internal,
-            libsqlite3_sys::SQLITE_PERM => Self::Perm,
-            libsqlite3_sys::SQLITE_ABORT => Self::Abort,
-            libsqlite3_sys::SQLITE_BUSY => Self::Busy,
-            libsqlite3_sys::SQLITE_LOCKED => Self::Locked,
-            libsqlite3_sys::SQLITE_NOMEM => Self::NoMem,
-            libsqlite3_sys::SQLITE_READONLY => Self::ReadOnly,
-            libsqlite3_sys::SQLITE_INTERRUPT => Self::Interrupt,
-            libsqlite3_sys::SQLITE_IOERR => Self::IoErr,
-            libsqlite3_sys::SQLITE_CORRUPT => Self::Corrupt,
-            libsqlite3_sys::SQLITE_NOTFOUND => Self::NotFound,
-            libsqlite3_sys::SQLITE_FULL => Self::Full,
-            libsqlite3_sys::SQLITE_CANTOPEN => Self::CantOpen,
-            libsqlite3_sys::SQLITE_PROTOCOL => Self::Protocol,
-            libsqlite3_sys::SQLITE_EMPTY => Self::Empty,
-            libsqlite3_sys::SQLITE_SCHEMA => Self::Schema,
-            libsqlite3_sys::SQLITE_TOOBIG => Self::TooBig,
-            libsqlite3_sys::SQLITE_CONSTRAINT => Self::Constraint,
-            libsqlite3_sys::SQLITE_MISMATCH => Self::Mismatch,
-            libsqlite3_sys::SQLITE_MISUSE => Self::Misuse,
-            libsqlite3_sys::SQLITE_NOLFS => Self::NoLfs,
-            libsqlite3_sys::SQLITE_AUTH => Self::Auth,
-            libsqlite3_sys::SQLITE_FORMAT => Self::Format,
-            libsqlite3_sys::SQLITE_RANGE => Self::Range,
-            libsqlite3_sys::SQLITE_NOTADB => Self::NotADB,
-            libsqlite3_sys::SQLITE_NOTICE => Self::Notice,
-            libsqlite3_sys::SQLITE_WARNING => Self::Warning,
-            _ => Self::Unknown(code as u32),
-        }
+        Self::from_raw(code & 255)
     }
 }
 
-impl Display for PrimaryErrCode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::Error => f.write_str("SQLITE_ERROR"),
-            Self::Internal => f.write_str("SQLITE_INTERNAL"),
-            Self::Perm => f.write_str("SQLITE_PERM"),
-            Self::Abort => f.write_str("SQLITE_ABORT"),
-            Self::Busy => f.write_str("SQLITE_BUSY"),
-            Self::Locked => f.write_str("SQLITE_LOCKED"),
-            Self::NoMem => f.write_str("SQLITE_NOMEM"),
-            Self::ReadOnly => f.write_str("SQLITE_READONLY"),
-            Self::Interrupt => f.write_str("SQLITE_INTERRUPT"),
-            Self::IoErr => f.write_str("SQLITE_IOERR"),
-            Self::Corrupt => f.write_str("SQLITE_CORRUPT"),
-            Self::NotFound => f.write_str("SQLITE_NOTFOUND"),
-            Self::Full => f.write_str("SQLITE_FULL"),
-            Self::CantOpen => f.write_str("SQLITE_CANTOPEN"),
-            Self::Protocol => f.write_str("SQLITE_PROTOCOL"),
-            Self::Empty => f.write_str("SQLITE_EMPTY"),
-            Self::Schema => f.write_str("SQLITE_SCHEMA"),
-            Self::TooBig => f.write_str("SQLITE_TOOBIG"),
-            Self::Constraint => f.write_str("SQLITE_CONSTRAINT"),
-            Self::Mismatch => f.write_str("SQLITE_MISMATCH"),
-            Self::Misuse => f.write_str("SQLITE_MISUSE"),
-            Self::NoLfs => f.write_str("SQLITE_NOLFS"),
-            Self::Auth => f.write_str("SQLITE_AUTH"),
-            Self::Format => f.write_str("SQLITE_FORMAT"),
-            Self::Range => f.write_str("SQLITE_RANGE"),
-            Self::NotADB => f.write_str("SQLITE_NOTADB"),
-            Self::Notice => f.write_str("SQLITE_NOTICE"),
-            Self::Warning => f.write_str("SQLITE_WARNING"),
-            Self::Unknown(code) => write!(f, "SQLITE_{code}"),
-        }
-    }
-}
-
-/// Extended Sqlite error codes.
-///
-/// **Note:** This enum is marked `#[non_exhaustive]`; avoid exhaustive
-/// matches as new variants may be introduced.
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-#[non_exhaustive]
-pub enum ExtendedErrCode {
-    /// SQLite error code variant.
-    ErrorMissingCollseq,
-    /// SQLite error code variant.
-    ErrorRetry,
-    /// SQLite error code variant.
-    ErrorSnapshot,
-    /// SQLite error code variant.
-    IOErrRead,
-    /// SQLite error code variant.
-    IOErrShortRead,
-    /// SQLite error code variant.
-    IOErrWrite,
-    /// SQLite error code variant.
-    IOErrFsync,
-    /// SQLite error code variant.
-    IOErrDirFsync,
-    /// SQLite error code variant.
-    IOErrTruncate,
-    /// SQLite error code variant.
-    IOErrFstat,
-    /// SQLite error code variant.
-    IOErrUnlock,
-    /// SQLite error code variant.
-    IOErrRdlock,
-    /// SQLite error code variant.
-    IOErrDelete,
-    /// SQLite error code variant.
-    IOErrBlocked,
-    /// SQLite error code variant.
-    IOErrNoMem,
-    /// SQLite error code variant.
-    IOErrAccess,
-    /// SQLite error code variant.
-    IOErrCheckReservedLock,
-    /// SQLite error code variant.
-    IOErrLock,
-    /// SQLite error code variant.
-    IOErrClose,
-    /// SQLite error code variant.
-    IOErrDirClose,
-    /// SQLite error code variant.
-    IOErrShmopen,
-    /// SQLite error code variant.
-    IOErrShmsize,
-    /// SQLite error code variant.
-    IOErrShmlock,
-    /// SQLite error code variant.
-    IOErrShmmap,
-    /// SQLite error code variant.
-    IOErrSeek,
-    /// SQLite error code variant.
-    IOErrDeleteNoent,
-    /// SQLite error code variant.
-    IOErrMmap,
-    /// SQLite error code variant.
-    IOErrGetTempPath,
-    /// SQLite error code variant.
-    IOErrConvPath,
-    /// SQLite error code variant.
-    IOErrVnode,
-    /// SQLite error code variant.
-    IOErrAuth,
-    /// SQLite error code variant.
-    IOErrBeginAtomic,
-    /// SQLite error code variant.
-    IOErrCommitAtomic,
-    /// SQLite error code variant.
-    IOErrRollbackAtomic,
-    /// SQLite error code variant.
-    IOErrData,
-    /// SQLite error code variant.
-    IOErrCorruptFs,
-    /// SQLite error code variant.
-    LockedSharedCache,
-    /// SQLite error code variant.
-    LockedVTab,
-    /// SQLite error code variant.
-    BusyRecovery,
-    /// SQLite error code variant.
-    BusySnapshot,
-    /// SQLite error code variant.
-    BusyTimeout,
-    /// SQLite error code variant.
-    CantOpenNoTempDir,
-    /// SQLite error code variant.
-    CantOpenIsDir,
-    /// SQLite error code variant.
-    CantOpenFullPath,
-    /// SQLite error code variant.
-    CantOpenConvPath,
-    /// SQLite error code variant.
-    CantOpenDirtyWal,
-    /// SQLite error code variant.
-    CantOpenSymlink,
-    /// SQLite error code variant.
-    CorruptVTab,
-    /// SQLite error code variant.
-    CorruptSequence,
-    /// SQLite error code variant.
-    CorruptIndex,
-    /// SQLite error code variant.
-    ReadOnlyRecovery,
-    /// SQLite error code variant.
-    ReadOnlyCantLock,
-    /// SQLite error code variant.
-    ReadOnlyRollback,
-    /// SQLite error code variant.
-    ReadOnlyDbMoved,
-    /// SQLite error code variant.
-    ReadOnlyCantInit,
-    /// SQLite error code variant.
-    ReadOnlyDirectory,
-    /// SQLite error code variant.
-    AbortRollback,
-    /// SQLite error code variant.
-    ConstraintCheck,
-    /// SQLite error code variant.
-    ConstraintCommitHook,
-    /// SQLite error code variant.
-    ConstraintForeignKey,
-    /// SQLite error code variant.
-    ConstraintFunction,
-    /// SQLite error code variant.
-    ConstraintNotNull,
-    /// SQLite error code variant.
-    ConstraintPrimaryKey,
-    /// SQLite error code variant.
-    ConstraintTrigger,
-    /// SQLite error code variant.
-    ConstraintUnique,
-    /// SQLite error code variant.
-    ConstraintVTab,
-    /// SQLite error code variant.
-    ConstraintRowId,
-    /// SQLite error code variant.
-    ConstraintPinned,
-    /// SQLite error code variant.
-    ConstraintDataType,
-    /// SQLite error code variant.
-    NoticeRecoverWal,
-    /// SQLite error code variant.
-    NoticeRecoverRollback,
-    /// SQLite error code variant.
-    WarningAutoIndex,
-    /// SQLite error code variant.
-    AuthUser,
-    /// SQLite error code variant.
-    OkLoadPermanently,
-    /// SQLite error code variant.
-    OkSymlink,
-    /// SQLite error code variant.
-    Unknown(u32),
+sqlite_result_codes! {
+    /// Extended Sqlite error codes.
+    ///
+    /// **Note:** This enum is marked `#[non_exhaustive]`; avoid exhaustive
+    /// matches as new variants may be introduced.
+    ExtendedErrCode,
+    ErrorMissingCollseq = SQLITE_ERROR_MISSING_COLLSEQ: "SQL uses an unknown collating sequence.",
+    ErrorRetry = SQLITE_ERROR_RETRY: "Prepare the statement again.",
+    ErrorSnapshot = SQLITE_ERROR_SNAPSHOT: "The WAL snapshot is no longer valid.",
+    IOErrRead = SQLITE_IOERR_READ: "I/O error while reading.",
+    IOErrShortRead = SQLITE_IOERR_SHORT_READ: "I/O error: a short read.",
+    IOErrWrite = SQLITE_IOERR_WRITE: "I/O error while writing.",
+    IOErrFsync = SQLITE_IOERR_FSYNC: "I/O error during fsync().",
+    IOErrDirFsync = SQLITE_IOERR_DIR_FSYNC: "I/O error during a directory fsync().",
+    IOErrTruncate = SQLITE_IOERR_TRUNCATE: "I/O error during ftruncate().",
+    IOErrFstat = SQLITE_IOERR_FSTAT: "I/O error during fstat().",
+    IOErrUnlock = SQLITE_IOERR_UNLOCK: "I/O error during unlock.",
+    IOErrRdlock = SQLITE_IOERR_RDLOCK: "I/O error during a read lock.",
+    IOErrDelete = SQLITE_IOERR_DELETE: "I/O error during delete.",
+    IOErrBlocked = SQLITE_IOERR_BLOCKED: "I/O error: lock held by another process.",
+    IOErrNoMem = SQLITE_IOERR_NOMEM: "I/O error: out of memory.",
+    IOErrAccess = SQLITE_IOERR_ACCESS: "I/O error during access().",
+    IOErrCheckReservedLock = SQLITE_IOERR_CHECKRESERVEDLOCK: "I/O error checking a reserved lock.",
+    IOErrLock = SQLITE_IOERR_LOCK: "I/O error during lock.",
+    IOErrClose = SQLITE_IOERR_CLOSE: "I/O error during close().",
+    IOErrDirClose = SQLITE_IOERR_DIR_CLOSE: "I/O error closing a directory.",
+    IOErrShmopen = SQLITE_IOERR_SHMOPEN: "I/O error opening shared memory.",
+    IOErrShmsize = SQLITE_IOERR_SHMSIZE: "I/O error setting shared-memory size.",
+    IOErrShmlock = SQLITE_IOERR_SHMLOCK: "I/O error locking shared memory.",
+    IOErrShmmap = SQLITE_IOERR_SHMMAP: "I/O error mapping shared memory.",
+    IOErrSeek = SQLITE_IOERR_SEEK: "I/O error during seek.",
+    IOErrDeleteNoent = SQLITE_IOERR_DELETE_NOENT: "I/O error: delete of a missing file.",
+    IOErrMmap = SQLITE_IOERR_MMAP: "I/O error during mmap().",
+    IOErrGetTempPath = SQLITE_IOERR_GETTEMPPATH: "I/O error getting a temporary path.",
+    IOErrConvPath = SQLITE_IOERR_CONVPATH: "I/O error converting a file path.",
+    IOErrVnode = SQLITE_IOERR_VNODE: "I/O error in a VFS vnode.",
+    IOErrAuth = SQLITE_IOERR_AUTH: "I/O error from an authorization check.",
+    IOErrBeginAtomic = SQLITE_IOERR_BEGIN_ATOMIC: "I/O error starting an atomic write.",
+    IOErrCommitAtomic = SQLITE_IOERR_COMMIT_ATOMIC: "I/O error committing an atomic write.",
+    IOErrRollbackAtomic = SQLITE_IOERR_ROLLBACK_ATOMIC: "I/O error rolling back an atomic write.",
+    IOErrData = SQLITE_IOERR_DATA: "I/O error: disk content changed.",
+    IOErrCorruptFs = SQLITE_IOERR_CORRUPTFS: "I/O error: the filesystem is corrupt.",
+    LockedSharedCache = SQLITE_LOCKED_SHAREDCACHE: "Conflict with another connection in shared cache.",
+    LockedVTab = SQLITE_LOCKED_VTAB: "A virtual table is busy.",
+    BusyRecovery = SQLITE_BUSY_RECOVERY: "Another process is recovering the WAL.",
+    BusySnapshot = SQLITE_BUSY_SNAPSHOT: "Cannot promote a deferred transaction.",
+    BusyTimeout = SQLITE_BUSY_TIMEOUT: "Busy handler timed out.",
+    CantOpenNoTempDir = SQLITE_CANTOPEN_NOTEMPDIR: "Cannot find a temporary directory.",
+    CantOpenIsDir = SQLITE_CANTOPEN_ISDIR: "Attempted to open a directory.",
+    CantOpenFullPath = SQLITE_CANTOPEN_FULLPATH: "Unable to obtain the full pathname.",
+    CantOpenConvPath = SQLITE_CANTOPEN_CONVPATH: "Unable to convert the pathname.",
+    CantOpenDirtyWal = SQLITE_CANTOPEN_DIRTYWAL: "The WAL file is leftover from a crash.",
+    CantOpenSymlink = SQLITE_CANTOPEN_SYMLINK: "Symbolic links are disabled.",
+    CorruptVTab = SQLITE_CORRUPT_VTAB: "Content in a virtual table is corrupt.",
+    CorruptSequence = SQLITE_CORRUPT_SEQUENCE: "sqlite_sequence table is malformed.",
+    CorruptIndex = SQLITE_CORRUPT_INDEX: "An index is malformed.",
+    ReadOnlyRecovery = SQLITE_READONLY_RECOVERY: "WAL recovery cannot run on a read-only database.",
+    ReadOnlyCantLock = SQLITE_READONLY_CANTLOCK: "Cannot take a shared lock for read-only WAL.",
+    ReadOnlyRollback = SQLITE_READONLY_ROLLBACK: "Hot journal rollback is required.",
+    ReadOnlyDbMoved = SQLITE_READONLY_DBMOVED: "The database file was moved.",
+    ReadOnlyCantInit = SQLITE_READONLY_CANTINIT: "Cannot create a WAL or journal file.",
+    ReadOnlyDirectory = SQLITE_READONLY_DIRECTORY: "The directory is not writable.",
+    AbortRollback = SQLITE_ABORT_ROLLBACK: "The statement was aborted by ROLLBACK.",
+    ConstraintCheck = SQLITE_CONSTRAINT_CHECK: "A CHECK constraint failed.",
+    ConstraintCommitHook = SQLITE_CONSTRAINT_COMMITHOOK: "A commit hook vetoed the transaction.",
+    ConstraintForeignKey = SQLITE_CONSTRAINT_FOREIGNKEY: "A foreign key constraint failed.",
+    ConstraintFunction = SQLITE_CONSTRAINT_FUNCTION: "A user function reported a constraint error.",
+    ConstraintNotNull = SQLITE_CONSTRAINT_NOTNULL: "A NOT NULL constraint failed.",
+    ConstraintPrimaryKey = SQLITE_CONSTRAINT_PRIMARYKEY: "A PRIMARY KEY constraint failed.",
+    ConstraintTrigger = SQLITE_CONSTRAINT_TRIGGER: "A RAISE(ABORT) in a trigger fired.",
+    ConstraintUnique = SQLITE_CONSTRAINT_UNIQUE: "A UNIQUE constraint failed.",
+    ConstraintVTab = SQLITE_CONSTRAINT_VTAB: "A virtual table constraint failed.",
+    ConstraintRowId = SQLITE_CONSTRAINT_ROWID: "rowid is not unique.",
+    ConstraintPinned = SQLITE_CONSTRAINT_PINNED: "The row is pinned by an incremental blob.",
+    ConstraintDataType = SQLITE_CONSTRAINT_DATATYPE: "A STRICT table rejected a value.",
+    NoticeRecoverWal = SQLITE_NOTICE_RECOVER_WAL: "WAL recovery recovered uncheckpointed frames.",
+    NoticeRecoverRollback = SQLITE_NOTICE_RECOVER_ROLLBACK: "Hot-journal recovery rolled back a transaction.",
+    WarningAutoIndex = SQLITE_WARNING_AUTOINDEX: "SQLite used an automatic index.",
+    AuthUser = SQLITE_AUTH_USER: "Authorization denied for this user.",
+    OkLoadPermanently = SQLITE_OK_LOAD_PERMANENTLY: "Extension loaded permanently.",
+    OkSymlink = SQLITE_OK_SYMLINK: "The path is a symbolic link.",
 }
 
 impl ExtendedErrCode {
     /// Convert a raw SQLite error code into an extended code.
     fn from_code(code: i32) -> Self {
-        match code {
-            libsqlite3_sys::SQLITE_ERROR_MISSING_COLLSEQ => Self::ErrorMissingCollseq,
-            libsqlite3_sys::SQLITE_ERROR_RETRY => Self::ErrorRetry,
-            libsqlite3_sys::SQLITE_ERROR_SNAPSHOT => Self::ErrorSnapshot,
-            libsqlite3_sys::SQLITE_IOERR_READ => Self::IOErrRead,
-            libsqlite3_sys::SQLITE_IOERR_SHORT_READ => Self::IOErrShortRead,
-            libsqlite3_sys::SQLITE_IOERR_WRITE => Self::IOErrWrite,
-            libsqlite3_sys::SQLITE_IOERR_FSYNC => Self::IOErrFsync,
-            libsqlite3_sys::SQLITE_IOERR_DIR_FSYNC => Self::IOErrDirFsync,
-            libsqlite3_sys::SQLITE_IOERR_TRUNCATE => Self::IOErrTruncate,
-            libsqlite3_sys::SQLITE_IOERR_FSTAT => Self::IOErrFstat,
-            libsqlite3_sys::SQLITE_IOERR_UNLOCK => Self::IOErrUnlock,
-            libsqlite3_sys::SQLITE_IOERR_RDLOCK => Self::IOErrRdlock,
-            libsqlite3_sys::SQLITE_IOERR_DELETE => Self::IOErrDelete,
-            libsqlite3_sys::SQLITE_IOERR_BLOCKED => Self::IOErrBlocked,
-            libsqlite3_sys::SQLITE_IOERR_NOMEM => Self::IOErrNoMem,
-            libsqlite3_sys::SQLITE_IOERR_ACCESS => Self::IOErrAccess,
-            libsqlite3_sys::SQLITE_IOERR_CHECKRESERVEDLOCK => Self::IOErrCheckReservedLock,
-            libsqlite3_sys::SQLITE_IOERR_LOCK => Self::IOErrLock,
-            libsqlite3_sys::SQLITE_IOERR_CLOSE => Self::IOErrClose,
-            libsqlite3_sys::SQLITE_IOERR_DIR_CLOSE => Self::IOErrDirClose,
-            libsqlite3_sys::SQLITE_IOERR_SHMOPEN => Self::IOErrShmopen,
-            libsqlite3_sys::SQLITE_IOERR_SHMSIZE => Self::IOErrShmsize,
-            libsqlite3_sys::SQLITE_IOERR_SHMLOCK => Self::IOErrShmlock,
-            libsqlite3_sys::SQLITE_IOERR_SHMMAP => Self::IOErrShmmap,
-            libsqlite3_sys::SQLITE_IOERR_SEEK => Self::IOErrSeek,
-            libsqlite3_sys::SQLITE_IOERR_DELETE_NOENT => Self::IOErrDeleteNoent,
-            libsqlite3_sys::SQLITE_IOERR_MMAP => Self::IOErrMmap,
-            libsqlite3_sys::SQLITE_IOERR_GETTEMPPATH => Self::IOErrGetTempPath,
-            libsqlite3_sys::SQLITE_IOERR_CONVPATH => Self::IOErrConvPath,
-            libsqlite3_sys::SQLITE_IOERR_VNODE => Self::IOErrVnode,
-            libsqlite3_sys::SQLITE_IOERR_AUTH => Self::IOErrAuth,
-            libsqlite3_sys::SQLITE_IOERR_BEGIN_ATOMIC => Self::IOErrBeginAtomic,
-            libsqlite3_sys::SQLITE_IOERR_COMMIT_ATOMIC => Self::IOErrCommitAtomic,
-            libsqlite3_sys::SQLITE_IOERR_ROLLBACK_ATOMIC => Self::IOErrRollbackAtomic,
-            libsqlite3_sys::SQLITE_IOERR_DATA => Self::IOErrData,
-            libsqlite3_sys::SQLITE_IOERR_CORRUPTFS => Self::IOErrCorruptFs,
-            libsqlite3_sys::SQLITE_LOCKED_SHAREDCACHE => Self::LockedSharedCache,
-            libsqlite3_sys::SQLITE_LOCKED_VTAB => Self::LockedVTab,
-            libsqlite3_sys::SQLITE_BUSY_RECOVERY => Self::BusyRecovery,
-            libsqlite3_sys::SQLITE_BUSY_SNAPSHOT => Self::BusySnapshot,
-            libsqlite3_sys::SQLITE_BUSY_TIMEOUT => Self::BusyTimeout,
-            libsqlite3_sys::SQLITE_CANTOPEN_NOTEMPDIR => Self::CantOpenNoTempDir,
-            libsqlite3_sys::SQLITE_CANTOPEN_ISDIR => Self::CantOpenIsDir,
-            libsqlite3_sys::SQLITE_CANTOPEN_FULLPATH => Self::CantOpenFullPath,
-            libsqlite3_sys::SQLITE_CANTOPEN_CONVPATH => Self::CantOpenConvPath,
-            libsqlite3_sys::SQLITE_CANTOPEN_DIRTYWAL => Self::CantOpenDirtyWal,
-            libsqlite3_sys::SQLITE_CANTOPEN_SYMLINK => Self::CantOpenSymlink,
-            libsqlite3_sys::SQLITE_CORRUPT_VTAB => Self::CorruptVTab,
-            libsqlite3_sys::SQLITE_CORRUPT_SEQUENCE => Self::CorruptSequence,
-            libsqlite3_sys::SQLITE_CORRUPT_INDEX => Self::CorruptIndex,
-            libsqlite3_sys::SQLITE_READONLY_RECOVERY => Self::ReadOnlyRecovery,
-            libsqlite3_sys::SQLITE_READONLY_CANTLOCK => Self::ReadOnlyCantLock,
-            libsqlite3_sys::SQLITE_READONLY_ROLLBACK => Self::ReadOnlyRollback,
-            libsqlite3_sys::SQLITE_READONLY_DBMOVED => Self::ReadOnlyDbMoved,
-            libsqlite3_sys::SQLITE_READONLY_CANTINIT => Self::ReadOnlyCantInit,
-            libsqlite3_sys::SQLITE_READONLY_DIRECTORY => Self::ReadOnlyDirectory,
-            libsqlite3_sys::SQLITE_ABORT_ROLLBACK => Self::AbortRollback,
-            libsqlite3_sys::SQLITE_CONSTRAINT_CHECK => Self::ConstraintCheck,
-            libsqlite3_sys::SQLITE_CONSTRAINT_COMMITHOOK => Self::ConstraintCommitHook,
-            libsqlite3_sys::SQLITE_CONSTRAINT_FOREIGNKEY => Self::ConstraintForeignKey,
-            libsqlite3_sys::SQLITE_CONSTRAINT_FUNCTION => Self::ConstraintFunction,
-            libsqlite3_sys::SQLITE_CONSTRAINT_NOTNULL => Self::ConstraintNotNull,
-            libsqlite3_sys::SQLITE_CONSTRAINT_PRIMARYKEY => Self::ConstraintPrimaryKey,
-            libsqlite3_sys::SQLITE_CONSTRAINT_TRIGGER => Self::ConstraintTrigger,
-            libsqlite3_sys::SQLITE_CONSTRAINT_UNIQUE => Self::ConstraintUnique,
-            libsqlite3_sys::SQLITE_CONSTRAINT_VTAB => Self::ConstraintVTab,
-            libsqlite3_sys::SQLITE_CONSTRAINT_ROWID => Self::ConstraintRowId,
-            libsqlite3_sys::SQLITE_CONSTRAINT_PINNED => Self::ConstraintPinned,
-            libsqlite3_sys::SQLITE_CONSTRAINT_DATATYPE => Self::ConstraintDataType,
-            libsqlite3_sys::SQLITE_NOTICE_RECOVER_WAL => Self::NoticeRecoverWal,
-            libsqlite3_sys::SQLITE_NOTICE_RECOVER_ROLLBACK => Self::NoticeRecoverRollback,
-            libsqlite3_sys::SQLITE_WARNING_AUTOINDEX => Self::WarningAutoIndex,
-            libsqlite3_sys::SQLITE_AUTH_USER => Self::AuthUser,
-            libsqlite3_sys::SQLITE_OK_LOAD_PERMANENTLY => Self::OkLoadPermanently,
-            libsqlite3_sys::SQLITE_OK_SYMLINK => Self::OkSymlink,
-            _ => Self::Unknown(code as u32),
-        }
+        Self::from_raw(code)
     }
 
     /// Returns `true` when this extended code represents a busy condition.
@@ -409,89 +192,6 @@ impl ExtendedErrCode {
             self,
             Self::ConstraintPrimaryKey | Self::ConstraintUnique | Self::ConstraintRowId
         )
-    }
-}
-
-impl Display for ExtendedErrCode {
-    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
-        match self {
-            Self::ErrorMissingCollseq => f.write_str("SQLITE_ERROR_MISSING_COLLSEQ"),
-            Self::ErrorRetry => f.write_str("SQLITE_ERROR_RETRY"),
-            Self::ErrorSnapshot => f.write_str("SQLITE_ERROR_SNAPSHOT"),
-            Self::IOErrRead => f.write_str("SQLITE_IOERR_READ"),
-            Self::IOErrShortRead => f.write_str("SQLITE_IOERR_SHORT_READ"),
-            Self::IOErrWrite => f.write_str("SQLITE_IOERR_WRITE"),
-            Self::IOErrFsync => f.write_str("SQLITE_IOERR_FSYNC"),
-            Self::IOErrDirFsync => f.write_str("SQLITE_IOERR_DIR_FSYNC"),
-            Self::IOErrTruncate => f.write_str("SQLITE_IOERR_TRUNCATE"),
-            Self::IOErrFstat => f.write_str("SQLITE_IOERR_FSTAT"),
-            Self::IOErrUnlock => f.write_str("SQLITE_IOERR_UNLOCK"),
-            Self::IOErrRdlock => f.write_str("SQLITE_IOERR_RDLOCK"),
-            Self::IOErrDelete => f.write_str("SQLITE_IOERR_DELETE"),
-            Self::IOErrBlocked => f.write_str("SQLITE_IOERR_BLOCKED"),
-            Self::IOErrNoMem => f.write_str("SQLITE_IOERR_NOMEM"),
-            Self::IOErrAccess => f.write_str("SQLITE_IOERR_ACCESS"),
-            Self::IOErrCheckReservedLock => f.write_str("SQLITE_IOERR_CHECKRESERVEDLOCK"),
-            Self::IOErrLock => f.write_str("SQLITE_IOERR_LOCK"),
-            Self::IOErrClose => f.write_str("SQLITE_IOERR_CLOSE"),
-            Self::IOErrDirClose => f.write_str("SQLITE_IOERR_DIR_CLOSE"),
-            Self::IOErrShmopen => f.write_str("SQLITE_IOERR_SHMOPEN"),
-            Self::IOErrShmsize => f.write_str("SQLITE_IOERR_SHMSIZE"),
-            Self::IOErrShmlock => f.write_str("SQLITE_IOERR_SHMLOCK"),
-            Self::IOErrShmmap => f.write_str("SQLITE_IOERR_SHMMAP"),
-            Self::IOErrSeek => f.write_str("SQLITE_IOERR_SEEK"),
-            Self::IOErrDeleteNoent => f.write_str("SQLITE_IOERR_DELETE_NOENT"),
-            Self::IOErrMmap => f.write_str("SQLITE_IOERR_MMAP"),
-            Self::IOErrGetTempPath => f.write_str("SQLITE_IOERR_GETTEMPPATH"),
-            Self::IOErrConvPath => f.write_str("SQLITE_IOERR_CONVPATH"),
-            Self::IOErrVnode => f.write_str("SQLITE_IOERR_VNODE"),
-            Self::IOErrAuth => f.write_str("SQLITE_IOERR_AUTH"),
-            Self::IOErrBeginAtomic => f.write_str("SQLITE_IOERR_BEGIN_ATOMIC"),
-            Self::IOErrCommitAtomic => f.write_str("SQLITE_IOERR_COMMIT_ATOMIC"),
-            Self::IOErrRollbackAtomic => f.write_str("SQLITE_IOERR_ROLLBACK_ATOMIC"),
-            Self::IOErrData => f.write_str("SQLITE_IOERR_DATA"),
-            Self::IOErrCorruptFs => f.write_str("SQLITE_IOERR_CORRUPTFS"),
-            Self::LockedSharedCache => f.write_str("SQLITE_LOCKED_SHAREDCACHE"),
-            Self::LockedVTab => f.write_str("SQLITE_LOCKED_VTAB"),
-            Self::BusyRecovery => f.write_str("SQLITE_BUSY_RECOVERY"),
-            Self::BusySnapshot => f.write_str("SQLITE_BUSY_SNAPSHOT"),
-            Self::BusyTimeout => f.write_str("SQLITE_BUSY_TIMEOUT"),
-            Self::CantOpenNoTempDir => f.write_str("SQLITE_CANTOPEN_NOTEMPDIR"),
-            Self::CantOpenIsDir => f.write_str("SQLITE_CANTOPEN_ISDIR"),
-            Self::CantOpenFullPath => f.write_str("SQLITE_CANTOPEN_FULLPATH"),
-            Self::CantOpenConvPath => f.write_str("SQLITE_CANTOPEN_CONVPATH"),
-            Self::CantOpenDirtyWal => f.write_str("SQLITE_CANTOPEN_DIRTYWAL"),
-            Self::CantOpenSymlink => f.write_str("SQLITE_CANTOPEN_SYMLINK"),
-            Self::CorruptVTab => f.write_str("SQLITE_CORRUPT_VTAB"),
-            Self::CorruptSequence => f.write_str("SQLITE_CORRUPT_SEQUENCE"),
-            Self::CorruptIndex => f.write_str("SQLITE_CORRUPT_INDEX"),
-            Self::ReadOnlyRecovery => f.write_str("SQLITE_READONLY_RECOVERY"),
-            Self::ReadOnlyCantLock => f.write_str("SQLITE_READONLY_CANTLOCK"),
-            Self::ReadOnlyRollback => f.write_str("SQLITE_READONLY_ROLLBACK"),
-            Self::ReadOnlyDbMoved => f.write_str("SQLITE_READONLY_DBMOVED"),
-            Self::ReadOnlyCantInit => f.write_str("SQLITE_READONLY_CANTINIT"),
-            Self::ReadOnlyDirectory => f.write_str("SQLITE_READONLY_DIRECTORY"),
-            Self::AbortRollback => f.write_str("SQLITE_ABORT_ROLLBACK"),
-            Self::ConstraintCheck => f.write_str("SQLITE_CONSTRAINT_CHECK"),
-            Self::ConstraintCommitHook => f.write_str("SQLITE_CONSTRAINT_COMMITHOOK"),
-            Self::ConstraintForeignKey => f.write_str("SQLITE_CONSTRAINT_FOREIGNKEY"),
-            Self::ConstraintFunction => f.write_str("SQLITE_CONSTRAINT_FUNCTION"),
-            Self::ConstraintNotNull => f.write_str("SQLITE_CONSTRAINT_NOTNULL"),
-            Self::ConstraintPrimaryKey => f.write_str("SQLITE_CONSTRAINT_PRIMARYKEY"),
-            Self::ConstraintTrigger => f.write_str("SQLITE_CONSTRAINT_TRIGGER"),
-            Self::ConstraintUnique => f.write_str("SQLITE_CONSTRAINT_UNIQUE"),
-            Self::ConstraintVTab => f.write_str("SQLITE_CONSTRAINT_VTAB"),
-            Self::ConstraintRowId => f.write_str("SQLITE_CONSTRAINT_ROWID"),
-            Self::ConstraintPinned => f.write_str("SQLITE_CONSTRAINT_PINNED"),
-            Self::ConstraintDataType => f.write_str("SQLITE_CONSTRAINT_DATATYPE"),
-            Self::NoticeRecoverWal => f.write_str("SQLITE_NOTICE_RECOVER_WAL"),
-            Self::NoticeRecoverRollback => f.write_str("SQLITE_NOTICE_RECOVER_ROLLBACK"),
-            Self::WarningAutoIndex => f.write_str("SQLITE_WARNING_AUTOINDEX"),
-            Self::AuthUser => f.write_str("SQLITE_AUTH_USER"),
-            Self::OkLoadPermanently => f.write_str("SQLITE_OK_LOAD_PERMANENTLY"),
-            Self::OkSymlink => f.write_str("SQLITE_OK_SYMLINK"),
-            Self::Unknown(code) => write!(f, "SQLITE_{code}"),
-        }
     }
 }
 
