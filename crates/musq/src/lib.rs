@@ -75,8 +75,8 @@ pub use crate::{
     musq::{AutoVacuum, JournalMode, LockingMode, Musq, Synchronous},
     pool::{Pool, PoolConnection, PoolStats},
     query::{
-        Query, query, query_as, query_as_with, query_scalar, query_scalar_with, query_with,
-        quote_identifier,
+        Query, QueryExecutor, query, query_as, query_as_with, query_scalar, query_scalar_with,
+        query_with, quote_identifier,
     },
     query_builder::QueryBuilder,
     query_result::QueryResult,

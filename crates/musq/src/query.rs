@@ -2,16 +2,14 @@ use std::{
     collections::HashSet,
     fmt,
     future::Future,
-    ops::{Deref, DerefMut},
-    pin::Pin,
+    ops::DerefMut,
 };
 
-use async_trait::async_trait;
 use either::Either;
 use futures_core::stream::BoxStream;
 
 use crate::{
-    Arguments, QueryResult, Result, Row,
+    Arguments, Connection, QueryResult, Result, Row, Transaction,
     encode::Encode,
     executor::Execute,
     pool::PoolConnection,
@@ -195,44 +193,126 @@ pub struct Map<F> {
     mapper: F,
 }
 
-/// Execute queries without exposing the legacy `Executor` trait.
-pub trait QueryExecutor {
-    /// Execute the query and return a summary of changes.
-    fn execute_query<'async_trait>(
-        self,
-        query: Query,
-    ) -> Pin<Box<dyn Future<Output = Result<QueryResult>> + Send + 'async_trait>>
+/// Private access to the connection that runs a query.
+mod as_connection {
+    use super::*;
+
+    /// Prevent downstream implementations of [`AsConnection`].
+    pub trait Sealed {}
+
+    /// Access the inner connection used to execute a query.
+    pub trait AsConnection: Sealed {
+        /// Return the connection that should run the query.
+        fn as_connection(&self) -> &Connection;
+    }
+
+    impl Sealed for Connection {}
+    impl AsConnection for Connection {
+        fn as_connection(&self) -> &Connection {
+            self
+        }
+    }
+
+    impl Sealed for PoolConnection {}
+    impl AsConnection for PoolConnection {
+        fn as_connection(&self) -> &Connection {
+            self
+        }
+    }
+
+    impl<C> Sealed for Transaction<C> where C: DerefMut<Target = Connection> + Send {}
+    impl<C> AsConnection for Transaction<C>
     where
-        Self: 'async_trait;
+        C: DerefMut<Target = Connection> + Send,
+    {
+        fn as_connection(&self) -> &Connection {
+            self
+        }
+    }
+}
+
+use as_connection::AsConnection;
+
+/// Prevent downstream implementations of [`QueryExecutor`].
+mod query_executor_sealed {
+    /// Sealed trait for [`QueryExecutor`].
+    pub trait Sealed {}
+}
+
+/// Execute queries against a connection, pool, or transaction.
+///
+/// This trait is sealed. The bound is nameable so callers can write generic
+/// helpers over [`Query::execute`].
+pub trait QueryExecutor: query_executor_sealed::Sealed {
+    /// Execute the query and return a summary of changes.
+    fn execute_query(self, query: Query) -> impl Future<Output = Result<QueryResult>> + Send;
     /// Execute the query and stream rows as they are produced.
     fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
     where
         Self: 'c;
     /// Execute the query and collect all rows.
-    fn fetch_all_query<'async_trait>(
-        self,
-        query: Query,
-    ) -> Pin<Box<dyn Future<Output = Result<Vec<Row>>> + Send + 'async_trait>>
-    where
-        Self: 'async_trait;
+    fn fetch_all_query(self, query: Query) -> impl Future<Output = Result<Vec<Row>>> + Send;
     /// Execute the query and fetch exactly one row.
-    fn fetch_one_query<'async_trait>(
-        self,
-        query: Query,
-    ) -> Pin<Box<dyn Future<Output = Result<Row>> + Send + 'async_trait>>
-    where
-        Self: 'async_trait;
+    fn fetch_one_query(self, query: Query) -> impl Future<Output = Result<Row>> + Send;
     /// Execute the query and fetch at most one row.
-    fn fetch_optional_query<'async_trait>(
-        self,
-        query: Query,
-    ) -> Pin<Box<dyn Future<Output = Result<Option<Row>>> + Send + 'async_trait>>
-    where
-        Self: 'async_trait;
+    fn fetch_optional_query(self, query: Query)
+    -> impl Future<Output = Result<Option<Row>>> + Send;
 }
 
-// Implement QueryExecutor for &Pool
-#[async_trait]
+impl<T: AsConnection + Sync> query_executor_sealed::Sealed for &T {}
+impl<T: AsConnection + Send> query_executor_sealed::Sealed for &mut T {}
+impl query_executor_sealed::Sealed for &crate::Pool {}
+
+impl<T: AsConnection + Sync> QueryExecutor for &T {
+    async fn execute_query(self, query: Query) -> Result<QueryResult> {
+        self.as_connection().execute(query).await
+    }
+
+    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+    where
+        Self: 'c,
+    {
+        self.as_connection().fetch(query)
+    }
+
+    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
+        self.as_connection().fetch_all(query).await
+    }
+
+    async fn fetch_one_query(self, query: Query) -> Result<Row> {
+        self.as_connection().fetch_one(query).await
+    }
+
+    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
+        self.as_connection().fetch_optional(query).await
+    }
+}
+
+impl<T: AsConnection + Send> QueryExecutor for &mut T {
+    async fn execute_query(self, query: Query) -> Result<QueryResult> {
+        self.as_connection().execute(query).await
+    }
+
+    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+    where
+        Self: 'c,
+    {
+        self.as_connection().fetch(query)
+    }
+
+    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
+        self.as_connection().fetch_all(query).await
+    }
+
+    async fn fetch_one_query(self, query: Query) -> Result<Row> {
+        self.as_connection().fetch_one(query).await
+    }
+
+    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
+        self.as_connection().fetch_optional(query).await
+    }
+}
+
 impl QueryExecutor for &crate::Pool {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
         let conn = self.acquire().await?;
@@ -265,142 +345,6 @@ impl QueryExecutor for &crate::Pool {
 
     async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
         let conn = self.acquire().await?;
-        conn.fetch_optional(query).await
-    }
-}
-
-// Implement QueryExecutor for &Connection
-#[async_trait]
-impl QueryExecutor for &crate::Connection {
-    async fn execute_query(self, query: Query) -> Result<QueryResult> {
-        self.execute(query).await
-    }
-
-    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
-    where
-        Self: 'c,
-    {
-        self.fetch(query)
-    }
-
-    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
-        self.fetch_all(query).await
-    }
-
-    async fn fetch_one_query(self, query: Query) -> Result<Row> {
-        self.fetch_one(query).await
-    }
-
-    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
-        self.fetch_optional(query).await
-    }
-}
-
-// Implement QueryExecutor for &PoolConnection
-#[async_trait]
-impl QueryExecutor for &PoolConnection {
-    async fn execute_query(self, query: Query) -> Result<QueryResult> {
-        self.execute(query).await
-    }
-
-    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
-    where
-        Self: 'c,
-    {
-        self.fetch(query)
-    }
-
-    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
-        self.fetch_all(query).await
-    }
-
-    async fn fetch_one_query(self, query: Query) -> Result<Row> {
-        self.fetch_one(query).await
-    }
-
-    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
-        self.fetch_optional(query).await
-    }
-}
-
-// Implement QueryExecutor for &Transaction<C>
-#[async_trait]
-impl<C> QueryExecutor for &crate::Transaction<C>
-where
-    C: DerefMut<Target = crate::Connection> + Send + Sync,
-{
-    async fn execute_query(self, query: Query) -> Result<QueryResult> {
-        let conn: &crate::Connection = self.deref();
-        conn.execute(query).await
-    }
-
-    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
-    where
-        Self: 'c,
-    {
-        use futures_util::TryStreamExt;
-        Box::pin(async_stream::try_stream! {
-            let conn: &crate::Connection = self.deref();
-            let mut stream = conn.fetch(query);
-            while let Some(row) = stream.try_next().await? {
-                yield row;
-            }
-        })
-    }
-
-    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
-        let conn: &crate::Connection = self.deref();
-        conn.fetch_all(query).await
-    }
-
-    async fn fetch_one_query(self, query: Query) -> Result<Row> {
-        let conn: &crate::Connection = self.deref();
-        conn.fetch_one(query).await
-    }
-
-    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
-        let conn: &crate::Connection = self.deref();
-        conn.fetch_optional(query).await
-    }
-}
-
-// Implement QueryExecutor for &mut Transaction<C>
-#[async_trait]
-impl<C> QueryExecutor for &mut crate::Transaction<C>
-where
-    C: DerefMut<Target = crate::Connection> + Send + Sync,
-{
-    async fn execute_query(self, query: Query) -> Result<QueryResult> {
-        let conn: &crate::Connection = self.deref();
-        conn.execute(query).await
-    }
-
-    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
-    where
-        Self: 'c,
-    {
-        use futures_util::TryStreamExt;
-        Box::pin(async_stream::try_stream! {
-            let conn: &crate::Connection = self.deref();
-            let mut stream = conn.fetch(query);
-            while let Some(row) = stream.try_next().await? {
-                yield row;
-            }
-        })
-    }
-
-    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
-        let conn: &crate::Connection = self.deref();
-        conn.fetch_all(query).await
-    }
-
-    async fn fetch_one_query(self, query: Query) -> Result<Row> {
-        let conn: &crate::Connection = self.deref();
-        conn.fetch_one(query).await
-    }
-
-    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
-        let conn: &crate::Connection = self.deref();
         conn.fetch_optional(query).await
     }
 }

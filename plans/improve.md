@@ -997,7 +997,7 @@ deprecation shim or a transition default.
 
 ### Stage 4: Public API Tightening
 
-1. [ ] §18. Add sealed `AsConnection`; blanket `QueryExecutor for &T` and
+1. [x] §18. Add sealed `AsConnection`; blanket `QueryExecutor for &T` and
    `&mut T`; one impl for `&Pool`. Replace `#[async_trait]` with native
    `async fn` in trait. Seal and re-export `QueryExecutor`. Delete
    `impl Execute for &str`. Remove `async-trait` from `Cargo.toml`.

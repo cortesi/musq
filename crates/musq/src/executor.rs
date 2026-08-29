@@ -8,7 +8,6 @@ mod sealed {
     /// Prevent downstream implementations of [`Execute`].
     pub trait Sealed {}
 
-    impl Sealed for &str {}
     impl Sealed for Query {}
     impl<F> Sealed for Map<F> {}
 }
@@ -19,7 +18,6 @@ mod sealed {
 ///
 /// Implemented for the following:
 ///
-///  * [`&str`](std::str)
 ///  * [`Query`](super::query::Query)
 ///  * [`Map<F>`](super::query::Map)
 ///
@@ -33,16 +31,6 @@ pub trait Execute: sealed::Sealed + Send + Sized {
     /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
     /// will be prepared (and cached) before execution.
     fn arguments(&mut self) -> Option<Arguments>;
-}
-
-impl Execute for &str {
-    fn sql(&self) -> &str {
-        self
-    }
-
-    fn arguments(&mut self) -> Option<Arguments> {
-        None
-    }
 }
 
 #[cfg(test)]
