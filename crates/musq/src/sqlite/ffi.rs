@@ -18,7 +18,7 @@ use libsqlite3_sys::{self as ffi_sys, sqlite3, sqlite3_stmt};
 #[cfg(feature = "vec")]
 use sqlite_vec::sqlite3_vec_init;
 
-use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
+use crate::sqlite::error::SqliteError;
 
 // A compile-time assertion to ensure that `c_int` is 32 bits.
 const _: () = {
@@ -61,11 +61,7 @@ pub fn open_v2(
         // handle may be null on OOM
         let db = unsafe { *handle };
         if db.is_null() {
-            Err(SqliteError {
-                primary: PrimaryErrCode::Unknown(rc as u32),
-                extended: ExtendedErrCode::Unknown(rc as u32),
-                message: "sqlite3_open_v2 failed".into(),
-            })
+            Err(SqliteError::from_code(rc, "sqlite3_open_v2 failed"))
         } else {
             // capture the error before closing the handle
             let err = SqliteError::new(db);
@@ -293,6 +289,25 @@ pub fn errmsg(db: *mut sqlite3) -> *const c_char {
     unsafe { ffi_sys::sqlite3_errmsg(db) }
 }
 
+/// Wrapper around [`sqlite3_error_offset`].
+///
+/// Returns the byte offset of the failing token, or `None` when SQLite does
+/// not report an offset (`-1`).
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+///
+/// See <https://www.sqlite.org/c3ref/errcode.html>
+#[inline]
+pub fn error_offset(db: *mut sqlite3) -> Option<usize> {
+    let offset = unsafe { ffi_sys::sqlite3_error_offset(db) };
+    if offset < 0 {
+        None
+    } else {
+        Some(offset as usize)
+    }
+}
+
 /// Wrapper around [`sqlite3_close`].
 ///
 /// # Safety
@@ -414,11 +429,10 @@ pub fn register_vec() -> crate::Result<()> {
 
         match auto_extension(Some(entry_point)) {
             Ok(()) => Ok(()),
-            Err(rc) => Err(SqliteError {
-                primary: PrimaryErrCode::Unknown(rc as u32),
-                extended: ExtendedErrCode::Unknown(rc as u32),
-                message: format!("sqlite3_auto_extension(sqlite3_vec_init) failed with rc={rc}"),
-            }),
+            Err(rc) => Err(SqliteError::from_code(
+                rc,
+                format!("sqlite3_auto_extension(sqlite3_vec_init) failed with rc={rc}"),
+            )),
         }
     });
 
@@ -727,6 +741,7 @@ mod tests {
     use std::{ffi::CString, ptr};
 
     use super::*;
+    use crate::sqlite::error::PrimaryErrCode;
 
     #[test]
     fn basic_open_prepare_step_reset_finalize() {

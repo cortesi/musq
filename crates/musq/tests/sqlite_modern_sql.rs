@@ -39,7 +39,10 @@ mod tests {
                 .execute(&conn)
                 .await,
         );
-        assert_eq!(not_null_error.extended, ExtendedErrCode::ConstraintNotNull);
+        assert_eq!(
+            not_null_error.extended,
+            Some(ExtendedErrCode::ConstraintNotNull)
+        );
 
         query("ALTER TABLE modern_users ALTER COLUMN name DROP NOT NULL")
             .execute(&conn)
@@ -62,7 +65,7 @@ mod tests {
                 .execute(&conn)
                 .await,
         );
-        assert_eq!(check_error.extended, ExtendedErrCode::ConstraintCheck);
+        assert_eq!(check_error.extended, Some(ExtendedErrCode::ConstraintCheck));
         assert!(check_error.message.contains("age_nonnegative"));
 
         query("ALTER TABLE modern_users DROP CONSTRAINT age_nonnegative")
@@ -132,6 +135,6 @@ mod tests {
     where
         T: Debug,
     {
-        result.unwrap_err().into_sqlite_error().unwrap()
+        result.unwrap_err().as_sqlite().cloned().unwrap()
     }
 }

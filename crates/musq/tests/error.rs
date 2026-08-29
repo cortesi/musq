@@ -7,7 +7,7 @@ mod support_db;
 #[cfg(test)]
 mod tests {
     use musq::{
-        Result,
+        Result, SqliteError,
         error::{Error, ExtendedErrCode, PrimaryErrCode},
         query,
     };
@@ -29,11 +29,11 @@ mod tests {
             err.sqlite_codes(),
             Some((
                 PrimaryErrCode::Constraint,
-                ExtendedErrCode::ConstraintPrimaryKey
+                Some(ExtendedErrCode::ConstraintPrimaryKey)
             ))
         );
 
-        let err = err.into_sqlite_error().unwrap();
+        let err = err.as_sqlite().unwrap();
         assert!(err.message.contains("constraint"));
         Ok(())
     }
@@ -57,7 +57,7 @@ mod tests {
             error.sqlite_codes(),
             Some((
                 PrimaryErrCode::Constraint,
-                ExtendedErrCode::ConstraintUnique
+                Some(ExtendedErrCode::ConstraintUnique)
             ))
         );
         Ok(())
@@ -70,20 +70,22 @@ mod tests {
             ExtendedErrCode::BusySnapshot,
             ExtendedErrCode::BusyTimeout,
         ] {
-            let error = Error::Sqlite {
+            let error = Error::Sqlite(SqliteError {
                 primary: PrimaryErrCode::Busy,
-                extended,
+                extended: Some(extended),
                 message: "busy".into(),
-            };
+                offset: None,
+            });
             assert!(error.is_busy());
             assert!(!error.is_unique_violation());
         }
 
-        let other_sqlite = Error::Sqlite {
+        let other_sqlite = Error::Sqlite(SqliteError {
             primary: PrimaryErrCode::Error,
-            extended: ExtendedErrCode::Unknown(1),
+            extended: None,
             message: "other".into(),
-        };
+            offset: None,
+        });
         assert!(!other_sqlite.is_busy());
         assert!(!other_sqlite.is_unique_violation());
 
@@ -104,7 +106,7 @@ mod tests {
                 .await;
         let err = res.unwrap_err();
 
-        let err = err.into_sqlite_error().unwrap();
+        let err = err.as_sqlite().unwrap();
 
         assert!(err.message.contains("constraint"));
 
@@ -121,7 +123,7 @@ mod tests {
             .await;
         let err = res.unwrap_err();
 
-        let err = err.into_sqlite_error().unwrap();
+        let err = err.as_sqlite().unwrap();
 
         assert!(err.message.contains("constraint"));
 
@@ -138,7 +140,7 @@ mod tests {
             .await;
         let err = res.unwrap_err();
 
-        let err = err.into_sqlite_error().unwrap();
+        let err = err.as_sqlite().unwrap();
 
         assert!(err.message.contains("constraint"));
 
@@ -158,8 +160,24 @@ mod tests {
 
         let err = res.unwrap_err();
         println!("error: {err:?}");
-        assert!(err.into_sqlite_error().is_some());
+        assert!(err.as_sqlite().is_some());
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn syntax_error_reports_offset_and_plain_code() -> anyhow::Result<()> {
+        let pool = musq::Musq::new().open_in_memory().await?;
+        let error = query("SELECT * FORM t").execute(&pool).await.unwrap_err();
+        let sqlite = error.as_sqlite().expect("SQLite syntax error");
+        assert_eq!(sqlite.primary, PrimaryErrCode::Error);
+        assert_eq!(sqlite.extended, None);
+        assert_eq!(sqlite.offset, Some(9));
+        assert_eq!(
+            error.to_string(),
+            r#"SQLITE_ERROR at byte 9: near "FORM": syntax error"#
+        );
+        let _ = pool.close().await;
         Ok(())
     }
 }

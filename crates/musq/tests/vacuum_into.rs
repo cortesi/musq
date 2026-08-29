@@ -85,7 +85,7 @@ mod tests {
         let pool = source_pool(&source).await?;
 
         let error = pool.vacuum_into(&destination).await.unwrap_err();
-        assert!(matches!(error, Error::Sqlite { .. }), "{error:?}");
+        assert!(matches!(error, Error::Sqlite(_)), "{error:?}");
 
         let _ = pool.close().await;
         Ok(())
@@ -138,7 +138,9 @@ mod tests {
 
     fn assert_sqlite_message(error: Error, expected: &str) {
         match error {
-            Error::Sqlite { message, .. } => assert!(message.contains(expected), "{message:?}"),
+            Error::Sqlite(error) => {
+                assert!(error.message.contains(expected), "{:?}", error.message)
+            }
             other => panic!("expected SQLite error, got {other:?}"),
         }
     }

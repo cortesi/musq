@@ -926,7 +926,7 @@ deprecation shim or a transition default.
    with Apple Clang `-fsanitize=address` failed to link against rustc's ASan
    runtime (`___asan_version_mismatch_check_apple_clang_2100`); the recorded
    run instruments Rust only.
-2. [ ] §4. Make `Error::Sqlite(#[from] SqliteError)`. Delete
+2. [x] §4. Make `Error::Sqlite(#[from] SqliteError)`. Delete
    `Error::into_sqlite_error`, the duplicated `is_busy` /
    `is_unique_violation`, and the field-copy `From`. Change
    `SqliteError.extended` to `Option<ExtendedErrCode>`. Add

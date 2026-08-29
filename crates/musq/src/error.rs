@@ -6,7 +6,7 @@ use tokio::sync::TryLockError;
 
 pub use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode};
 use crate::{
-    SqliteDataType, sqlite,
+    SqliteDataType,
     sqlite::{Value, error::SqliteError},
 };
 
@@ -55,17 +55,8 @@ impl From<String> for EncodeError {
 #[non_exhaustive]
 pub enum Error {
     /// Error returned from the database.
-    #[error(
-        "error returned from database (primary: {primary:?}, extended: {extended:?}): {message}"
-    )]
-    Sqlite {
-        /// Primary SQLite error code.
-        primary: PrimaryErrCode,
-        /// Extended SQLite error code.
-        extended: ExtendedErrCode,
-        /// SQLite-provided error message.
-        message: String,
-    },
+    #[error("{0}")]
+    Sqlite(#[from] SqliteError),
 
     /// Error communicating with the database backend.
     #[error("error communicating with database: {0}")]
@@ -156,53 +147,28 @@ pub enum Error {
 }
 
 impl Error {
-    /// Return the primary and extended SQLite codes without consuming the error.
-    pub fn sqlite_codes(&self) -> Option<(PrimaryErrCode, ExtendedErrCode)> {
+    /// Return a reference to the inner SQLite error when this error came from SQLite.
+    pub fn as_sqlite(&self) -> Option<&SqliteError> {
         match self {
-            Self::Sqlite {
-                primary, extended, ..
-            } => Some((*primary, *extended)),
+            Self::Sqlite(error) => Some(error),
             _ => None,
         }
+    }
+
+    /// Return the primary and extended SQLite codes without consuming the error.
+    pub fn sqlite_codes(&self) -> Option<(PrimaryErrCode, Option<ExtendedErrCode>)> {
+        self.as_sqlite().map(SqliteError::codes)
     }
 
     /// Returns `true` if this error represents a busy SQLite database.
     pub fn is_busy(&self) -> bool {
-        self.sqlite_codes().is_some_and(|(primary, extended)| {
-            primary == PrimaryErrCode::Busy || extended.is_busy()
-        })
+        self.as_sqlite().is_some_and(SqliteError::is_busy)
     }
 
     /// Returns `true` if this error represents a SQLite unique-value conflict.
     pub fn is_unique_violation(&self) -> bool {
-        self.sqlite_codes()
-            .is_some_and(|(_, extended)| extended.is_unique_violation())
-    }
-
-    /// Convert this error into a SQLite error if it originated there.
-    pub fn into_sqlite_error(self) -> Option<sqlite::error::SqliteError> {
-        match self {
-            Self::Sqlite {
-                primary,
-                extended,
-                message,
-            } => Some(sqlite::error::SqliteError {
-                primary,
-                extended,
-                message,
-            }),
-            _ => None,
-        }
-    }
-}
-
-impl From<SqliteError> for Error {
-    fn from(error: SqliteError) -> Self {
-        Self::Sqlite {
-            primary: error.primary,
-            extended: error.extended,
-            message: error.message,
-        }
+        self.as_sqlite()
+            .is_some_and(SqliteError::is_unique_violation)
     }
 }
 

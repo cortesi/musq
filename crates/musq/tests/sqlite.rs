@@ -222,7 +222,8 @@ mod tests {
 
         assert!(res.is_err());
 
-        let err = res.unwrap_err().into_sqlite_error().unwrap();
+        let err = res.unwrap_err();
+        let err = err.as_sqlite().unwrap();
 
         assert_eq!(err.message, "near \"SEELCT\": syntax error");
 

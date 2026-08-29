@@ -10,7 +10,7 @@ use crate::{
     error::{Error, Result},
     sqlite::{
         DEFAULT_MAX_RETRIES,
-        error::{ExtendedErrCode, PrimaryErrCode},
+        error::{PrimaryErrCode, SqliteError},
         ffi,
     },
 };
@@ -45,12 +45,11 @@ pub fn wait(conn: *mut sqlite3, stmt: Option<*mut sqlite3_stmt>) -> Result<()> {
                 // that a deadlock was detected and the unlock notification was not
                 // queued. The statement should be reset or stepped to break the
                 // deadlock before retrying.
-                return Err(Error::Sqlite {
-                    primary: PrimaryErrCode::Locked,
-                    extended: ExtendedErrCode::Unknown(SQLITE_LOCKED as u32),
-                    message:
-                        "sqlite3_unlock_notify returned SQLITE_LOCKED (deadlock). Reset the blocking statement and retry".to_string(),
-                });
+                return Err(SqliteError::from_code(
+                    SQLITE_LOCKED,
+                    "sqlite3_unlock_notify returned SQLITE_LOCKED (deadlock). Reset the blocking statement and retry",
+                )
+                .into());
             }
             Err(e) => return Err(e.into()),
         }
@@ -113,15 +112,10 @@ impl Notify {
 /// Tests for unlock notification handling.
 mod tests {
     use super::*;
-    use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode, SqliteError};
+    use crate::sqlite::error::SqliteError;
 
-    // Helper to create a SqliteError representing SQLITE_LOCKED
     fn locked_error() -> SqliteError {
-        SqliteError {
-            primary: PrimaryErrCode::Locked,
-            extended: ExtendedErrCode::Unknown(SQLITE_LOCKED as u32),
-            message: String::new(),
-        }
+        SqliteError::from_code(SQLITE_LOCKED, "")
     }
 
     #[test]

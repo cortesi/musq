@@ -212,7 +212,7 @@ mod tests {
             .fetch_one(&conn)
             .await
             .unwrap_err();
-        let sqlite_error = error.into_sqlite_error().expect("SQLite parser error");
+        let sqlite_error = error.as_sqlite().expect("SQLite parser error");
         assert!(
             sqlite_error.message.contains("parser stack overflow")
                 || sqlite_error.message.contains("Recursion limit")

@@ -1,4 +1,8 @@
-use std::ffi::CStr;
+use std::{
+    error::Error as StdError,
+    ffi::CStr,
+    fmt::{self, Display, Formatter},
+};
 
 use libsqlite3_sys::{self, sqlite3};
 
@@ -107,6 +111,42 @@ impl PrimaryErrCode {
             libsqlite3_sys::SQLITE_NOTICE => Self::Notice,
             libsqlite3_sys::SQLITE_WARNING => Self::Warning,
             _ => Self::Unknown(code as u32),
+        }
+    }
+}
+
+impl Display for PrimaryErrCode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::Error => f.write_str("SQLITE_ERROR"),
+            Self::Internal => f.write_str("SQLITE_INTERNAL"),
+            Self::Perm => f.write_str("SQLITE_PERM"),
+            Self::Abort => f.write_str("SQLITE_ABORT"),
+            Self::Busy => f.write_str("SQLITE_BUSY"),
+            Self::Locked => f.write_str("SQLITE_LOCKED"),
+            Self::NoMem => f.write_str("SQLITE_NOMEM"),
+            Self::ReadOnly => f.write_str("SQLITE_READONLY"),
+            Self::Interrupt => f.write_str("SQLITE_INTERRUPT"),
+            Self::IoErr => f.write_str("SQLITE_IOERR"),
+            Self::Corrupt => f.write_str("SQLITE_CORRUPT"),
+            Self::NotFound => f.write_str("SQLITE_NOTFOUND"),
+            Self::Full => f.write_str("SQLITE_FULL"),
+            Self::CantOpen => f.write_str("SQLITE_CANTOPEN"),
+            Self::Protocol => f.write_str("SQLITE_PROTOCOL"),
+            Self::Empty => f.write_str("SQLITE_EMPTY"),
+            Self::Schema => f.write_str("SQLITE_SCHEMA"),
+            Self::TooBig => f.write_str("SQLITE_TOOBIG"),
+            Self::Constraint => f.write_str("SQLITE_CONSTRAINT"),
+            Self::Mismatch => f.write_str("SQLITE_MISMATCH"),
+            Self::Misuse => f.write_str("SQLITE_MISUSE"),
+            Self::NoLfs => f.write_str("SQLITE_NOLFS"),
+            Self::Auth => f.write_str("SQLITE_AUTH"),
+            Self::Format => f.write_str("SQLITE_FORMAT"),
+            Self::Range => f.write_str("SQLITE_RANGE"),
+            Self::NotADB => f.write_str("SQLITE_NOTADB"),
+            Self::Notice => f.write_str("SQLITE_NOTICE"),
+            Self::Warning => f.write_str("SQLITE_WARNING"),
+            Self::Unknown(code) => write!(f, "SQLITE_{code}"),
         }
     }
 }
@@ -372,19 +412,119 @@ impl ExtendedErrCode {
     }
 }
 
-/// An error returned from Sqlite
-#[derive(Debug, Clone, thiserror::Error)]
-#[error("(code: {:?}) {message}", .extended)]
+impl Display for ExtendedErrCode {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        match self {
+            Self::ErrorMissingCollseq => f.write_str("SQLITE_ERROR_MISSING_COLLSEQ"),
+            Self::ErrorRetry => f.write_str("SQLITE_ERROR_RETRY"),
+            Self::ErrorSnapshot => f.write_str("SQLITE_ERROR_SNAPSHOT"),
+            Self::IOErrRead => f.write_str("SQLITE_IOERR_READ"),
+            Self::IOErrShortRead => f.write_str("SQLITE_IOERR_SHORT_READ"),
+            Self::IOErrWrite => f.write_str("SQLITE_IOERR_WRITE"),
+            Self::IOErrFsync => f.write_str("SQLITE_IOERR_FSYNC"),
+            Self::IOErrDirFsync => f.write_str("SQLITE_IOERR_DIR_FSYNC"),
+            Self::IOErrTruncate => f.write_str("SQLITE_IOERR_TRUNCATE"),
+            Self::IOErrFstat => f.write_str("SQLITE_IOERR_FSTAT"),
+            Self::IOErrUnlock => f.write_str("SQLITE_IOERR_UNLOCK"),
+            Self::IOErrRdlock => f.write_str("SQLITE_IOERR_RDLOCK"),
+            Self::IOErrDelete => f.write_str("SQLITE_IOERR_DELETE"),
+            Self::IOErrBlocked => f.write_str("SQLITE_IOERR_BLOCKED"),
+            Self::IOErrNoMem => f.write_str("SQLITE_IOERR_NOMEM"),
+            Self::IOErrAccess => f.write_str("SQLITE_IOERR_ACCESS"),
+            Self::IOErrCheckReservedLock => f.write_str("SQLITE_IOERR_CHECKRESERVEDLOCK"),
+            Self::IOErrLock => f.write_str("SQLITE_IOERR_LOCK"),
+            Self::IOErrClose => f.write_str("SQLITE_IOERR_CLOSE"),
+            Self::IOErrDirClose => f.write_str("SQLITE_IOERR_DIR_CLOSE"),
+            Self::IOErrShmopen => f.write_str("SQLITE_IOERR_SHMOPEN"),
+            Self::IOErrShmsize => f.write_str("SQLITE_IOERR_SHMSIZE"),
+            Self::IOErrShmlock => f.write_str("SQLITE_IOERR_SHMLOCK"),
+            Self::IOErrShmmap => f.write_str("SQLITE_IOERR_SHMMAP"),
+            Self::IOErrSeek => f.write_str("SQLITE_IOERR_SEEK"),
+            Self::IOErrDeleteNoent => f.write_str("SQLITE_IOERR_DELETE_NOENT"),
+            Self::IOErrMmap => f.write_str("SQLITE_IOERR_MMAP"),
+            Self::IOErrGetTempPath => f.write_str("SQLITE_IOERR_GETTEMPPATH"),
+            Self::IOErrConvPath => f.write_str("SQLITE_IOERR_CONVPATH"),
+            Self::IOErrVnode => f.write_str("SQLITE_IOERR_VNODE"),
+            Self::IOErrAuth => f.write_str("SQLITE_IOERR_AUTH"),
+            Self::IOErrBeginAtomic => f.write_str("SQLITE_IOERR_BEGIN_ATOMIC"),
+            Self::IOErrCommitAtomic => f.write_str("SQLITE_IOERR_COMMIT_ATOMIC"),
+            Self::IOErrRollbackAtomic => f.write_str("SQLITE_IOERR_ROLLBACK_ATOMIC"),
+            Self::IOErrData => f.write_str("SQLITE_IOERR_DATA"),
+            Self::IOErrCorruptFs => f.write_str("SQLITE_IOERR_CORRUPTFS"),
+            Self::LockedSharedCache => f.write_str("SQLITE_LOCKED_SHAREDCACHE"),
+            Self::LockedVTab => f.write_str("SQLITE_LOCKED_VTAB"),
+            Self::BusyRecovery => f.write_str("SQLITE_BUSY_RECOVERY"),
+            Self::BusySnapshot => f.write_str("SQLITE_BUSY_SNAPSHOT"),
+            Self::BusyTimeout => f.write_str("SQLITE_BUSY_TIMEOUT"),
+            Self::CantOpenNoTempDir => f.write_str("SQLITE_CANTOPEN_NOTEMPDIR"),
+            Self::CantOpenIsDir => f.write_str("SQLITE_CANTOPEN_ISDIR"),
+            Self::CantOpenFullPath => f.write_str("SQLITE_CANTOPEN_FULLPATH"),
+            Self::CantOpenConvPath => f.write_str("SQLITE_CANTOPEN_CONVPATH"),
+            Self::CantOpenDirtyWal => f.write_str("SQLITE_CANTOPEN_DIRTYWAL"),
+            Self::CantOpenSymlink => f.write_str("SQLITE_CANTOPEN_SYMLINK"),
+            Self::CorruptVTab => f.write_str("SQLITE_CORRUPT_VTAB"),
+            Self::CorruptSequence => f.write_str("SQLITE_CORRUPT_SEQUENCE"),
+            Self::CorruptIndex => f.write_str("SQLITE_CORRUPT_INDEX"),
+            Self::ReadOnlyRecovery => f.write_str("SQLITE_READONLY_RECOVERY"),
+            Self::ReadOnlyCantLock => f.write_str("SQLITE_READONLY_CANTLOCK"),
+            Self::ReadOnlyRollback => f.write_str("SQLITE_READONLY_ROLLBACK"),
+            Self::ReadOnlyDbMoved => f.write_str("SQLITE_READONLY_DBMOVED"),
+            Self::ReadOnlyCantInit => f.write_str("SQLITE_READONLY_CANTINIT"),
+            Self::ReadOnlyDirectory => f.write_str("SQLITE_READONLY_DIRECTORY"),
+            Self::AbortRollback => f.write_str("SQLITE_ABORT_ROLLBACK"),
+            Self::ConstraintCheck => f.write_str("SQLITE_CONSTRAINT_CHECK"),
+            Self::ConstraintCommitHook => f.write_str("SQLITE_CONSTRAINT_COMMITHOOK"),
+            Self::ConstraintForeignKey => f.write_str("SQLITE_CONSTRAINT_FOREIGNKEY"),
+            Self::ConstraintFunction => f.write_str("SQLITE_CONSTRAINT_FUNCTION"),
+            Self::ConstraintNotNull => f.write_str("SQLITE_CONSTRAINT_NOTNULL"),
+            Self::ConstraintPrimaryKey => f.write_str("SQLITE_CONSTRAINT_PRIMARYKEY"),
+            Self::ConstraintTrigger => f.write_str("SQLITE_CONSTRAINT_TRIGGER"),
+            Self::ConstraintUnique => f.write_str("SQLITE_CONSTRAINT_UNIQUE"),
+            Self::ConstraintVTab => f.write_str("SQLITE_CONSTRAINT_VTAB"),
+            Self::ConstraintRowId => f.write_str("SQLITE_CONSTRAINT_ROWID"),
+            Self::ConstraintPinned => f.write_str("SQLITE_CONSTRAINT_PINNED"),
+            Self::ConstraintDataType => f.write_str("SQLITE_CONSTRAINT_DATATYPE"),
+            Self::NoticeRecoverWal => f.write_str("SQLITE_NOTICE_RECOVER_WAL"),
+            Self::NoticeRecoverRollback => f.write_str("SQLITE_NOTICE_RECOVER_ROLLBACK"),
+            Self::WarningAutoIndex => f.write_str("SQLITE_WARNING_AUTOINDEX"),
+            Self::AuthUser => f.write_str("SQLITE_AUTH_USER"),
+            Self::OkLoadPermanently => f.write_str("SQLITE_OK_LOAD_PERMANENTLY"),
+            Self::OkSymlink => f.write_str("SQLITE_OK_SYMLINK"),
+            Self::Unknown(code) => write!(f, "SQLITE_{code}"),
+        }
+    }
+}
+
+/// An error returned from SQLite.
+#[derive(Debug, Clone)]
 pub struct SqliteError {
     /// Primary error code.
     pub primary: PrimaryErrCode,
-    /// Extended error code.
-    pub extended: ExtendedErrCode,
+    /// Extended error code. `None` when SQLite reported only the primary code.
+    pub extended: Option<ExtendedErrCode>,
     /// SQLite-provided error message.
     pub message: String,
+    /// Byte offset of the failing token in the SQL, when SQLite reports one.
+    pub offset: Option<usize>,
 }
 
 impl SqliteError {
+    /// Build a new error from a raw SQLite result code and message.
+    pub(crate) fn from_code(code: i32, message: impl Into<String>) -> Self {
+        let primary = PrimaryErrCode::from_code(code);
+        let extended = if code & 255 == code {
+            None
+        } else {
+            Some(ExtendedErrCode::from_code(code))
+        };
+        Self {
+            primary,
+            extended,
+            message: message.into(),
+            offset: None,
+        }
+    }
+
     /// Build a new error from the active SQLite handle.
     pub(crate) fn new(handle: *mut sqlite3) -> Self {
         let code = ffi::extended_errcode(handle);
@@ -395,31 +535,45 @@ impl SqliteError {
         };
 
         Self {
-            extended: ExtendedErrCode::from_code(code),
-            primary: PrimaryErrCode::from_code(code),
-            message,
+            offset: ffi::error_offset(handle),
+            ..Self::from_code(code, message)
         }
     }
 
     /// Returns `true` if the error represents a busy condition.
     pub fn is_busy(&self) -> bool {
-        self.primary == PrimaryErrCode::Busy || self.extended.is_busy()
+        self.primary == PrimaryErrCode::Busy || self.extended.is_some_and(|code| code.is_busy())
     }
 
     /// Returns `true` if the error represents a unique-value conflict.
     pub fn is_unique_violation(&self) -> bool {
-        self.extended.is_unique_violation()
+        self.extended.is_some_and(|code| code.is_unique_violation())
     }
 
     /// Return the primary and extended SQLite error codes.
-    pub fn codes(&self) -> (PrimaryErrCode, ExtendedErrCode) {
+    pub fn codes(&self) -> (PrimaryErrCode, Option<ExtendedErrCode>) {
         (self.primary, self.extended)
     }
 
     /// Returns `true` if the error indicates a retryable condition.
     pub(crate) fn should_retry(&self) -> bool {
         self.primary == PrimaryErrCode::Locked
-            || self.extended == ExtendedErrCode::LockedSharedCache
+            || self.extended == Some(ExtendedErrCode::LockedSharedCache)
             || self.is_busy()
     }
 }
+
+impl Display for SqliteError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        Display::fmt(&self.primary, f)?;
+        if let Some(extended) = self.extended {
+            write!(f, " ({extended})")?;
+        }
+        if let Some(offset) = self.offset {
+            write!(f, " at byte {offset}")?;
+        }
+        write!(f, ": {}", self.message)
+    }
+}
+
+impl StdError for SqliteError {}
