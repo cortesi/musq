@@ -126,4 +126,27 @@ mod tests {
         assert_eq!(event.level, Level::WARN);
         assert_eq!(event.fields.get("rows_affected").unwrap(), "5");
     }
+
+    #[test]
+    fn logs_raw_sql_when_summary_is_truncated() {
+        let subscriber = CapturingSubscriber::default();
+        let dispatch = dispatcher::Dispatch::new(subscriber.clone());
+        let _guard = dispatcher::set_default(&dispatch);
+
+        let mut settings = LogSettings::default();
+        settings.log_statements(LevelFilter::Info);
+        settings.log_slow_statements(LevelFilter::Warn, Duration::from_secs(60));
+
+        let sql = "SELECT a, b, c, d FROM items WHERE a = 1";
+        drop(QueryLogger::new(sql, settings));
+        drop(_guard);
+
+        let events = subscriber.events();
+        assert_eq!(events.len(), 1);
+        let statement = events[0].fields.get("db.statement").unwrap();
+        assert!(
+            statement.contains(sql),
+            "expected raw SQL in db.statement, got {statement}"
+        );
+    }
 }

@@ -212,7 +212,7 @@ async fn add_user(
 ```
 
 DB-side computed values come from `musq::expr` (`now_rfc3339_utc`, `jsonb`,
-`jsonb_serde`, `raw`):
+`jsonb_serde` with the `json` feature, `raw`):
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#values-expr -->
 ```rust
@@ -291,6 +291,11 @@ The `Encode` and `Decode` traits convert between Rust and SQLite types:
 | `time::Time`                       | TIME        |
 | `VecF32`, `VecInt8`, `VecBit`      | BLOB        |
 
+`bstr::BString` needs the `bstr` feature. `serde_json::Value` and
+`#[derive(musq::Json)]` need the `json` feature. The `time::` types need the
+`time` feature. `VecF32`, `VecInt8`, and `VecBit` need the `vec` feature.
+These four features are on by default.
+
 `Option<T>` maps `None` to `NULL`. For large strings and blobs, prefer owned
 or shared types (`String`, `Vec<u8>`, `Arc<T>`) to avoid copies; blobs can be
 decoded directly into `Arc<Vec<u8>>`. `bstr::BString` handles text-like BLOBs
@@ -300,9 +305,9 @@ Encoding a `u64` or `usize` above `i64::MAX` returns an error. Decode rejects
 negative values for all unsigned integer types. Use `try_bind` when an input can
 exceed SQLite's signed integer range.
 
-`OffsetDateTime` preserves its RFC 3339 offset and fractional precision. Its
-TEXT encoding does not provide chronological lexical order. Use a normalized,
-fixed-width domain type for a sortable database key.
+With the `time` feature, `OffsetDateTime` preserves its RFC 3339 offset and
+fractional precision. Its TEXT encoding does not provide chronological lexical
+order. Use a normalized, fixed-width domain type for a sortable database key.
 
 ### Derived types
 
@@ -358,7 +363,8 @@ impl TryFrom<String> for CheckedUserId {
 }
 ```
 
-`#[derive(musq::Json)]` stores any serde-compatible type as JSON text:
+`#[derive(musq::Json)]` stores any serde-compatible type as JSON text. This
+derive needs the `json` feature:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#json -->
 ```rust
@@ -404,18 +410,23 @@ struct User {
 }
 ```
 
-## Vector search
+## Features
 
-The default `vec` feature registers sqlite-vec on every connection and
-provides the `VecF32`, `VecInt8`, and `VecBit` types. `VecF32` binds directly
-to vector functions and `vec0` tables; `VecInt8` and `VecBit` must be wrapped
-in SQL as `vec_int8(?)` and `vec_bit(?)`.
+Default features: `vec`, `time`, `bstr`, and `json`. A consumer that stores
+only integers and text can turn them off:
 
 ```toml
-musq = { version = "0.0.4", default-features = false }  # opt out of vec
+musq = { version = "0.0.4", default-features = false }
 ```
 
-See the end-to-end example: `cargo run -p musq --example vec`.
+- `vec` registers sqlite-vec on every connection and provides `VecF32`,
+  `VecInt8`, and `VecBit`. `VecF32` binds directly to vector functions and
+  `vec0` tables; wrap `VecInt8` and `VecBit` in SQL as `vec_int8(?)` and
+  `vec_bit(?)`. Example: `cargo run -p musq --example vec`.
+- `time` implements `Encode` and `Decode` for `time` crate date and time types.
+- `bstr` implements `Encode` and `Decode` for `bstr::BString`.
+- `json` implements `Encode` and `Decode` for `serde_json::Value`, enables
+  `#[derive(musq::Json)]`, and exposes `expr::jsonb_serde`.
 
 ## SQLite runtime
 

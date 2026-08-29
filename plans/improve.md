@@ -1072,12 +1072,14 @@ deprecation shim or a transition default.
 
 ### Stage 7: Dependencies, Structure, And Docs
 
-1. [ ] §31. Minimal `tokio` features; drop `either/serde`, `serde/rc`,
+1. [x] §31. Minimal `tokio` features; drop `either/serde`, `serde/rc`,
    `time/serde`; remove `atoi`, `futures-executor`, `sqlformat`; drop
    `pkg-config` and `vcpkg` from `libsqlite3-sys`. Make `time`, `bstr`, and
    `json` default-on features. Remove serde derives from `SqliteDataType`.
    Run `cargo test -p musq --no-default-features` and
    `cargo test -p musq --features vec` as part of the gate.
+   `pkg-config` and `vcpkg` stay: `libsqlite3-sys` 0.38.1 `build.rs` always
+   compiles `build_linked`, which names those crates without `#[cfg]`.
 2. [x] §32. Delete `crates/musq-test`. Move `examples/vec.rs` and a fixed
    `examples/custom_type.rs` into `crates/musq/examples/`; delete the
    `include!` shim and the root `examples/` directory.
@@ -1117,5 +1119,10 @@ date and reason.
 - 2026-08-29: Stage 7 §27 keeps five one-line emit helpers that call
   `emit_at!`. `tracing::event!` needs a constant level, and a match that
   expands the macro in one function trips `clippy::cognitive_complexity`.
-  interrupt after `Connection` is moved into `close(self)`. The race test
-  in `tests/interrupt.rs` requires that cloneable handle.
+- 2026-08-29: Stage 5 §5 adds cloneable `InterruptHandle` so `interrupt`
+  can race `close(self)`. The race test in `tests/interrupt.rs` requires
+  that handle.
+- 2026-08-29: Stage 7 §31 keeps the `pkg-config` and `vcpkg` features of
+  `libsqlite3-sys` 0.38.1. Its `build.rs` always compiles `build_linked`,
+  which names `pkg_config` and `vcpkg` without `#[cfg]`, so the crate does
+  not compile when those features are off.

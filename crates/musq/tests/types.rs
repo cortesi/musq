@@ -50,6 +50,7 @@ mod tests {
             == vec![0_u8, 0, 0, 0, 0x52]
     ));
 
+    #[cfg(feature = "time")]
     mod time_tests {
         use musq::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
         use time::macros::{date, datetime, time};
@@ -99,6 +100,7 @@ mod tests {
         ));
     }
 
+    #[cfg(feature = "bstr")]
     mod bstr {
         use musq::types::bstr::BString;
 

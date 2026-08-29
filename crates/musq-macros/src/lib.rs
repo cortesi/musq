@@ -24,6 +24,8 @@ fn derive_codec_tokens(input: &syn::DeriveInput) -> syn::Result<proc_macro2::Tok
 
 #[proc_macro_derive(Json, attributes(musq))]
 /// Derive JSON encode/decode implementations.
+///
+/// The expanded code needs the musq `json` feature.
 pub fn derive_json(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
     let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
     match json::expand_json(&input) {

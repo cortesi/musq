@@ -226,6 +226,7 @@ fn derives() {
     // snips-end
 
     // snips-start: json
+    #[cfg(feature = "json")]
     #[derive(musq::Json, serde::Serialize, serde::Deserialize, Debug, PartialEq)]
     struct Metadata {
         tags: Vec<String>,

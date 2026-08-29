@@ -6,12 +6,7 @@ mod support;
 mod tests {
     use std::{f32::consts::PI, f64::consts::E};
 
-    use musq::{
-        query::Map,
-        types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time},
-        *,
-    };
-    use time::macros::{date, datetime, time};
+    use musq::{query::Map, *};
 
     use crate::support::connection;
 
@@ -178,10 +173,19 @@ mod tests {
     bind_check!(bind_f64: f64 = E);
     bind_check!(bind_string: String = "hello".to_string());
     bind_check!(bind_bytes: Vec<u8> = vec![1u8, 2, 3]);
-    bind_check!(bind_offset_datetime: OffsetDateTime = datetime!(2025 - 7 - 22 6:20:47 UTC));
-    bind_check!(bind_primitive_datetime: PrimitiveDateTime = datetime!(2025 - 1 - 15 12:30:45));
-    bind_check!(bind_date: Date = date!(2025 - 1 - 1));
-    bind_check!(bind_time: Time = time!(23:59:59));
+
+    #[cfg(feature = "time")]
+    mod time_binds {
+        use musq::types::time::{Date, OffsetDateTime, PrimitiveDateTime, Time};
+        use time::macros::{date, datetime, time};
+
+        use super::*;
+
+        bind_check!(bind_offset_datetime: OffsetDateTime = datetime!(2025 - 7 - 22 6:20:47 UTC));
+        bind_check!(bind_primitive_datetime: PrimitiveDateTime = datetime!(2025 - 1 - 15 12:30:45));
+        bind_check!(bind_date: Date = date!(2025 - 1 - 1));
+        bind_check!(bind_time: Time = time!(23:59:59));
+    }
 
     #[tokio::test]
     async fn test_sql_non_result_context() -> anyhow::Result<()> {

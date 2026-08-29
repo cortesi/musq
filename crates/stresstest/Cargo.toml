@@ -16,7 +16,7 @@ futures = "0.3.30"
 musq.workspace = true
 rand = "0.10.2"
 tempfile = "3.10.1"
-tokio = "1.38.1"
+tokio = { version = "1.38.1", features = ["macros", "rt-multi-thread", "sync"] }
 
 [lints]
 workspace = true

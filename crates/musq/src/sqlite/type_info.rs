@@ -10,7 +10,7 @@ use libsqlite3_sys::{SQLITE_BLOB, SQLITE_FLOAT, SQLITE_INTEGER, SQLITE_NULL, SQL
 ///
 /// **Note:** This enum is marked `#[non_exhaustive]`; additional variants
 /// may be added in the future. Avoid exhaustive matching.
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
 #[non_exhaustive]
 pub enum SqliteDataType {
     /// NULL value.

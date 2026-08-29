@@ -12,21 +12,28 @@ repository.workspace = true
 doctest = false
 
 [features]
-default = ["vec"]
+default = ["vec", "time", "bstr", "json"]
 vec = ["dep:sqlite-vec", "dep:bytemuck"]
+time = ["dep:time"]
+bstr = ["dep:bstr"]
+json = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
 musq-macros.workspace = true
-tokio = { version = "1.15.0", features = ["full"] }
-time = { version = "0.3.14", features = [
-    "formatting",
-    "parsing",
+tokio = { version = "1.15.0", default-features = false, features = [
     "macros",
-    "serde",
+    "rt",
+    "sync",
+    "time",
+] }
+time = { version = "0.3.14", optional = true, features = [
+    "formatting",
+    "macros",
+    "parsing",
 ] }
 bytes = "1.1.0"
 crossbeam-queue = "0.3.2"
-either = { version = "1.6.1", features = ["serde"] }
+either = "1.6.1"
 futures-core = { version = "0.3.19", default-features = false }
 futures-util = { version = "0.3.19", default-features = false, features = [
     "alloc",
@@ -35,17 +42,17 @@ futures-util = { version = "0.3.19", default-features = false, features = [
 ] }
 async-stream = "0.3"
 log = { version = "0.4.14", default-features = false }
-serde = { version = "1.0.132", features = ["derive", "rc"] }
-serde_json = "1.0.73"
-sqlformat = "0.5"
+serde = { version = "1.0.132", optional = true, features = ["derive"] }
+serde_json = { version = "1.0.73", optional = true }
 thiserror = "2.0.12"
 tracing = { version = "0.1.37", features = ["log"] }
-bstr = { version = "1.0", default-features = false, features = ["std"] }
+bstr = { version = "1.0", optional = true, default-features = false, features = [
+    "std",
+] }
 hashlink = "0.12"
 indexmap = "2.0"
 event-listener = "5.3.1"
 flume = "0.12"
-futures-executor = "0.3.28"
 libsqlite3-sys = { version = "0.38", default-features = false, features = [
     "bundled",
     "pkg-config",
@@ -60,14 +67,27 @@ futures = "0.3.19"
 tokio = { version = "1.15.0", features = ["full"] }
 paste = "1.0.6"
 serde = { version = "1.0.132", features = ["derive"] }
+serde_json = "1.0.73"
 rand = "0.10.2"
 rand_xoshiro = "0.8.1"
 tempdir = "0.3.7"
 criterion = { version = "0.8", features = ["async_tokio"] }
 trybuild = "1.0"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [lints]
 workspace = true
+
+[[example]]
+name = "custom_type"
+required-features = ["json"]
+
+[[example]]
+name = "vec"
+required-features = ["vec"]
 
 [[bench]]
 name = "benchmark"

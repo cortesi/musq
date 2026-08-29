@@ -238,17 +238,12 @@ impl<'q> QueryLogger<'q> {
         log::log_enabled!(target: "query", log_level) || tracing_enabled_for(tracing_level)
     }
 
-    /// Build the summary line and optional formatted SQL payload.
+    /// Build the summary line and optional raw SQL payload.
     fn build_log_payload(&self) -> (String, String) {
         let mut summary = parse_query_summary(self.sql);
         if summary != self.sql {
             summary.push_str(" …");
-            let formatted = sqlformat::format(
-                self.sql,
-                &sqlformat::QueryParams::None,
-                &sqlformat::FormatOptions::default(),
-            );
-            (summary, format!("\n\n{}\n", formatted))
+            (summary, format!("\n\n{}\n", self.sql))
         } else {
             (summary, String::new())
         }
@@ -282,7 +277,6 @@ impl QueryLog for NopQueryLogger {
 
 /// Produce a short summary of a SQL statement for logging.
 fn parse_query_summary(sql: &str) -> String {
-    // For now, just take the first 4 words
     sql.split_whitespace()
         .take(4)
         .collect::<Vec<&str>>()

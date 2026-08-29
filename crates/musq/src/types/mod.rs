@@ -21,15 +21,16 @@
 //! | `VecF32`*                             | BLOB                |
 //! | `VecInt8`*                            | BLOB                |
 //! | `VecBit`*                             | BLOB                |
-//! | `time::PrimitiveDateTime`             | DATETIME            |
-//! | `time::OffsetDateTime`                | DATETIME            |
-//! | `time::Date`                          | DATE                |
-//! | `time::Time`                          | TIME                |
-//! | `bstr::BString`                       | BLOB                |
+//! | `time::PrimitiveDateTime`†            | DATETIME            |
+//! | `time::OffsetDateTime`†               | DATETIME            |
+//! | `time::Date`†                         | DATE                |
+//! | `time::Time`†                         | TIME                |
+//! | `bstr::BString`‡                      | BLOB                |
 //! | `std::path::Path`, `PathBuf`           | TEXT                |
-//! | `serde_json::Value`                    | TEXT                |
+//! | `serde_json::Value`§                   | TEXT                |
 //!
-//! `*` Requires the `vec` feature.
+//! `*` Requires the `vec` feature. `†` Requires the `time` feature.
+//! `‡` Requires the `bstr` feature. `§` Requires the `json` feature.
 //!
 //! #### Note: Unsigned Integers
 //!
@@ -57,12 +58,18 @@ macro_rules! compatible {
 }
 
 /// Conversions for `bstr` text types.
+#[cfg(feature = "bstr")]
+#[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]
 pub mod bstr;
 /// JSON value conversions.
+#[cfg(feature = "json")]
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 mod json;
 /// Filesystem path conversions.
 mod path;
 /// Conversions for `time` crate types.
+#[cfg(feature = "time")]
+#[cfg_attr(docsrs, doc(cfg(feature = "time")))]
 pub mod time;
 /// Vector conversions for sqlite-vec (`feature = "vec"`).
 #[cfg(feature = "vec")]

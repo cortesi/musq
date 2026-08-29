@@ -14,6 +14,8 @@ mod enum_mode;
 
 pub use musq_macros::*;
 
+/// Re-exports used by proc-macro expansions.
+#[cfg(feature = "json")]
 #[doc(hidden)]
 pub mod __private {
     pub use serde_json;

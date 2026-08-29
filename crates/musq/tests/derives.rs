@@ -8,12 +8,14 @@ mod tests {
 
     use crate::{support::connection, test_type};
 
+    #[cfg(feature = "json")]
     #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, Json)]
     struct JsonType {
         a: String,
         b: i32,
     }
 
+    #[cfg(feature = "json")]
     #[derive(Debug, PartialEq, serde::Deserialize, serde::Serialize, Json)]
     #[serde(tag = "kind", rename_all = "snake_case")]
     enum JsonEnum {
@@ -241,17 +243,22 @@ mod tests {
         "1" == NewtypeStruct(1),
     ));
 
-    test_type!(json_type<JsonType>(
-        r#"'{"a":"1","b":1}'"# == JsonType {
-            a: "1".into(),
-            b: 1,
-        },
-    ));
+    #[cfg(feature = "json")]
+    mod json_types {
+        use super::*;
 
-    test_type!(json_enum<JsonEnum>(
-        r#"'{"kind":"unit"}'"# == JsonEnum::Unit,
-        r#"'{"kind":"tuple","value":"data"}'"# == JsonEnum::Tuple {
-            value: "data".into(),
-        },
-    ));
+        test_type!(json_type<JsonType>(
+            r#"'{"a":"1","b":1}'"# == JsonType {
+                a: "1".into(),
+                b: 1,
+            },
+        ));
+
+        test_type!(json_enum<JsonEnum>(
+            r#"'{"kind":"unit"}'"# == JsonEnum::Unit,
+            r#"'{"kind":"tuple","value":"data"}'"# == JsonEnum::Tuple {
+                value: "data".into(),
+            },
+        ));
+    }
 }

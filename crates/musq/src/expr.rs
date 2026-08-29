@@ -11,7 +11,9 @@
 //! Use curated helpers (like [`crate::expr::now_rfc3339_utc`]) whenever possible. If you must embed
 //! ad-hoc SQL, use [`crate::expr::raw`], which will taint the resulting query.
 
-use crate::{Arguments, Query, Value, error::EncodeError};
+#[cfg(feature = "json")]
+use crate::error::EncodeError;
+use crate::{Arguments, Query, Value};
 
 /// A SQL expression fragment with optional bound parameters.
 ///
@@ -79,6 +81,10 @@ pub fn jsonb(json: &str) -> Expr {
 }
 
 /// Serialize a value to JSON and wrap it with SQLite's `jsonb(...)` function.
+///
+/// Requires the `json` feature.
+#[cfg(feature = "json")]
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
 pub fn jsonb_serde<T>(value: &T) -> crate::Result<Expr>
 where
     T: serde::Serialize + ?Sized,
@@ -124,6 +130,7 @@ mod tests {
         assert!(!now_rfc3339_utc().tainted());
     }
 
+    #[cfg(feature = "json")]
     #[test]
     fn jsonb_serde_roundtrips() {
         #[derive(serde::Serialize)]

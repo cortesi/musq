@@ -1280,7 +1280,7 @@ fn debug_assert_depth_matches_autocommit(conn: &ConnectionState) {
 // A oneshot channel where send completes only after the receiver receives the value.
 /// Rendezvous-style oneshot channels with acknowledgement.
 mod rendezvous_oneshot {
-    use std::result::Result as StdResult;
+    use std::{result::Result as StdResult, sync::mpsc};
 
     use super::oneshot;
 
@@ -1297,28 +1297,23 @@ mod rendezvous_oneshot {
     /// Sender half for rendezvous delivery.
     pub struct Sender<T> {
         /// Inner channel used for delivery.
-        inner: oneshot::Sender<(T, oneshot::Sender<()>)>,
+        inner: oneshot::Sender<(T, mpsc::SyncSender<()>)>,
     }
 
     impl<T> Sender<T> {
-        /// Send a value and await acknowledgement.
-        pub async fn send(self, value: T) -> StdResult<(), Canceled> {
-            let (ack_tx, ack_rx) = oneshot::channel();
-            self.inner.send((value, ack_tx)).map_err(|_| Canceled)?;
-            ack_rx.await.map_err(|_| Canceled)?;
-            Ok(())
-        }
-
-        /// Send a value and block until acknowledged.
+        /// Send a value and block until the receiver acknowledges it.
         pub fn blocking_send(self, value: T) -> StdResult<(), Canceled> {
-            futures_executor::block_on(self.send(value))
+            let (ack_tx, ack_rx) = mpsc::sync_channel(0);
+            self.inner.send((value, ack_tx)).map_err(|_| Canceled)?;
+            ack_rx.recv().map_err(|_| Canceled)?;
+            Ok(())
         }
     }
 
     /// Receiver half for rendezvous delivery.
     pub struct Receiver<T> {
         /// Inner channel used for delivery.
-        inner: oneshot::Receiver<(T, oneshot::Sender<()>)>,
+        inner: oneshot::Receiver<(T, mpsc::SyncSender<()>)>,
     }
 
     impl<T> Receiver<T> {
