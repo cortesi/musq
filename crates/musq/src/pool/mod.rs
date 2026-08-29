@@ -7,7 +7,9 @@
 //! A connection pool is a standard technique that can manage opening and re-using connections.
 //! Normally it also enforces a maximum number of connections as these are an expensive resource,
 //! even when working with SQLite.
-use std::{fmt, future::Future, io, path::Path, sync::Arc};
+use std::{
+    fmt, future::Future, io, ops::AsyncFnOnce, path::Path, result::Result as StdResult, sync::Arc,
+};
 
 use self::inner::PoolInner;
 use crate::{
@@ -119,6 +121,28 @@ impl Pool {
         behavior: crate::TransactionBehavior,
     ) -> Result<Transaction<PoolConnection>> {
         Transaction::begin_with(self.acquire().await?, behavior).await
+    }
+
+    /// Run `callback` inside a transaction on a pooled connection.
+    ///
+    /// Commits if `callback` returns `Ok`. Rolls back if it returns `Err`.
+    pub async fn transaction<F, R, E>(&self, callback: F) -> StdResult<R, E>
+    where
+        F: AsyncFnOnce(&mut Transaction<PoolConnection>) -> StdResult<R, E>,
+        E: From<Error>,
+    {
+        let conn = self.acquire().await.map_err(E::from)?;
+        let mut tx = Transaction::begin(conn).await.map_err(E::from)?;
+        match callback(&mut tx).await {
+            Ok(ret) => {
+                tx.commit().await.map_err(E::from)?;
+                Ok(ret)
+            }
+            Err(err) => {
+                tx.rollback().await.map_err(E::from)?;
+                Err(err)
+            }
+        }
     }
 
     /// Return runtime identity and compile options from a pooled connection.

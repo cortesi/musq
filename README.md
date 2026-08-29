@@ -239,8 +239,9 @@ to change the default, or `begin_with(TransactionBehavior::Deferred)` /
 
 Calling `begin` on an existing transaction creates a savepoint. `commit` and
 `rollback` consume the transaction. Dropping an uncommitted transaction rolls
-it back. `Connection::transaction` runs a closure and commits or rolls back
-based on its result.
+it back. `Pool::transaction` and `Connection::transaction` run an async
+closure and commit or roll back based on its result. The closure may borrow
+locals across `await`.
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#transaction -->
 ```rust
@@ -249,6 +250,17 @@ sql!("INSERT INTO users (id, name) VALUES ({id}, {name})")?
     .execute(&tx)
     .await?;
 tx.commit().await?;
+```
+
+<!-- snips: crates/musq/examples/readme_snippets.rs#transaction_closure -->
+```rust
+pool.transaction(async |tx| {
+    sql!("INSERT INTO users (id, name) VALUES (1, {name})")?
+        .execute(&*tx)
+        .await?;
+    Ok::<_, musq::Error>(())
+})
+.await?;
 ```
 
 ## Types

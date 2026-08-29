@@ -27,4 +27,26 @@ mod tests {
         pool_transaction.rollback().await?;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn transaction_closure_borrows_local_across_await() -> anyhow::Result<()> {
+        let pool = Musq::new().open_in_memory().await?;
+        musq::query("CREATE TABLE users (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
+            .execute(&pool)
+            .await?;
+        let name = String::from("Alice");
+        pool.transaction(async |tx| {
+            musq::query("INSERT INTO users (id, name) VALUES (1, ?)")
+                .bind(&name)
+                .execute(&*tx)
+                .await?;
+            Ok::<_, musq::Error>(())
+        })
+        .await?;
+        let count: i64 = musq::query_scalar("SELECT COUNT(*) FROM users")
+            .fetch_one(&pool)
+            .await?;
+        assert_eq!(count, 1);
+        Ok(())
+    }
 }

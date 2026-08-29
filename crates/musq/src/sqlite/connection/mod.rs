@@ -1,6 +1,7 @@
 use std::{
     ffi::CString,
     fmt::{self, Debug, Formatter, Write},
+    ops::AsyncFnOnce,
     result::Result as StdResult,
     sync::atomic::Ordering,
 };
@@ -268,25 +269,16 @@ impl Connection {
     ///
     /// If the function returns an error, the transaction will be rolled back. If it does not
     /// return an error, the transaction will be committed.
-    pub async fn transaction<'a, F, R, E>(&'a mut self, callback: F) -> StdResult<R, E>
+    pub async fn transaction<F, R, E>(&mut self, callback: F) -> StdResult<R, E>
     where
-        for<'c> F: FnOnce(&'c mut Transaction<&'a mut Self>) -> BoxFuture<'c, StdResult<R, E>>
-            + Send
-            + Sync,
+        F: AsyncFnOnce(&mut Transaction<&mut Self>) -> StdResult<R, E>,
         Self: Sized,
-        R: Send,
-        E: From<Error> + Send,
+        E: From<Error>,
     {
         let mut transaction = self.begin().await?;
-        let ret = {
-            let fut = callback(&mut transaction);
-            fut.await
-        };
-
-        match ret {
+        match callback(&mut transaction).await {
             Ok(ret) => {
                 transaction.commit().await?;
-
                 Ok(ret)
             }
             Err(err) => {

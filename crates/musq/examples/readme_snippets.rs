@@ -167,6 +167,17 @@ async fn transactions() -> musq::Result<()> {
     tx.commit().await?;
     // snips-end
 
+    let name = "Alice";
+    // snips-start: transaction_closure
+    pool.transaction(async |tx| {
+        sql!("INSERT INTO users (id, name) VALUES (1, {name})")?
+            .execute(&*tx)
+            .await?;
+        Ok::<_, musq::Error>(())
+    })
+    .await?;
+    // snips-end
+
     Ok(())
 }
 
