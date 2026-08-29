@@ -1,7 +1,5 @@
 use std::collections::HashMap;
 
-use atoi::atoi;
-
 use crate::{
     Error, Result,
     encode::Encode,
@@ -38,6 +36,26 @@ pub fn parse_question_param(name: &str) -> Result<usize> {
     }
 
     Ok(num)
+}
+
+/// Resolve a named parameter, preferring explicit `add_named` entries.
+fn lookup_named(
+    explicit: &HashMap<String, usize>,
+    names: &mut HashMap<String, usize>,
+    anon_pos: &mut usize,
+    rest: &str,
+) -> usize {
+    if let Some(&idx) = explicit.get(rest) {
+        if idx > *anon_pos {
+            *anon_pos = idx;
+        }
+        idx
+    } else {
+        *names.entry(rest.to_string()).or_insert_with(|| {
+            *anon_pos += 1;
+            *anon_pos
+        })
+    }
 }
 
 /// Collection of bound SQL arguments.
@@ -100,54 +118,22 @@ impl Arguments {
             // Figure out the index of this bind parameter into our argument tuple.
             let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
                 if name.starts_with('?') {
-                    // numeric positional like `?1`
                     parse_question_param(&name)?
                 } else if let Some(rest) = name.strip_prefix('$') {
-                    // parameters of the form $NNN are positional, otherwise they are named
-                    if let Some(n) = atoi(rest.as_bytes()) {
-                        // numeric positional like `$2`
+                    if let Ok(n) = rest.parse::<usize>() {
                         if n == 0 || rest.starts_with('0') {
                             return Err(Error::Query(format!(
                                 "invalid numeric SQL parameter: {name}"
                             )));
                         }
                         n
-                    } else if let Some(&idx) = self.named.get(rest) {
-                        // existing named parameter
-                        if idx > anon_pos {
-                            anon_pos = idx;
-                        }
-                        idx
                     } else {
-                        *names.entry(rest.to_string()).or_insert_with(|| {
-                            anon_pos += 1;
-                            anon_pos
-                        })
+                        lookup_named(&self.named, &mut names, &mut anon_pos, rest)
                     }
                 } else if let Some(rest) = name.strip_prefix(':') {
-                    if let Some(&idx) = self.named.get(rest) {
-                        if idx > anon_pos {
-                            anon_pos = idx;
-                        }
-                        idx
-                    } else {
-                        *names.entry(rest.to_string()).or_insert_with(|| {
-                            anon_pos += 1;
-                            anon_pos
-                        })
-                    }
+                    lookup_named(&self.named, &mut names, &mut anon_pos, rest)
                 } else if let Some(rest) = name.strip_prefix('@') {
-                    if let Some(&idx) = self.named.get(rest) {
-                        if idx > anon_pos {
-                            anon_pos = idx;
-                        }
-                        idx
-                    } else {
-                        *names.entry(rest.to_string()).or_insert_with(|| {
-                            anon_pos += 1;
-                            anon_pos
-                        })
-                    }
+                    lookup_named(&self.named, &mut names, &mut anon_pos, rest)
                 } else {
                     return Err(Error::Query(format!(
                         "unsupported SQL parameter format: {name}"

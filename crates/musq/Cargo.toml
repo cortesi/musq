@@ -51,7 +51,6 @@ libsqlite3-sys = { version = "0.38", default-features = false, features = [
     "pkg-config",
     "vcpkg",
 ] }
-atoi = "3.1.0"
 sqlite-vec = { version = "0.1.9", optional = true }
 bytemuck = { version = "1.25.0", optional = true }
 

@@ -1084,7 +1084,8 @@ deprecation shim or a transition default.
 3. [ ] §33. `build.rs` exports `BUNDLED_SQLITE_VERSION` from
    `DEP_SQLITE3_INCLUDE`; capability test uses it; README and `lib.rs` stop
    naming a literal version.
-4. [ ] §25. One shared named-lookup path in `Arguments::bind`.
+4. [x] §25. One shared named-lookup path in `Arguments::bind`.
+   Also dropped the `atoi` crate; `$NNN` uses `str::parse`.
 5. [ ] §26. One `scan_sql` tokenizer under both `contains_numeric_parameter`
    and `rewrite_named_parameters`, with a table test.
 6. [ ] §27. One `emit_at!` macro in `logger.rs`; merge the duplicated
