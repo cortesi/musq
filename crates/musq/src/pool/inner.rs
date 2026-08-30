@@ -67,8 +67,8 @@ impl PoolInner {
     /// Return the number of idle connections.
     pub(super) fn num_idle(&self) -> usize {
         // We don't use `self.idle_conns.len()` as it waits for the internal
-        // head and tail pointers to stop changing for a moment before calculating the length,
-        // which may take a long time at high levels of churn.
+        // head and tail pointers to stop changing for a moment before calculating the
+        // length, which may take a long time at high levels of churn.
         //
         // By maintaining our own atomic count, we avoid that issue entirely.
         self.num_idle.load(Ordering::Acquire)
@@ -180,8 +180,8 @@ impl PoolInner {
             panic!("BUG: connection queue overflow in release()");
         }
 
-        // NOTE: we need to make sure we drop the permit *after* we push to the idle queue
-        // don't decrease the size
+        // NOTE: we need to make sure we drop the permit *after* we push to the idle
+        // queue don't decrease the size
         guard.release_permit();
 
         self.num_idle.fetch_add(1, Ordering::AcqRel);
@@ -286,8 +286,8 @@ impl Drop for PoolInner {
 
 /// RAII guard returned by `Pool::try_increment_size()` and others.
 ///
-/// Will decrement the pool size if dropped, to avoid semantically "leaking" connections
-/// (where the pool thinks it has more connections than it does).
+/// Will decrement the pool size if dropped, to avoid semantically "leaking"
+/// connections (where the pool thinks it has more connections than it does).
 pub(in crate::pool) struct DecrementSizeGuard {
     /// Owning pool reference.
     pub(crate) pool: Arc<PoolInner>,

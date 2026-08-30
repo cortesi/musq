@@ -153,7 +153,8 @@ pub struct RowField {
     pub skip: bool,
     /// Custom deserialization function path.
     ///
-    /// The function must have signature `fn(&str, &musq::Row) -> musq::Result<T>`.
+    /// The function must have signature `fn(&str, &musq::Row) ->
+    /// musq::Result<T>`.
     pub deserialize_with: Option<syn::Path>,
 }
 

@@ -2,6 +2,17 @@
 members = [ "crates/*" ]
 resolver = "3"
 
+[workspace.metadata.nanocode]
+schema-version = 1
+requires-nanocode = ">=0.1, <0.2"
+features = "all"
+
+[profile.dev]
+debug = "line-tables-only"
+
+[profile.dev.package."*"]
+debug = false
+
 [workspace.package]
 version = "0.0.4"
 license = "MIT"

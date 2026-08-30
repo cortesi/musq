@@ -231,10 +231,11 @@ impl<'q> QueryLogger<'q> {
         }
     }
 
-    /// Check if either the log or tracing subscriber is enabled at the given level.
+    /// Check if either the log or tracing subscriber is enabled at the given
+    /// level.
     fn log_is_enabled(&self, tracing_level: Level, log_level: log::Level) -> bool {
-        // The enabled level could be set from either tracing world or log world, so check both
-        // to see if logging should be enabled for our level.
+        // The enabled level could be set from either tracing world or log world, so
+        // check both to see if logging should be enabled for our level.
         log::log_enabled!(target: "query", log_level) || tracing_enabled_for(tracing_level)
     }
 

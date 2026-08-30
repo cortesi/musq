@@ -11,7 +11,8 @@ pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<TokenStream> {
     core::check_row_attrs(&container)?;
     Ok(match &container.data {
         ast::Data::Struct(fields) => {
-            // We know it's either a named struct or a tuple struct from darling restrictions.
+            // We know it's either a named struct or a tuple struct from darling
+            // restrictions.
             let unnamed = fields.iter().filter(|f| f.ident.is_none()).count();
             let named = fields.iter().filter(|f| f.ident.is_some()).count();
             if unnamed > 0 {

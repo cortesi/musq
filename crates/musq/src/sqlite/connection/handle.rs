@@ -5,7 +5,8 @@ use libsqlite3_sys::sqlite3;
 use crate::{Error, Result, sqlite::ffi};
 
 /// Managed handle to the raw SQLite3 database handle.
-/// The database handle will be closed when this is dropped and no `ConnectionHandleRef`s exist.
+/// The database handle will be closed when this is dropped and no
+/// `ConnectionHandleRef`s exist.
 #[derive(Debug)]
 pub struct ConnectionHandle {
     /// Raw SQLite pointer.
@@ -15,9 +16,10 @@ pub struct ConnectionHandle {
 }
 
 // A SQLite3 handle is safe to send between threads, provided not more than
-// one is accessing it at the same time. This is upheld as long as [SQLITE_CONFIG_MULTITHREAD] is
-// enabled and [SQLITE_THREADSAFE] was enabled when sqlite was compiled. We refuse to work
-// if these conditions are not upheld.
+// one is accessing it at the same time. This is upheld as long as
+// [SQLITE_CONFIG_MULTITHREAD] is enabled and [SQLITE_THREADSAFE] was enabled
+// when sqlite was compiled. We refuse to work if these conditions are not
+// upheld.
 
 // <https://www.sqlite.org/c3ref/threadsafe.html>
 

@@ -15,10 +15,12 @@ use crate::{
 };
 
 impl Encode for OffsetDateTime {
-    /// Encode as RFC 3339 text while preserving offset and fractional precision.
+    /// Encode as RFC 3339 text while preserving offset and fractional
+    /// precision.
     ///
     /// This representation does not provide chronological lexical order. Use a
-    /// normalized, fixed-width domain type when TEXT order must match time order.
+    /// normalized, fixed-width domain type when TEXT order must match time
+    /// order.
     fn encode(&self) -> Result<Value, EncodeError> {
         let formatted = self.format(&Rfc3339).map_err(|e| {
             EncodeError::Conversion(format!("failed to format OffsetDateTime: {e}"))
@@ -322,7 +324,8 @@ mod tests {
 
         // This should now FAIL to parse (which is correct)
         let value = Value::Text {
-            value: "2023-12-2515:30:45+05:30".to_string().into(), // No separator between date and time
+            value: "2023-12-2515:30:45+05:30".to_string().into(), /* No separator between date
+                                                                   * and time */
             type_info: Some(SqliteDataType::Text),
         };
         let result: Result<OffsetDateTime, _> = Decode::decode(&value);

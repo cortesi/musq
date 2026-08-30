@@ -65,15 +65,17 @@ pub struct BackupReport {
 
 /// A single, standalone connection to a SQLite database.
 ///
-/// This represents a single physical connection and is the fundamental primitive for database
-/// interaction. It is created by calling [`Connection::connect_with()`].
+/// This represents a single physical connection and is the fundamental
+/// primitive for database interaction. It is created by calling
+/// [`Connection::connect_with()`].
 ///
-/// For applications with concurrent database access, it is recommended to use a [`crate::Pool`]
-/// instead of managing `Connection` objects directly. The `Pool` provides managed, reusable
-/// connections via [`crate::PoolConnection`].
+/// For applications with concurrent database access, it is recommended to use a
+/// [`crate::Pool`] instead of managing `Connection` objects directly. The
+/// `Pool` provides managed, reusable connections via [`crate::PoolConnection`].
 ///
-/// However, for simple applications, scripts, or any scenario where connection pooling is
-/// unnecessary, a standalone `Connection` is the most direct way to interact with the database.
+/// However, for simple applications, scripts, or any scenario where connection
+/// pooling is unnecessary, a standalone `Connection` is the most direct way to
+/// interact with the database.
 ///
 /// ### Transactions
 ///
@@ -82,8 +84,9 @@ pub struct BackupReport {
 ///
 /// ### Closing
 ///
-/// When a `Connection` is dropped, it is closed. To handle potential errors on close, it is
-/// recommended to explicitly call the [`Connection::close`] method.
+/// When a `Connection` is dropped, it is closed. To handle potential errors on
+/// close, it is recommended to explicitly call the [`Connection::close`]
+/// method.
 pub struct Connection {
     /// Optimize-on-close behavior.
     optimize_on_close: bool,
@@ -135,13 +138,14 @@ impl Connection {
 
     /// Close this connection and shut down its worker thread.
     ///
-    /// This consumes the connection so later calls cannot observe a closed handle.
-    /// Dropping a connection also shuts the worker down when the command channel
-    /// is dropped. Call `close` when you need to wait for that shutdown and handle
-    /// errors from `PRAGMA optimize` when optimize-on-close is enabled.
+    /// This consumes the connection so later calls cannot observe a closed
+    /// handle. Dropping a connection also shuts the worker down when the
+    /// command channel is dropped. Call `close` when you need to wait for
+    /// that shutdown and handle errors from `PRAGMA optimize` when
+    /// optimize-on-close is enabled.
     ///
-    /// The returned future **must** be awaited to ensure the connection is fully
-    /// closed.
+    /// The returned future **must** be awaited to ensure the connection is
+    /// fully closed.
     #[must_use = "futures returned by `Connection::close` must be awaited"]
     pub async fn close(self) -> Result<()> {
         if self.optimize_on_close {
@@ -150,7 +154,8 @@ impl Connection {
         self.worker.shutdown().await
     }
 
-    /// Begin a new transaction or establish a savepoint within the active transaction.
+    /// Begin a new transaction or establish a savepoint within the active
+    /// transaction.
     ///
     /// Uses the connection's default [`crate::TransactionBehavior`]. Nested
     /// calls create savepoints.
@@ -447,8 +452,8 @@ impl Connection {
 
     /// Execute the function inside a transaction.
     ///
-    /// If the function returns an error, the transaction will be rolled back. If it does not
-    /// return an error, the transaction will be committed.
+    /// If the function returns an error, the transaction will be rolled back.
+    /// If it does not return an error, the transaction will be committed.
     pub async fn transaction<F, R, E>(&mut self, callback: F) -> StdResult<R, E>
     where
         F: AsyncFnOnce(&mut Transaction<&mut Self>) -> StdResult<R, E>,

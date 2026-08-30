@@ -1,15 +1,18 @@
 //! Helpers for building safe SQL expressions for use with `Values`.
 //!
-//! Expressions are SQL fragments that can be embedded into `{set:...}`, `{insert:...}`, and
-//! `{where:...}` placeholders. Unlike regular bound values, expressions may expand to arbitrary SQL
-//! (optionally containing their own bind parameters).
+//! Expressions are SQL fragments that can be embedded into `{set:...}`,
+//! `{insert:...}`, and `{where:...}` placeholders. Unlike regular bound values,
+//! expressions may expand to arbitrary SQL (optionally containing their own
+//! bind parameters).
 //!
-//! Expression fragments support anonymous `?` and named bind parameters. Numeric positional
-//! placeholders such as `?1` and numeric `$1` are rejected when an expression is embedded because
-//! their absolute SQLite indices cannot be safely rebased inside a larger statement.
+//! Expression fragments support anonymous `?` and named bind parameters.
+//! Numeric positional placeholders such as `?1` and numeric `$1` are rejected
+//! when an expression is embedded because their absolute SQLite indices cannot
+//! be safely rebased inside a larger statement.
 //!
-//! Use curated helpers (like [`crate::expr::now_rfc3339_utc`]) whenever possible. If you must embed
-//! ad-hoc SQL, use [`crate::expr::raw`], which will taint the resulting query.
+//! Use curated helpers (like [`crate::expr::now_rfc3339_utc`]) whenever
+//! possible. If you must embed ad-hoc SQL, use [`crate::expr::raw`], which will
+//! taint the resulting query.
 
 #[cfg(feature = "json")]
 use crate::error::EncodeError;
@@ -17,8 +20,8 @@ use crate::{Arguments, Query, Value};
 
 /// A SQL expression fragment with optional bound parameters.
 ///
-/// This type is intentionally not `Encode`; it is meant to be embedded into composed SQL, not
-/// bound as a single SQLite value.
+/// This type is intentionally not `Encode`; it is meant to be embedded into
+/// composed SQL, not bound as a single SQLite value.
 #[derive(Debug, Clone)]
 pub struct Expr {
     /// SQL for the expression fragment.
@@ -35,7 +38,8 @@ impl Expr {
         &self.sql
     }
 
-    /// Returns `true` if this expression includes raw SQL and should be treated as tainted.
+    /// Returns `true` if this expression includes raw SQL and should be treated
+    /// as tainted.
     pub fn tainted(&self) -> bool {
         self.tainted
     }
@@ -66,7 +70,8 @@ pub fn now_rfc3339_utc() -> Expr {
 
 /// Wrap a JSON text value with SQLite's `jsonb(...)` function.
 ///
-/// The JSON text is bound as a parameter; SQLite will store it using its internal JSONB encoding.
+/// The JSON text is bound as a parameter; SQLite will store it using its
+/// internal JSONB encoding.
 pub fn jsonb(json: &str) -> Expr {
     let mut arguments = Arguments::default();
     arguments.values.push(Value::Text {

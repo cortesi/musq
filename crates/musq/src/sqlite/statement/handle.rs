@@ -13,8 +13,8 @@ use crate::sqlite::{error::SqliteError, ffi, type_info::SqliteDataType};
 #[derive(Debug)]
 pub struct StatementHandle(NonNull<sqlite3_stmt>);
 
-// access to SQLite3 statement handles are safe to send and share between threads
-// as long as the `sqlite3_step` call is serialized.
+// access to SQLite3 statement handles are safe to send and share between
+// threads as long as the `sqlite3_step` call is serialized.
 
 unsafe impl Send for StatementHandle {}
 

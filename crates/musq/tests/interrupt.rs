@@ -13,7 +13,8 @@ mod tests {
         time::{error::Elapsed, sleep, timeout},
     };
 
-    /// Recursive CTE with no bound. SQLite runs this until interrupt or timeout.
+    /// Recursive CTE with no bound. SQLite runs this until interrupt or
+    /// timeout.
     const INFINITE_SELECT: &str =
         "WITH RECURSIVE t(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM t) SELECT x FROM t";
 

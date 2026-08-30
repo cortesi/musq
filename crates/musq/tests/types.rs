@@ -4,7 +4,8 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    // Allow approximate constants in this test file - we're testing specific float representations
+    // Allow approximate constants in this test file - we're testing specific float
+    // representations
     #![allow(clippy::approx_constant)]
 
     use crate::test_type;
@@ -19,8 +20,8 @@ mod tests {
 
     test_type!(i64("9358295312" == 9358295312_i64));
 
-    // NOTE: This behavior can be surprising. Floating-point parameters are widening to double which can
-    //       result in strange rounding.
+    // NOTE: This behavior can be surprising. Floating-point parameters are widening
+    // to double which can       result in strange rounding.
     test_type!(f32("3.1410000324249268" == 3.141f32 as f64 as f32));
 
     test_type!(f64("939399419.1225182" == 939399419.1225182_f64));

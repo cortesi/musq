@@ -12,19 +12,21 @@ use crate::{Connection, Result};
 
 /// A single database connection acquired from a [`crate::Pool`].
 ///
-/// A `PoolConnection` represents exclusive access to a single physical database connection.
-/// Its primary purpose is to handle sequences of operations that must run on the same
-/// connection but are not part of a formal transaction.
+/// A `PoolConnection` represents exclusive access to a single physical database
+/// connection. Its primary purpose is to handle sequences of operations that
+/// must run on the same connection but are not part of a formal transaction.
 ///
-/// For most database interactions, it is more convenient to execute queries directly on a
-/// a shared [`crate::Pool`] reference or to use a [`crate::Transaction`].
+/// For most database interactions, it is more convenient to execute queries
+/// directly on a a shared [`crate::Pool`] reference or to use a
+/// [`crate::Transaction`].
 ///
 /// A `PoolConnection` is automatically returned to the pool when it is dropped.
 ///
 /// ### Use Case: Temporary Tables
 ///
-/// The most common reason to manually acquire a `PoolConnection` is to work with temporary
-/// tables, which are only visible to the connection that created them.
+/// The most common reason to manually acquire a `PoolConnection` is to work
+/// with temporary tables, which are only visible to the connection that created
+/// them.
 ///
 /// ```rust,ignore
 /// use musq::{sql, Pool};
@@ -136,15 +138,18 @@ impl PoolConnection {
         self.live.take().expect(EXPECT_MSG)
     }
 
-    /// Test the connection to make sure it is still live before returning it to the pool.
+    /// Test the connection to make sure it is still live before returning it to
+    /// the pool.
     ///
-    /// This effectively runs the drop handler eagerly instead of spawning a task to do it.
+    /// This effectively runs the drop handler eagerly instead of spawning a
+    /// task to do it.
     #[doc(hidden)]
     pub(crate) fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
         // float the connection in the pool before we move into the task
-        // in case the returned `Future` isn't executed, like if it's spawned into a dying runtime
-        // https://github.com/launchbadge/sqlx/issues/1396
-        // Type hints seem to be broken by `Option` combinators in IntelliJ Rust right now (6/22).
+        // in case the returned `Future` isn't executed, like if it's spawned into a
+        // dying runtime https://github.com/launchbadge/sqlx/issues/1396
+        // Type hints seem to be broken by `Option` combinators in IntelliJ Rust right
+        // now (6/22).
         let floating: Option<Floating<Live>> =
             self.live.take().map(|live| live.float(self.pool.clone()));
 
@@ -244,7 +249,8 @@ impl Floating<Live> {
 
     /// Return the connection to the pool.
     ///
-    /// Returns `true` if the connection was successfully returned, `false` if it was closed.
+    /// Returns `true` if the connection was successfully returned, `false` if
+    /// it was closed.
     async fn return_to_pool(self) -> bool {
         // Immediately close the connection.
         if self.guard.pool.is_closed() {

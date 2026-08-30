@@ -165,13 +165,14 @@ impl<'a> fmt::Display for FormatValue<'a> {
 
 /// SQL query that will map its results to owned Rust types.
 ///
-/// Returned by [`Query::try_map`], `query!()`, etc. Has most of the same methods as [`Query`] but
-/// the return types are changed to reflect the mapping. However, there is no equivalent of
-/// [`Query::execute`] as it doesn't make sense to map the result type and then ignore it.
+/// Returned by [`Query::try_map`], `query!()`, etc. Has most of the same
+/// methods as [`Query`] but the return types are changed to reflect the
+/// mapping. However, there is no equivalent of [`Query::execute`] as it doesn't
+/// make sense to map the result type and then ignore it.
 ///
 /// [`Map::bind`] and [`Map::bind_named`] may be used to add parameters after
-/// [`Map::try_map`]. Stylistically we still recommend placing your `.bind()` calls
-/// before `.try_map()` to avoid adding superfluous binds when using
+/// [`Map::try_map`]. Stylistically we still recommend placing your `.bind()`
+/// calls before `.try_map()` to avoid adding superfluous binds when using
 /// `query!()` et al.
 #[must_use = "query must be executed to affect database"]
 pub struct Map<F> {
@@ -374,7 +375,8 @@ impl<F> Map<F> {
 
     /// Bind a value to a named parameter.
     ///
-    /// This will panic if [`try_bind_named`](Self::try_bind_named) returns an error.
+    /// This will panic if [`try_bind_named`](Self::try_bind_named) returns an
+    /// error.
     pub fn bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Self {
         self.try_bind_named(name, value)
             .expect("failed to bind named query parameter")
@@ -423,8 +425,9 @@ impl Query {
 
     /// Attempt to bind a value for use with this SQL query.
     ///
-    /// If the number of times this is called does not match the number of bind parameters that
-    /// appear in the query then an error will be returned when this query is executed.
+    /// If the number of times this is called does not match the number of bind
+    /// parameters that appear in the query then an error will be returned
+    /// when this query is executed.
     pub fn try_bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
         if let Some(arguments) = &mut self.arguments {
             arguments.add(&value)?;
@@ -456,7 +459,8 @@ impl Query {
 
     /// Bind a value to a named parameter.
     ///
-    /// This will panic if [`try_bind_named`](Self::try_bind_named) returns an error.
+    /// This will panic if [`try_bind_named`](Self::try_bind_named) returns an
+    /// error.
     pub fn bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Self {
         self.try_bind_named(name, value)
             .expect("failed to bind named query parameter")
@@ -507,7 +511,8 @@ impl Query {
         executor.fetch_query(self)
     }
 
-    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    /// Execute the query and return all the generated results, collected into a
+    /// [`Vec`].
     pub async fn fetch_all<E>(self, executor: E) -> Result<Vec<Row>>
     where
         E: QueryExecutor,
@@ -577,7 +582,8 @@ where
         }
     }
 
-    /// Execute the query and return all the generated results, collected into a [`Vec`].
+    /// Execute the query and return all the generated results, collected into a
+    /// [`Vec`].
     pub async fn fetch_all<E>(mut self, executor: E) -> Result<Vec<O>>
     where
         E: QueryExecutor,

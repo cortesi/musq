@@ -132,7 +132,8 @@ mod tests {
                 .unwrap();
             }
 
-            // Warm up statement cache for both queries so we're primarily measuring row materialization.
+            // Warm up statement cache for both queries so we're primarily measuring row
+            // materialization.
             drain_rows(&conn, "SELECT t1, b1 FROM data").await;
             drain_rows(
                 &conn,

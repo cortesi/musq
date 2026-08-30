@@ -649,7 +649,8 @@ pub(in crate::sqlite) fn register_vec() -> crate::Result<()> {
     result.clone().map_err(crate::Error::from)
 }
 
-/// Wrapper around [`sqlite3_column_name`]. Returns a pointer to a NUL terminated string.
+/// Wrapper around [`sqlite3_column_name`]. Returns a pointer to a NUL
+/// terminated string.
 ///
 /// # Safety
 /// - `stmt` must be a valid prepared statement pointer.

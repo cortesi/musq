@@ -34,18 +34,21 @@
 //!
 //! #### Note: Unsigned Integers
 //!
-//! The unsigned integer types use SQLite's signed 64-bit integer storage. Encoding a `u64` or
-//! `usize` value above `i64::MAX` returns an error. Decoding any negative value returns an error.
+//! The unsigned integer types use SQLite's signed 64-bit integer storage.
+//! Encoding a `u64` or `usize` value above `i64::MAX` returns an error.
+//! Decoding any negative value returns an error.
 //!
-//! SQLite stores integers in a variable-width encoding and always handles them in memory as 64-bit signed values, so no
-//! space is wasted by this implicit widening.
+//! SQLite stores integers in a variable-width encoding and always handles them
+//! in memory as 64-bit signed values, so no space is wasted by this implicit
+//! widening.
 //!
-//! Values outside SQLite's signed integer range are not stored as `REAL`, `BLOB`, or `TEXT`.
+//! Values outside SQLite's signed integer range are not stored as `REAL`,
+//! `BLOB`, or `TEXT`.
 //!
 //! # Nullable
 //!
-//! `Option<T>` is supported where `T` implements `Encode` or `Decode`. An `Option<T>` represents a potentially `NULL`
-//! value from SQLite.
+//! `Option<T>` is supported where `T` implements `Encode` or `Decode`. An
+//! `Option<T>` represents a potentially `NULL` value from SQLite.
 
 /// Ensure a value is compatible with the expected SQLite type.
 macro_rules! compatible {

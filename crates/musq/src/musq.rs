@@ -119,7 +119,8 @@ pub struct Musq {
     /// Prepared statement cache capacity.
     pub(crate) statement_cache_capacity: usize,
 
-    /// Number of significant digits to preserve when SQLite renders floats as text.
+    /// Number of significant digits to preserve when SQLite renders floats as
+    /// text.
     pub(crate) floating_point_text_digits: Option<u8>,
     /// SQLite parser stack depth limit.
     pub(crate) parser_depth_limit: Option<u32>,
@@ -136,7 +137,8 @@ pub struct Musq {
 
     /// Whether to run `PRAGMA optimize` when closing a connection.
     pub(crate) optimize_on_close: bool,
-    /// Default start mode for [`crate::Pool::begin`] and [`crate::Connection::begin`].
+    /// Default start mode for [`crate::Pool::begin`] and
+    /// [`crate::Connection::begin`].
     pub(crate) default_transaction_behavior: TransactionBehavior,
     /// Whether double-quoted string literals are accepted.
     pub(crate) double_quoted_strings: bool,
@@ -182,13 +184,13 @@ impl Musq {
 
         // Standard pragmas
         //
-        // Most of these don't actually need to be sent because they would be set to their
-        // default values anyway. See the SQLite documentation for default values of these PRAGMAs:
-        // https://www.sqlite.org/pragma.html
+        // Most of these don't actually need to be sent because they would be set to
+        // their default values anyway. See the SQLite documentation for default
+        // values of these PRAGMAs: https://www.sqlite.org/pragma.html
         //
-        // However, by inserting into the map here, we can ensure that they're set in the proper
-        // order, even if they're overwritten later by their respective setters or
-        // directly by `pragma()`
+        // However, by inserting into the map here, we can ensure that they're set in
+        // the proper order, even if they're overwritten later by their
+        // respective setters or directly by `pragma()`
 
         // Normally, page_size must be set before any other action on the database.
         // Defaults to 4096 for new databases.
@@ -199,13 +201,13 @@ impl Musq {
         pragmas.insert("locking_mode".into(), None);
 
         // Don't set `journal_mode` unless the user requested it.
-        // WAL mode is a permanent setting for created databases and changing into or out of it
-        // requires an exclusive lock that can't be waited on with `sqlite3_busy_timeout()`.
-        // https://github.com/launchbadge/sqlx/pull/1930#issuecomment-1168165414
+        // WAL mode is a permanent setting for created databases and changing into or
+        // out of it requires an exclusive lock that can't be waited on with
+        // `sqlite3_busy_timeout()`. https://github.com/launchbadge/sqlx/pull/1930#issuecomment-1168165414
         pragmas.insert("journal_mode".into(), None);
 
-        // We choose to enable foreign key enforcement by default, though SQLite normally
-        // leaves it off for backward compatibility: https://www.sqlite.org/foreignkeys.html#fk_enable
+        // We choose to enable foreign key enforcement by default, though SQLite
+        // normally leaves it off for backward compatibility: https://www.sqlite.org/foreignkeys.html#fk_enable
         pragmas.insert("foreign_keys".into(), Some("ON".into()));
 
         // The `synchronous` pragma defaults to FULL
@@ -253,7 +255,8 @@ impl Musq {
         self
     }
 
-    /// Set the default start mode for [`crate::Pool::begin`] and [`crate::Connection::begin`].
+    /// Set the default start mode for [`crate::Pool::begin`] and
+    /// [`crate::Connection::begin`].
     ///
     /// The default is [`TransactionBehavior::Immediate`]. Nested `begin` calls
     /// still create savepoints. Use [`crate::Pool::begin_with`] or
@@ -278,19 +281,20 @@ impl Musq {
     /// Journal modes are ephemeral per connection, with the exception of the
     /// [Write-Ahead Log (WAL) mode](https://www.sqlite.org/wal.html).
     ///
-    /// A database created in WAL mode retains the setting and will apply it to all connections
-    /// opened against it that don't set a `journal_mode`.
+    /// A database created in WAL mode retains the setting and will apply it to
+    /// all connections opened against it that don't set a `journal_mode`.
     ///
-    /// Opening a connection to a database created in WAL mode with a different `journal_mode` will
-    /// erase the setting on the database, requiring an exclusive lock to do so.
-    /// You may get a `database is locked` (corresponding to `SQLITE_BUSY`) error if another
-    /// connection is accessing the database file at the same time.
+    /// Opening a connection to a database created in WAL mode with a different
+    /// `journal_mode` will erase the setting on the database, requiring an
+    /// exclusive lock to do so. You may get a `database is locked`
+    /// (corresponding to `SQLITE_BUSY`) error if another connection is
+    /// accessing the database file at the same time.
     ///
-    /// Musq does not set a journal mode by default, to avoid unintentionally changing a database
-    /// into or out of WAL mode.
+    /// Musq does not set a journal mode by default, to avoid unintentionally
+    /// changing a database into or out of WAL mode.
     ///
-    /// The default journal mode for non-WAL databases is `DELETE`, or `MEMORY` for in-memory
-    /// databases.
+    /// The default journal mode for non-WAL databases is `DELETE`, or `MEMORY`
+    /// for in-memory databases.
     #[must_use]
     pub fn journal_mode(self, mode: JournalMode) -> Self {
         self.pragma("journal_mode", mode.as_str())
@@ -334,8 +338,8 @@ impl Musq {
 
     /// Sets the [synchronous](https://www.sqlite.org/pragma.html#pragma_synchronous) setting for the database connection.
     ///
-    /// The default synchronous settings is FULL. However, if durability is not a concern,
-    /// then NORMAL is normally all one needs in WAL mode.
+    /// The default synchronous settings is FULL. However, if durability is not
+    /// a concern, then NORMAL is normally all one needs in WAL mode.
     #[must_use]
     pub fn synchronous(self, synchronous: Synchronous) -> Self {
         self.pragma("synchronous", synchronous.as_str())
@@ -345,8 +349,8 @@ impl Musq {
     ///
     /// The default auto_vacuum setting is NONE.
     ///
-    /// For existing databases, a change to this value does not take effect unless a
-    /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
+    /// For existing databases, a change to this value does not take effect
+    /// unless a [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
     #[must_use]
     pub fn auto_vacuum(self, auto_vacuum: AutoVacuum) -> Self {
         self.pragma("auto_vacuum", auto_vacuum.as_str())
@@ -356,8 +360,8 @@ impl Musq {
     ///
     /// The default page_size setting is 4096.
     ///
-    /// For existing databases, a change to this value does not take effect unless a
-    /// [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
+    /// For existing databases, a change to this value does not take effect
+    /// unless a [`VACUUM` command](https://www.sqlite.org/lang_vacuum.html) is executed.
     /// However, it cannot be changed in WAL mode.
     #[must_use]
     pub fn page_size(self, page_size: u32) -> Self {
@@ -371,16 +375,17 @@ impl Musq {
         self
     }
 
-    /// Set to `true` to signal to SQLite that the database file is on read-only media.
+    /// Set to `true` to signal to SQLite that the database file is on read-only
+    /// media.
     ///
-    /// If enabled, SQLite assumes the database file _cannot_ be modified, even by higher
-    /// privileged processes, and so disables locking and change detection. This is intended
-    /// to improve performance but can produce incorrect query results or errors if the file
-    /// _does_ change.
+    /// If enabled, SQLite assumes the database file _cannot_ be modified, even
+    /// by higher privileged processes, and so disables locking and change
+    /// detection. This is intended to improve performance but can produce
+    /// incorrect query results or errors if the file _does_ change.
     ///
     /// Note that this is different from the `SQLITE_OPEN_READONLY` flag set by
-    /// [`.read_only()`][Self::read_only], though the documentation suggests that this
-    /// does _imply_ `SQLITE_OPEN_READONLY`.
+    /// [`.read_only()`][Self::read_only], though the documentation suggests
+    /// that this does _imply_ `SQLITE_OPEN_READONLY`.
     ///
     /// See [`sqlite3_open`](https://www.sqlite.org/capi3ref.html#sqlite3_open) (subheading
     /// "URI Filenames") for details.
@@ -398,13 +403,14 @@ impl Musq {
     /// See [open](https://www.sqlite.org/c3ref/open.html) for more details.
     ///
     /// ### Note
-    /// Setting this to `true` may help if you are getting access violation errors or segmentation
-    /// faults, but will also incur a significant performance penalty. You should leave this
-    /// set to `false` if at all possible.
+    /// Setting this to `true` may help if you are getting access violation
+    /// errors or segmentation faults, but will also incur a significant
+    /// performance penalty. You should leave this set to `false` if at all
+    /// possible.
     ///
-    /// If you need to set this to `true`, that may indicate a concurrency bug in
-    /// Musq. Include steps to reproduce the issue and a sample schema if you
-    /// report it.
+    /// If you need to set this to `true`, that may indicate a concurrency bug
+    /// in Musq. Include steps to reproduce the issue and a sample schema if
+    /// you report it.
     #[must_use]
     pub fn serialized(mut self, serialized: bool) -> Self {
         self.serialized = serialized;
@@ -413,7 +419,8 @@ impl Musq {
 
     /// Provide a callback to generate the name of the background worker thread.
     ///
-    /// The value passed to the callback is an auto-incremented integer for use as the thread ID.
+    /// The value passed to the callback is an auto-incremented integer for use
+    /// as the thread ID.
     #[must_use]
     pub fn thread_name(
         mut self,
@@ -423,28 +430,31 @@ impl Musq {
         self
     }
 
-    /// Set the maximum number of commands to buffer for the worker thread before backpressure is
-    /// applied.
+    /// Set the maximum number of commands to buffer for the worker thread
+    /// before backpressure is applied.
     ///
-    /// Given that most commands sent to the worker thread involve waiting for a result,
-    /// the command channel is unlikely to fill up unless a lot queries are executed in a short
-    /// period but cancelled before their full resultsets are returned.
+    /// Given that most commands sent to the worker thread involve waiting for a
+    /// result, the command channel is unlikely to fill up unless a lot
+    /// queries are executed in a short period but cancelled before their
+    /// full resultsets are returned.
     ///
-    /// A size of `0` is supported and creates a rendezvous channel, applying backpressure until
-    /// the worker and caller rendezvous for each command.
+    /// A size of `0` is supported and creates a rendezvous channel, applying
+    /// backpressure until the worker and caller rendezvous for each
+    /// command.
     #[must_use]
     pub fn command_buffer_size(mut self, size: usize) -> Self {
         self.command_channel_size = size;
         self
     }
 
-    /// Set the maximum number of rows to buffer back to the calling task when a query is executed.
+    /// Set the maximum number of rows to buffer back to the calling task when a
+    /// query is executed.
     ///
-    /// If the calling task cannot keep up, backpressure will be applied to the worker thread
-    /// in order to limit CPU and memory usage.
+    /// If the calling task cannot keep up, backpressure will be applied to the
+    /// worker thread in order to limit CPU and memory usage.
     ///
-    /// A size of `0` is supported and creates a rendezvous channel, applying backpressure until
-    /// the caller receives each row.
+    /// A size of `0` is supported and creates a rendezvous channel, applying
+    /// backpressure until the caller receives each row.
     #[must_use]
     pub fn row_buffer_size(mut self, size: usize) -> Self {
         self.row_channel_size = size;
@@ -458,10 +468,11 @@ impl Musq {
         self
     }
 
-    /// Set SQLite's floating-point-to-text rendering precision for each connection.
+    /// Set SQLite's floating-point-to-text rendering precision for each
+    /// connection.
     ///
-    /// Values from 4 through 23 are accepted by the bundled SQLite runtime. Musq's
-    /// default leaves SQLite at its bundled default of 17 digits.
+    /// Values from 4 through 23 are accepted by the bundled SQLite runtime.
+    /// Musq's default leaves SQLite at its bundled default of 17 digits.
     #[must_use]
     pub fn floating_point_text_digits(mut self, digits: u8) -> Self {
         self.floating_point_text_digits = Some(digits);
@@ -480,8 +491,8 @@ impl Musq {
 
     /// Sets the [`vfs`](https://www.sqlite.org/vfs.html) parameter of the database connection.
     ///
-    /// The default value is empty, and sqlite will use the default VFS object depending on the
-    /// operating system.
+    /// The default value is empty, and sqlite will use the default VFS object
+    /// depending on the operating system.
     #[must_use]
     pub fn vfs(mut self, vfs_name: &str) -> Self {
         self.vfs = Some(vfs_name.into());
@@ -529,7 +540,8 @@ impl Musq {
         self
     }
 
-    /// Register a scalar function on every connection opened from these options.
+    /// Register a scalar function on every connection opened from these
+    /// options.
     ///
     /// `n_args` is the argument count, or `-1` for a variable-argument
     /// function. [`FunctionFlags`] defaults to `direct_only`. With trusted
@@ -618,26 +630,29 @@ impl Musq {
 
     /// Set the maximum number of connections that this pool should maintain.
     ///
-    /// Each connection is one SQLite handle on its own worker thread. One writer
-    /// still holds the database lock at a time. Raise this only when concurrent
-    /// work needs more handles.
+    /// Each connection is one SQLite handle on its own worker thread. One
+    /// writer still holds the database lock at a time. Raise this only when
+    /// concurrent work needs more handles.
     #[must_use]
     pub fn max_connections(mut self, max: u32) -> Self {
         self.pool_max_connections = max;
         self
     }
 
-    /// Set the maximum amount of time to spend waiting for a connection in [`crate::Pool::acquire`].
+    /// Set the maximum amount of time to spend waiting for a connection in
+    /// [`crate::Pool::acquire`].
     ///
-    /// Caps the total amount of time `Pool::acquire()` can spend waiting across multiple phases:
+    /// Caps the total amount of time `Pool::acquire()` can spend waiting across
+    /// multiple phases:
     ///
-    /// * First, it may need to wait for a permit from the semaphore, which grants it the privilege
-    ///   of opening a connection or popping one from the idle queue.
-    /// * If an existing idle connection is acquired, it will be checked for liveness
-    ///   and integrity before being returned, which may require executing a command on the
-    ///   connection.
-    /// * If a new connection needs to be opened, that will obviously require I/O, handshaking,
-    ///   and initialization commands.
+    /// * First, it may need to wait for a permit from the semaphore, which
+    ///   grants it the privilege of opening a connection or popping one from
+    ///   the idle queue.
+    /// * If an existing idle connection is acquired, it will be checked for
+    ///   liveness and integrity before being returned, which may require
+    ///   executing a command on the connection.
+    /// * If a new connection needs to be opened, that will obviously require
+    ///   I/O, handshaking, and initialization commands.
     #[must_use]
     pub fn acquire_timeout(mut self, timeout: Duration) -> Self {
         self.pool_acquire_timeout = timeout;

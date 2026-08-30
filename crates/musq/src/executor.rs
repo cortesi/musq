@@ -20,16 +20,16 @@ mod sealed {
 ///
 ///  * [`Query`](super::query::Query)
 ///  * [`Map<F>`](super::query::Map)
-///
 pub trait Execute: sealed::Sealed + Send + Sized {
     /// Gets the SQL that will be executed.
     fn sql(&self) -> &str;
 
     /// Returns the arguments to be bound against the query string.
     ///
-    /// Returning `None` for `Arguments` indicates to use a "simple" query protocol and to not
-    /// prepare the query. Returning `Some(Default::default())` is an empty arguments object that
-    /// will be prepared (and cached) before execution.
+    /// Returning `None` for `Arguments` indicates to use a "simple" query
+    /// protocol and to not prepare the query. Returning
+    /// `Some(Default::default())` is an empty arguments object that will be
+    /// prepared (and cached) before execution.
     fn arguments(&mut self) -> Option<Arguments>;
 }
 

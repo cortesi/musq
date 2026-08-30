@@ -37,9 +37,9 @@ use crate::{
 /// Number of VM opcodes between progress-handler callbacks.
 const PROGRESS_INTERVAL: i32 = 1000;
 
-// Each SQLite connection has a dedicated thread. It's possible to create a worker pool for this,
-// but given typical application usage patterns for SQLite, the simplicity of a single-threaded
-// worker is preferred.
+// Each SQLite connection has a dedicated thread. It's possible to create a
+// worker pool for this, but given typical application usage patterns for
+// SQLite, the simplicity of a single-threaded worker is preferred.
 
 /// Background worker thread driving a SQLite connection.
 pub struct ConnectionWorker {
@@ -187,7 +187,8 @@ fn arm_timeout(timeout: Option<&StatementTimeout>) -> Option<TimeoutGuard<'_>> {
     Some(TimeoutGuard { timeout })
 }
 
-/// SQLite progress-handler callback. Returns non-zero when the deadline has passed.
+/// SQLite progress-handler callback. Returns non-zero when the deadline has
+/// passed.
 unsafe extern "C" fn progress_callback(p_arg: *mut c_void) -> c_int {
     // SAFETY: the worker registers this pointer as `&Cell<Option<Instant>>`
     // and keeps that cell alive until the connection is closed.
@@ -336,7 +337,8 @@ struct WorkerSession {
     shared: Arc<WorkerSharedState>,
     /// Optional per-statement timeout.
     timeout: Option<Box<StatementTimeout>>,
-    /// Skip the next drop-triggered rollback after a lost commit or rollback ack.
+    /// Skip the next drop-triggered rollback after a lost commit or rollback
+    /// ack.
     ignore_next_start_rollback: bool,
     /// Set when an interrupt rolled back an explicit transaction.
     transaction_aborted: bool,
@@ -345,7 +347,8 @@ struct WorkerSession {
 }
 
 impl WorkerSession {
-    /// Open SQLite, publish the interrupt handle, and report the command channel.
+    /// Open SQLite, publish the interrupt handle, and report the command
+    /// channel.
     fn start(
         params: &EstablishParams,
         command_tx: flume::Sender<Command>,
@@ -519,7 +522,8 @@ impl WorkerSession {
         update_cached_statements_size(&self.conn, &self.shared.cached_statements_size);
     }
 
-    /// Begin a transaction or savepoint. Returns `true` if the worker should stop.
+    /// Begin a transaction or savepoint. Returns `true` if the worker should
+    /// stop.
     fn begin(
         &mut self,
         behavior: TransactionBehavior,
@@ -699,7 +703,8 @@ impl WorkerSession {
     }
 }
 
-/// Stream query results. Returns `true` when SQLite reported `SQLITE_INTERRUPT`.
+/// Stream query results. Returns `true` when SQLite reported
+/// `SQLITE_INTERRUPT`.
 fn stream_rows(
     conn: &mut ConnectionState,
     query: &str,
@@ -765,7 +770,8 @@ impl ConnectionWorker {
 
     /// Execute a SQL statement and stream the results.
     ///
-    /// We take an owned string here - we immediatley copy it into the command anyway.
+    /// We take an owned string here - we immediatley copy it into the command
+    /// anyway.
     pub(crate) async fn execute(
         &self,
         query: String,
@@ -963,7 +969,8 @@ impl ConnectionWorker {
 
     /// Send a command to the worker to shut down the processing thread.
     ///
-    /// A `WorkerCrashed` error may be returned if the thread has already stopped.
+    /// A `WorkerCrashed` error may be returned if the thread has already
+    /// stopped.
     pub(crate) async fn shutdown(&self) -> Result<()> {
         let join_handle = self.join_handle.lock().await.take();
         let (tx, rx) = oneshot::channel();
@@ -1277,7 +1284,8 @@ fn debug_assert_depth_matches_autocommit(conn: &ConnectionState) {
     );
 }
 
-// A oneshot channel where send completes only after the receiver receives the value.
+// A oneshot channel where send completes only after the receiver receives the
+// value.
 /// Rendezvous-style oneshot channels with acknowledgement.
 mod rendezvous_oneshot {
     use std::{result::Result as StdResult, sync::mpsc};

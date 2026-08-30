@@ -69,7 +69,8 @@ mod tests {
 
     #[test]
     fn test_ref_pattern_like_user_code() {
-        // Simulate the pattern: RemoveFilter::Tag(ref tag) => sql!("DELETE FROM tags WHERE tag = {tag}")
+        // Simulate the pattern: RemoveFilter::Tag(ref tag) => sql!("DELETE FROM tags
+        // WHERE tag = {tag}")
         let tag = String::from("test_tag");
         let ref_tag = &tag; // This is what "ref tag" creates
 

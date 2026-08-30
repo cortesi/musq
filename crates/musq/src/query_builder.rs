@@ -288,7 +288,8 @@ impl QueryBuilder {
         Ok(())
     }
 
-    /// Append a SQL fragment with arguments, rebasing/renaming named parameters as needed.
+    /// Append a SQL fragment with arguments, rebasing/renaming named parameters
+    /// as needed.
     fn push_fragment(
         &mut self,
         mut sql: String,
@@ -555,7 +556,8 @@ fn contains_numeric_parameter(sql: &str) -> bool {
 }
 
 /// Rewrites named parameters (e.g. `:name`, `@name`, `$name`) according to the
-/// provided mapping, skipping string literals, quoted identifiers, and comments.
+/// provided mapping, skipping string literals, quoted identifiers, and
+/// comments.
 fn rewrite_named_parameters(sql: &str, renames: &HashMap<String, String>) -> String {
     let mut out = String::with_capacity(sql.len());
     scan_sql(sql, |token| match token {

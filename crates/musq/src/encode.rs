@@ -3,8 +3,9 @@ use crate::{Value, error::EncodeError};
 
 /// Encode a single value to be sent to the database.
 pub trait Encode {
-    /// Writes the value of `self` into `buf` in the expected format for the database.
-    /// Takes `&self` to avoid consuming the value, allowing for more flexible usage patterns.
+    /// Writes the value of `self` into `buf` in the expected format for the
+    /// database. Takes `&self` to avoid consuming the value, allowing for
+    /// more flexible usage patterns.
     fn encode(&self) -> Result<Value, EncodeError>;
 }
 

@@ -30,7 +30,8 @@ impl Row {
     ) -> Result<Self> {
         use libsqlite3_sys::{SQLITE_BLOB, SQLITE_NULL, SQLITE_TEXT};
 
-        /// Variable-length column variant that will be materialized after the shared buffer is built.
+        /// Variable-length column variant that will be materialized after the
+        /// shared buffer is built.
         enum DeferredKind {
             Text,
             Blob,

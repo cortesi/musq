@@ -184,7 +184,8 @@ mod tests {
     #[tokio::test]
     async fn it_fetches_in_loop() -> anyhow::Result<()> {
         // this is trying to check for any data races
-        // there were a few that triggered *sometimes* while building out StatementWorker
+        // there were a few that triggered *sometimes* while building out
+        // StatementWorker
         for _ in 0..1000_usize {
             let conn = connection().await?;
             let v: Vec<(i32,)> = query_as("SELECT 1").fetch_all(&conn).await?;
@@ -784,8 +785,9 @@ mod tests {
     }
 
     // https://github.com/launchbadge/sqlx/issues/1419
-    // note: this passes before and after the fix; you need to run it with `--nocapture`
-    // to see the panic from the worker thread, which doesn't happen after the fix
+    // note: this passes before and after the fix; you need to run it with
+    // `--nocapture` to see the panic from the worker thread, which doesn't
+    // happen after the fix
     #[tokio::test]
     async fn row_dropped_after_connection_doesnt_panic() {
         let conn = Connection::connect_with(&Musq::new()).await.unwrap();
@@ -810,9 +812,9 @@ mod tests {
     async fn issue_1467() -> anyhow::Result<()> {
         // Regression test for https://github.com/launchbadge/sqlx/issues/1467
         //
-        // The original report required many iterations and was more reliably reproduced in
-        // release mode. Keep this test fast for `cargo test` and allow overriding the
-        // iteration count for stress runs.
+        // The original report required many iterations and was more reliably reproduced
+        // in release mode. Keep this test fast for `cargo test` and allow
+        // overriding the iteration count for stress runs.
         let iterations = env::var("MUSQ_ISSUE_1467_ITERS")
             .ok()
             .and_then(|v| v.parse().ok())

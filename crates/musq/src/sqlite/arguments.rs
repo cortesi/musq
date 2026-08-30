@@ -96,7 +96,8 @@ impl Arguments {
         Ok(())
     }
 
-    /// Bind arguments to a prepared statement, returning the number of bound parameters.
+    /// Bind arguments to a prepared statement, returning the number of bound
+    /// parameters.
     pub(super) fn bind(&self, handle: &StatementHandle, offset: usize) -> Result<usize> {
         // Anonymous-position counter for `?` parameters and for allocating
         // indices to previously-unseen named parameters. This advances strictly

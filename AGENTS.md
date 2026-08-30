@@ -15,4 +15,4 @@
 - For Rust changes, run `cargo clippy --fix --allow-dirty --tests --examples
   --benches` and resolve all warnings.
 - Format Rust changes with `cargo fmt`.
-- Run `cargo test` before a Rust commit.
+- Run `nanocode test` before a Rust commit.

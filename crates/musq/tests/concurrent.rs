@@ -113,7 +113,8 @@ mod tests {
                 .await?;
         }
 
-        // Run multiple concurrent queries using the same SQL (should use prepared statement cache)
+        // Run multiple concurrent queries using the same SQL (should use prepared
+        // statement cache)
         let mut handles = vec![];
         for _ in 0..10 {
             let conn_clone = Arc::clone(&conn);
@@ -234,7 +235,8 @@ mod tests {
         let mut handles = vec![];
         for _ in 0..5 {
             let conn_clone = Arc::clone(&conn);
-            // Arguments are now cloned, so we can reuse the same query pattern multiple times
+            // Arguments are now cloned, so we can reuse the same query pattern multiple
+            // times
             let handle = tokio::spawn(async move {
                 let row: (i32, String) = query_as("SELECT ?1 as id, ?2 as value")
                     .bind(42)

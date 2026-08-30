@@ -1,5 +1,6 @@
-//! A complete custom type with [`musq::encode::Encode`] and [`musq::decode::Decode`].
-//! This is nearly identical to the code produced by the built-in Json derive.
+//! A complete custom type with [`musq::encode::Encode`] and
+//! [`musq::decode::Decode`]. This is nearly identical to the code produced by
+//! the built-in Json derive.
 
 use musq::{DecodeError, EncodeError, Value, decode::Decode, encode::Encode};
 

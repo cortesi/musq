@@ -7,7 +7,8 @@ use std::{
     path::{Path, PathBuf},
 };
 
-/// Environment variables that can redirect libsqlite3-sys to an external SQLite.
+/// Environment variables that can redirect libsqlite3-sys to an external
+/// SQLite.
 const UNSUPPORTED_SQLITE_LINK_ENV_VARS: &[&str] = &[
     "LIBSQLITE3_SYS_USE_PKG_CONFIG",
     "SQLITE3_LIB_DIR",

@@ -1,12 +1,13 @@
 //! Provides the connection pool for asynchronous connections.
 //!
-//! Opening a database connection for each and every operation to the database can quickly
-//! become expensive. Furthermore, sharing a database connection between threads and functions
-//! can be difficult to express in Rust.
+//! Opening a database connection for each and every operation to the database
+//! can quickly become expensive. Furthermore, sharing a database connection
+//! between threads and functions can be difficult to express in Rust.
 //!
-//! A connection pool is a standard technique that can manage opening and re-using connections.
-//! Normally it also enforces a maximum number of connections as these are an expensive resource,
-//! even when working with SQLite.
+//! A connection pool is a standard technique that can manage opening and
+//! re-using connections. Normally it also enforces a maximum number of
+//! connections as these are an expensive resource, even when working with
+//! SQLite.
 use std::{
     fmt, future::Future, io, ops::AsyncFnOnce, path::Path, result::Result as StdResult, sync::Arc,
 };
@@ -26,30 +27,32 @@ pub use self::connection::PoolConnection;
 
 /// An asynchronous pool of database connections.
 ///
-/// The `Pool` is the main entry point for interacting with a SQLite database. It manages a set
-/// of connections, allowing multiple asynchronous tasks to execute queries concurrently.
+/// The `Pool` is the main entry point for interacting with a SQLite database.
+/// It manages a set of connections, allowing multiple asynchronous tasks to
+/// execute queries concurrently.
 ///
-/// For most use cases, you can execute queries directly on a shared reference to the pool (`&Pool`).
-/// This is ideal for stateless, one-off queries, as the pool will handle acquiring and releasing
-/// a connection for you.
+/// For most use cases, you can execute queries directly on a shared reference
+/// to the pool (`&Pool`). This is ideal for stateless, one-off queries, as the
+/// pool will handle acquiring and releasing a connection for you.
 ///
-/// The `Pool` is `Send`, `Sync`, and cheap to clone. It should be created once when your
-/// application starts and then shared across all tasks.
+/// The `Pool` is `Send`, `Sync`, and cheap to clone. It should be created once
+/// when your application starts and then shared across all tasks.
 ///
 /// ## Transactions
 ///
-/// To run a series of queries within a transaction, call [`pool.begin()`][Pool::begin] to acquire
-/// a [`Transaction`] object. All operations on the `Transaction` object are guaranteed to run
-/// on the same underlying connection.
+/// To run a series of queries within a transaction, call
+/// [`pool.begin()`][Pool::begin] to acquire a [`Transaction`] object. All
+/// operations on the `Transaction` object are guaranteed to run on the same
+/// underlying connection.
 ///
 /// ## Connection-Specific State
 ///
-/// In rare cases, you may need to run a series of non-transactional queries that rely on
-/// connection-specific state, such as temporary tables. For these scenarios, you can manually
-/// acquire a [`PoolConnection`] from the pool using [`pool.acquire()`][Pool::acquire].
+/// In rare cases, you may need to run a series of non-transactional queries
+/// that rely on connection-specific state, such as temporary tables. For these
+/// scenarios, you can manually acquire a [`PoolConnection`] from the pool using
+/// [`pool.acquire()`][Pool::acquire].
 ///
 /// See [`PoolConnection`] for more details on this advanced use case.
-///
 pub struct Pool(pub(crate) Arc<PoolInner>);
 
 /// Point-in-time diagnostic counters for a [`Pool`].
@@ -86,24 +89,27 @@ impl Pool {
     /// If that timeout elapses, this will return [`Error::PoolClosed`].
     ///
     /// ### Note: Cancellation/Timeout May Drop Connections
-    /// If `acquire` is cancelled or times out after it acquires a connection from the idle queue or
-    /// opens a new one, it will drop that connection because we don't want to assume it
-    /// is safe to return to the pool, and testing it to see if it's safe to release could introduce
-    /// subtle bugs if not implemented correctly. To avoid that entirely, we've decided to not
-    /// gracefully handle cancellation here.
+    /// If `acquire` is cancelled or times out after it acquires a connection
+    /// from the idle queue or opens a new one, it will drop that connection
+    /// because we don't want to assume it is safe to return to the pool,
+    /// and testing it to see if it's safe to release could introduce subtle
+    /// bugs if not implemented correctly. To avoid that entirely, we've decided
+    /// to not gracefully handle cancellation here.
     ///
-    /// However, if your workload is sensitive to dropped connections such as using an in-memory
-    /// SQLite database with a pool size of 1, care should be taken to avoid cancelling
-    /// `acquire()` calls.
+    /// However, if your workload is sensitive to dropped connections such as
+    /// using an in-memory SQLite database with a pool size of 1, care
+    /// should be taken to avoid cancelling `acquire()` calls.
     pub async fn acquire(&self) -> Result<PoolConnection> {
         let shared = self.0.clone();
         shared.acquire().await.map(|conn| conn.reattach())
     }
 
-    /// Attempts to retrieve a connection from the pool if there is one available.
+    /// Attempts to retrieve a connection from the pool if there is one
+    /// available.
     ///
-    /// Returns `None` immediately if there are no idle connections available in the pool
-    /// or there are tasks waiting for a connection which have yet to wake.
+    /// Returns `None` immediately if there are no idle connections available in
+    /// the pool or there are tasks waiting for a connection which have yet
+    /// to wake.
     pub fn try_acquire(&self) -> Option<PoolConnection> {
         self.0.try_acquire().map(|conn| conn.into_live().reattach())
     }
@@ -181,19 +187,23 @@ impl Pool {
 
     /// Copy the main database into a new SQLite database file.
     ///
-    /// SQLite creates a compact, transactionally consistent snapshot. It accepts a destination
-    /// that does not exist or an existing empty file. It rejects an existing non-empty file.
+    /// SQLite creates a compact, transactionally consistent snapshot. It
+    /// accepts a destination that does not exist or an existing empty file.
+    /// It rejects an existing non-empty file.
     ///
-    /// SQLite waits for required database locks according to [`crate::Musq::busy_timeout`]. If the
-    /// database stays busy, or another SQLite operation fails, this method returns [`Error::Sqlite`].
-    /// SQLite can leave an incomplete destination after some failures. The caller must not publish
-    /// the destination until this method returns successfully.
+    /// SQLite waits for required database locks according to
+    /// [`crate::Musq::busy_timeout`]. If the database stays busy, or
+    /// another SQLite operation fails, this method returns [`Error::Sqlite`].
+    /// SQLite can leave an incomplete destination after some failures. The
+    /// caller must not publish the destination until this method returns
+    /// successfully.
     ///
     /// # Errors
     ///
-    /// This method returns [`Error::Io`] with [`io::ErrorKind::InvalidData`] if the destination is
-    /// not valid UTF-8 or contains a nul byte. It returns [`Error::Sqlite`] for destination-file,
-    /// locking, and other SQLite failures.
+    /// This method returns [`Error::Io`] with [`io::ErrorKind::InvalidData`] if
+    /// the destination is not valid UTF-8 or contains a nul byte. It
+    /// returns [`Error::Sqlite`] for destination-file, locking, and other
+    /// SQLite failures.
     pub async fn vacuum_into(&self, destination: impl AsRef<Path>) -> Result<()> {
         let destination = destination.as_ref().to_str().ok_or_else(|| {
             io::Error::new(
@@ -216,7 +226,8 @@ impl Pool {
         Ok(())
     }
 
-    /// Attempts to retrieve a connection and immediately begins a new transaction if successful.
+    /// Attempts to retrieve a connection and immediately begins a new
+    /// transaction if successful.
     pub async fn try_begin(&self) -> Result<Option<Transaction<PoolConnection>>> {
         match self.try_acquire() {
             Some(conn) => Transaction::begin(conn).await.map(Some),
@@ -227,20 +238,23 @@ impl Pool {
 
     /// Shut down the connection pool and close idle SQLite connections.
     ///
-    /// After this method, [`Pool::acquire`] returns [`Error::PoolClosed`] and the
-    /// pool does not open new connections. Connections that are still checked out
-    /// stay usable until drop, then close instead of returning to the pool.
+    /// After this method, [`Pool::acquire`] returns [`Error::PoolClosed`] and
+    /// the pool does not open new connections. Connections that are still
+    /// checked out stay usable until drop, then close instead of returning
+    /// to the pool.
     ///
     /// This method first closes idle connections in the pool, then waits for
     /// checked-out connections to return or close. Await the future so SQLite
     /// can release file locks and memory. Tests that open a new pool for each
-    /// case should await `close` so later cases do not see a busy database file.
+    /// case should await `close` so later cases do not see a busy database
+    /// file.
     ///
     /// If the returned future is not awaited to completion, remaining
     /// connections close when the last pool handle is dropped. That drop may
     /// run in a task that `Pool` spawned, so the timing is not always obvious.
     ///
-    /// `.close()` may be called and `.await`ed on multiple handles concurrently.
+    /// `.close()` may be called and `.await`ed on multiple handles
+    /// concurrently.
     ///
     /// The returned future **must** be awaited to ensure the pool is fully
     /// closed.
@@ -249,7 +263,8 @@ impl Pool {
         self.0.close().await
     }
 
-    /// Returns `true` if [`.close()`][Pool::close] has been called on the pool, `false` otherwise.
+    /// Returns `true` if [`.close()`][Pool::close] has been called on the pool,
+    /// `false` otherwise.
     pub fn is_closed(&self) -> bool {
         self.0.is_closed()
     }
@@ -258,22 +273,24 @@ impl Pool {
     ///
     /// If the pool is already closed, the future resolves immediately.
     ///
-    /// This can be used to cancel long-running operations that hold onto a [`PoolConnection`]
-    /// so they don't prevent the pool from closing (which would otherwise wait until all
-    /// connections are returned).
+    /// This can be used to cancel long-running operations that hold onto a
+    /// [`PoolConnection`] so they don't prevent the pool from closing
+    /// (which would otherwise wait until all connections are returned).
     pub fn close_event(&self) -> impl Future<Output = ()> + '_ {
         self.0.close_event()
     }
 
-    /// Returns the number of connections currently active. This includes idle connections.
+    /// Returns the number of connections currently active. This includes idle
+    /// connections.
     pub fn size(&self) -> u32 {
         self.0.size()
     }
 
     /// Returns the number of connections active and idle (not in use).
     pub fn num_idle(&self) -> usize {
-        // This previously called [`crossbeam::queue::ArrayQueue::len()`] which waits for the head and tail pointers to
-        // be in a consistent state, which may never happen at high levels of churn.
+        // This previously called [`crossbeam::queue::ArrayQueue::len()`] which waits
+        // for the head and tail pointers to be in a consistent state, which may
+        // never happen at high levels of churn.
         self.0.num_idle()
     }
 

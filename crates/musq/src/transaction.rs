@@ -45,21 +45,24 @@ pub enum TxnState {
 
 /// An in-progress database transaction or savepoint.
 ///
-/// A transaction is a sequence of operations performed as a single logical unit of work. All
-/// commands within a transaction are guaranteed to execute on the same database connection.
+/// A transaction is a sequence of operations performed as a single logical unit
+/// of work. All commands within a transaction are guaranteed to execute on the
+/// same database connection.
 ///
-/// A transaction is started by calling [`crate::Pool::begin`] or [`Connection::begin`].
-/// Top-level transactions use [`TransactionBehavior::Immediate`] unless a
-/// different default or [`Self::begin_with`] is set. It must be concluded by calling
-/// either [`commit()`] or [`rollback()`], both of which consume the transaction.
+/// A transaction is started by calling [`crate::Pool::begin`] or
+/// [`Connection::begin`]. Top-level transactions use
+/// [`TransactionBehavior::Immediate`] unless a different default or
+/// [`Self::begin_with`] is set. It must be concluded by calling
+/// either [`commit()`] or [`rollback()`], both of which consume the
+/// transaction.
 ///
-/// If a `Transaction` object is dropped without being explicitly committed or rolled back, it
-/// will automatically be rolled back.
+/// If a `Transaction` object is dropped without being explicitly committed or
+/// rolled back, it will automatically be rolled back.
 ///
 /// ### Savepoints (Nested Transactions)
 ///
-/// A `Transaction` can also represent a savepoint within a larger transaction. Calling `begin()`
-/// on an existing `Transaction` will create a new savepoint.
+/// A `Transaction` can also represent a savepoint within a larger transaction.
+/// Calling `begin()` on an existing `Transaction` will create a new savepoint.
 ///
 /// [`commit()`]: Self::commit()
 /// [`rollback()`]: Self::rollback()

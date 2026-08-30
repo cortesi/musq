@@ -60,7 +60,8 @@ pub enum Error {
     #[error("error communicating with database: {0}")]
     Io(#[from] io::Error),
 
-    /// Unexpected or invalid data encountered while communicating with the database.
+    /// Unexpected or invalid data encountered while communicating with the
+    /// database.
     ///
     /// This should indicate there is a programming error in Musq or there
     /// is something corrupted with the connection to the database itself.
@@ -117,8 +118,9 @@ pub enum Error {
     #[error("error occurred while encoding: {0}")]
     Encode(#[source] EncodeError),
 
-    /// A [`Pool::acquire`] timed out due to connections not becoming available or
-    /// because another task encountered too many errors while trying to open a new connection.
+    /// A [`Pool::acquire`] timed out due to connections not becoming available
+    /// or because another task encountered too many errors while trying to
+    /// open a new connection.
     ///
     /// [`Pool::acquire`]: crate::Pool::acquire
     #[error("pool timed out while waiting for an open connection")]
@@ -144,7 +146,8 @@ pub enum Error {
 }
 
 impl Error {
-    /// Return a reference to the inner SQLite error when this error came from SQLite.
+    /// Return a reference to the inner SQLite error when this error came from
+    /// SQLite.
     pub fn as_sqlite(&self) -> Option<&SqliteError> {
         match self {
             Self::Sqlite(error) => Some(error),
@@ -152,7 +155,8 @@ impl Error {
         }
     }
 
-    /// Return the primary and extended SQLite codes without consuming the error.
+    /// Return the primary and extended SQLite codes without consuming the
+    /// error.
     pub fn sqlite_codes(&self) -> Option<(PrimaryErrCode, Option<ExtendedErrCode>)> {
         self.as_sqlite().map(SqliteError::codes)
     }

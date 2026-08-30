@@ -17,7 +17,8 @@ pub use musq_macros::*;
 
 /// SQLite release bundled by the pinned `libsqlite3-sys` crate.
 ///
-/// Compare this value with [`SqliteRuntimeInfo::version`] from `runtime_info()`.
+/// Compare this value with [`SqliteRuntimeInfo::version`] from
+/// `runtime_info()`.
 pub const BUNDLED_SQLITE_VERSION: &str = env!("BUNDLED_SQLITE_VERSION");
 
 /// Re-exports used by proc-macro expansions.

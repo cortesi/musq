@@ -42,11 +42,11 @@ impl IntoValuesEntry for Query {
 
 /// An ordered collection of key-value pairs for building dynamic SQL queries.
 ///
-/// When used with the `sql!` macro's `{where:values}` placeholder, `NULL` values are rendered as
-/// `col IS NULL` (without a bound parameter).
+/// When used with the `sql!` macro's `{where:values}` placeholder, `NULL`
+/// values are rendered as `col IS NULL` (without a bound parameter).
 ///
-/// Values may also include SQL expression fragments (see [`crate::expr`]) for computed columns in
-/// `{set:...}` and `{insert:...}` placeholders.
+/// Values may also include SQL expression fragments (see [`crate::expr`]) for
+/// computed columns in `{set:...}` and `{insert:...}` placeholders.
 #[derive(Debug, Default, Clone)]
 pub struct Values(IndexMap<String, ValuesEntry>);
 
@@ -103,11 +103,13 @@ impl Values {
         self.0.values()
     }
 
-    /// Extends this collection with the key-value pairs from another `Values` collection.
+    /// Extends this collection with the key-value pairs from another `Values`
+    /// collection.
     ///
-    /// If a key exists in both collections, the value from `other` will overwrite
-    /// the existing value in this collection. The insertion order is preserved,
-    /// with existing keys maintaining their position and new keys appended.
+    /// If a key exists in both collections, the value from `other` will
+    /// overwrite the existing value in this collection. The insertion order
+    /// is preserved, with existing keys maintaining their position and new
+    /// keys appended.
     pub fn extend(&mut self, other: &Self) {
         self.0
             .extend(other.0.iter().map(|(k, v)| (k.clone(), v.clone())));
@@ -166,8 +168,8 @@ mod tests {
         assert_eq!(keys, vec!["id", "name", "status", "email"]);
 
         // Verify the status was overwritten
-        // Note: We can't easily check the actual value without accessing internals,
-        // but we can verify the structure is correct
+        // Note: We can't easily check the actual value without accessing
+        // internals, but we can verify the structure is correct
     }
 
     #[test]

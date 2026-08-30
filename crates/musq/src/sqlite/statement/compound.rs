@@ -15,8 +15,8 @@ use crate::{
     sqlite::{ColumnDecl, connection::ConnectionHandle, ffi, statement::StatementHandle},
 };
 
-// A compound statement consists of *zero* or more raw SQLite3 statements. We chop up a SQL statement
-// on `;` to support multiple statements in one query.
+// A compound statement consists of *zero* or more raw SQLite3 statements. We
+// chop up a SQL statement on `;` to support multiple statements in one query.
 
 /// A compound statement made of one or more SQLite statements.
 #[derive(Debug)]
@@ -24,8 +24,8 @@ pub struct CompoundStatement {
     /// The current index of the executing statement.
     ///
     /// If `None`, no statement is executing and `prepare()` must be called.
-    /// If `Some(self.handles.len())` and `self.tail.is_empty()`, there are no more
-    /// statements to execute and `reset()` must be called.
+    /// If `Some(self.handles.len())` and `self.tail.is_empty()`, there are no
+    /// more statements to execute and `reset()` must be called.
     index: Option<usize>,
 
     /// Tail of the most recently prepared SQL statement within this container.

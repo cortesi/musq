@@ -29,7 +29,8 @@ pub struct FunctionFlags {
     pub deterministic: bool,
     /// The function may not run from schema objects such as indexes.
     pub direct_only: bool,
-    /// The function is safe to use in schema objects when trusted schema is off.
+    /// The function is safe to use in schema objects when trusted schema is
+    /// off.
     pub innocuous: bool,
 }
 

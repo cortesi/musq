@@ -7,7 +7,8 @@ mod tests {
     use futures::future::join_all;
     use musq::{Connection, Musq, query, query_as};
 
-    /// Test that Pool implements Executor and can be used interchangeably with Connection
+    /// Test that Pool implements Executor and can be used interchangeably with
+    /// Connection
     #[tokio::test]
     async fn test_pool_implements_executor() -> anyhow::Result<()> {
         let pool = Musq::new().open_in_memory().await?;
@@ -37,7 +38,8 @@ mod tests {
         Ok(())
     }
 
-    /// Test that queries work the same whether using Pool, Connection, or PoolConnection
+    /// Test that queries work the same whether using Pool, Connection, or
+    /// PoolConnection
     #[tokio::test]
     async fn test_executor_interchangeability() -> anyhow::Result<()> {
         let pool = Musq::new().open_in_memory().await?;

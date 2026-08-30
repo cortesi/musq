@@ -67,7 +67,8 @@ pub enum DbStatusKind {
     CacheUsed,
     /// Bytes of schema memory currently used by this connection.
     SchemaUsed,
-    /// Bytes of memory currently used by prepared statements on this connection.
+    /// Bytes of memory currently used by prepared statements on this
+    /// connection.
     StatementUsed,
     /// Lookaside allocation hit count.
     LookasideHit,
@@ -81,7 +82,8 @@ pub enum DbStatusKind {
     CacheMiss,
     /// Page cache write count.
     CacheWrite,
-    /// Number of deferred foreign key constraints that have not yet been resolved.
+    /// Number of deferred foreign key constraints that have not yet been
+    /// resolved.
     DeferredForeignKeys,
     /// Bytes of shared page cache memory attributed to this connection.
     CacheUsedShared,
@@ -121,11 +123,14 @@ pub enum WalCheckpointMode {
     Noop,
     /// Checkpoint without waiting for readers or writers.
     Passive,
-    /// Wait for writers, then checkpoint all frames possible without blocking readers.
+    /// Wait for writers, then checkpoint all frames possible without blocking
+    /// readers.
     Full,
-    /// Like full checkpointing, and reset the WAL if all frames are checkpointed.
+    /// Like full checkpointing, and reset the WAL if all frames are
+    /// checkpointed.
     Restart,
-    /// Like restart checkpointing, and truncate the WAL to zero bytes on success.
+    /// Like restart checkpointing, and truncate the WAL to zero bytes on
+    /// success.
     Truncate,
 }
 

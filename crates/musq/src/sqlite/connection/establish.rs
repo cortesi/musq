@@ -75,8 +75,9 @@ impl EstablishParams {
             .to_owned();
 
         // By default, we connect to an in-memory database.
-        // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if it
-        // cannot satisfy our wish for a thread-safe, lock-free connection object
+        // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if
+        // it cannot satisfy our wish for a thread-safe, lock-free connection
+        // object
 
         let mut flags = if options.serialized {
             SQLITE_OPEN_FULLMUTEX
@@ -171,8 +172,8 @@ impl EstablishParams {
         let handle = unsafe { ConnectionHandle::new(handle) };
 
         // Configure a busy timeout
-        // This causes SQLite to automatically sleep in increasing intervals until the time
-        // when there is something locked during [sqlite3_step].
+        // This causes SQLite to automatically sleep in increasing intervals until the
+        // time when there is something locked during [sqlite3_step].
         //
         // We also need to convert the u128 value to i32. If the value overflows,
         // we clamp to `i32::MAX` to comply with SQLite's API.
@@ -235,7 +236,8 @@ impl EstablishParams {
     }
 }
 
-/// Apply a boolean `sqlite3_db_config` switch and require SQLite to report the same value.
+/// Apply a boolean `sqlite3_db_config` switch and require SQLite to report the
+/// same value.
 fn set_db_config_flag(handle: &ConnectionHandle, op: ffi::DbConfigIntOp, on: bool) -> Result<()> {
     let value = i32::from(on);
     let configured =
