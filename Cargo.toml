@@ -6,6 +6,7 @@ resolver = "3"
 schema-version = 1
 requires-nanocode = ">=0.1, <0.2"
 features = "all"
+cargo-release = "musq"
 
 [profile.dev]
 debug = "line-tables-only"
