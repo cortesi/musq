@@ -37,8 +37,6 @@ either = "1.6.1"
 futures-core = { version = "0.3.19", default-features = false }
 futures-util = { version = "0.3.19", default-features = false, features = [
     "alloc",
-    "sink",
-    "io",
 ] }
 async-stream = "0.3"
 log = { version = "0.4.14", default-features = false }
@@ -70,7 +68,7 @@ serde = { version = "1.0.132", features = ["derive"] }
 serde_json = "1.0.73"
 rand = "0.10.2"
 rand_xoshiro = "0.8.1"
-tempdir = "0.3.7"
+tempfile = "3"
 criterion = { version = "0.8", features = ["async_tokio"] }
 trybuild = "1.0"
 

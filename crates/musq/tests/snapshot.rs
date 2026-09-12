@@ -3,7 +3,6 @@
 #[cfg(test)]
 mod tests {
     use musq::{Connection, DeserializeMode, Error, JournalMode, Musq, query, query_scalar};
-    use tempdir::TempDir;
 
     async fn populated() -> anyhow::Result<Connection> {
         let conn = Connection::connect_with(&Musq::new()).await?;
@@ -74,7 +73,7 @@ mod tests {
 
     #[tokio::test]
     async fn deserialize_rejects_a_wal_image() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-deserialize-wal")?;
+        let dir = tempfile::tempdir()?;
         let path = dir.path().join("wal.db");
         let pool = Musq::new()
             .create_if_missing(true)
@@ -102,7 +101,7 @@ mod tests {
 
     #[tokio::test]
     async fn backup_to_path_copies_a_file_database() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-backup")?;
+        let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let dest = dir.path().join("copy.db");
         let pool = Musq::new().create_if_missing(true).open(&source).await?;
@@ -133,7 +132,7 @@ mod tests {
 
     #[tokio::test]
     async fn backup_to_path_rejects_the_source_file() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-backup-same")?;
+        let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let pool = Musq::new().create_if_missing(true).open(&source).await?;
         query("CREATE TABLE t (id INTEGER PRIMARY KEY)")

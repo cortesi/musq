@@ -24,7 +24,7 @@ categories = ["database", "asynchronous"]
 authors = ["Aldo Cortesi <aldo@corte.si>"]
 
 [workspace.dependencies]
-musq = { path = "crates/musq" }
+musq = { path = "crates/musq", version = "0.0.4" }
 musq-macros = { path = "crates/musq-macros", version = "0.0.4" }
 
 [workspace.lints.rust]

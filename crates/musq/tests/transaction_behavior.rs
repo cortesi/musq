@@ -9,7 +9,7 @@ mod tests {
         error::{ExtendedErrCode, PrimaryErrCode},
         query, query_scalar,
     };
-    use tempdir::TempDir;
+    use tempfile::TempDir;
 
     async fn wal_pool(dir: &TempDir) -> anyhow::Result<musq::Pool> {
         let path = dir.path().join("tx.db");
@@ -123,7 +123,7 @@ mod tests {
 
     #[tokio::test]
     async fn immediate_blocks_a_second_writer_with_busy() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-tx-immediate")?;
+        let dir = tempfile::tempdir()?;
         let pool = wal_pool(&dir).await?;
 
         let tx = pool.begin_with(TransactionBehavior::Immediate).await?;
@@ -143,7 +143,7 @@ mod tests {
 
     #[tokio::test]
     async fn deferred_read_then_write_hits_busy_snapshot() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-tx-deferred")?;
+        let dir = tempfile::tempdir()?;
         let pool = wal_pool(&dir).await?;
 
         let tx = pool.begin_with(TransactionBehavior::Deferred).await?;

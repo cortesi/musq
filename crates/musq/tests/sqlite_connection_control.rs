@@ -8,7 +8,6 @@ mod tests {
         BUNDLED_SQLITE_VERSION, DbStatusKind, Error, JournalMode, Musq, WalCheckpointMode, query,
         query_scalar,
     };
-    use tempdir::TempDir;
 
     use crate::support::connection;
 
@@ -92,7 +91,7 @@ mod tests {
 
     #[tokio::test]
     async fn transaction_check_sees_its_deferred_violation() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-foreign-key-transaction")?;
+        let dir = tempfile::tempdir()?;
         let path = dir.path().join("foreign-keys.db");
         let pool = Musq::new()
             .create_if_missing(true)
@@ -146,7 +145,7 @@ mod tests {
 
     #[tokio::test]
     async fn wal_checkpoint_noop_reports_file_backed_wal_status() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-wal-checkpoint")?;
+        let dir = tempfile::tempdir()?;
         let path = dir.path().join("wal.db");
         let pool = Musq::new()
             .create_if_missing(true)

@@ -7,11 +7,10 @@ mod tests {
     use std::{io, path::Path};
 
     use musq::{Error, Musq, query, query_scalar};
-    use tempdir::TempDir;
 
     #[tokio::test]
     async fn vacuum_into_creates_an_independent_copy() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-vacuum-into")?;
+        let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let destination = dir.path().join("copy.db");
         let pool = source_pool(&source).await?;
@@ -38,7 +37,7 @@ mod tests {
 
     #[tokio::test]
     async fn vacuum_into_accepts_a_quoted_path() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-vacuum-quoted")?;
+        let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let destination = dir.path().join("snapshot's copy.db");
         let pool = source_pool(&source).await?;
@@ -57,7 +56,7 @@ mod tests {
 
     #[tokio::test]
     async fn vacuum_into_rejects_an_existing_non_empty_destination() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-vacuum-existing")?;
+        let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let destination = dir.path().join("existing.db");
         let pool = source_pool(&source).await?;
@@ -79,7 +78,7 @@ mod tests {
 
     #[tokio::test]
     async fn vacuum_into_reports_sqlite_destination_failures() -> anyhow::Result<()> {
-        let dir = TempDir::new("musq-vacuum-failure")?;
+        let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let destination = dir.path().join("missing").join("copy.db");
         let pool = source_pool(&source).await?;

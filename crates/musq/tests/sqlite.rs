@@ -867,9 +867,7 @@ mod tests {
 
     #[tokio::test]
     async fn concurrent_read_and_write() -> anyhow::Result<()> {
-        use tempdir::TempDir;
-
-        let dir = TempDir::new("musq-concurrent-read-write")?;
+        let dir = tempfile::tempdir()?;
         let path = dir.path().join("test.db");
 
         let pool = Musq::new()
