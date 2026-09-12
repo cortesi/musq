@@ -7,7 +7,7 @@ fn derive_struct() {
     let txt = "struct Foo { a: i32, b: String }";
     let tokens = expand_derive_from_row(&parse_str(txt).unwrap()).unwrap();
     let s = tokens.to_string();
-    assert!(s.contains("impl < 'a > :: musq :: FromRow < 'a > for Foo"));
+    assert!(s.contains("impl < 'r > :: musq :: FromRow < 'r > for Foo"));
 }
 
 #[test]
@@ -15,7 +15,7 @@ fn derive_tuple_struct() {
     let txt = "struct Foo(i32, String);";
     let tokens = expand_derive_from_row(&parse_str(txt).unwrap()).unwrap();
     let s = tokens.to_string();
-    assert!(s.contains("impl < 'a > :: musq :: FromRow < 'a > for Foo"));
+    assert!(s.contains("impl < 'r > :: musq :: FromRow < 'r > for Foo"));
     assert!(!s.contains("R :"));
     assert!(s.contains("let _ = prefix"));
 }
@@ -25,7 +25,7 @@ fn derive_struct_with_generics() {
     let txt = "struct Foo<T> { a: T }";
     let tokens = expand_derive_from_row(&parse_str(txt).unwrap()).unwrap();
     let s = tokens.to_string();
-    assert!(s.contains("impl < 'a , T > :: musq :: FromRow < 'a > for Foo < T >"));
+    assert!(s.contains("impl < 'r , T > :: musq :: FromRow < 'r > for Foo < T >"));
 }
 
 #[test]
@@ -37,11 +37,37 @@ fn derive_struct_with_lifetime() {
 }
 
 #[test]
+fn explicit_rename_wins_over_rename_all() {
+    let txt = r#"
+        #[musq(rename_all = "camel_case")]
+        struct Foo {
+            first_name: String,
+            #[musq(rename = "explicit")]
+            second_name: String,
+        }
+    "#;
+    let tokens = expand_derive_from_row(&parse_str(txt).unwrap()).unwrap();
+    let s = tokens.to_string();
+    assert!(s.contains("\"firstName\""));
+    assert!(s.contains("\"explicit\""));
+    assert!(!s.contains("\"secondName\""));
+}
+
+#[test]
+fn raw_identifier_uses_verbatim_name() {
+    let txt = "struct Foo { r#type: String }";
+    let tokens = expand_derive_from_row(&parse_str(txt).unwrap()).unwrap();
+    let s = tokens.to_string();
+    assert!(s.contains("\"type\""));
+    assert!(!s.contains("\"r#type\""));
+}
+
+#[test]
 fn derive_tuple_struct_with_generics() {
     let txt = "struct Foo<T>(T);";
     let tokens = expand_derive_from_row(&parse_str(txt).unwrap()).unwrap();
     let s = tokens.to_string();
-    assert!(s.contains("impl < 'a , T > :: musq :: FromRow < 'a > for Foo < T >"));
+    assert!(s.contains("impl < 'r , T > :: musq :: FromRow < 'r > for Foo < T >"));
     assert!(!s.contains("R :"));
 }
 

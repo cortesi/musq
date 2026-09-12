@@ -1,9 +1,22 @@
 use darling::{FromDeriveInput, ast};
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, Expr, GenericParam, Lifetime, Stmt, parse_quote};
+use syn::{DeriveInput, Expr, Stmt, parse_quote};
 
 use super::core;
+
+/// Return the database column name for a named row field.
+fn column_name(container: &core::RowContainer, field: &core::RowField) -> String {
+    match &field.rename {
+        Some(name) => name.clone(),
+        None => {
+            let id = field.ident.as_ref().expect("named field");
+            container
+                .rename_all
+                .rename(id.to_string().trim_start_matches("r#"))
+        }
+    }
+}
 
 /// Expand a `FromRow` derive into the corresponding implementation.
 pub fn expand_derive_from_row(input: &DeriveInput) -> syn::Result<TokenStream> {
@@ -36,22 +49,12 @@ fn expand_struct(
     let generics = &container.generics;
     let musq = core::musq_path();
 
-    let (lifetime, provided) = generics
-        .lifetimes()
-        .next()
-        .map(|def| (def.lifetime.clone(), false))
-        .unwrap_or_else(|| (Lifetime::new("'a", Span::call_site()), true));
-
     let (_, ty_generics, _) = generics.split_for_impl();
     let mut generics = generics.clone();
-    if provided {
-        let pos = generics
-            .params
-            .iter()
-            .position(|p| !matches!(p, GenericParam::Lifetime(_)))
-            .unwrap_or(generics.params.len());
-        generics.params.insert(pos, parse_quote!(#lifetime));
-    }
+    let lifetime = match core::first_lifetime(&generics) {
+        Some(lifetime) => lifetime,
+        None => core::add_fresh_lifetime(&mut generics),
+    };
 
     let predicates = &mut generics.make_where_clause().predicates;
 
@@ -60,12 +63,7 @@ fn expand_struct(
         .filter_map(|field| -> Option<Stmt> {
             let id = field.ident.as_ref()?;
 
-            let column_name = field
-                .rename
-                .clone()
-                .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                .map(|s| container.rename_all.rename(&s))
-                .unwrap();
+            let column_name = column_name(container, field);
 
             let ty = &field.ty;
 
@@ -128,14 +126,9 @@ fn expand_struct(
     let null_checks: Vec<Expr> = fields
         .iter()
         .filter_map(|field| -> Option<Expr> {
-            let id = field.ident.as_ref()?;
+            field.ident.as_ref()?;
 
-            let column_name = field
-                .rename
-                .clone()
-                .or_else(|| Some(id.to_string().trim_start_matches("r#").to_owned()))
-                .map(|s| container.rename_all.rename(&s))
-                .unwrap();
+            let column_name = column_name(container, field);
 
             let ty = &field.ty;
 
@@ -212,23 +205,13 @@ fn expand_tuple_struct(
     let generics = &container.generics;
     let musq = core::musq_path();
 
-    let (lifetime, provided) = generics
-        .lifetimes()
-        .next()
-        .map(|def| (def.lifetime.clone(), false))
-        .unwrap_or_else(|| (Lifetime::new("'a", Span::call_site()), true));
-
     let (_, ty_generics, _) = generics.split_for_impl();
 
     let mut generics = generics.clone();
-    if provided {
-        let pos = generics
-            .params
-            .iter()
-            .position(|p| !matches!(p, GenericParam::Lifetime(_)))
-            .unwrap_or(generics.params.len());
-        generics.params.insert(pos, parse_quote!(#lifetime));
-    }
+    let lifetime = match core::first_lifetime(&generics) {
+        Some(lifetime) => lifetime,
+        None => core::add_fresh_lifetime(&mut generics),
+    };
 
     let predicates = &mut generics.make_where_clause().predicates;
 

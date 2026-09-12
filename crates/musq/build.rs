@@ -19,6 +19,19 @@ const UNSUPPORTED_SQLITE_LINK_ENV_VARS: &[&str] = &[
 fn main() {
     for name in UNSUPPORTED_SQLITE_LINK_ENV_VARS {
         println!("cargo:rerun-if-env-changed={name}");
+    }
+
+    // `libsqlite3-sys` treats any value other than exactly "0" as a request
+    // for pkg-config, so the guard must match.
+    assert!(
+        !env::var_os("LIBSQLITE3_SYS_USE_PKG_CONFIG").is_some_and(|value| value != OsStr::new("0")),
+        "musq supports only the bundled SQLite release from libsqlite3-sys; \
+         unset LIBSQLITE3_SYS_USE_PKG_CONFIG to build with the bundled library"
+    );
+
+    // The remaining variables only redirect `build_linked`, which the
+    // pkg-config check above prevents. These checks are advisory.
+    for name in &UNSUPPORTED_SQLITE_LINK_ENV_VARS[1..] {
         assert!(
             !env_var_enabled(name),
             "musq supports only the bundled SQLite release from libsqlite3-sys; \

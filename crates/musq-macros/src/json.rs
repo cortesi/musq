@@ -1,7 +1,7 @@
 use darling::FromDeriveInput;
-use proc_macro2::{Span, TokenStream};
+use proc_macro2::TokenStream;
 use quote::quote;
-use syn::{DeriveInput, GenericParam, Lifetime, LifetimeParam};
+use syn::DeriveInput;
 
 use super::core;
 
@@ -16,9 +16,7 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let mut decode_generics = container.generics.clone();
-    let lt = Lifetime::new("'r", Span::call_site());
-    let ltp = LifetimeParam::new(lt);
-    decode_generics.params.push(GenericParam::from(ltp));
+    let lifetime = core::add_fresh_lifetime(&mut decode_generics);
     let (decode_impl_generics, _, _) = decode_generics.split_for_impl();
 
     Ok(quote!(
@@ -32,8 +30,8 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
             }
         }
 
-        impl #decode_impl_generics #musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
-            fn decode(value: &'r #musq::Value) -> std::result::Result<Self, #musq::DecodeError> {
+        impl #decode_impl_generics #musq::decode::Decode<#lifetime> for #ident #ty_generics #where_clause {
+            fn decode(value: &#lifetime #musq::Value) -> std::result::Result<Self, #musq::DecodeError> {
                 #musq::__private::serde_json::from_str(value.text()?).map_err(|x| #musq::DecodeError::Conversion(x.to_string().into()))
             }
         }

@@ -3,7 +3,7 @@ use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUppe
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream};
 use quote::format_ident;
-use syn::{DeriveInput, Path, Type, parse_quote};
+use syn::{DeriveInput, GenericParam, Generics, Lifetime, LifetimeParam, Path, Type, parse_quote};
 
 /// Create a `syn::Error` from a spanned token.
 macro_rules! span_err {
@@ -80,7 +80,44 @@ fn tuple_row_field_has_attrs(field: &RowField) -> bool {
         || field.deserialize_with.is_some()
 }
 
+/// Return a lifetime name that `generics` does not already declare.
+///
+/// Prefers `'r` and falls back to `'r_1`, `'r_2`, and so on.
+fn fresh_lifetime(generics: &Generics) -> Lifetime {
+    let mut name = "r".to_owned();
+    let mut suffix = 1;
+    while generics.lifetimes().any(|lt| lt.lifetime.ident == name) {
+        name = format!("r_{suffix}");
+        suffix += 1;
+    }
+    Lifetime::new(&format!("'{name}"), Span::call_site())
+}
+
+/// Add a fresh lifetime parameter to `generics` and return it.
+///
+/// The parameter is inserted after any existing lifetimes, as Rust requires
+/// lifetime parameters to precede type and const parameters.
+pub fn add_fresh_lifetime(generics: &mut Generics) -> Lifetime {
+    let lifetime = fresh_lifetime(generics);
+    let pos = generics.lifetimes().count();
+    generics.params.insert(
+        pos,
+        GenericParam::Lifetime(LifetimeParam::new(lifetime.clone())),
+    );
+    lifetime
+}
+
+/// Return the first declared lifetime parameter, if any.
+pub fn first_lifetime(generics: &Generics) -> Option<Lifetime> {
+    generics.lifetimes().next().map(|def| def.lifetime.clone())
+}
+
 impl RenameAll {
+    /// Return the verbatim variant, the default for row containers.
+    pub(crate) fn verbatim() -> Self {
+        Self::Verbatim
+    }
+
     /// Apply the case conversion rule to the provided string.
     pub(crate) fn rename(self, s: &str) -> String {
         match self {
@@ -122,7 +159,7 @@ pub struct RowContainer {
     pub data: ast::Data<util::Ignored, RowField>,
 
     /// Rename rule to apply to fields.
-    #[darling(default = "Default::default")]
+    #[darling(default = "RenameAll::verbatim")]
     pub rename_all: RenameAll,
 }
 
@@ -207,7 +244,7 @@ pub fn check_row_field_attrs(field: &RowField) -> syn::Result<()> {
 pub fn check_row_attrs(container: &RowContainer) -> syn::Result<()> {
     if let ast::Data::Struct(fields) = &container.data {
         let has_unnamed = fields.iter().any(|f| f.ident.is_none());
-        if has_unnamed && container.rename_all != RenameAll::default() {
+        if has_unnamed && container.rename_all != RenameAll::Verbatim {
             span_err!(
                 &container.ident,
                 "`rename_all` is not supported on tuple FromRow derives"

@@ -7,7 +7,7 @@ use quote::quote;
 use syn::{
     Expr, Ident, LitStr, Result as SynResult, Token,
     ext::IdentExt,
-    parse::{Parse, ParseStream},
+    parse::{Parse, ParseStream, Parser},
     punctuated::Punctuated,
 };
 
@@ -52,7 +52,7 @@ impl Parse for SqlMacroInput {
         }
         input.parse::<Token![,]>()?;
         while !input.is_empty() {
-            if input.peek(Ident) && input.peek2(Token![=]) {
+            if input.peek(Ident) && input.peek2(Token![=]) && !input.peek2(Token![==]) {
                 let id: Ident = input.parse()?;
                 input.parse::<Token![=]>()?;
                 let expr: Expr = input.parse()?;
@@ -78,7 +78,7 @@ enum Segment {
     /// Positional parameter placeholder.
     Positional,
     /// Named parameter placeholder.
-    Named(String),
+    Named(Ident),
     /// Identifier substitution.
     Ident(Expr),
     /// Values clause substitution.
@@ -143,6 +143,13 @@ impl Parse for UpsertArgs {
     }
 }
 
+/// Parse a placeholder name as an identifier, allowing keywords.
+fn parse_placeholder_ident(name: &str, span: proc_macro2::Span) -> SynResult<Ident> {
+    Ident::parse_any
+        .parse_str(name)
+        .map_err(|_| syn::Error::new(span, format!("invalid named placeholder `{{{name}}}`")))
+}
+
 /// Parse the format string into SQL segments.
 fn parse_fmt(fmt: &LitStr) -> SynResult<Vec<Segment>> {
     let span = fmt.span();
@@ -189,7 +196,9 @@ fn parse_fmt(fmt: &LitStr) -> SynResult<Vec<Segment>> {
                     ) => {
                         return Err(syn::Error::new(span, "malformed placeholder"));
                     }
-                    (name, None) => out.push(Segment::Named(name.to_string())),
+                    (name, None) => {
+                        out.push(Segment::Named(parse_placeholder_ident(name, span)?));
+                    }
                     ("ident", Some(e)) => out.push(Segment::Ident(syn::parse_str(e)?)),
                     ("values", Some(e)) => {
                         let expr = syn::parse_str::<Expr>(e)?;
@@ -256,7 +265,8 @@ fn build_sql(
         match arg {
             SqlArg::Positional(e) => positional.push(e),
             SqlArg::Named(id, e) => {
-                named.insert(id.to_string(), e);
+                let name = id.to_string();
+                named.insert(name.trim_start_matches("r#").to_owned(), e);
             }
         }
     }
@@ -275,12 +285,13 @@ fn build_sql(
                 pos_index += 1;
                 sql_parts.push(quote! { _builder.push_bind(&(#expr))?; });
             }
-            Segment::Named(name) => {
-                let name_lit = syn::LitStr::new(&name, proc_macro2::Span::call_site());
-                if let Some(expr) = named.remove(&name) {
+            Segment::Named(ident) => {
+                let name = ident.to_string();
+                let name = name.trim_start_matches("r#");
+                let name_lit = syn::LitStr::new(name, proc_macro2::Span::call_site());
+                if let Some(expr) = named.remove(name) {
                     sql_parts.push(quote! { _builder.push_bind_named(#name_lit, &(#expr))?; });
                 } else {
-                    let ident = syn::Ident::new(&name, proc_macro2::Span::call_site());
                     sql_parts.push(quote! { _builder.push_bind_named(#name_lit, &#ident)?; });
                 }
             }

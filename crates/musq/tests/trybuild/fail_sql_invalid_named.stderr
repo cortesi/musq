@@ -1,0 +1,5 @@
+error: invalid named placeholder `{1abc}`
+ --> tests/trybuild/fail_sql_invalid_named.rs:4:18
+  |
+4 |     let _ = sql!("SELECT {1abc}");
+  |                  ^^^^^^^^^^^^^^^

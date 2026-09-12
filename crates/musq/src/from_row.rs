@@ -49,13 +49,14 @@ use crate::{Row, error::Result};
 /// will read the content of the column `description` into the field `about_me`.
 ///
 /// #### `rename_all`
+///
 /// By default, field names are expected verbatim (with the exception of the raw
 /// identifier prefix `r#`, if present). Placed at the struct level, this
 /// attribute changes how the field name is mapped to its SQL column name:
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]
-/// #[musq(rename_all = "camelCase")]
+/// #[musq(rename_all = "camel_case")]
 /// struct UserPost {
 ///     id: i32,
 ///     // remapped to "userId"
@@ -64,10 +65,11 @@ use crate::{Row, error::Result};
 /// }
 /// ```
 ///
-/// The supported values are `snake_case` (available if you have non-snake-case
-/// field names for some reason), `lowercase`, `UPPERCASE`, `camelCase`,
-/// `PascalCase`, `SCREAMING_SNAKE_CASE` and `kebab-case`. The styling of each
-/// option is intended to be an example of its behavior.
+/// An explicit `rename` on a field always wins over `rename_all`.
+///
+/// The supported values are `snake_case`, `lower_case`, `upper_case`,
+/// `screaming_snake_case`, `kebab_case`, `camel_case`, `pascal_case`, and
+/// `verbatim`.
 ///
 /// #### `default`
 ///
@@ -128,9 +130,9 @@ use crate::{Row, error::Result};
 ///
 /// This is a variant of the `default` attribute which instead always takes the
 /// value from the `Default` implementation for this field type ignoring any
-/// results in your query. This can be useful, if some field does not satifisfy
-/// the trait bounds (i.e. `decode::Decode`, `type::Type`), in particular in
-/// case of nested structures. For example:
+/// results in your query. This can be useful if some field does not satisfy
+/// the `Decode` bounds, in particular in the case of nested structures. For
+/// example:
 ///
 /// ```rust,ignore
 /// #[derive(FromRow)]

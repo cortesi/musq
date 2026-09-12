@@ -219,6 +219,43 @@ mod tests {
         Ok(())
     }
 
+    #[derive(Debug, PartialEq, FromRow)]
+    #[musq(rename_all = "camel_case")]
+    struct RenamedField {
+        user_id: i32,
+        #[musq(rename = "explicitName")]
+        other_id: i32,
+    }
+
+    #[derive(Debug, PartialEq, FromRow)]
+    struct RawIdent {
+        r#type: String,
+    }
+
+    #[tokio::test]
+    async fn from_row_rename_precedence_and_raw_identifier() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        let row: RenamedField = musq::query_as("SELECT ? as userId, ? as explicitName")
+            .bind(1i32)
+            .bind(2i32)
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(
+            row,
+            RenamedField {
+                user_id: 1,
+                other_id: 2,
+            }
+        );
+
+        let raw: RawIdent = musq::query_as("SELECT ? as \"type\"")
+            .bind("x")
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(raw, RawIdent { r#type: "x".into() });
+        Ok(())
+    }
+
     test_type!(plain_enum<PlainEnum>(
         "'foo'" == PlainEnum::Foo,
         "'foo_bar'" == PlainEnum::FooBar,

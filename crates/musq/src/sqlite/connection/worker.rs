@@ -330,7 +330,12 @@ enum Command {
 }
 
 /// Per-connection state owned by the worker thread.
+///
+/// Fields drop in declaration order. `_clear_db` must come first so the
+/// published interrupt pointer is cleared before `conn` closes the handle.
 struct WorkerSession {
+    /// Clears the published handle on every worker exit path.
+    _clear_db: ClearDbOnDrop,
     /// SQLite connection owned by this worker.
     conn: ConnectionState,
     /// Shared interrupt and depth state.
@@ -342,8 +347,6 @@ struct WorkerSession {
     ignore_next_start_rollback: bool,
     /// Set when an interrupt rolled back an explicit transaction.
     transaction_aborted: bool,
-    /// Clears the published handle on every worker exit path.
-    _clear_db: ClearDbOnDrop,
 }
 
 impl WorkerSession {
@@ -403,12 +406,12 @@ impl WorkerSession {
         }
 
         Some(Self {
+            _clear_db: clear_db,
             conn,
             shared,
             timeout,
             ignore_next_start_rollback: false,
             transaction_aborted: false,
-            _clear_db: clear_db,
         })
     }
 
@@ -1336,7 +1339,12 @@ mod rendezvous_oneshot {
 
 #[cfg(test)]
 mod tests {
-    use super::{ConnectionWorker, InterruptHandle, WorkerSharedState};
+    use std::sync::{Arc, Mutex, PoisonError, atomic::AtomicUsize};
+
+    use super::{
+        ClearDbOnDrop, ConnectionWorker, EstablishParams, InterruptHandle, PublishedDb,
+        WorkerSession, WorkerSharedState,
+    };
 
     fn assert_send_sync<T: Send + Sync>() {}
 
@@ -1345,5 +1353,38 @@ mod tests {
         assert_send_sync::<ConnectionWorker>();
         assert_send_sync::<WorkerSharedState>();
         assert_send_sync::<InterruptHandle>();
+    }
+
+    #[test]
+    fn dropping_session_clears_published_pointer() {
+        let params = EstablishParams::from_options(&crate::Musq::new()).unwrap();
+        let conn = params.establish().unwrap();
+        let shared = Arc::new(WorkerSharedState {
+            cached_statements_size: AtomicUsize::new(0),
+            transaction_depth: AtomicUsize::new(0),
+            db: Mutex::new(Some(PublishedDb(conn.handle.as_non_null()))),
+            dropped_hook_events: Arc::new(AtomicUsize::new(0)),
+        });
+        let session = WorkerSession {
+            _clear_db: ClearDbOnDrop {
+                shared: Arc::clone(&shared),
+            },
+            conn,
+            shared: Arc::clone(&shared),
+            timeout: None,
+            ignore_next_start_rollback: false,
+            transaction_aborted: false,
+        };
+
+        drop(session);
+
+        assert!(
+            shared
+                .db
+                .lock()
+                .unwrap_or_else(PoisonError::into_inner)
+                .is_none(),
+            "dropping a session must clear the published SQLite pointer"
+        );
     }
 }

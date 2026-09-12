@@ -25,11 +25,11 @@ fn expand_struct(
 
     // add db type for impl generics & where clause
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!('r));
+    let lifetime = core::add_fresh_lifetime(&mut generics);
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#decoded_ty: #musq::decode::Decode<'r>));
+        .push(parse_quote!(#decoded_ty: #musq::decode::Decode<#lifetime>));
     if container.try_from.is_some() {
         generics.make_where_clause().predicates.push(parse_quote!(
             #ident #ty_generics: ::std::convert::TryFrom<#decoded_ty>
@@ -43,22 +43,22 @@ fn expand_struct(
 
     let decode = if container.try_from.is_some() {
         quote! {
-            let decoded = <#decoded_ty as #musq::decode::Decode<'r>>::decode(value)?;
+            let decoded = <#decoded_ty as #musq::decode::Decode<#lifetime>>::decode(value)?;
             <Self as ::std::convert::TryFrom<#decoded_ty>>::try_from(decoded).map_err(|error| {
                 #musq::DecodeError::Conversion(::std::string::ToString::to_string(&error))
             })
         }
     } else {
         quote! {
-            <#ty as #musq::decode::Decode<'r>>::decode(value).map(Self)
+            <#ty as #musq::decode::Decode<#lifetime>>::decode(value).map(Self)
         }
     };
 
     let tts = quote!(
         #[automatically_derived]
-        impl #impl_generics #musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
+        impl #impl_generics #musq::decode::Decode<#lifetime> for #ident #ty_generics #where_clause {
             fn decode(
-                value: &'r #musq::Value,
+                value: &#lifetime #musq::Value,
             ) -> ::std::result::Result<
                 Self,
                 #musq::DecodeError,
@@ -84,11 +84,11 @@ fn expand_repr_enum(
     let generics = &container.generics;
     let (_, ty_generics, _) = generics.split_for_impl();
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!('r));
+    let lifetime = core::add_fresh_lifetime(&mut generics);
     generics
         .make_where_clause()
         .predicates
-        .push(parse_quote!(#repr: #musq::decode::Decode<'r>));
+        .push(parse_quote!(#repr: #musq::decode::Decode<#lifetime>));
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let arms = variants
@@ -103,14 +103,14 @@ fn expand_repr_enum(
 
     Ok(quote!(
         #[automatically_derived]
-        impl #impl_generics #musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
+        impl #impl_generics #musq::decode::Decode<#lifetime> for #ident #ty_generics #where_clause {
             fn decode(
-                value: &'r #musq::Value,
+                value: &#lifetime #musq::Value,
             ) -> ::std::result::Result<
                 Self,
                 #musq::DecodeError,
             > {
-                let value = <#repr as #musq::decode::Decode<'r>>::decode(value)?;
+                let value = <#repr as #musq::decode::Decode<#lifetime>>::decode(value)?;
                 match value {
                     #(#arms)*
                     _ => Err(#musq::DecodeError::Conversion(
@@ -133,7 +133,7 @@ fn expand_enum(
     let generics = &container.generics;
     let (_, ty_generics, _) = generics.split_for_impl();
     let mut generics = generics.clone();
-    generics.params.insert(0, parse_quote!('r));
+    let lifetime = core::add_fresh_lifetime(&mut generics);
     let (impl_generics, _, where_clause) = generics.split_for_impl();
 
     let value_arms = variants.iter().map(|v| -> Arm {
@@ -153,9 +153,9 @@ fn expand_enum(
 
     tts.extend(quote!(
         #[automatically_derived]
-        impl #impl_generics #musq::decode::Decode<'r> for #ident #ty_generics #where_clause {
+        impl #impl_generics #musq::decode::Decode<#lifetime> for #ident #ty_generics #where_clause {
             fn decode(
-                value: &'r #musq::Value,
+                value: &#lifetime #musq::Value,
             ) -> ::std::result::Result<
                 Self,
                 #musq::DecodeError,
