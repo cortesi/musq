@@ -1,7 +1,5 @@
 //! Integration tests for the bundled SQLite runtime policy.
 
-#![cfg_attr(not(test), allow(missing_docs))]
-
 #[cfg(test)]
 mod tests {
     use std::collections::BTreeSet;

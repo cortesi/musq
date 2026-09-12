@@ -203,7 +203,7 @@ impl Musq {
         // Don't set `journal_mode` unless the user requested it.
         // WAL mode is a permanent setting for created databases and changing into or
         // out of it requires an exclusive lock that can't be waited on with
-        // `sqlite3_busy_timeout()`. https://github.com/launchbadge/sqlx/pull/1930#issuecomment-1168165414
+        // `sqlite3_busy_timeout()`. See https://www.sqlite.org/wal.html.
         pragmas.insert("journal_mode".into(), None);
 
         // We choose to enable foreign key enforcement by default, though SQLite

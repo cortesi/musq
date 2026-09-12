@@ -45,8 +45,8 @@ impl LogSettings {
     }
 }
 
-#[doc(hidden)]
-pub fn private_level_filter_to_levels(filter: log::LevelFilter) -> Option<(Level, log::Level)> {
+/// Map a `log` level filter to matching `log` and `tracing` levels.
+fn private_level_filter_to_levels(filter: log::LevelFilter) -> Option<(Level, log::Level)> {
     let tracing_level = match filter {
         log::LevelFilter::Error => Some(Level::ERROR),
         log::LevelFilter::Warn => Some(Level::WARN),

@@ -8,7 +8,6 @@ repository.workspace = true
 keywords.workspace = true
 categories.workspace = true
 authors.workspace = true
-exclude = ["tests_disabled/**"]
 
 [lib]
 proc-macro = true

@@ -110,15 +110,6 @@ pub(in crate::sqlite) enum DbConfigIntOp {
     TrustedSchema,
     /// `SQLITE_DBCONFIG_DEFENSIVE`.
     Defensive,
-    /// `SQLITE_DBCONFIG_ENABLE_FKEY`.
-    #[allow(dead_code)]
-    EnableFkey,
-    /// `SQLITE_DBCONFIG_ENABLE_TRIGGER`.
-    #[allow(dead_code)]
-    EnableTrigger,
-    /// `SQLITE_DBCONFIG_ENABLE_VIEW`.
-    #[allow(dead_code)]
-    EnableView,
 }
 
 impl DbConfigIntOp {
@@ -130,9 +121,6 @@ impl DbConfigIntOp {
             Self::DqsDml => ffi_sys::SQLITE_DBCONFIG_DQS_DML,
             Self::TrustedSchema => ffi_sys::SQLITE_DBCONFIG_TRUSTED_SCHEMA,
             Self::Defensive => ffi_sys::SQLITE_DBCONFIG_DEFENSIVE,
-            Self::EnableFkey => ffi_sys::SQLITE_DBCONFIG_ENABLE_FKEY,
-            Self::EnableTrigger => ffi_sys::SQLITE_DBCONFIG_ENABLE_TRIGGER,
-            Self::EnableView => ffi_sys::SQLITE_DBCONFIG_ENABLE_VIEW,
         };
         code as c_int
     }

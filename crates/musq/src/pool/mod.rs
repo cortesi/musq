@@ -86,7 +86,7 @@ impl Pool {
     ///
     /// The total time this method is allowed to execute is capped by
     /// [`crate::Musq::acquire_timeout`].
-    /// If that timeout elapses, this will return [`Error::PoolClosed`].
+    /// If that timeout elapses, this will return [`Error::PoolTimedOut`].
     ///
     /// ### Note: Cancellation/Timeout May Drop Connections
     /// If `acquire` is cancelled or times out after it acquires a connection
@@ -286,11 +286,9 @@ impl Pool {
         self.0.size()
     }
 
-    /// Returns the number of connections active and idle (not in use).
+    /// Returns the number of open connections currently waiting in the idle
+    /// queue.
     pub fn num_idle(&self) -> usize {
-        // This previously called [`crossbeam::queue::ArrayQueue::len()`] which waits
-        // for the head and tail pointers to be in a consistent state, which may
-        // never happen at high levels of churn.
         self.0.num_idle()
     }
 

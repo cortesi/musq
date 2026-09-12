@@ -28,7 +28,7 @@ impl StatementCache {
             let statement = CompoundStatement::new(query)?;
             self.insert(query, statement);
         }
-        let statement = self.get_mut(query).unwrap();
+        let statement = self.get_mut(query).expect("statement was just inserted");
         if exists {
             // as this statement has been executed before, we reset before continuing
             statement.reset()?;

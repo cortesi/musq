@@ -351,8 +351,7 @@ unsafe fn result_value(ctx: *mut sqlite3_context, value: &Value) {
 
 /// Report a UTF-8 error message as the SQL function result.
 unsafe fn result_error(ctx: *mut sqlite3_context, message: &str) {
-    let cstr =
-        CString::new(message).unwrap_or_else(|_| CString::new("musq function error").unwrap());
+    let cstr = CString::new(message).unwrap_or_else(|_| c"musq function error".to_owned());
     unsafe { ffi_sys::sqlite3_result_error(ctx, cstr.as_ptr(), -1) }
 }
 

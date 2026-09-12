@@ -146,10 +146,8 @@ impl PoolConnection {
     #[doc(hidden)]
     pub(crate) fn return_to_pool(&mut self) -> impl Future<Output = ()> + Send + 'static {
         // float the connection in the pool before we move into the task
-        // in case the returned `Future` isn't executed, like if it's spawned into a
-        // dying runtime https://github.com/launchbadge/sqlx/issues/1396
-        // Type hints seem to be broken by `Option` combinators in IntelliJ Rust right
-        // now (6/22).
+        // in case the returned `Future` isn't executed, like if it's spawned
+        // into a dying runtime.
         let floating: Option<Floating<Live>> =
             self.live.take().map(|live| live.float(self.pool.clone()));
 

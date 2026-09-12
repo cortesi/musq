@@ -1,7 +1,7 @@
-#![allow(dead_code)]
 //! Integration tests for musq.
 
 #[path = "../src/logger.rs"]
+#[allow(dead_code)]
 mod logger;
 
 #[cfg(test)]

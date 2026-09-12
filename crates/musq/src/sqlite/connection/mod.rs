@@ -222,12 +222,6 @@ impl Connection {
         self.worker.deserialize(schema, bytes, mode).await
     }
 
-    /// Copy this database to `path` with the SQLite backup API.
-    ///
-    /// The worker opens the destination on its own thread, copies
-    /// `pages_per_step` pages per step, and calls `backup_finish` on every
-    /// exit path. `pages_per_step` of zero copies all remaining pages in one
-    /// step. The destination path must not be the source file.
     /// Deliver row-change events from `sqlite3_update_hook`.
     ///
     /// Events are sent on an unbounded channel with `try_send` so the SQLite

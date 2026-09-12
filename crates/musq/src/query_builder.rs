@@ -232,10 +232,6 @@ impl QueryBuilder {
             self.sql.push_str(&ident);
         }
 
-        if first {
-            return Err(crate::Error::Query("empty values".into()));
-        }
-
         Ok(())
     }
 

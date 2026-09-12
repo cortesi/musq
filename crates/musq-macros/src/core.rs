@@ -12,12 +12,8 @@ macro_rules! span_err {
     };
 }
 
-/// Re-exported for use in tests.
-#[allow(unused)]
-pub(crate) use span_err;
-
-#[allow(unused)]
 /// Assert that a `syn::Result` error contains the expected message.
+#[cfg(test)]
 macro_rules! assert_errors_with {
     ($e:expr, $m:expr) => {
         assert!(&$e.is_err());
@@ -32,7 +28,7 @@ macro_rules! assert_errors_with {
 }
 
 /// Re-exported for use in tests.
-#[allow(unused)]
+#[cfg(test)]
 pub(crate) use assert_errors_with;
 
 /// Case conversion rules for rename attributes.
@@ -141,9 +137,6 @@ pub struct JsonContainer {
     pub ident: syn::Ident,
     /// Generic parameters.
     pub generics: syn::Generics,
-    /// Parsed input data (ignored for JSON derives).
-    #[darling(skip)]
-    pub _data: Option<ast::Data<util::Ignored, RowField>>,
 }
 
 /// Parsed inputs for `FromRow` derives.
@@ -289,9 +282,6 @@ pub struct TypeContainer {
 pub struct TypeVariant {
     /// Variant identifier.
     pub ident: syn::Ident,
-    /// Fields on the variant, if present.
-    #[darling(skip)]
-    pub _fields: Option<ast::Fields<TypeField>>,
 
     /// Optional explicit rename.
     pub rename: Option<String>,
@@ -314,18 +304,6 @@ pub struct TypeField {
     pub ident: Option<syn::Ident>,
     /// Field type.
     pub ty: Type,
-
-    /// Optional explicit rename.
-    #[darling(skip)]
-    pub _rename: Option<String>,
-}
-
-/// Ensure repr enums declare a representation attribute.
-pub fn check_repr_enum_attrs(attrs: &TypeContainer) -> syn::Result<()> {
-    if attrs.repr.is_none() {
-        span_err!(&attrs.ident, "repr attribute is required")?;
-    }
-    Ok(())
 }
 
 /// Signature for repr enum expansion callbacks.
@@ -369,10 +347,7 @@ pub fn expand_type_derive(
                 );
             }
             match &attrs.repr {
-                Some(t) => {
-                    check_repr_enum_attrs(&attrs)?;
-                    expand_repr_enum(&attrs, v, t)?
-                }
+                Some(t) => expand_repr_enum(&attrs, v, t)?,
                 None => expand_enum(&attrs, v)?,
             }
         }
@@ -388,7 +363,6 @@ mod tests {
         let good_input = r#"
             #[musq(rename_all = "snake_case")]
             pub struct Foo {
-                #[rename(bar)]
                 bar: bool,
                 baz: i64,
             }

@@ -175,9 +175,6 @@ fn expand_enum(
 /// Tests for decode expansion helpers.
 #[cfg(test)]
 mod tests {
-    // Rust spuriously detects this particular import as unused?? Remove once this
-    // is fixed.
-    #[allow(unused_imports)]
     use super::*;
 
     #[test]

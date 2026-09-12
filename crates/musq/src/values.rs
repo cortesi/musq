@@ -23,7 +23,6 @@ where
 {
     fn into_values_entry(self) -> Result<ValuesEntry> {
         let encoded = self.encode().map_err(crate::Error::Encode)?;
-        drop(self);
         Ok(ValuesEntry::Value(encoded))
     }
 }

@@ -436,12 +436,14 @@ crate. Read the version from `musq::BUNDLED_SQLITE_VERSION` or
 supported; leave `LIBSQLITE3_SYS_USE_PKG_CONFIG` and `SQLITE3_*`
 environment variables unset.
 
-Runtime introspection and control:
+Runtime introspection and control. All are `async` methods:
 
-- `runtime_info()` — SQLite version, source ID, and compile options
-- `db_status(kind, reset)` — per-connection status counters (page cache,
-  lookaside, schema, statements, ...)
-- `wal_checkpoint(schema, mode)` — run or inspect WAL checkpoints
+- `Connection::runtime_info()` and `Pool::runtime_info()` — SQLite version,
+  source ID, and compile options
+- `Connection::db_status(kind, reset)` — per-connection status counters (page
+  cache, lookaside, schema, statements, ...)
+- `Connection::wal_checkpoint(schema, mode)` and
+  `Pool::wal_checkpoint(schema, mode)` — run or inspect WAL checkpoints
 
 ## Community
 

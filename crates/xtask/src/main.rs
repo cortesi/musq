@@ -49,13 +49,7 @@ fn workspace_root() -> Result<PathBuf> {
 /// Run format and clippy fixes for the workspace.
 fn tidy(root: &Path) -> Result<()> {
     let mut fmt = Command::new("cargo");
-    fmt.current_dir(root)
-        .arg("+nightly")
-        .arg("fmt")
-        .arg("--all")
-        .arg("--")
-        .arg("--config-path")
-        .arg("./rustfmt-nightly.toml");
+    fmt.current_dir(root).arg("fmt").arg("--all");
     run(&mut fmt)?;
 
     let mut clippy = Command::new("cargo");

@@ -760,7 +760,8 @@ mod tests {
         Ok(())
     }
 
-    // https://github.com/launchbadge/sqlx/issues/1300
+    // Regression: concurrent statements on a pooled connection must not race a
+    // statement reset and crash the worker.
     #[tokio::test]
     async fn concurrent_resets_dont_segfault() {
         let pool = Musq::new().open_in_memory().await.unwrap();
@@ -784,10 +785,9 @@ mod tests {
         sleep(Duration::from_millis(1)).await;
     }
 
-    // https://github.com/launchbadge/sqlx/issues/1419
-    // note: this passes before and after the fix; you need to run it with
-    // `--nocapture` to see the panic from the worker thread, which doesn't
-    // happen after the fix
+    // Regression: dropping a row after its connection must not panic the
+    // worker. This passes before and after the fix; `--nocapture` shows the
+    // worker panic that the fix removes.
     #[tokio::test]
     async fn row_dropped_after_connection_doesnt_panic() {
         let conn = Connection::connect_with(&Musq::new()).await.unwrap();
@@ -810,7 +810,8 @@ mod tests {
 
     #[tokio::test]
     async fn issue_1467() -> anyhow::Result<()> {
-        // Regression test for https://github.com/launchbadge/sqlx/issues/1467
+        // Regression: repeated statement-cache churn with the same SQL text
+        // used to fail under load.
         //
         // The original report required many iterations and was more reliably reproduced
         // in release mode. Keep this test fast for `cargo test` and allow
