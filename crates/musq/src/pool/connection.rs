@@ -100,20 +100,6 @@ impl DerefMut for PoolConnection {
 }
 
 impl PoolConnection {
-    /// Interrupt the statement currently running on this connection.
-    ///
-    /// See [`Connection::interrupt`].
-    pub fn interrupt(&self) {
-        Connection::interrupt(self)
-    }
-
-    /// Return a cloneable handle that can interrupt this connection.
-    ///
-    /// See [`Connection::interrupt_handle`].
-    pub fn interrupt_handle(&self) -> crate::InterruptHandle {
-        Connection::interrupt_handle(self)
-    }
-
     /// Close this connection, allowing the pool to open a replacement.
     ///
     /// The connection permit is retained for the duration so the pool will not
@@ -154,9 +140,7 @@ impl PoolConnection {
         async move {
             if let Some(floating) = floating {
                 floating.return_to_pool().await
-            } else {
-                false
-            };
+            }
         }
     }
 }
@@ -246,17 +230,13 @@ impl Floating<Live> {
     }
 
     /// Return the connection to the pool.
-    ///
-    /// Returns `true` if the connection was successfully returned, `false` if
-    /// it was closed.
-    async fn return_to_pool(self) -> bool {
+    async fn return_to_pool(self) {
         // Immediately close the connection.
         if self.guard.pool.is_closed() {
             self.close().await;
-            return false;
+            return;
         }
         self.release();
-        true
     }
 
     /// Close the underlying connection and drop the size guard.

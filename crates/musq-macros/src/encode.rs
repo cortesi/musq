@@ -122,32 +122,3 @@ fn expand_struct(
         }
     ))
 }
-
-/// Tests for encode expansion helpers.
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_derives_encode() {
-        let txt = r#"enum Foo {One, Two}"#;
-        expand_derive_encode(&syn::parse_str(txt).unwrap()).unwrap();
-
-        let txt = r#"
-            #[musq(rename_all = "lower_case")]
-            enum Foo {One, Two}
-        "#;
-        expand_derive_encode(&syn::parse_str(txt).unwrap()).unwrap();
-
-        let txt = r#"
-            #[musq(repr = "i32")]
-            enum Foo {One, Two}
-        "#;
-        expand_derive_encode(&syn::parse_str(txt).unwrap()).unwrap();
-
-        let txt = r#"
-            struct Foo(i32);
-        "#;
-        expand_derive_encode(&syn::parse_str(txt).unwrap()).unwrap();
-    }
-}

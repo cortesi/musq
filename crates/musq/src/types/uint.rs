@@ -7,104 +7,20 @@ use crate::{
     sqlite::{SqliteDataType, Value},
 };
 
-impl Encode for u8 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: *self as i64,
-            type_info: None,
-        })
-    }
-}
+encode_integer!(u8, raw);
+decode_integer!(u8, int, narrow);
 
-impl<'r> Decode<'r> for u8 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        let v: i32 = value.int()?;
-        Ok(v.try_into()?)
-    }
-}
+encode_integer!(u16, raw);
+decode_integer!(u16, int, narrow);
 
-impl Encode for u16 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: *self as i64,
-            type_info: None,
-        })
-    }
-}
+encode_integer!(u32, raw);
+decode_integer!(u32, int64, narrow);
 
-impl<'r> Decode<'r> for u16 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        let v: i32 = value.int()?;
-        Ok(v.try_into()?)
-    }
-}
+encode_integer!(u64, checked);
+decode_integer!(u64, int64, narrow);
 
-impl Encode for u32 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: *self as i64,
-            type_info: None,
-        })
-    }
-}
-
-impl<'r> Decode<'r> for u32 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        Ok(value.int64()?.try_into()?)
-    }
-}
-
-impl Encode for u64 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: i64::try_from(*self)
-                .map_err(|error| EncodeError::Conversion(error.to_string()))?,
-            type_info: None,
-        })
-    }
-}
-
-impl<'r> Decode<'r> for u64 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        Ok(value.int64()?.try_into()?)
-    }
-}
-
-impl Encode for usize {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: i64::try_from(*self)
-                .map_err(|error| EncodeError::Conversion(error.to_string()))?,
-            type_info: None,
-        })
-    }
-}
-
-impl<'r> Decode<'r> for usize {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        Ok(value.int64()?.try_into()?)
-    }
-}
+encode_integer!(usize, checked);
+decode_integer!(usize, int64, narrow);
 
 #[cfg(test)]
 mod tests {

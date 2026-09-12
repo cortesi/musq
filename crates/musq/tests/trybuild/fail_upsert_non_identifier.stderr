@@ -1,7 +1,5 @@
 error: expected ident
- --> tests/trybuild/fail_upsert_non_identifier.rs:7:18
+ --> tests/trybuild/fail_upsert_non_identifier.rs:7:23
   |
 7 |     let _query = sql!("INSERT INTO users (id, name) VALUES {insert: v} ON CONFLICT (id) DO UPDATE SET {upsert: v, exclude: 123}");
-  |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  |
-  = note: this error originates in the macro `sql` (in Nightly builds, run with -Z macro-backtrace for more info)
+  |                       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^

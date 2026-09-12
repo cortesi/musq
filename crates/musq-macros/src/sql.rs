@@ -20,6 +20,8 @@ fn ensure_non_empty(expr: &Expr) -> SynResult<()> {
             Err(syn::Error::new_spanned(expr, "empty list"))
         }
         Expr::Reference(r) => ensure_non_empty(&r.expr),
+        Expr::Paren(p) => ensure_non_empty(&p.expr),
+        Expr::Group(g) => ensure_non_empty(&g.expr),
         Expr::Macro(m) if m.mac.path.is_ident("vec") && m.mac.tokens.is_empty() => {
             Err(syn::Error::new_spanned(expr, "empty list"))
         }
@@ -143,6 +145,11 @@ impl Parse for UpsertArgs {
     }
 }
 
+/// Parse a placeholder expression, reporting failures at the format literal.
+fn parse_placeholder<T: Parse>(source: &str, span: proc_macro2::Span) -> SynResult<T> {
+    syn::parse_str(source).map_err(|error| syn::Error::new(span, error))
+}
+
 /// Parse a placeholder name as an identifier, allowing keywords.
 fn parse_placeholder_ident(name: &str, span: proc_macro2::Span) -> SynResult<Ident> {
     Ident::parse_any
@@ -199,37 +206,24 @@ fn parse_fmt(fmt: &LitStr) -> SynResult<Vec<Segment>> {
                     (name, None) => {
                         out.push(Segment::Named(parse_placeholder_ident(name, span)?));
                     }
-                    ("ident", Some(e)) => out.push(Segment::Ident(syn::parse_str(e)?)),
-                    ("values", Some(e)) => {
-                        let expr = syn::parse_str::<Expr>(e)?;
+                    ("ident", Some(e)) => out.push(Segment::Ident(parse_placeholder(e, span)?)),
+                    (kind @ ("values" | "insert" | "set" | "idents"), Some(e)) => {
+                        let expr = parse_placeholder::<Expr>(e, span)?;
                         ensure_non_empty(&expr)?;
-                        out.push(Segment::Values(expr));
+                        out.push(match kind {
+                            "values" => Segment::Values(expr),
+                            "insert" => Segment::Insert(expr),
+                            "set" => Segment::Set(expr),
+                            _ => Segment::Idents(expr),
+                        });
                     }
-                    ("insert", Some(e)) => {
-                        let expr = syn::parse_str::<Expr>(e)?;
-                        ensure_non_empty(&expr)?;
-                        out.push(Segment::Insert(expr));
-                    }
-                    ("set", Some(e)) => {
-                        let expr = syn::parse_str::<Expr>(e)?;
-                        ensure_non_empty(&expr)?;
-                        out.push(Segment::Set(expr));
-                    }
-                    ("where", Some(e)) => {
-                        let expr = syn::parse_str::<Expr>(e)?;
-                        out.push(Segment::Where(expr));
-                    }
+                    ("where", Some(e)) => out.push(Segment::Where(parse_placeholder(e, span)?)),
                     ("upsert", Some(e)) => {
-                        let args = syn::parse_str::<UpsertArgs>(e)?;
+                        let args = parse_placeholder::<UpsertArgs>(e, span)?;
                         ensure_non_empty(&args.values)?;
                         out.push(Segment::Upsert(args.values, args.exclude));
                     }
-                    ("idents", Some(e)) => {
-                        let expr = syn::parse_str::<Expr>(e)?;
-                        ensure_non_empty(&expr)?;
-                        out.push(Segment::Idents(expr));
-                    }
-                    ("raw", Some(e)) => out.push(Segment::Raw(syn::parse_str(e)?)),
+                    ("raw", Some(e)) => out.push(Segment::Raw(parse_placeholder(e, span)?)),
                     _ => {
                         return Err(syn::Error::new(span, "malformed placeholder"));
                     }
@@ -259,6 +253,7 @@ fn build_sql(
     as_query_as: bool,
 ) -> SynResult<proc_macro2::TokenStream> {
     let musq = core::musq_path();
+    let span = input.fmt.span();
     let mut positional = Vec::new();
     let mut named = HashMap::new();
     for arg in input.args {
@@ -276,19 +271,17 @@ fn build_sql(
         match seg {
             Segment::Lit(l) => sql_parts.push(quote! { _builder.push_sql(#l); }),
             Segment::Positional => {
-                let expr = positional.get(pos_index).cloned().ok_or_else(|| {
-                    syn::Error::new(
-                        proc_macro2::Span::call_site(),
-                        "missing positional argument",
-                    )
-                })?;
+                let expr = positional
+                    .get(pos_index)
+                    .cloned()
+                    .ok_or_else(|| syn::Error::new(span, "missing positional argument"))?;
                 pos_index += 1;
                 sql_parts.push(quote! { _builder.push_bind(&(#expr))?; });
             }
             Segment::Named(ident) => {
                 let name = ident.to_string();
                 let name = name.trim_start_matches("r#");
-                let name_lit = syn::LitStr::new(name, proc_macro2::Span::call_site());
+                let name_lit = syn::LitStr::new(name, span);
                 if let Some(expr) = named.remove(name) {
                     sql_parts.push(quote! { _builder.push_bind_named(#name_lit, &(#expr))?; });
                 } else {
@@ -304,26 +297,18 @@ fn build_sql(
             Segment::Set(expr) => sql_parts.push(quote! { _builder.push_set(&(#expr))?; }),
             Segment::Where(expr) => sql_parts.push(quote! { _builder.push_where(&(#expr))?; }),
             Segment::Upsert(expr, exclude) => {
-                let lits: Vec<syn::LitStr> = exclude
-                    .iter()
-                    .map(|s| syn::LitStr::new(s, proc_macro2::Span::call_site()))
-                    .collect();
+                let lits: Vec<syn::LitStr> =
+                    exclude.iter().map(|s| syn::LitStr::new(s, span)).collect();
                 sql_parts.push(quote! { _builder.push_upsert(&(#expr), &[ #( #lits ),* ])?; })
             }
             Segment::Raw(expr) => sql_parts.push(quote! { _builder.push_raw(#expr); }),
         }
     }
     if pos_index != positional.len() {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "unused positional arguments",
-        ));
+        return Err(syn::Error::new(span, "unused positional arguments"));
     }
     if !named.is_empty() {
-        return Err(syn::Error::new(
-            proc_macro2::Span::call_site(),
-            "unused named arguments",
-        ));
+        return Err(syn::Error::new(span, "unused named arguments"));
     }
     let builder_inits = quote! { let mut _builder = #musq::QueryBuilder::new(); };
     let collects = quote! { #(#sql_parts)* };

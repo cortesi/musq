@@ -33,14 +33,23 @@ pub struct VecInt8(pub Vec<i8>);
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct VecBit(pub Vec<u8>);
 
-impl Encode for VecF32 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Blob {
-            value: cast_slice::<f32, u8>(&self.0).to_vec().into(),
-            type_info: None,
-        })
-    }
+/// Implement `Encode` for a vector wrapper stored as a BLOB.
+macro_rules! encode_blob_vec {
+    ($ty:ty, $inner:ty) => {
+        impl Encode for $ty {
+            fn encode(&self) -> Result<Value, EncodeError> {
+                Ok(Value::Blob {
+                    value: cast_slice::<$inner, u8>(&self.0).to_vec().into(),
+                    type_info: None,
+                })
+            }
+        }
+    };
 }
+
+encode_blob_vec!(VecF32, f32);
+encode_blob_vec!(VecInt8, i8);
+encode_blob_vec!(VecBit, u8);
 
 impl<'r> Decode<'r> for VecF32 {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
@@ -63,15 +72,6 @@ impl<'r> Decode<'r> for VecF32 {
     }
 }
 
-impl Encode for VecInt8 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Blob {
-            value: cast_slice::<i8, u8>(&self.0).to_vec().into(),
-            type_info: None,
-        })
-    }
-}
-
 impl<'r> Decode<'r> for VecInt8 {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob);
@@ -82,15 +82,6 @@ impl<'r> Decode<'r> for VecInt8 {
             .map(|b| i8::from_ne_bytes([b]))
             .collect();
         Ok(Self(values))
-    }
-}
-
-impl Encode for VecBit {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Blob {
-            value: self.0.clone().into(),
-            type_info: None,
-        })
     }
 }
 

@@ -88,6 +88,13 @@ fn error_on_unit_struct() {
 }
 
 #[test]
+fn error_on_empty_struct() {
+    let txt = "struct Empty {}";
+    let e = expand_derive_from_row(&parse_str(txt).unwrap());
+    assert_errors_with!(e, "type not supported");
+}
+
+#[test]
 fn derive_struct_with_deserialize_with() {
     let txt = r#"
         struct Foo {

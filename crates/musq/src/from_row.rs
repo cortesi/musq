@@ -240,204 +240,29 @@ where
     }
 }
 
-// implement FromRow for tuples of types that implement Decode
-// up to tuples of 9 values
-
 /// Implement [`FromRow`] for tuples of decoded values.
+///
+/// The recursion emits arities from the full list down to one.
 macro_rules! impl_from_row_for_tuple {
-    ($( ($idx:tt) -> $T:ident );+;) => {
+    ($($T:ident),+) => {
         impl<'r, $($T,)+> FromRow<'r> for ($($T,)+)
         where
             $($T: crate::decode::Decode<'r>,)+
         {
-
             fn from_row(_prefix: &str, row: &'r Row) -> Result<Self> {
-                Ok(($(row.get_value_idx($idx as usize)?,)+))
+                let mut idx = 0usize..;
+                Ok(($(row.get_value_idx::<$T>(idx.next().expect("tuple index"))?,)+))
             }
         }
+
+        impl_from_row_for_tuple!(@shrink $($T),+);
     };
+    (@shrink $head:ident, $($tail:ident),+) => {
+        impl_from_row_for_tuple!($($tail),+);
+    };
+    (@shrink $head:ident) => {};
 }
 
 impl_from_row_for_tuple!(
-    (0) -> T1;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-    (8) -> T9;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-    (8) -> T9;
-    (9) -> T10;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-    (8) -> T9;
-    (9) -> T10;
-    (10) -> T11;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-    (8) -> T9;
-    (9) -> T10;
-    (10) -> T11;
-    (11) -> T12;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-    (8) -> T9;
-    (9) -> T10;
-    (10) -> T11;
-    (11) -> T12;
-    (12) -> T13;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-    (8) -> T9;
-    (9) -> T10;
-    (10) -> T11;
-    (11) -> T12;
-    (12) -> T13;
-    (13) -> T14;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-    (8) -> T9;
-    (9) -> T10;
-    (10) -> T11;
-    (11) -> T12;
-    (12) -> T13;
-    (13) -> T14;
-    (14) -> T15;
-);
-
-impl_from_row_for_tuple!(
-    (0) -> T1;
-    (1) -> T2;
-    (2) -> T3;
-    (3) -> T4;
-    (4) -> T5;
-    (5) -> T6;
-    (6) -> T7;
-    (7) -> T8;
-    (8) -> T9;
-    (9) -> T10;
-    (10) -> T11;
-    (11) -> T12;
-    (12) -> T13;
-    (13) -> T14;
-    (14) -> T15;
-    (15) -> T16;
+    T1, T2, T3, T4, T5, T6, T7, T8, T9, T10, T11, T12, T13, T14, T15, T16
 );

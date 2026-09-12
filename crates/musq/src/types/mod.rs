@@ -60,6 +60,62 @@ macro_rules! compatible {
     };
 }
 
+/// Implement `Encode` for an integer type.
+///
+/// `raw` casts directly; `checked` rejects values outside `i64`.
+macro_rules! encode_integer {
+    ($ty:ty, raw) => {
+        impl Encode for $ty {
+            fn encode(&self) -> Result<Value, EncodeError> {
+                Ok(Value::Integer {
+                    value: *self as i64,
+                    type_info: None,
+                })
+            }
+        }
+    };
+    ($ty:ty, checked) => {
+        impl Encode for $ty {
+            fn encode(&self) -> Result<Value, EncodeError> {
+                Ok(Value::Integer {
+                    value: i64::try_from(*self)
+                        .map_err(|error| EncodeError::Conversion(error.to_string()))?,
+                    type_info: None,
+                })
+            }
+        }
+    };
+}
+
+/// Implement `Decode` for an integer type.
+///
+/// `direct` returns the accessor value unchanged; `narrow` runs a checked
+/// conversion.
+macro_rules! decode_integer {
+    ($ty:ty, $accessor:ident, direct) => {
+        impl<'r> Decode<'r> for $ty {
+            fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+                compatible!(
+                    value,
+                    SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
+                );
+                value.$accessor()
+            }
+        }
+    };
+    ($ty:ty, $accessor:ident, narrow) => {
+        impl<'r> Decode<'r> for $ty {
+            fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+                compatible!(
+                    value,
+                    SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
+                );
+                Ok(value.$accessor()?.try_into()?)
+            }
+        }
+    };
+}
+
 /// Conversions for `bstr` text types.
 #[cfg(feature = "bstr")]
 #[cfg_attr(docsrs, doc(cfg(feature = "bstr")))]

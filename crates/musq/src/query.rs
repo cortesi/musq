@@ -252,55 +252,38 @@ impl<T: AsConnection + Sync> query_executor_sealed::Sealed for &T {}
 impl<T: AsConnection + Send> query_executor_sealed::Sealed for &mut T {}
 impl query_executor_sealed::Sealed for &crate::Pool {}
 
-impl<T: AsConnection + Sync> QueryExecutor for &T {
-    async fn execute_query(self, query: Query) -> Result<QueryResult> {
-        self.as_connection().execute(query).await
-    }
+/// Implement [`QueryExecutor`] for shared and exclusive connection references.
+macro_rules! impl_query_executor_for_ref {
+    ($bound:ident $($mut:tt)?) => {
+        impl<T: AsConnection + $bound> QueryExecutor for &$($mut)? T {
+            async fn execute_query(self, query: Query) -> Result<QueryResult> {
+                self.as_connection().execute(query).await
+            }
 
-    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
-    where
-        Self: 'c,
-    {
-        self.as_connection().fetch(query)
-    }
+            fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
+            where
+                Self: 'c,
+            {
+                self.as_connection().fetch(query)
+            }
 
-    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
-        self.as_connection().fetch_all(query).await
-    }
+            async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
+                self.as_connection().fetch_all(query).await
+            }
 
-    async fn fetch_one_query(self, query: Query) -> Result<Row> {
-        self.as_connection().fetch_one(query).await
-    }
+            async fn fetch_one_query(self, query: Query) -> Result<Row> {
+                self.as_connection().fetch_one(query).await
+            }
 
-    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
-        self.as_connection().fetch_optional(query).await
-    }
+            async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
+                self.as_connection().fetch_optional(query).await
+            }
+        }
+    };
 }
 
-impl<T: AsConnection + Send> QueryExecutor for &mut T {
-    async fn execute_query(self, query: Query) -> Result<QueryResult> {
-        self.as_connection().execute(query).await
-    }
-
-    fn fetch_query<'c>(self, query: Query) -> BoxStream<'c, Result<Row>>
-    where
-        Self: 'c,
-    {
-        self.as_connection().fetch(query)
-    }
-
-    async fn fetch_all_query(self, query: Query) -> Result<Vec<Row>> {
-        self.as_connection().fetch_all(query).await
-    }
-
-    async fn fetch_one_query(self, query: Query) -> Result<Row> {
-        self.as_connection().fetch_one(query).await
-    }
-
-    async fn fetch_optional_query(self, query: Query) -> Result<Option<Row>> {
-        self.as_connection().fetch_optional(query).await
-    }
-}
+impl_query_executor_for_ref!(Sync);
+impl_query_executor_for_ref!(Send mut);
 
 impl QueryExecutor for &crate::Pool {
     async fn execute_query(self, query: Query) -> Result<QueryResult> {
@@ -348,11 +331,52 @@ impl Execute for Query {
     }
 }
 
+/// Shared binding behavior for [`Query`] and [`Map`].
+trait Bindable: Sized {
+    /// Return the query arguments, if the query keeps them.
+    fn arguments_mut(&mut self) -> Option<&mut Arguments>;
+
+    /// Attempt to bind a positional value.
+    fn try_bind_value<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
+        if let Some(arguments) = self.arguments_mut() {
+            arguments.add(&value)?;
+        }
+        // Consume the bound value; it is encoded, not stored.
+        drop(value);
+        Ok(self)
+    }
+
+    /// Attempt to bind a named value.
+    fn try_bind_named_value<'q, T: 'q + Send + Encode>(
+        mut self,
+        name: &str,
+        value: T,
+    ) -> Result<Self> {
+        if let Some(arguments) = self.arguments_mut() {
+            arguments.add_named(name, &value)?;
+        }
+        // Consume the bound value; it is encoded, not stored.
+        drop(value);
+        Ok(self)
+    }
+}
+
+impl Bindable for Query {
+    fn arguments_mut(&mut self) -> Option<&mut Arguments> {
+        self.arguments.as_mut()
+    }
+}
+
+impl<F> Bindable for Map<F> {
+    fn arguments_mut(&mut self) -> Option<&mut Arguments> {
+        self.inner.arguments.as_mut()
+    }
+}
+
 impl<F> Map<F> {
     /// Attempt to bind a value for use with the mapped query.
-    pub fn try_bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
-        self.inner = self.inner.try_bind(value)?;
-        Ok(self)
+    pub fn try_bind<'q, T: 'q + Send + Encode>(self, value: T) -> Result<Self> {
+        self.try_bind_value(value)
     }
 
     /// Bind a value for use with the mapped query.
@@ -364,13 +388,8 @@ impl<F> Map<F> {
     }
 
     /// Attempt to bind a value to a named parameter.
-    pub fn try_bind_named<'q, T: 'q + Send + Encode>(
-        mut self,
-        name: &str,
-        value: T,
-    ) -> Result<Self> {
-        self.inner = self.inner.try_bind_named(name, value)?;
-        Ok(self)
+    pub fn try_bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Result<Self> {
+        self.try_bind_named_value(name, value)
     }
 
     /// Bind a value to a named parameter.
@@ -428,13 +447,8 @@ impl Query {
     /// If the number of times this is called does not match the number of bind
     /// parameters that appear in the query then an error will be returned
     /// when this query is executed.
-    pub fn try_bind<'q, T: 'q + Send + Encode>(mut self, value: T) -> Result<Self> {
-        if let Some(arguments) = &mut self.arguments {
-            arguments.add(&value)?;
-        }
-        // Consume the bound value; it is encoded, not stored.
-        drop(value);
-        Ok(self)
+    pub fn try_bind<'q, T: 'q + Send + Encode>(self, value: T) -> Result<Self> {
+        self.try_bind_value(value)
     }
 
     /// Bind a value for use with this SQL query.
@@ -446,17 +460,8 @@ impl Query {
     }
 
     /// Attempt to bind a value to a named parameter.
-    pub fn try_bind_named<'q, T: 'q + Send + Encode>(
-        mut self,
-        name: &str,
-        value: T,
-    ) -> Result<Self> {
-        if let Some(arguments) = &mut self.arguments {
-            arguments.add_named(name, &value)?;
-        }
-        // Consume the bound value; it is encoded, not stored.
-        drop(value);
-        Ok(self)
+    pub fn try_bind_named<'q, T: 'q + Send + Encode>(self, name: &str, value: T) -> Result<Self> {
+        self.try_bind_named_value(name, value)
     }
 
     /// Bind a value to a named parameter.

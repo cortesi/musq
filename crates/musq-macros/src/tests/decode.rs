@@ -1,40 +1,14 @@
+derive_expansion_tests!(
+    decode::expand_derive_decode,
+    enum_impl = "impl < 'r > :: musq :: decode :: Decode < 'r > for Foo",
+    enum_generic_impl = "impl < 'r , T > :: musq :: decode :: Decode < 'r > for Foo < T >",
+    struct_impl = "impl < 'r > :: musq :: decode :: Decode < 'r > for Foo",
+    struct_body = "map (Self)",
+);
+
 use syn::parse_str;
 
-use crate::{core::assert_errors_with, decode::expand_derive_decode};
-
-#[test]
-fn derive_enum() {
-    let input = parse_str("enum Foo { One, Two }").unwrap();
-    let tokens = expand_derive_decode(&input).unwrap();
-    let s = tokens.to_string();
-    assert!(s.contains("impl < 'r > :: musq :: decode :: Decode < 'r > for Foo"));
-}
-
-#[test]
-fn derive_enum_generic() {
-    let input = parse_str("enum Foo<T> { One(T), Two }").unwrap();
-    let tokens = expand_derive_decode(&input).unwrap();
-    let s = tokens.to_string();
-    assert!(s.contains("impl < 'r , T > :: musq :: decode :: Decode < 'r > for Foo < T >"));
-}
-
-#[test]
-fn derive_enum_with_repr() {
-    let input = parse_str("#[musq(repr = \"i32\")] enum Foo { One, Two }").unwrap();
-    let tokens = expand_derive_decode(&input).unwrap();
-    let s = tokens.to_string();
-    assert!(s.contains("impl < 'r > :: musq :: decode :: Decode < 'r > for Foo"));
-    assert!(s.contains("as i32"));
-}
-
-#[test]
-fn derive_struct() {
-    let input = parse_str("struct Foo(i32);").unwrap();
-    let tokens = expand_derive_decode(&input).unwrap();
-    let s = tokens.to_string();
-    assert!(s.contains("impl < 'r > :: musq :: decode :: Decode < 'r > for Foo"));
-    assert!(s.contains("map (Self)"));
-}
+use crate::decode::expand_derive_decode;
 
 #[test]
 fn derive_struct_generic() {
@@ -53,8 +27,15 @@ fn derive_struct_user_lifetime() {
 }
 
 #[test]
-fn error_on_named_struct() {
-    let input = parse_str("struct Foo { a: i32 }").unwrap();
-    let e = expand_derive_decode(&input);
-    assert_errors_with!(e, "structs must have exactly one unnamed field");
+fn derive_enum_rename_all() {
+    let input = parse_str("#[musq(rename_all = \"lower_case\")] enum Foo { One, Two }").unwrap();
+    let tokens = expand_derive_decode(&input).unwrap();
+    assert!(tokens.to_string().contains("\"one\""));
+}
+
+#[test]
+fn derive_struct_try_from() {
+    let input = parse_str("#[musq(try_from = \"String\")] struct Foo(String);").unwrap();
+    let tokens = expand_derive_decode(&input).unwrap();
+    assert!(tokens.to_string().contains("TryFrom"));
 }

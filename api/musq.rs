@@ -1949,16 +1949,6 @@ pub mod musq {
         /// The returned future **must** be awaited to ensure the connection is
         /// fully closed.
         pub async fn close(self) -> Result<()> {}
-
-        /// Interrupt the statement currently running on this connection.
-        ///
-        /// See [`Connection::interrupt`].
-        pub fn interrupt(&self) {}
-
-        /// Return a cloneable handle that can interrupt this connection.
-        ///
-        /// See [`Connection::interrupt_handle`].
-        pub fn interrupt_handle(&self) -> crate::InterruptHandle {}
     }
 
     impl Arguments {
@@ -1999,7 +1989,7 @@ pub mod musq {
         ///
         /// Uses the connection's default [`crate::TransactionBehavior`]. Nested
         /// calls create savepoints.
-        pub fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<&mut Self>>>
+        pub async fn begin(&mut self) -> Result<Transaction<&mut Self>>
         where
             Self: Sized, {
         }
@@ -2007,10 +1997,10 @@ pub mod musq {
         /// Begin a transaction with an explicit start mode.
         ///
         /// Nested calls still create savepoints.
-        pub fn begin_with(
+        pub async fn begin_with(
             &mut self,
             behavior: crate::TransactionBehavior,
-        ) -> BoxFuture<'_, Result<Transaction<&mut Self>>>
+        ) -> Result<Transaction<&mut Self>>
         where
             Self: Sized, {
         }
@@ -2018,7 +2008,7 @@ pub mod musq {
         /// Compile `sql` to validate it and warm the statement cache.
         ///
         /// This does not execute the statement.
-        pub fn prepare<'c, 'q: 'c>(&self, sql: &'q str) -> BoxFuture<'c, Result<()>> {}
+        pub async fn prepare(&self, sql: &str) -> Result<()> {}
 
         /// Copy this database to `path` with the SQLite backup API.
         ///
@@ -3168,22 +3158,13 @@ pub mod musq {
         pub async fn rollback(self) -> Result<()> {}
 
         /// Begin a transaction using the connection's default behavior.
-        pub fn begin<'c>(conn: C) -> BoxFuture<'c, Result<Self>>
-        where
-            C: 'c, {
-        }
+        pub async fn begin(conn: C) -> Result<Self> {}
 
         /// Begin a transaction with an explicit start mode.
         ///
         /// Nested calls still create savepoints. `behavior` applies only when this
         /// is the outer transaction.
-        pub fn begin_with<'c>(
-            conn: C,
-            behavior: TransactionBehavior,
-        ) -> BoxFuture<'c, Result<Self>>
-        where
-            C: 'c, {
-        }
+        pub async fn begin_with(conn: C, behavior: TransactionBehavior) -> Result<Self> {}
 
         /// Commits this transaction or savepoint.
         pub async fn commit(self) -> Result<()> {}

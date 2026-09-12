@@ -13,6 +13,18 @@ mod row;
 /// Compile-time SQL helpers.
 mod sql;
 
+/// Run a derive expansion and convert errors into compile errors.
+fn derive(
+    input: proc_macro::TokenStream,
+    expand: impl FnOnce(&syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream>,
+) -> proc_macro::TokenStream {
+    let input = syn::parse_macro_input!(input as syn::DeriveInput);
+    match expand(&input) {
+        Ok(ts) => ts.into(),
+        Err(e) => e.to_compile_error().into(),
+    }
+}
+
 /// Build combined encode/decode tokens for the `Codec` derive.
 fn derive_codec_tokens(input: &syn::DeriveInput) -> syn::Result<proc_macro2::TokenStream> {
     let encode_tts = encode::expand_codec_encode(input)?;
@@ -22,69 +34,49 @@ fn derive_codec_tokens(input: &syn::DeriveInput) -> syn::Result<proc_macro2::Tok
     ))
 }
 
-#[proc_macro_derive(Json, attributes(musq))]
 /// Derive JSON encode/decode implementations.
 ///
 /// The expanded code needs the musq `json` feature.
+#[proc_macro_derive(Json, attributes(musq))]
 pub fn derive_json(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
-    match json::expand_json(&input) {
-        Ok(ts) => ts.into(),
-        Err(e) => e.to_compile_error().into(),
-    }
+    derive(tokenstream, json::expand_json)
 }
 
-#[proc_macro_derive(Codec, attributes(musq))]
 /// Derive combined encode and decode implementations.
+#[proc_macro_derive(Codec, attributes(musq))]
 pub fn derive_codec(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
-    match derive_codec_tokens(&input) {
-        Ok(ts) => ts.into(),
-        Err(e) => e.to_compile_error().into(),
-    }
+    derive(tokenstream, derive_codec_tokens)
 }
 
-#[proc_macro_derive(Encode, attributes(musq))]
 /// Derive an `Encode` implementation.
+#[proc_macro_derive(Encode, attributes(musq))]
 pub fn derive_encode(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
-    match encode::expand_derive_encode(&input) {
-        Ok(ts) => ts.into(),
-        Err(e) => e.to_compile_error().into(),
-    }
+    derive(tokenstream, encode::expand_derive_encode)
 }
 
-#[proc_macro_derive(Decode, attributes(musq))]
 /// Derive a `Decode` implementation.
+#[proc_macro_derive(Decode, attributes(musq))]
 pub fn derive_decode(tokenstream: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(tokenstream as syn::DeriveInput);
-    match decode::expand_derive_decode(&input) {
-        Ok(ts) => ts.into(),
-        Err(e) => e.to_compile_error().into(),
-    }
+    derive(tokenstream, decode::expand_derive_decode)
 }
 
-#[proc_macro_derive(FromRow, attributes(musq))]
 /// Derive a `FromRow` implementation.
+#[proc_macro_derive(FromRow, attributes(musq))]
 pub fn derive_from_row(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
-    let input = syn::parse_macro_input!(input as syn::DeriveInput);
-    match row::expand_derive_from_row(&input) {
-        Ok(ts) => ts.into(),
-        Err(e) => e.to_compile_error().into(),
-    }
+    derive(input, row::expand_derive_from_row)
 }
 
 #[cfg(test)]
 mod tests;
 
-#[proc_macro]
 /// Expand a SQL query from a format string and arguments.
+#[proc_macro]
 pub fn sql(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     sql::sql(item)
 }
 
-#[proc_macro]
 /// Expand a SQL query that maps rows into a destination type.
+#[proc_macro]
 pub fn sql_as(item: proc_macro::TokenStream) -> proc_macro::TokenStream {
     sql::sql_as(item)
 }

@@ -4,8 +4,6 @@ use std::{
     sync::atomic::Ordering,
 };
 
-use futures_core::future::BoxFuture;
-
 use crate::{Connection, PoolConnection, Result};
 
 /// How SQLite starts a top-level transaction.
@@ -81,28 +79,20 @@ where
     C: DerefMut<Target = Connection> + Send,
 {
     /// Begin a transaction using the connection's default behavior.
-    pub fn begin<'c>(conn: C) -> BoxFuture<'c, Result<Self>>
-    where
-        C: 'c,
-    {
+    pub async fn begin(conn: C) -> Result<Self> {
         let behavior = conn.deref().default_transaction_behavior;
-        Self::begin_with(conn, behavior)
+        Self::begin_with(conn, behavior).await
     }
 
     /// Begin a transaction with an explicit start mode.
     ///
     /// Nested calls still create savepoints. `behavior` applies only when this
     /// is the outer transaction.
-    pub fn begin_with<'c>(conn: C, behavior: TransactionBehavior) -> BoxFuture<'c, Result<Self>>
-    where
-        C: 'c,
-    {
-        Box::pin(async move {
-            conn.deref().worker.begin(behavior).await?;
-            Ok(Self {
-                connection: conn,
-                open: true,
-            })
+    pub async fn begin_with(conn: C, behavior: TransactionBehavior) -> Result<Self> {
+        conn.deref().worker.begin(behavior).await?;
+        Ok(Self {
+            connection: conn,
+            open: true,
         })
     }
 

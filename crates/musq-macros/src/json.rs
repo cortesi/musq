@@ -37,19 +37,3 @@ pub fn expand_json(input: &DeriveInput) -> syn::Result<TokenStream> {
         }
     ))
 }
-
-/// Tests for JSON derive expansion.
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn it_derives_json() {
-        let txt = r#"
-            struct Foo{
-                a: i32,
-                b: String
-            }
-        "#;
-        println!("{}", expand_json(&syn::parse_str(txt).unwrap()).unwrap());
-    }
-}

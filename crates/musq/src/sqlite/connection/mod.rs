@@ -159,25 +159,25 @@ impl Connection {
     ///
     /// Uses the connection's default [`crate::TransactionBehavior`]. Nested
     /// calls create savepoints.
-    pub fn begin(&mut self) -> BoxFuture<'_, Result<Transaction<&mut Self>>>
+    pub async fn begin(&mut self) -> Result<Transaction<&mut Self>>
     where
         Self: Sized,
     {
         let behavior = self.default_transaction_behavior;
-        Transaction::begin_with(self, behavior)
+        Transaction::begin_with(self, behavior).await
     }
 
     /// Begin a transaction with an explicit start mode.
     ///
     /// Nested calls still create savepoints.
-    pub fn begin_with(
+    pub async fn begin_with(
         &mut self,
         behavior: crate::TransactionBehavior,
-    ) -> BoxFuture<'_, Result<Transaction<&mut Self>>>
+    ) -> Result<Transaction<&mut Self>>
     where
         Self: Sized,
     {
-        Transaction::begin_with(self, behavior)
+        Transaction::begin_with(self, behavior).await
     }
 
     /// Return whether SQLite currently has no explicit transaction open.
@@ -530,8 +530,8 @@ impl Connection {
     /// Compile `sql` to validate it and warm the statement cache.
     ///
     /// This does not execute the statement.
-    pub fn prepare<'c, 'q: 'c>(&'c self, sql: &'q str) -> BoxFuture<'c, Result<()>> {
-        Box::pin(async move { self.worker.prepare(sql).await })
+    pub async fn prepare(&self, sql: &str) -> Result<()> {
+        self.worker.prepare(sql).await
     }
 
     /// Execute a query and stream only rows.

@@ -7,83 +7,17 @@ use crate::{
     sqlite::{SqliteDataType, Value},
 };
 
-impl Encode for i8 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: *self as i64,
-            type_info: None,
-        })
-    }
-}
+encode_integer!(i8, raw);
+decode_integer!(i8, int, narrow);
 
-impl<'r> Decode<'r> for i8 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        let v: i32 = value.int()?;
-        Ok(v.try_into()?)
-    }
-}
+encode_integer!(i16, raw);
+decode_integer!(i16, int, narrow);
 
-impl Encode for i16 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: *self as i64,
-            type_info: None,
-        })
-    }
-}
+encode_integer!(i32, raw);
+decode_integer!(i32, int, direct);
 
-impl<'r> Decode<'r> for i16 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        let v: i32 = value.int()?;
-        Ok(v.try_into()?)
-    }
-}
-
-impl Encode for i32 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: *self as i64,
-            type_info: None,
-        })
-    }
-}
-
-impl<'r> Decode<'r> for i32 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        value.int()
-    }
-}
-
-impl Encode for i64 {
-    fn encode(&self) -> Result<Value, EncodeError> {
-        Ok(Value::Integer {
-            value: *self,
-            type_info: None,
-        })
-    }
-}
-
-impl<'r> Decode<'r> for i64 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
-        compatible!(
-            value,
-            SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
-        );
-        value.int64()
-    }
-}
+encode_integer!(i64, raw);
+decode_integer!(i64, int64, direct);
 
 #[cfg(test)]
 mod tests {

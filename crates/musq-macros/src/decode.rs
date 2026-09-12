@@ -145,7 +145,9 @@ fn expand_enum(
     let values = quote! {
         match value {
             #(#value_arms)*
-            _ => Err(format!("invalid value {:?} for enum {}", value, #ident_s).into())
+            _ => ::std::result::Result::Err(
+                ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into()
+            )
         }
     };
 
@@ -170,39 +172,4 @@ fn expand_enum(
     ));
 
     Ok(tts)
-}
-
-/// Tests for decode expansion helpers.
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn it_derives_decode() {
-        let txt = r#"enum Foo {One, Two}"#;
-        expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
-
-        let txt = r#"
-            #[musq(rename_all = "lower_case")]
-            enum Foo {One, Two}
-        "#;
-        expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
-
-        let txt = r#"
-            #[musq(repr = "i32")]
-            enum Foo {One, Two}
-        "#;
-        expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
-
-        let txt = r#"
-            struct Foo(i32);
-        "#;
-        expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
-
-        let txt = r#"
-            #[musq(try_from = "String")]
-            struct Foo(String);
-        "#;
-        expand_derive_decode(&syn::parse_str(txt).unwrap()).unwrap();
-    }
 }
