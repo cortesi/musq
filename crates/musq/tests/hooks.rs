@@ -1,15 +1,18 @@
 //! Per-connection update, commit, and rollback hooks.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use std::time::Duration;
 
-    use musq::{Connection, Musq, UpdateEvent, UpdateOp, query, query_scalar};
+    use crate::support::connection;
+    use musq::{UpdateEvent, UpdateOp, query, query_scalar};
     use tokio::{sync::mpsc, time::timeout};
 
     #[tokio::test]
     async fn update_hook_sees_insert() -> anyhow::Result<()> {
-        let conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = connection().await?;
         query("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT)")
             .execute(&conn)
             .await?;
@@ -39,7 +42,7 @@ mod tests {
 
     #[tokio::test]
     async fn commit_and_rollback_hooks_fire() -> anyhow::Result<()> {
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let mut conn = connection().await?;
         query("CREATE TABLE t (id INTEGER PRIMARY KEY)")
             .execute(&conn)
             .await?;
@@ -79,7 +82,7 @@ mod tests {
 
     #[tokio::test]
     async fn hook_panic_is_caught() -> anyhow::Result<()> {
-        let conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = connection().await?;
         query("CREATE TABLE t (id INTEGER PRIMARY KEY)")
             .execute(&conn)
             .await?;

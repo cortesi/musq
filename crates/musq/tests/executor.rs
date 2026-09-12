@@ -5,30 +5,6 @@ mod tests {
     use futures_util::future::try_join_all;
     use musq::{Musq, Pool, PoolConnection, query};
 
-    // Helper function to create a test database
-    async fn setup_test_db() -> musq::Result<PoolConnection> {
-        let pool = Musq::new().open_in_memory().await?;
-        let conn = pool.acquire().await?;
-
-        // Create a test table
-        query("CREATE TABLE test_table (id INTEGER PRIMARY KEY, value TEXT)")
-            .execute(&conn)
-            .await?;
-
-        // Insert test data
-        query("INSERT INTO test_table (value) VALUES (?)")
-            .bind("test_value_1")
-            .execute(&conn)
-            .await?;
-
-        query("INSERT INTO test_table (value) VALUES (?)")
-            .bind("test_value_2")
-            .execute(&conn)
-            .await?;
-
-        Ok(conn)
-    }
-
     // Helper function to create a test pool
     async fn setup_test_pool() -> musq::Result<Pool> {
         let pool = Musq::new().open_in_memory().await?;
@@ -54,6 +30,11 @@ mod tests {
         Ok(pool)
     }
 
+    // Helper function to create a test database
+    async fn setup_test_db() -> musq::Result<PoolConnection> {
+        setup_test_pool().await?.acquire().await
+    }
+
     mod connection_executor {
         use musq::Row;
 
@@ -69,7 +50,7 @@ mod tests {
                 .await?;
 
             assert_eq!(result.rows_affected(), 1);
-            assert!(result.last_insert_rowid() > 0);
+            assert_eq!(result.last_insert_rowid(), 3);
             Ok(())
         }
 
@@ -223,7 +204,7 @@ mod tests {
                 .await?;
 
             assert_eq!(result.rows_affected(), 1);
-            assert!(result.last_insert_rowid() > 0);
+            assert_eq!(result.last_insert_rowid(), 3);
             Ok(())
         }
 

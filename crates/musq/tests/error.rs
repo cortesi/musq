@@ -1,8 +1,6 @@
 //! Integration tests for musq.
 
 mod support;
-#[path = "support/db.rs"]
-mod support_db;
 
 #[cfg(test)]
 mod tests {
@@ -12,7 +10,7 @@ mod tests {
         query,
     };
 
-    use crate::support_db::tdb;
+    use crate::support::db::tdb;
 
     #[tokio::test]
     async fn it_fails_with_unique_violation() -> anyhow::Result<()> {
@@ -108,7 +106,8 @@ mod tests {
 
         let err = err.as_sqlite().unwrap();
 
-        assert!(err.message.contains("constraint"));
+        assert_eq!(err.primary, PrimaryErrCode::Constraint);
+        assert_eq!(err.extended, Some(ExtendedErrCode::ConstraintForeignKey));
 
         Ok(())
     }
@@ -125,7 +124,8 @@ mod tests {
 
         let err = err.as_sqlite().unwrap();
 
-        assert!(err.message.contains("constraint"));
+        assert_eq!(err.primary, PrimaryErrCode::Constraint);
+        assert_eq!(err.extended, Some(ExtendedErrCode::ConstraintNotNull));
 
         Ok(())
     }
@@ -142,7 +142,8 @@ mod tests {
 
         let err = err.as_sqlite().unwrap();
 
-        assert!(err.message.contains("constraint"));
+        assert_eq!(err.primary, PrimaryErrCode::Constraint);
+        assert_eq!(err.extended, Some(ExtendedErrCode::ConstraintCheck));
 
         Ok(())
     }

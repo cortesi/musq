@@ -1,11 +1,14 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use std::sync::Arc;
 
+    use crate::support::connection;
     use futures::future::join_all;
-    use musq::{Connection, Musq, query, query_as};
+    use musq::{Musq, query, query_as};
 
     /// Test that Pool implements Executor and can be used interchangeably with
     /// Connection
@@ -65,7 +68,7 @@ mod tests {
             .await?;
 
         // Test with standalone Connection
-        let standalone_conn = Connection::connect_with(&Musq::new()).await?;
+        let standalone_conn = connection().await?;
         // Note: This won't see the data from the pool since it's a different connection
         // But we can test that the API works the same
         query("CREATE TABLE test_standalone (id INTEGER, value TEXT)")
@@ -103,18 +106,17 @@ mod tests {
     /// Test that Pool can be used in generic functions that accept Executor
     #[tokio::test]
     async fn test_pool_in_generic_function() -> anyhow::Result<()> {
-        async fn insert_and_count(
-            pool: &musq::Pool,
-            table: &str,
-            value: &str,
-        ) -> anyhow::Result<i64> {
+        async fn insert_and_count<E>(executor: &E, table: &str, value: &str) -> anyhow::Result<i64>
+        where
+            for<'a> &'a E: musq::QueryExecutor,
+        {
             query(&format!("INSERT INTO {table} (value) VALUES (?)"))
                 .bind(value)
-                .execute(pool)
+                .execute(executor)
                 .await?;
 
             let count: (i64,) = query_as(&format!("SELECT COUNT(*) FROM {table}"))
-                .fetch_one(pool)
+                .fetch_one(executor)
                 .await?;
 
             Ok(count.0)
@@ -136,14 +138,8 @@ mod tests {
 
         // Test with pool connection
         let conn = pool.acquire().await?;
-        query("INSERT INTO test_generic (value) VALUES (?)")
-            .bind("value3")
-            .execute(&conn)
-            .await?;
-        let count3: (i64,) = query_as("SELECT COUNT(*) FROM test_generic")
-            .fetch_one(&conn)
-            .await?;
-        assert_eq!(count3.0, 3);
+        let count3 = insert_and_count(&conn, "test_generic", "value3").await?;
+        assert_eq!(count3, 3);
 
         Ok(())
     }

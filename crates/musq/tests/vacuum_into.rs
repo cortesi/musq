@@ -1,5 +1,7 @@
 //! Integration tests for safe SQLite database copies.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     #[cfg(unix)]
@@ -8,12 +10,14 @@ mod tests {
 
     use musq::{Error, Musq, query, query_scalar};
 
+    use crate::support::db::populated_pool;
+
     #[tokio::test]
     async fn vacuum_into_creates_an_independent_copy() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let destination = dir.path().join("copy.db");
-        let pool = source_pool(&source).await?;
+        let pool = populated_pool(&source).await?;
 
         pool.vacuum_into(&destination).await?;
         query("INSERT INTO items(name) VALUES ('after-copy')")
@@ -40,7 +44,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let destination = dir.path().join("snapshot's copy.db");
-        let pool = source_pool(&source).await?;
+        let pool = populated_pool(&source).await?;
 
         pool.vacuum_into(&destination).await?;
 
@@ -59,7 +63,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let destination = dir.path().join("existing.db");
-        let pool = source_pool(&source).await?;
+        let pool = populated_pool(&source).await?;
         let existing = Musq::new()
             .create_if_missing(true)
             .open(&destination)
@@ -81,10 +85,10 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let destination = dir.path().join("missing").join("copy.db");
-        let pool = source_pool(&source).await?;
+        let pool = populated_pool(&source).await?;
 
         let error = pool.vacuum_into(&destination).await.unwrap_err();
-        assert!(matches!(error, Error::Sqlite(_)), "{error:?}");
+        assert_sqlite_message(error, "unable to open database");
 
         let _ = pool.close().await;
         Ok(())
@@ -112,17 +116,6 @@ mod tests {
 
         let _ = pool.close().await;
         Ok(())
-    }
-
-    async fn source_pool(path: &Path) -> anyhow::Result<musq::Pool> {
-        let pool = Musq::new().create_if_missing(true).open(path).await?;
-        query("CREATE TABLE items(id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
-            .execute(&pool)
-            .await?;
-        query("INSERT INTO items(name) VALUES ('one'), ('two')")
-            .execute(&pool)
-            .await?;
-        Ok(pool)
     }
 
     fn assert_invalid_path(error: Error, expected: &str) {

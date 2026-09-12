@@ -1,8 +1,12 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
-    use musq::{Error, JournalMode, Musq, query_scalar};
+    use musq::{JournalMode, Musq, query_scalar};
+
+    use crate::support::assert_configuration_contains;
 
     #[tokio::test]
     async fn open_in_memory_with_journal_mode_memory() -> anyhow::Result<()> {
@@ -25,9 +29,6 @@ mod tests {
             .await
             .expect_err("max_connections(0) should be rejected");
 
-        match err {
-            Error::Configuration(msg) => assert!(msg.contains("max_connections")),
-            other => panic!("expected configuration error, got {other:?}"),
-        }
+        assert_configuration_contains(err, "max_connections");
     }
 }

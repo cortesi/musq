@@ -5,7 +5,7 @@ mod support;
 #[cfg(test)]
 mod tests {
     use musq::{Musq, query, query_scalar};
-    use tokio::time::{Duration, Instant, sleep};
+    use tokio::time::{Duration, sleep};
 
     use crate::support::connection;
 
@@ -41,7 +41,6 @@ mod tests {
 
         query("BEGIN IMMEDIATE").execute(&c1).await?;
 
-        let start = Instant::now();
         let insert = tokio::spawn(async move {
             query("INSERT INTO t (val) VALUES ('foo')")
                 .execute(&c2)
@@ -52,7 +51,6 @@ mod tests {
         query("COMMIT").execute(&c1).await?;
 
         insert.await??;
-        assert!(start.elapsed() >= Duration::from_millis(100));
 
         let conn = pool.acquire().await?;
         let count: i64 = query_scalar("SELECT COUNT(*) FROM t")

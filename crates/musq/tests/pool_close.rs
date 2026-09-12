@@ -16,7 +16,6 @@ mod tests {
                     return stats;
                 }
                 yield_now().await;
-                sleep(Duration::from_millis(10)).await;
             }
         })
         .await
@@ -60,6 +59,9 @@ mod tests {
         drop(idle);
 
         wait_for_stats(&pool, |stats| stats.size == 2 && stats.num_idle == 1).await;
+        assert_eq!(pool.size(), 2);
+        assert_eq!(pool.num_idle(), 1);
+        assert!(!pool.is_closed());
 
         let pool_for_close = pool.clone();
         let mut closer = tokio::spawn(async move {
@@ -80,6 +82,9 @@ mod tests {
                 is_closed: true,
             }
         );
+        assert_eq!(pool.size(), 1);
+        assert_eq!(pool.num_idle(), 0);
+        assert!(pool.is_closed());
         assert!(pool.try_acquire().is_none());
 
         drop(held);

@@ -7,27 +7,25 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    use musq::{FromRow, Musq, VecBit, VecF32, VecInt8};
+    use musq::{FromRow, Musq, QueryExecutor, VecBit, VecF32, VecInt8};
 
     use crate::support::connection;
 
-    #[tokio::test]
-    async fn vec_extension_available_on_direct_connection() -> anyhow::Result<()> {
-        let conn = connection().await?;
+    async fn assert_vec_version<E: QueryExecutor>(executor: E) -> anyhow::Result<()> {
         let version: String = musq::query_scalar("SELECT vec_version()")
-            .fetch_one(&conn)
+            .fetch_one(executor)
             .await?;
         assert!(version.starts_with('v'));
         Ok(())
     }
 
     #[tokio::test]
-    async fn vec_extension_available_on_pool_connection() -> anyhow::Result<()> {
+    async fn vec_extension_available() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        assert_vec_version(&conn).await?;
+
         let pool = Musq::new().open_in_memory().await?;
-        let version: String = musq::query_scalar("SELECT vec_version()")
-            .fetch_one(&pool)
-            .await?;
-        assert!(version.starts_with('v'));
+        assert_vec_version(&pool).await?;
         let _ = pool.close().await;
         Ok(())
     }
@@ -148,7 +146,7 @@ mod tests {
             .bind(VecInt8(vec![-128, -1, 0, 127]))
             .fetch_one(&conn)
             .await?;
-        assert_ne!(plain_type, "int8");
+        assert_eq!(plain_type, "float32");
 
         Ok(())
     }

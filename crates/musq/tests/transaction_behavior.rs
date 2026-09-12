@@ -1,39 +1,21 @@
 //! Transaction start modes, savepoints, and lock behavior.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
-    use std::time::Duration;
-
     use musq::{
-        JournalMode, Musq, TransactionBehavior, TxnState,
+        Musq, TransactionBehavior, TxnState,
         error::{ExtendedErrCode, PrimaryErrCode},
         query, query_scalar,
     };
-    use tempfile::TempDir;
 
-    async fn wal_pool(dir: &TempDir) -> anyhow::Result<musq::Pool> {
-        let path = dir.path().join("tx.db");
-        let pool = Musq::new()
-            .create_if_missing(true)
-            .journal_mode(JournalMode::Wal)
-            .busy_timeout(Duration::from_millis(50))
-            .max_connections(2)
-            .open(&path)
-            .await?;
-        query("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER NOT NULL)")
-            .execute(&pool)
-            .await?;
-        query("INSERT INTO t (id, v) VALUES (1, 0)")
-            .execute(&pool)
-            .await?;
-        let mode: String = query_scalar("PRAGMA journal_mode").fetch_one(&pool).await?;
-        assert_eq!(mode.to_ascii_lowercase(), "wal");
-        Ok(pool)
-    }
+    use crate::support::connection;
+    use crate::support::db::wal_pool;
 
     #[tokio::test]
     async fn transaction_state_complements_autocommit() -> anyhow::Result<()> {
-        let mut conn = musq::Connection::connect_with(&Musq::new()).await?;
+        let mut conn = connection().await?;
         assert_eq!(conn.transaction_state().await?, TxnState::None);
         assert!(conn.is_autocommit().await?);
 
@@ -85,7 +67,7 @@ mod tests {
 
     #[tokio::test]
     async fn nested_savepoint_commit_and_rollback_leave_outer_open() -> anyhow::Result<()> {
-        let mut conn = musq::Connection::connect_with(&Musq::new()).await?;
+        let mut conn = connection().await?;
         query("CREATE TABLE t (id INTEGER PRIMARY KEY, v INTEGER NOT NULL)")
             .execute(&conn)
             .await?;
@@ -124,7 +106,7 @@ mod tests {
     #[tokio::test]
     async fn immediate_blocks_a_second_writer_with_busy() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
-        let pool = wal_pool(&dir).await?;
+        let pool = wal_pool(dir.path()).await?;
 
         let tx = pool.begin_with(TransactionBehavior::Immediate).await?;
         let error = query("UPDATE t SET v = 1")
@@ -144,7 +126,7 @@ mod tests {
     #[tokio::test]
     async fn deferred_read_then_write_hits_busy_snapshot() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
-        let pool = wal_pool(&dir).await?;
+        let pool = wal_pool(dir.path()).await?;
 
         let tx = pool.begin_with(TransactionBehavior::Deferred).await?;
         let _: i64 = query_scalar("SELECT v FROM t WHERE id = 1")

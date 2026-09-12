@@ -1,5 +1,7 @@
 //! Query cancellation through `sqlite3_interrupt` and statement timeouts.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
     use std::{
@@ -8,6 +10,9 @@ mod tests {
     };
 
     use musq::{Connection, Error, Musq, error::PrimaryErrCode, query};
+
+    use crate::support::connection;
+    use crate::support::stress_iters;
     use tokio::{
         join,
         time::{error::Elapsed, sleep, timeout},
@@ -40,7 +45,7 @@ mod tests {
 
     #[tokio::test]
     async fn interrupt_recursive_cte() -> anyhow::Result<()> {
-        let conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = connection().await?;
         let handle = conn.interrupt_handle();
 
         let fetch = query(INFINITE_SELECT).fetch_all(&conn);
@@ -60,7 +65,7 @@ mod tests {
 
     #[tokio::test]
     async fn interrupt_write_aborts_commit() -> anyhow::Result<()> {
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let mut conn = connection().await?;
         query("CREATE TABLE t (x INTEGER)").execute(&conn).await?;
 
         let tx = conn.begin().await?;
@@ -93,8 +98,8 @@ mod tests {
 
     #[tokio::test]
     async fn interrupt_races_close() -> anyhow::Result<()> {
-        for _ in 0..1000 {
-            let conn = Connection::connect_with(&Musq::new()).await?;
+        for _ in 0..stress_iters(50) {
+            let conn = connection().await?;
             let handle = conn.interrupt_handle();
             let interruptor = thread::spawn(move || {
                 for _ in 0..32 {

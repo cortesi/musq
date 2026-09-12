@@ -83,6 +83,14 @@ mod tests {
         query("CREATE INDEX i ON t (twice(x))")
             .execute(&conn)
             .await?;
+        query("INSERT INTO t (x) VALUES (21)")
+            .execute(&conn)
+            .await?;
+
+        let values: Vec<i64> = query_scalar("SELECT x FROM t WHERE twice(x) = 42")
+            .fetch_all(&conn)
+            .await?;
+        assert_eq!(values, [21]);
         Ok(())
     }
 

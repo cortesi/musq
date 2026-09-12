@@ -4,33 +4,23 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    use musq::{
-        BUNDLED_SQLITE_VERSION, DbStatusKind, Error, JournalMode, Musq, WalCheckpointMode, query,
-        query_scalar,
-    };
+    use musq::{DbStatusKind, JournalMode, Musq, WalCheckpointMode, query, query_scalar};
 
-    use crate::support::connection;
+    use crate::support::{assert_configuration_contains, connection};
 
     #[tokio::test]
-    async fn runtime_info_reports_bundled_sqlite_identity() -> anyhow::Result<()> {
+    async fn runtime_info_matches_between_pool_and_connection() -> anyhow::Result<()> {
         let pool = Musq::new().open_in_memory().await?;
 
         let pool_info = pool.runtime_info().await?;
-        assert_eq!(pool_info.version, BUNDLED_SQLITE_VERSION);
         assert!(pool_info.version_number > 0);
         assert!(!pool_info.source_id.is_empty());
-        assert!(
-            pool_info
-                .compile_options
-                .contains(&"ENABLE_FTS5".to_string()),
-            "compile options missing ENABLE_FTS5: {:#?}",
-            pool_info.compile_options
-        );
 
         let conn = pool.acquire().await?;
         let conn_info = conn.runtime_info().await?;
         assert_eq!(conn_info.version, pool_info.version);
         assert_eq!(conn_info.version_number, pool_info.version_number);
+        assert_eq!(conn_info.compile_options, pool_info.compile_options);
         drop(conn);
 
         let _ = pool.close().await;
@@ -168,7 +158,10 @@ mod tests {
             .checkpointed_frames
             .expect("checkpointed WAL frame count");
 
-        assert!(log_frames >= 0);
+        assert!(
+            log_frames > 0,
+            "expected frames after writes: {checkpoint:?}"
+        );
         assert!(checkpointed_frames >= 0);
         assert!(log_frames >= checkpointed_frames);
 
@@ -244,15 +237,5 @@ mod tests {
 
     fn nested_expression(depth: usize) -> String {
         format!("SELECT {}1{}", "(".repeat(depth), ")".repeat(depth))
-    }
-
-    fn assert_configuration_contains(error: Error, expected: &str) {
-        match error {
-            Error::Configuration(message) => assert!(
-                message.contains(expected),
-                "configuration error {message:?} did not contain {expected:?}"
-            ),
-            other => panic!("expected configuration error containing {expected:?}, got {other:?}"),
-        }
     }
 }

@@ -1,57 +1,58 @@
 //! Serialize, deserialize, and backup snapshots.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
-    use musq::{Connection, DeserializeMode, Error, JournalMode, Musq, query, query_scalar};
+    use musq::{DeserializeMode, Musq, query, query_scalar};
 
-    async fn populated() -> anyhow::Result<Connection> {
-        let conn = Connection::connect_with(&Musq::new()).await?;
-        query("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
-            .execute(&conn)
-            .await?;
-        query("INSERT INTO t (id, name) VALUES (1, 'one'), (2, 'two')")
-            .execute(&conn)
-            .await?;
-        Ok(conn)
-    }
+    use crate::support::{
+        assert_configuration_contains, connection,
+        db::{populated_connection, populated_pool, wal_pool},
+    };
 
     #[tokio::test]
     async fn serialize_main_returns_a_database_image() -> anyhow::Result<()> {
-        let empty = Connection::connect_with(&Musq::new()).await?;
+        let empty = connection().await?;
         let empty_image = empty.serialize("main").await?;
         assert!(!empty_image.is_empty());
 
-        let conn = populated().await?;
+        let conn = populated_connection().await?;
         let image = conn.serialize("main").await?;
-        assert!(image.len() >= empty_image.len());
-        let count: i64 = query_scalar("SELECT COUNT(*) FROM t")
-            .fetch_one(&conn)
+        assert!(image.len() > empty_image.len());
+
+        let restored = connection().await?;
+        restored
+            .deserialize("main", image, DeserializeMode::Resizable)
             .await?;
-        assert_eq!(count, 2);
+        let names: Vec<String> = query_scalar("SELECT name FROM items ORDER BY id")
+            .fetch_all(&restored)
+            .await?;
+        assert_eq!(names, ["one", "two"]);
         Ok(())
     }
 
     #[tokio::test]
     async fn serialize_rejects_schema_with_nul() -> anyhow::Result<()> {
-        let conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = connection().await?;
         let err = conn.serialize("ma\0in").await.unwrap_err();
-        assert!(matches!(err, musq::Error::Configuration(_)));
+        assert_configuration_contains(err, "nul");
         Ok(())
     }
 
     #[tokio::test]
     async fn deserialize_round_trips_a_database() -> anyhow::Result<()> {
-        let conn = populated().await?;
+        let conn = populated_connection().await?;
         let image = conn.serialize("main").await?;
 
-        let dest = Connection::connect_with(&Musq::new()).await?;
+        let dest = connection().await?;
         dest.deserialize("main", image, DeserializeMode::Resizable)
             .await?;
-        let names: Vec<String> = query_scalar("SELECT name FROM t ORDER BY id")
+        let names: Vec<String> = query_scalar("SELECT name FROM items ORDER BY id")
             .fetch_all(&dest)
             .await?;
         assert_eq!(names, ["one", "two"]);
-        query("INSERT INTO t (id, name) VALUES (3, 'three')")
+        query("INSERT INTO items(name) VALUES ('three')")
             .execute(&dest)
             .await?;
         Ok(())
@@ -59,14 +60,14 @@ mod tests {
 
     #[tokio::test]
     async fn deserialize_refuses_an_open_transaction() -> anyhow::Result<()> {
-        let mut conn = populated().await?;
+        let mut conn = populated_connection().await?;
         let image = conn.serialize("main").await?;
         let tx = conn.begin().await?;
         let err = tx
             .deserialize("main", image, DeserializeMode::ReadOnly)
             .await
             .unwrap_err();
-        assert!(matches!(err, Error::Configuration(_)));
+        assert_configuration_contains(err, "transaction is open");
         tx.rollback().await?;
         Ok(())
     }
@@ -74,28 +75,17 @@ mod tests {
     #[tokio::test]
     async fn deserialize_rejects_a_wal_image() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
-        let path = dir.path().join("wal.db");
-        let pool = Musq::new()
-            .create_if_missing(true)
-            .journal_mode(JournalMode::Wal)
-            .open(&path)
-            .await?;
-        query("CREATE TABLE t (id INTEGER PRIMARY KEY)")
-            .execute(&pool)
-            .await?;
+        let pool = wal_pool(dir.path()).await?;
         let conn = pool.acquire().await?;
         let image = conn.serialize("main").await?;
         drop(conn);
 
-        let dest = Connection::connect_with(&Musq::new()).await?;
+        let dest = connection().await?;
         let err = dest
             .deserialize("main", image, DeserializeMode::ReadOnly)
             .await
             .unwrap_err();
-        assert!(
-            matches!(err, Error::Configuration(ref msg) if msg.contains("WAL")),
-            "got {err:?}"
-        );
+        assert_configuration_contains(err, "WAL");
         Ok(())
     }
 
@@ -104,13 +94,7 @@ mod tests {
         let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
         let dest = dir.path().join("copy.db");
-        let pool = Musq::new().create_if_missing(true).open(&source).await?;
-        query("CREATE TABLE t (id INTEGER PRIMARY KEY, name TEXT NOT NULL)")
-            .execute(&pool)
-            .await?;
-        query("INSERT INTO t (id, name) VALUES (1, 'one')")
-            .execute(&pool)
-            .await?;
+        let pool = populated_pool(&source).await?;
 
         let conn = pool.acquire().await?;
         let report = conn.backup_to_path(&dest, 5).await?;
@@ -118,15 +102,15 @@ mod tests {
         assert_eq!(report.remaining, 0);
         drop(conn);
 
-        query("INSERT INTO t (id, name) VALUES (2, 'two')")
+        query("INSERT INTO items(name) VALUES ('three')")
             .execute(&pool)
             .await?;
 
         let copy = Musq::new().open(&dest).await?;
-        let names: Vec<String> = query_scalar("SELECT name FROM t ORDER BY id")
+        let names: Vec<String> = query_scalar("SELECT name FROM items ORDER BY id")
             .fetch_all(&copy)
             .await?;
-        assert_eq!(names, ["one"]);
+        assert_eq!(names, ["one", "two"]);
         Ok(())
     }
 
@@ -134,16 +118,10 @@ mod tests {
     async fn backup_to_path_rejects_the_source_file() -> anyhow::Result<()> {
         let dir = tempfile::tempdir()?;
         let source = dir.path().join("source.db");
-        let pool = Musq::new().create_if_missing(true).open(&source).await?;
-        query("CREATE TABLE t (id INTEGER PRIMARY KEY)")
-            .execute(&pool)
-            .await?;
+        let pool = populated_pool(&source).await?;
         let conn = pool.acquire().await?;
         let err = conn.backup_to_path(&source, 1).await.unwrap_err();
-        assert!(
-            matches!(err, Error::Configuration(ref msg) if msg.contains("same")),
-            "got {err:?}"
-        );
+        assert_configuration_contains(err, "same");
         Ok(())
     }
 }

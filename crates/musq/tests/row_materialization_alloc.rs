@@ -153,9 +153,21 @@ mod tests {
             .await;
             let large = allocation_counters();
 
+            // The large query selects eight times as many columns. Allocation
+            // count must not scale with columns; bytes may, because the payload
+            // grows with it.
             assert!(
                 large.allocations <= small.allocations.saturating_mul(2),
                 "expected allocations to stay roughly constant: \
+                 small_allocations={}, small_bytes={}, large_allocations={}, large_bytes={}",
+                small.allocations,
+                small.bytes,
+                large.allocations,
+                large.bytes,
+            );
+            assert!(
+                large.bytes <= small.bytes.saturating_mul(16),
+                "expected byte growth to stay near the payload growth: \
                  small_allocations={}, small_bytes={}, large_allocations={}, large_bytes={}",
                 small.allocations,
                 small.bytes,

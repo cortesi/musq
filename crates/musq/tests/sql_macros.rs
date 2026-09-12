@@ -256,9 +256,9 @@ mod tests {
         Ok(())
     }
 
-    // Helper functions that don't return Results - these are true non-Result
-    // contexts The fact that these compile proves the macros work in non-Result
-    // contexts
+    // These helpers only prove that the macros expand in functions that do not
+    // return `Result`; they execute nothing. Runtime behavior is covered by the
+    // tests above.
     fn create_simple_query() {
         let _query = sql!("SELECT 42 as answer").unwrap();
     }

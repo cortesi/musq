@@ -1,8 +1,42 @@
+use std::env;
+
 use musq::{Connection, Musq};
+
+/// Shared database fixtures.
+///
+/// Not every test binary uses these, so allow the items to go unused.
+#[allow(dead_code)]
+pub mod db;
 
 /// Create a new connection for tests.
 pub async fn connection() -> anyhow::Result<Connection> {
     Ok(Connection::connect_with(&Musq::new()).await?)
+}
+
+/// Assert that an error is a configuration error containing `expected`.
+///
+/// Not every test binary uses this, so allow the item to go unused.
+#[allow(dead_code)]
+pub fn assert_configuration_contains(error: musq::Error, expected: &str) {
+    match error {
+        musq::Error::Configuration(message) => assert!(
+            message.contains(expected),
+            "configuration error {message:?} did not contain {expected:?}"
+        ),
+        other => panic!("expected configuration error containing {expected:?}, got {other:?}"),
+    }
+}
+
+/// Return the iteration count for a stress loop.
+///
+/// Uses `default` for a normal run and ten times that when `MUSQ_STRESS` is
+/// set.
+#[allow(dead_code)]
+pub fn stress_iters(default: usize) -> usize {
+    match env::var("MUSQ_STRESS") {
+        Ok(_) => default.saturating_mul(10),
+        Err(_) => default,
+    }
 }
 
 /// Test type encoding and decoding using both prepared and unprepared queries.

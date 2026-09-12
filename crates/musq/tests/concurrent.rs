@@ -1,17 +1,19 @@
 //! Integration tests for musq.
 
+mod support;
+
 #[cfg(test)]
 mod tests {
-    use std::{sync::Arc, thread::available_parallelism, time::Duration};
+    use std::sync::Arc;
 
+    use crate::support::connection;
     use futures::future::join_all;
-    use musq::{Connection, Musq, query, query_as};
-    use tokio::{runtime::Handle, task::spawn_blocking, time::sleep};
+    use musq::{query, query_as};
 
     /// Test that multiple concurrent reads work without blocking each other
     #[tokio::test]
     async fn test_concurrent_reads() -> anyhow::Result<()> {
-        let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
+        let conn = Arc::new(connection().await?);
 
         // Setup test data
         query("CREATE TABLE test_concurrent_reads (id INTEGER, value TEXT)")
@@ -46,9 +48,7 @@ mod tests {
 
         // Verify all tasks completed successfully
         for result in results {
-            assert!(result.is_ok());
-            let count = result.unwrap();
-            assert!(count > 0);
+            assert!(result? > 0);
         }
 
         Ok(())
@@ -57,7 +57,7 @@ mod tests {
     /// Test that concurrent execute operations work correctly
     #[tokio::test]
     async fn test_concurrent_executes() -> anyhow::Result<()> {
-        let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
+        let conn = Arc::new(connection().await?);
 
         // Setup test table
         query("CREATE TABLE test_concurrent_executes (id INTEGER, thread_id INTEGER)")
@@ -70,20 +70,21 @@ mod tests {
             let conn_clone = Arc::clone(&conn);
             let handle = tokio::spawn(async move {
                 for i in 0..5 {
-                    let result =
-                        query("INSERT INTO test_concurrent_executes (id, thread_id) VALUES (?, ?)")
-                            .bind(thread_id * 5 + i)
-                            .bind(thread_id)
-                            .execute(&*conn_clone)
-                            .await;
-                    assert!(result.is_ok());
+                    query("INSERT INTO test_concurrent_executes (id, thread_id) VALUES (?, ?)")
+                        .bind(thread_id * 5 + i)
+                        .bind(thread_id)
+                        .execute(&*conn_clone)
+                        .await
+                        .unwrap();
                 }
             });
             handles.push(handle);
         }
 
         // Wait for all tasks to complete
-        join_all(handles).await;
+        for result in join_all(handles).await {
+            result?;
+        }
 
         // Verify all data was inserted
         let count: (i64,) = query_as("SELECT COUNT(*) FROM test_concurrent_executes")
@@ -97,7 +98,7 @@ mod tests {
     /// Test that concurrent prepared statement usage works
     #[tokio::test]
     async fn test_concurrent_prepared_statements() -> anyhow::Result<()> {
-        let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
+        let conn = Arc::new(connection().await?);
 
         // Setup test table
         query("CREATE TABLE test_concurrent_prepared (id INTEGER, data TEXT)")
@@ -139,9 +140,7 @@ mod tests {
 
         // Verify all tasks completed successfully
         for result in results {
-            assert!(result.is_ok());
-            let rows = result.unwrap();
-            assert_eq!(rows.len(), 10);
+            assert_eq!(result?.len(), 10);
         }
 
         Ok(())
@@ -150,7 +149,7 @@ mod tests {
     /// Test that concurrent reads and writes work together
     #[tokio::test]
     async fn test_concurrent_read_write_mix() -> anyhow::Result<()> {
-        let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
+        let conn = Arc::new(connection().await?);
 
         // Setup test table
         query(
@@ -181,7 +180,6 @@ mod tests {
                         .unwrap();
                     // Just verify we can read the data
                     assert!(total.0 >= 0);
-                    sleep(Duration::from_millis(1)).await;
                 }
             });
             handles.push(handle);
@@ -198,14 +196,15 @@ mod tests {
                         .execute(&*conn_clone)
                         .await
                         .unwrap();
-                    sleep(Duration::from_millis(2)).await;
                 }
             });
             handles.push(handle);
         }
 
         // Wait for all tasks to complete
-        join_all(handles).await;
+        for result in join_all(handles).await {
+            result?;
+        }
 
         // Verify final state
         let final_total: (i64,) = query_as("SELECT SUM(counter) FROM test_concurrent_mix")
@@ -219,32 +218,27 @@ mod tests {
     /// Test that arguments are properly cloned and not consumed
     #[tokio::test]
     async fn test_arguments_not_consumed() -> anyhow::Result<()> {
-        let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
+        let conn = Arc::new(connection().await?);
 
         // Setup test table
         query("CREATE TABLE test_args (id INTEGER, value TEXT)")
             .execute(&*conn)
             .await?;
 
-        // Create a query with arguments
-        let _test_query = query("SELECT ?1 as id, ?2 as value")
+        // Bind once, then clone the query for concurrent use.
+        let test_query = query("SELECT ?1 as id, ?2 as value")
             .bind(42)
             .bind("test_value");
 
-        // Execute the same query multiple times concurrently
         let mut handles = vec![];
         for _ in 0..5 {
             let conn_clone = Arc::clone(&conn);
-            // Arguments are now cloned, so we can reuse the same query pattern multiple
-            // times
+            let query_clone = test_query.clone();
             let handle = tokio::spawn(async move {
-                let row: (i32, String) = query_as("SELECT ?1 as id, ?2 as value")
-                    .bind(42)
-                    .bind("test_value")
-                    .fetch_one(&*conn_clone)
-                    .await
-                    .unwrap();
-                row
+                let row = query_clone.fetch_one(&*conn_clone).await.unwrap();
+                let id: i32 = row.get_value("id").unwrap();
+                let value: String = row.get_value("value").unwrap();
+                (id, value)
             });
             handles.push(handle);
         }
@@ -254,8 +248,7 @@ mod tests {
 
         // Verify all tasks completed successfully with correct results
         for result in results {
-            assert!(result.is_ok());
-            let (id, value) = result.unwrap();
+            let (id, value) = result?;
             assert_eq!(id, 42);
             assert_eq!(value, "test_value");
         }
@@ -266,7 +259,7 @@ mod tests {
     /// Test concurrent access to statement cache
     #[tokio::test]
     async fn test_concurrent_statement_cache() -> anyhow::Result<()> {
-        let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
+        let conn = Arc::new(connection().await?);
 
         // Create different SQL statements that should be cached
         let statements = [
@@ -296,8 +289,7 @@ mod tests {
 
         // Verify all tasks completed with correct results
         for result in results {
-            assert!(result.is_ok());
-            let (actual, expected) = result.unwrap();
+            let (actual, expected) = result?;
             assert_eq!(actual, expected);
         }
 
@@ -305,39 +297,37 @@ mod tests {
     }
 
     /// Test that connections can be shared across threads safely
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
     async fn test_connection_thread_safety() -> anyhow::Result<()> {
-        let conn = Arc::new(Connection::connect_with(&Musq::new()).await?);
+        let conn = Arc::new(connection().await?);
 
         // Setup test table
         query("CREATE TABLE test_thread_safety (id INTEGER, thread_name TEXT)")
             .execute(&*conn)
             .await?;
 
-        // Spawn tasks on different threads
+        // Spawn tasks across the runtime worker threads
         let mut handles = vec![];
-        for i in 0..available_parallelism().unwrap().get().min(8) {
+        for i in 0..4 {
             let conn_clone = Arc::clone(&conn);
-            let handle = spawn_blocking(move || {
-                Handle::current().block_on(async move {
-                    let thread_name = format!("thread_{i}");
+            let handle = tokio::spawn(async move {
+                let thread_name = format!("thread_{i}");
 
-                    // Insert data
-                    query("INSERT INTO test_thread_safety (id, thread_name) VALUES (?, ?)")
-                        .bind(i as i32)
-                        .bind(&thread_name)
-                        .execute(&*conn_clone)
+                // Insert data
+                query("INSERT INTO test_thread_safety (id, thread_name) VALUES (?, ?)")
+                    .bind(i)
+                    .bind(&thread_name)
+                    .execute(&*conn_clone)
+                    .await?;
+
+                // Read it back
+                let result: (i32, String) =
+                    query_as("SELECT id, thread_name FROM test_thread_safety WHERE id = ?")
+                        .bind(i)
+                        .fetch_one(&*conn_clone)
                         .await?;
 
-                    // Read it back
-                    let result: (i32, String) =
-                        query_as("SELECT id, thread_name FROM test_thread_safety WHERE id = ?")
-                            .bind(i as i32)
-                            .fetch_one(&*conn_clone)
-                            .await?;
-
-                    anyhow::Ok((result.0, result.1))
-                })
+                anyhow::Ok((result.0, result.1))
             });
             handles.push(handle);
         }
@@ -347,10 +337,7 @@ mod tests {
 
         // Verify all tasks completed successfully
         for (i, result) in results.into_iter().enumerate() {
-            assert!(result.is_ok());
-            let inner_result = result.unwrap();
-            assert!(inner_result.is_ok());
-            let (id, thread_name) = inner_result.unwrap();
+            let (id, thread_name) = result??;
             assert_eq!(id, i as i32);
             assert_eq!(thread_name, format!("thread_{i}"));
         }

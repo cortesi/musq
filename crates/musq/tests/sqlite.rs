@@ -1,20 +1,18 @@
 //! Integration tests for musq.
 
 mod support;
-#[path = "support/db.rs"]
-mod support_db;
 
 #[cfg(test)]
 mod tests {
-    use std::{env, sync::Arc, time::Duration};
+    use std::{collections::HashSet, sync::Arc};
 
     use futures::{StreamExt, TryStreamExt};
-    use musq::{Connection, Error, Musq, Row, query, query_as, query_scalar};
+    use musq::{Error, Musq, Row, query, query_as, query_scalar};
     use rand::{RngExt, SeedableRng};
     use rand_xoshiro::Xoshiro256PlusPlus;
-    use tokio::{sync::Barrier, task::spawn, time::sleep};
+    use tokio::{sync::Barrier, task::spawn};
 
-    use crate::{support::connection, support_db::tdb};
+    use crate::support::{connection, db::tdb, stress_iters};
 
     #[tokio::test]
     async fn it_connects() -> anyhow::Result<()> {
@@ -52,19 +50,6 @@ mod tests {
         assert_eq!(rows[0].get_value_idx::<i32>(0).unwrap(), 15);
         assert_eq!(rows[1].get_value_idx::<i32>(0).unwrap(), 39);
         assert_eq!(rows[2].get_value_idx::<i32>(0).unwrap(), 51);
-
-        let row1 = query("SELECT 15 UNION SELECT 51 UNION SELECT 39")
-            .fetch_one(&conn)
-            .await?;
-
-        assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
-
-        let row2 = query("SELECT 15 UNION SELECT 51 UNION SELECT 39")
-            .fetch_one(&conn)
-            .await?;
-
-        assert_eq!(row1.get_value_idx::<i32>(0).unwrap(), 15);
-        assert_eq!(row2.get_value_idx::<i32>(0).unwrap(), 15);
 
         let row1 = query("SELECT 15 UNION SELECT 51 UNION SELECT 39")
             .fetch_one(&conn)
@@ -186,7 +171,7 @@ mod tests {
         // this is trying to check for any data races
         // there were a few that triggered *sometimes* while building out
         // StatementWorker
-        for _ in 0..1000_usize {
+        for _ in 0..stress_iters(100) {
             let conn = connection().await?;
             let v: Vec<(i32,)> = query_as("SELECT 1").fetch_all(&conn).await?;
 
@@ -211,7 +196,7 @@ mod tests {
     async fn it_opens_in_memory() -> anyhow::Result<()> {
         // If the filename is ":memory:", then a private, temporary in-memory database
         // is created for the connection.
-        let conn = Connection::connect_with(&Musq::new()).await?;
+        let conn = connection().await?;
         conn.close().await?;
         Ok(())
     }
@@ -508,27 +493,10 @@ mod tests {
         let val: i32 = row.get_value("val").unwrap();
         assert_eq!(val, 100);
 
-        // `Query` is persistent by default.
-        let conn = connection().await?;
+        // The same cached statement is reused across calls.
         for i in 0..2 {
             let row = query("SELECT ? AS val").bind(i).fetch_one(&conn).await?;
-
             let val: i32 = row.get_value("val").unwrap();
-
-            assert_eq!(i, val);
-        }
-
-        // Cache can be cleared, but this is an internal detail so we simply
-        // ensure queries continue to execute.
-
-        // `Query` is not persistent if `.persistent(false)` is used
-        // explicitly.
-        let conn = connection().await?;
-        for i in 0..2 {
-            let row = query("SELECT ? AS val").bind(i).fetch_one(&conn).await?;
-
-            let val: i32 = row.get_value("val").unwrap();
-
             assert_eq!(i, val);
         }
 
@@ -763,26 +731,34 @@ mod tests {
     // Regression: concurrent statements on a pooled connection must not race a
     // statement reset and crash the worker.
     #[tokio::test]
-    async fn concurrent_resets_dont_segfault() {
-        let pool = Musq::new().open_in_memory().await.unwrap();
+    async fn concurrent_resets_dont_segfault() -> anyhow::Result<()> {
+        let pool = Musq::new().open_in_memory().await?;
 
         query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
             .execute(&pool)
-            .await
-            .unwrap();
+            .await?;
 
-        spawn(async move {
-            for i in 0..1000 {
-                query("INSERT INTO stuff (name, value) VALUES (?, ?)")
-                    .bind(i)
-                    .bind(0)
-                    .execute(&pool)
-                    .await
-                    .unwrap();
+        let iterations = stress_iters(100);
+        let insert = spawn({
+            let pool = pool.clone();
+            async move {
+                for i in 0..iterations {
+                    query("INSERT INTO stuff (name, value) VALUES (?, ?)")
+                        .bind(i as i64)
+                        .bind(0)
+                        .execute(&pool)
+                        .await?;
+                }
+                anyhow::Ok(())
             }
         });
+        insert.await??;
 
-        sleep(Duration::from_millis(1)).await;
+        let count: i64 = query_scalar("SELECT COUNT(*) FROM stuff")
+            .fetch_one(&pool)
+            .await?;
+        assert_eq!(count as usize, iterations);
+        Ok(())
     }
 
     // Regression: dropping a row after its connection must not panic the
@@ -790,7 +766,7 @@ mod tests {
     // worker panic that the fix removes.
     #[tokio::test]
     async fn row_dropped_after_connection_doesnt_panic() {
-        let conn = Connection::connect_with(&Musq::new()).await.unwrap();
+        let conn = connection().await.unwrap();
 
         let books = query("SELECT 'hello' AS title")
             .fetch_all(&conn)
@@ -803,8 +779,7 @@ mod tests {
         }
 
         // hold `books` past the lifetime of `conn`
-        drop(conn);
-        sleep(Duration::from_secs(1)).await;
+        conn.close().await.unwrap();
         drop(books);
     }
 
@@ -813,15 +788,11 @@ mod tests {
         // Regression: repeated statement-cache churn with the same SQL text
         // used to fail under load.
         //
-        // The original report required many iterations and was more reliably reproduced
-        // in release mode. Keep this test fast for `cargo test` and allow
-        // overriding the iteration count for stress runs.
-        let iterations = env::var("MUSQ_ISSUE_1467_ITERS")
-            .ok()
-            .and_then(|v| v.parse().ok())
-            .unwrap_or(10_000_usize);
+        // The original report required many iterations. Keep this test fast for
+        // `cargo test` and scale it up with `MUSQ_STRESS=1`.
+        let iterations = stress_iters(100);
 
-        let mut conn = Connection::connect_with(&Musq::new()).await?;
+        let mut conn = connection().await?;
 
         query(
             r#"
@@ -837,6 +808,7 @@ mod tests {
 
         // reproducible RNG for testing
         let mut rng = Xoshiro256PlusPlus::from_seed(seed);
+        let mut keys = HashSet::new();
 
         for _ in 0..iterations {
             let key = rng.random_range(0..1_000);
@@ -860,8 +832,14 @@ mod tests {
                     .execute(&tx)
                     .await?;
             }
+            keys.insert(key);
             tx.commit().await?;
         }
+
+        let count: i64 = query_scalar("SELECT COUNT(*) FROM kv")
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(count as usize, keys.len());
         Ok(())
     }
 

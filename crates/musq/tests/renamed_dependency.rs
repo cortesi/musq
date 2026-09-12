@@ -4,7 +4,10 @@
 mod tests {
     use std::{path::PathBuf, process::Command};
 
+    /// Runs `cargo check` for the fixture, so it is opt-in to keep the normal
+    /// test loop fast.
     #[test]
+    #[ignore = "spawns cargo check; run with --ignored"]
     fn proc_macros_compile_with_renamed_musq_dependency() {
         let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("tests/fixtures/renamed-dependency/Cargo.toml");
