@@ -358,7 +358,10 @@ impl TryFrom<String> for CheckedUserId {
     type Error = &'static str;
 
     fn try_from(value: String) -> Result<Self, Self::Error> {
-        value.starts_with("user-").then_some(Self(value)).ok_or("invalid user ID")
+        value
+            .starts_with("user-")
+            .then_some(Self(value))
+            .ok_or("invalid user ID")
     }
 }
 ```
@@ -368,6 +371,7 @@ derive needs the `json` feature:
 
 <!-- snips: crates/musq/examples/readme_snippets.rs#json -->
 ```rust
+#[cfg(feature = "json")]
 #[derive(musq::Json, serde::Serialize, serde::Deserialize, Debug, PartialEq)]
 struct Metadata {
     tags: Vec<String>,

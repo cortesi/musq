@@ -1,19 +1,16 @@
 //! Performance benchmarks for musq.
 
-use std::sync::mpsc;
-
-use criterion::{BatchSize, Criterion};
-use futures::future::join_all;
-use tokio::runtime::{Handle, Runtime};
+use criterion::Criterion;
+use tokio::runtime::Runtime;
 
 /// SQL schema used by benchmarks.
 const BENCH_SCHEMA: &str = include_str!("benchschema.sql");
 
-/// How many concurrent read or write requests should we make?
-const CONCURRENCY: usize = 20;
-
-/// Set min and max pool connections to the same value
+/// Set min and max pool connections to the same value.
 const CONNECTIONS: u32 = 5;
+
+/// Row counts exercised by the read benchmark.
+const DATASET_SIZES: [usize; 3] = [10, 100, 1_000];
 
 /// Row type used by benchmark queries.
 #[derive(Debug, musq::FromRow)]
@@ -24,82 +21,57 @@ pub struct Data {
     pub b: String,
 }
 
-/// Create a pool initialized with the benchmark schema.
-async fn pool() -> musq::Pool {
+/// Create a pool initialized with the benchmark schema and `rows` rows.
+async fn setup_pool(rows: usize) -> musq::Pool {
     let pool = musq::Musq::new()
         .max_connections(CONNECTIONS)
         .open_in_memory()
         .await
         .unwrap();
-    musq::query(BENCH_SCHEMA)
-        .execute(&pool.acquire().await.unwrap())
-        .await
-        .unwrap();
+    musq::query(BENCH_SCHEMA).execute(&pool).await.unwrap();
+    for i in 0..rows {
+        musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
+            .bind(i as i32)
+            .bind("seed")
+            .execute(&pool)
+            .await
+            .unwrap();
+    }
     pool
 }
 
-/// Build a pool and insert a seed row for benchmarks.
-fn setup() -> musq::Pool {
-    let (tx, rx) = mpsc::channel();
-    Handle::current().spawn(async move {
-        let p = pool().await;
-        musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
-            .bind(1)
-            .bind("two")
-            .execute(&p.acquire().await.unwrap())
-            .await
-            .unwrap();
-        tx.send(p).unwrap();
-    });
-    rx.recv().unwrap()
+/// Read every row in the dataset.
+async fn read_all(pool: &musq::Pool) {
+    musq::query_as::<Data>("SELECT * FROM data")
+        .fetch_all(pool)
+        .await
+        .unwrap();
 }
 
-/// Run concurrent write workloads.
-async fn writes(pool: musq::Pool) {
-    let mut futs = vec![];
-    for _ in 0..CONCURRENCY {
-        let pool = pool.clone();
-        futs.push(async move {
-            let conn = pool.acquire().await.unwrap();
-            musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
-                .bind(1)
-                .bind("two")
-                .execute(&conn)
-                .await
-        });
-    }
-    for result in join_all(futs).await {
-        result.unwrap();
-    }
-}
-
-/// Run concurrent read workloads.
-async fn reads(pool: musq::Pool) {
-    let mut futs = vec![];
-    for _ in 0..CONCURRENCY {
-        let pool = pool.clone();
-        futs.push(async move {
-            let conn = pool.acquire().await.unwrap();
-            musq::query_as::<Data>("SELECT * from DATA")
-                .fetch_one(&conn)
-                .await
-        });
-    }
-    for result in join_all(futs).await {
-        result.unwrap();
-    }
+/// Insert one row.
+async fn write_one(pool: &musq::Pool) {
+    musq::query("INSERT INTO data (a, b) VALUES (?1, ?2)")
+        .bind(1)
+        .bind("two")
+        .execute(pool)
+        .await
+        .unwrap();
 }
 
 /// Register benchmarks with Criterion.
 pub fn criterion_benchmark(c: &mut Criterion) {
-    c.bench_function("write", |b| {
-        b.to_async(Runtime::new().unwrap())
-            .iter_batched(setup, writes, BatchSize::SmallInput)
-    });
-    c.bench_function("read", |b| {
-        b.to_async(Runtime::new().unwrap())
-            .iter_batched(setup, reads, BatchSize::SmallInput)
-    });
+    let runtime = Runtime::new().unwrap();
+    for rows in DATASET_SIZES {
+        let pool = runtime.block_on(setup_pool(rows));
+
+        c.bench_function(&format!("read/{rows}"), |b| {
+            b.to_async(&runtime).iter(|| read_all(&pool));
+        });
+
+        c.bench_function(&format!("write/{rows}"), |b| {
+            b.to_async(&runtime).iter(|| write_one(&pool));
+        });
+    }
 }
 
 /// Criterion benchmark entry point.

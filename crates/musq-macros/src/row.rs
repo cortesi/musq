@@ -56,9 +56,44 @@ fn expand_struct(
         None => core::add_fresh_lifetime(&mut generics),
     };
 
-    let predicates = &mut generics.make_where_clause().predicates;
+    let mut predicates = Vec::new();
+    let reads = read_stmts(container, fields, &mut predicates, &lifetime, &musq);
+    let null_checks = null_check_exprs(container, fields, &mut predicates, &lifetime, &musq);
+    generics.make_where_clause().predicates.extend(predicates);
 
-    let reads: Vec<Stmt> = fields
+    let (impl_generics, _, where_clause) = generics.split_for_impl();
+    let names = fields.iter().map(|field| &field.ident);
+
+    Ok(quote!(
+        #[automatically_derived]
+        impl #impl_generics #musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
+            fn from_row(prefix: &str, row: &#lifetime #musq::Row) -> #musq::Result<Self> {
+                #(#reads)*
+
+                ::std::result::Result::Ok(#ident {
+                    #(#names),*
+                })
+            }
+        }
+
+        #[automatically_derived]
+        impl #impl_generics #musq::AllNull<#lifetime> for #ident #ty_generics #where_clause {
+            fn all_null(prefix: &str, row: &#lifetime #musq::Row) -> #musq::Result<bool> {
+                ::std::result::Result::Ok(true #(&& (#null_checks))* )
+            }
+        }
+    ))
+}
+
+/// Build the field read statements and collect their where predicates.
+fn read_stmts(
+    container: &core::RowContainer,
+    fields: &ast::Fields<core::RowField>,
+    predicates: &mut Vec<syn::WherePredicate>,
+    lifetime: &syn::Lifetime,
+    musq: &syn::Path,
+) -> Vec<Stmt> {
+    fields
         .iter()
         .filter_map(|field| -> Option<Stmt> {
             let id = field.ident.as_ref()?;
@@ -122,9 +157,18 @@ fn expand_struct(
                 ))
             }
         })
-        .collect();
+        .collect()
+}
 
-    let null_checks: Vec<Expr> = fields
+/// Build the `AllNull` checks and collect their where predicates.
+fn null_check_exprs(
+    container: &core::RowContainer,
+    fields: &ast::Fields<core::RowField>,
+    predicates: &mut Vec<syn::WherePredicate>,
+    lifetime: &syn::Lifetime,
+    musq: &syn::Path,
+) -> Vec<Expr> {
+    fields
         .iter()
         .filter_map(|field| -> Option<Expr> {
             field.ident.as_ref()?;
@@ -171,30 +215,7 @@ fn expand_struct(
 
             Some(expr)
         })
-        .collect();
-
-    let (impl_generics, _, where_clause) = generics.split_for_impl();
-    let names = fields.iter().map(|field| &field.ident);
-
-    Ok(quote!(
-        #[automatically_derived]
-        impl #impl_generics #musq::FromRow<#lifetime> for #ident #ty_generics #where_clause {
-            fn from_row(prefix: &str, row: &#lifetime #musq::Row) -> #musq::Result<Self> {
-                #(#reads)*
-
-                ::std::result::Result::Ok(#ident {
-                    #(#names),*
-                })
-            }
-        }
-
-        #[automatically_derived]
-        impl #impl_generics #musq::AllNull<#lifetime> for #ident #ty_generics #where_clause {
-            fn all_null(prefix: &str, row: &#lifetime #musq::Row) -> #musq::Result<bool> {
-                ::std::result::Result::Ok(true #(&& (#null_checks))* )
-            }
-        }
-    ))
+        .collect()
 }
 
 /// Expand a tuple-struct `FromRow` implementation.

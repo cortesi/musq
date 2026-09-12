@@ -450,49 +450,13 @@ fn scan_sql(sql: &str, mut visit: impl FnMut(SqlToken<'_>)) {
                     i += 2;
                     state = ScanState::BlockComment;
                 }
-                b'?' if bytes.get(i + 1).is_some_and(u8::is_ascii_digit) => {
-                    let start = i;
-                    i += 1;
-                    while bytes.get(i).is_some_and(u8::is_ascii_digit) {
-                        i += 1;
-                    }
-                    if start > text_start {
-                        visit(SqlToken::Text(&sql[text_start..start]));
-                    }
-                    visit(SqlToken::Numeric {
-                        prefix: '?',
-                        digits: &sql[start + 1..i],
-                    });
-                    text_start = i;
-                }
-                b'$' | b':' | b'@' => {
-                    let prefix = bytes[i] as char;
-                    let name_start = i + 1;
-                    let mut end = name_start;
-                    while end < bytes.len() && is_ident_char(bytes[end]) {
-                        end += 1;
-                    }
-                    if end > name_start {
-                        let name = &sql[name_start..end];
-                        let all_digits = name.as_bytes().iter().all(u8::is_ascii_digit);
-                        if i > text_start {
-                            visit(SqlToken::Text(&sql[text_start..i]));
-                        }
-                        if prefix == '$' && all_digits {
-                            visit(SqlToken::Numeric {
-                                prefix: '$',
-                                digits: name,
-                            });
-                        } else {
-                            visit(SqlToken::Placeholder { prefix, name });
-                        }
+                _ => match scan_placeholder(sql, bytes, i, text_start, &mut visit) {
+                    Some(end) => {
                         i = end;
-                        text_start = i;
-                    } else {
-                        i += 1;
+                        text_start = end;
                     }
-                }
-                _ => i += 1,
+                    None => i += 1,
+                },
             },
             ScanState::SingleQuote => {
                 if bytes[i] == b'\'' {
@@ -536,6 +500,62 @@ fn scan_sql(sql: &str, mut visit: impl FnMut(SqlToken<'_>)) {
     }
     if bytes.len() > text_start {
         visit(SqlToken::Text(&sql[text_start..]));
+    }
+}
+
+/// Scan a placeholder at `i` and visit it with any preceding text.
+///
+/// Returns the index after the placeholder, or `None` when `i` does not start
+/// one.
+fn scan_placeholder(
+    sql: &str,
+    bytes: &[u8],
+    i: usize,
+    text_start: usize,
+    visit: &mut impl FnMut(SqlToken<'_>),
+) -> Option<usize> {
+    match bytes[i] {
+        b'?' if bytes.get(i + 1).is_some_and(u8::is_ascii_digit) => {
+            let start = i;
+            let mut end = i + 1;
+            while bytes.get(end).is_some_and(u8::is_ascii_digit) {
+                end += 1;
+            }
+            if start > text_start {
+                visit(SqlToken::Text(&sql[text_start..start]));
+            }
+            visit(SqlToken::Numeric {
+                prefix: '?',
+                digits: &sql[start + 1..end],
+            });
+            Some(end)
+        }
+        b'$' | b':' | b'@' => {
+            let prefix = bytes[i] as char;
+            let name_start = i + 1;
+            let mut end = name_start;
+            while end < bytes.len() && is_ident_char(bytes[end]) {
+                end += 1;
+            }
+            if end == name_start {
+                return None;
+            }
+            let name = &sql[name_start..end];
+            let all_digits = name.as_bytes().iter().all(u8::is_ascii_digit);
+            if i > text_start {
+                visit(SqlToken::Text(&sql[text_start..i]));
+            }
+            if prefix == '$' && all_digits {
+                visit(SqlToken::Numeric {
+                    prefix: '$',
+                    digits: name,
+                });
+            } else {
+                visit(SqlToken::Placeholder { prefix, name });
+            }
+            Some(end)
+        }
+        _ => None,
     }
 }
 

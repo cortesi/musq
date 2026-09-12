@@ -21,6 +21,7 @@ async fn open() -> musq::Result<()> {
 async fn sql() -> musq::Result<()> {
     use musq::Musq;
     let pool = Musq::new().open_in_memory().await?;
+    setup_users(&pool).await?;
 
     {
         // snips-start: sql_basic
@@ -63,27 +64,24 @@ async fn sql() -> musq::Result<()> {
 /// Demonstrate value helpers and macros.
 async fn values() -> musq::Result<()> {
     use musq::{FromRow, Musq, Null, Values, sql, sql_as, values};
-    let pool = Musq::new().open_in_memory().await?;
-
-    {
-        // snips-start: values-null
-        async fn add_user(
-            pool: &musq::Pool,
-            name: &str,
-            phone: Option<String>,
-        ) -> musq::Result<()> {
-            let user_data = values! {
-                "name": name,
-                "phone": phone,      // Option: None encodes as NULL
-                "email": musq::Null, // untyped NULL literal
-            }?;
-            sql!("INSERT INTO users {insert:user_data}")?
-                .execute(pool)
-                .await?;
-            Ok(())
-        }
-        // snips-end
+    // snips-start: values-null
+    async fn add_user(pool: &musq::Pool, name: &str, phone: Option<String>) -> musq::Result<()> {
+        let user_data = values! {
+            "name": name,
+            "phone": phone,      // Option: None encodes as NULL
+            "email": musq::Null, // untyped NULL literal
+        }?;
+        sql!("INSERT INTO users {insert:user_data}")?
+            .execute(pool)
+            .await?;
+        Ok(())
     }
+    // snips-end
+    let pool = Musq::new().open_in_memory().await?;
+    setup_users(&pool).await?;
+    musq::query("CREATE TABLE events (id INTEGER PRIMARY KEY, updated_at TEXT, payload BLOB)")
+        .execute(&pool)
+        .await?;
 
     {
         // snips-start: values-expr
@@ -148,6 +146,8 @@ async fn values() -> musq::Result<()> {
         // snips-end
     }
 
+    add_user(&pool, "Carol", Some("555-0100".to_string())).await?;
+
     Ok(())
 }
 
@@ -155,6 +155,7 @@ async fn values() -> musq::Result<()> {
 async fn transactions() -> musq::Result<()> {
     use musq::{Musq, sql};
     let pool = Musq::new().open_in_memory().await?;
+    setup_users(&pool).await?;
 
     let id = 1;
     let name = "Alice";
@@ -166,6 +167,9 @@ async fn transactions() -> musq::Result<()> {
         .await?;
     tx.commit().await?;
     // snips-end
+
+    // Reset so the closure snippet can reuse id 1.
+    musq::query("DELETE FROM users").execute(&pool).await?;
 
     let name = "Alice";
     // snips-start: transaction_closure
@@ -254,7 +258,29 @@ fn derives() {
     // snips-end
 }
 
+/// Create the `users` table assumed by the README snippets.
+async fn setup_users(pool: &musq::Pool) -> musq::Result<()> {
+    musq::query(
+        "CREATE TABLE users (
+            id INTEGER PRIMARY KEY,
+            name TEXT NOT NULL,
+            phone TEXT,
+            email TEXT,
+            status TEXT
+        )",
+    )
+    .execute(pool)
+    .await?;
+    Ok(())
+}
+
 /// Main entry point for running snippet examples locally.
-fn main() {
-    println!("This file contains code snippets for documentation purposes.");
+#[tokio::main(flavor = "current_thread")]
+async fn main() -> musq::Result<()> {
+    sql().await?;
+    values().await?;
+    transactions().await?;
+    derives();
+    println!("README snippets executed successfully.");
+    Ok(())
 }

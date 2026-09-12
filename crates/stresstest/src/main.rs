@@ -219,8 +219,8 @@ async fn create_schema(pool: &Pool) -> Result<()> {
     Ok(())
 }
 
-/// Insert a single record into the test tables.
-async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<()> {
+/// Insert a single record into the test tables and return its row ids.
+async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<(i64, i64)> {
     // Start a transaction
     let mut tx = pool.begin().await?;
 
@@ -243,25 +243,26 @@ async fn insert_record(pool: &Pool, a_data: &[u8], b_data: &[u8]) -> Result<()> 
         .execute(&mut tx)
         .await?;
 
+    let b_id: i64 = musq::query("SELECT last_insert_rowid()")
+        .fetch_one(&mut tx)
+        .await?
+        .get_value_idx(0)?;
+
     // Commit the transaction
     tx.commit().await?;
 
-    Ok(())
+    Ok((a_id, b_id))
 }
 
-/// Read a random record by ID from both tables.
-async fn read_random_record(pool: &Pool, max_id: u64) -> Result<(Row, Row)> {
-    let random_id = rand::rng().random_range(1..=max_id) as i64;
-
-    let b_row = musq::query("SELECT * FROM b WHERE id = ?")
-        .bind(random_id)
+/// Read one record by its row ids from both tables.
+async fn read_record(pool: &Pool, a_id: i64, b_id: i64) -> Result<(Row, Row)> {
+    let a_row = musq::query("SELECT * FROM a WHERE id = ?")
+        .bind(a_id)
         .fetch_one(pool)
         .await?;
 
-    let a_id: i64 = b_row.get_value("a_id")?;
-
-    let a_row = musq::query("SELECT * FROM a WHERE id = ?")
-        .bind(a_id)
+    let b_row = musq::query("SELECT * FROM b WHERE id = ?")
+        .bind(b_id)
         .fetch_one(pool)
         .await?;
 
@@ -303,28 +304,30 @@ async fn perform_operations(
         num_records,
         Duration::from_secs(5),
     ))); // Report every 5 seconds
-    let max_id = Arc::new(Mutex::new(0u64));
+    let ids = Arc::new(Mutex::new(Vec::<(i64, i64)>::new()));
 
     stream::iter(0..num_records)
         .for_each_concurrent(concurrency, |_| {
             let timing_data = Arc::clone(&timing_data);
-            let max_id = Arc::clone(&max_id);
+            let ids = Arc::clone(&ids);
             let pool = pool.clone();
             async move {
                 let operation_start = Instant::now();
 
                 let (a_data, b_data) = generate_random_data(blob_size);
 
-                if (insert_record(&pool, &a_data, &b_data).await).is_ok() {
-                    let mut id = max_id.lock().await;
-                    *id += 1;
-                    drop(id);
-
-                    if let Err(e) = read_random_record(&pool, *max_id.lock().await).await {
-                        eprintln!("Error reading record: {e}");
+                match insert_record(&pool, &a_data, &b_data).await {
+                    Ok((a_id, b_id)) => {
+                        let (a_id, b_id) = {
+                            let mut ids = ids.lock().await;
+                            ids.push((a_id, b_id));
+                            ids[rand::rng().random_range(0..ids.len())]
+                        };
+                        if let Err(e) = read_record(&pool, a_id, b_id).await {
+                            eprintln!("Error reading record a_id={a_id} b_id={b_id}: {e}");
+                        }
                     }
-                } else {
-                    eprintln!("Error inserting record");
+                    Err(e) => eprintln!("Error inserting record: {e}"),
                 }
 
                 let operation_duration = operation_start.elapsed();
@@ -361,20 +364,24 @@ async fn main() -> Result<()> {
     let pool = setup_database(&args, &database_path).await?;
     create_schema(&pool).await?;
 
+    let (a_before, b_before) = count_records(&pool).await?;
+
     println!("Starting operations...");
     let timing_data =
         perform_operations(&pool, args.records, args.concurrency, args.blob_size).await?;
 
-    // Sanity check
+    // Sanity check. On a reused database, expect the pre-existing rows plus
+    // this run's inserts.
     let (a_count, b_count) = count_records(&pool).await?;
-    if a_count as u64 == args.records && b_count as u64 == args.records {
+    let expected_a = a_before + args.records as i64;
+    let expected_b = b_before + args.records as i64;
+    if a_count == expected_a && b_count == expected_b {
         println!(
             "Sanity check passed: {a_count} records in table A and {b_count} records in table B found in the database"
         );
     } else {
         eprintln!(
-            "Sanity check failed: Expected {} records, but found {} records in table A and {} records in table B",
-            args.records, a_count, b_count
+            "Sanity check failed: Expected {expected_a} records in A and {expected_b} in B, but found {a_count} and {b_count}"
         );
     }
 
