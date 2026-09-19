@@ -1,5 +1,7 @@
 //! Workspace maintenance commands for this repository.
 
+mod cargo_env;
+
 use std::{
     path::{Path, PathBuf},
     process::Command,
@@ -48,11 +50,11 @@ fn workspace_root() -> Result<PathBuf> {
 
 /// Run format and clippy fixes for the workspace.
 fn tidy(root: &Path) -> Result<()> {
-    let mut fmt = Command::new("cargo");
+    let mut fmt = cargo_env::command("cargo");
     fmt.current_dir(root).arg("fmt").arg("--all");
     run(&mut fmt)?;
 
-    let mut clippy = Command::new("cargo");
+    let mut clippy = cargo_env::command("cargo");
     clippy
         .current_dir(root)
         .arg("clippy")
@@ -71,7 +73,7 @@ fn tidy(root: &Path) -> Result<()> {
 
 /// Run the test suite via nextest.
 fn test(root: &Path) -> Result<()> {
-    let mut nextest = Command::new("cargo");
+    let mut nextest = cargo_env::command("cargo");
     nextest
         .current_dir(root)
         .arg("nextest")

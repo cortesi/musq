@@ -1,8 +1,13 @@
 //! Compile-test coverage for proc-macro crate-path resolution.
 
+#[path = "../src/cargo_env.rs"]
+mod cargo_env;
+
 #[cfg(test)]
 mod tests {
-    use std::{path::PathBuf, process::Command};
+    use std::path::PathBuf;
+
+    use crate::cargo_env;
 
     /// Runs `cargo check` for the fixture, so it is opt-in to keep the normal
     /// test loop fast.
@@ -14,7 +19,7 @@ mod tests {
         let target_dir = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
             .join("../../target/renamed-dependency-fixture");
 
-        let status = Command::new(env!("CARGO"))
+        let status = cargo_env::command(env!("CARGO"))
             .arg("check")
             .arg("--manifest-path")
             .arg(manifest)
