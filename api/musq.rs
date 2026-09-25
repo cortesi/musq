@@ -37,6 +37,12 @@ use time::{
     date::Date, offset_date_time::OffsetDateTime, primitive_date_time::PrimitiveDateTime,
     time::Time,
 };
+/// SQLite release bundled by the pinned `libsqlite3-sys` crate.
+///
+/// Compare this value with [`SqliteRuntimeInfo::version`] from
+/// `runtime_info()`.
+pub const BUNDLED_SQLITE_VERSION: &str = "3.53.2";
+
 /// Helper trait used internally to determine if all columns belonging to a
 /// record are `NULL` in a given row.
 // Not dyn-compatible.
@@ -2457,12 +2463,6 @@ pub fn query_with(sql: &str, arguments: Arguments) -> Query;
 
 /// Quote an identifier for use in a SQL statement.
 pub fn quote_identifier(ident: &str) -> String;
-
-/// SQLite release bundled by the pinned `libsqlite3-sys` crate.
-///
-/// Compare this value with [`SqliteRuntimeInfo::version`] from
-/// `runtime_info()`.
-pub const BUNDLED_SQLITE_VERSION: &str = "3.53.2";
 
 /// Build a [`Values`](crate::Values) collection from literal key/value pairs.
 #[macro_export]
