@@ -1,6 +1,5 @@
 //! Compile-test coverage for proc-macro crate-path resolution.
 
-#[path = "../src/cargo_env.rs"]
 mod cargo_env;
 
 #[cfg(test)]

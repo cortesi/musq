@@ -10,8 +10,7 @@ mod tests {
         query, query_scalar,
     };
 
-    use crate::support::connection;
-    use crate::support::db::wal_pool;
+    use crate::support::{connection, db::wal_pool};
 
     #[tokio::test]
     async fn transaction_state_complements_autocommit() -> anyhow::Result<()> {

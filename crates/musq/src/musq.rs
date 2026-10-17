@@ -184,16 +184,16 @@ impl Musq {
 
         // Standard pragmas
         //
-        // Most of these don't actually need to be sent because they would be set to
-        // their default values anyway. See the SQLite documentation for default
-        // values of these PRAGMAs: https://www.sqlite.org/pragma.html
+        // Most of these don't actually need to be sent because they would be
+        // set to their default values anyway. See the SQLite
+        // documentation for default values of these PRAGMAs: https://www.sqlite.org/pragma.html
         //
-        // However, by inserting into the map here, we can ensure that they're set in
-        // the proper order, even if they're overwritten later by their
-        // respective setters or directly by `pragma()`
+        // However, by inserting into the map here, we can ensure that they're
+        // set in the proper order, even if they're overwritten later by
+        // their respective setters or directly by `pragma()`
 
-        // Normally, page_size must be set before any other action on the database.
-        // Defaults to 4096 for new databases.
+        // Normally, page_size must be set before any other action on the
+        // database. Defaults to 4096 for new databases.
         pragmas.insert("page_size".into(), None);
 
         // locking_mode should be set before journal_mode:
@@ -201,9 +201,9 @@ impl Musq {
         pragmas.insert("locking_mode".into(), None);
 
         // Don't set `journal_mode` unless the user requested it.
-        // WAL mode is a permanent setting for created databases and changing into or
-        // out of it requires an exclusive lock that can't be waited on with
-        // `sqlite3_busy_timeout()`. See https://www.sqlite.org/wal.html.
+        // WAL mode is a permanent setting for created databases and changing
+        // into or out of it requires an exclusive lock that can't be
+        // waited on with `sqlite3_busy_timeout()`. See https://www.sqlite.org/wal.html.
         pragmas.insert("journal_mode".into(), None);
 
         // We choose to enable foreign key enforcement by default, though SQLite

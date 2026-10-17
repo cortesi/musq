@@ -165,7 +165,8 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
         let query_len = query.len() as i32;
 
         // <https://www.sqlite.org/c3ref/prepare.html>
-        // SAFETY: `conn` is a live connection; `query_ptr` is a valid SQL buffer.
+        // SAFETY: `conn` is a live connection; `query_ptr` is a valid SQL
+        // buffer.
         unsafe {
             ffi::prepare_v3(
                 conn,

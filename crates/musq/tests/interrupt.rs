@@ -10,13 +10,12 @@ mod tests {
     };
 
     use musq::{Connection, Error, Musq, error::PrimaryErrCode, query};
-
-    use crate::support::connection;
-    use crate::support::stress_iters;
     use tokio::{
         join,
         time::{error::Elapsed, sleep, timeout},
     };
+
+    use crate::support::{connection, stress_iters};
 
     /// Recursive CTE with no bound. SQLite runs this until interrupt or
     /// timeout.

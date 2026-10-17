@@ -75,9 +75,9 @@ impl EstablishParams {
             .to_owned();
 
         // By default, we connect to an in-memory database.
-        // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an error if
-        // it cannot satisfy our wish for a thread-safe, lock-free connection
-        // object
+        // [SQLITE_OPEN_NOMUTEX] will instruct [sqlite3_open_v2] to return an
+        // error if it cannot satisfy our wish for a thread-safe,
+        // lock-free connection object
 
         let mut flags = if options.serialized {
             SQLITE_OPEN_FULLMUTEX
@@ -151,7 +151,8 @@ impl EstablishParams {
         let mut handle = null_mut();
 
         // <https://www.sqlite.org/c3ref/open.html>
-        // SAFETY: `filename` is a valid CString; `handle` is a local out-parameter.
+        // SAFETY: `filename` is a valid CString; `handle` is a local
+        // out-parameter.
         let open_res =
             unsafe { ffi::open_v2(self.filename.as_ptr(), &mut handle, self.open_flags, null()) };
 
@@ -172,11 +173,13 @@ impl EstablishParams {
         let handle = unsafe { ConnectionHandle::new(handle) };
 
         // Configure a busy timeout
-        // This causes SQLite to automatically sleep in increasing intervals until the
-        // time when there is something locked during [sqlite3_step].
+        // This causes SQLite to automatically sleep in increasing intervals
+        // until the time when there is something locked during
+        // [sqlite3_step].
         //
-        // We also need to convert the u128 value to i32. If the value overflows,
-        // we clamp to `i32::MAX` to comply with SQLite's API.
+        // We also need to convert the u128 value to i32. If the value
+        // overflows, we clamp to `i32::MAX` to comply with SQLite's
+        // API.
         let ms = i32::try_from(self.busy_timeout.as_millis()).unwrap_or(i32::MAX);
 
         // SAFETY: `handle` is a newly opened live connection.

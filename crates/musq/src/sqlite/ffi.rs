@@ -954,7 +954,8 @@ mod tests {
 
     #[test]
     fn basic_open_prepare_step_reset_finalize() {
-        // SAFETY: this test owns the connection and statement pointers it opens.
+        // SAFETY: this test owns the connection and statement pointers it
+        // opens.
         unsafe {
             let filename = CString::new(":memory:").unwrap();
             let mut handle = ptr::null_mut();
@@ -1011,7 +1012,8 @@ mod tests {
 
     #[test]
     fn finalize_after_failed_step_reads_error_from_connection() {
-        // SAFETY: this test owns the connection and statement pointers it opens.
+        // SAFETY: this test owns the connection and statement pointers it
+        // opens.
         unsafe {
             let filename = CString::new(":memory:").unwrap();
             let mut handle = ptr::null_mut();

@@ -230,7 +230,8 @@ impl Drop for StatementHandle {
         {
             // Ensure the statement is reset before finalizing so that
             // sqlite3_finalize does not return SQLITE_BUSY.
-            // SAFETY: this handle still owns the statement until finalize returns.
+            // SAFETY: this handle still owns the statement until finalize
+            // returns.
             if let Err(e) = unsafe { ffi::reset(self.0.as_ptr()) } {
                 tracing::error!("sqlite3_reset before finalize failed: {}", e);
             }

@@ -6,9 +6,10 @@ mod support;
 mod tests {
     use std::sync::Arc;
 
-    use crate::support::connection;
     use futures::future::join_all;
     use musq::{Musq, query, query_as};
+
+    use crate::support::connection;
 
     /// Test that Pool implements Executor and can be used interchangeably with
     /// Connection
@@ -69,8 +70,8 @@ mod tests {
 
         // Test with standalone Connection
         let standalone_conn = connection().await?;
-        // Note: This won't see the data from the pool since it's a different connection
-        // But we can test that the API works the same
+        // Note: This won't see the data from the pool since it's a different
+        // connection But we can test that the API works the same
         query("CREATE TABLE test_standalone (id INTEGER, value TEXT)")
             .execute(&standalone_conn)
             .await?;

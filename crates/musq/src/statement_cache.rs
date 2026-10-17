@@ -30,7 +30,8 @@ impl StatementCache {
         }
         let statement = self.get_mut(query).expect("statement was just inserted");
         if exists {
-            // as this statement has been executed before, we reset before continuing
+            // as this statement has been executed before, we reset before
+            // continuing
             statement.reset()?;
         }
         Ok(statement)

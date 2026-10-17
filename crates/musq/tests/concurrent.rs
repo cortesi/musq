@@ -6,9 +6,10 @@ mod support;
 mod tests {
     use std::sync::Arc;
 
-    use crate::support::connection;
     use futures::future::join_all;
     use musq::{query, query_as};
+
+    use crate::support::connection;
 
     /// Test that multiple concurrent reads work without blocking each other
     #[tokio::test]
@@ -114,8 +115,8 @@ mod tests {
                 .await?;
         }
 
-        // Run multiple concurrent queries using the same SQL (should use prepared
-        // statement cache)
+        // Run multiple concurrent queries using the same SQL (should use
+        // prepared statement cache)
         let mut handles = vec![];
         for _ in 0..10 {
             let conn_clone = Arc::clone(&conn);

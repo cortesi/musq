@@ -4,8 +4,9 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    use crate::support::connection;
     use musq::{Connection, Musq, Transaction};
+
+    use crate::support::connection;
 
     fn accepts_pool_transaction(_: &Transaction) {}
 

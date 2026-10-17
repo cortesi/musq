@@ -116,7 +116,8 @@ impl Arguments {
         let cnt = handle.bind_parameter_count();
 
         for param_i in 1..=cnt {
-            // Figure out the index of this bind parameter into our argument tuple.
+            // Figure out the index of this bind parameter into our argument
+            // tuple.
             let n: usize = if let Some(name) = handle.bind_parameter_name(param_i) {
                 if name.starts_with('?') {
                     parse_question_param(&name)?

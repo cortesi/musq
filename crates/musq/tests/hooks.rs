@@ -6,9 +6,10 @@ mod support;
 mod tests {
     use std::time::Duration;
 
-    use crate::support::connection;
     use musq::{UpdateEvent, UpdateOp, query, query_scalar};
     use tokio::{sync::mpsc, time::timeout};
+
+    use crate::support::connection;
 
     #[tokio::test]
     async fn update_hook_sees_insert() -> anyhow::Result<()> {

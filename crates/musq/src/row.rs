@@ -42,7 +42,8 @@ impl Row {
         for i in 0..size {
             match statement.column_type(i) {
                 SQLITE_TEXT => {
-                    // Ensure TEXT has been converted into UTF-8 so `column_bytes` matches the
+                    // Ensure TEXT has been converted into UTF-8 so
+                    // `column_bytes` matches the
                     // `column_text` representation.
                     statement.column_text(i);
                     variable_bytes += statement.column_bytes(i) as usize;

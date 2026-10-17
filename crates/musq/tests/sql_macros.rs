@@ -316,7 +316,8 @@ mod tests {
         create_parameterized_query();
         create_named_query();
 
-        // Test sql_as! macros in non-result contexts - these compile successfully
+        // Test sql_as! macros in non-result contexts - these compile
+        // successfully
         let query1 = create_sql_as_simple();
         let query2 = create_sql_as_with_params();
         let query3 = create_sql_as_with_struct();

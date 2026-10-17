@@ -194,8 +194,8 @@ mod tests {
 
     #[tokio::test]
     async fn it_opens_in_memory() -> anyhow::Result<()> {
-        // If the filename is ":memory:", then a private, temporary in-memory database
-        // is created for the connection.
+        // If the filename is ":memory:", then a private, temporary in-memory
+        // database is created for the connection.
         let conn = connection().await?;
         conn.close().await?;
         Ok(())

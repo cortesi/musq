@@ -58,7 +58,8 @@ impl ConnectionHandle {
         let query =
             CString::new(query).map_err(|_| Error::Query("query contains nul bytes".into()))?;
 
-        // SAFETY: this handle owns a live connection; `query` is a valid CString.
+        // SAFETY: this handle owns a live connection; `query` is a valid
+        // CString.
         unsafe { ffi::exec(self.as_ptr(), query.as_ptr()) }.map_err(Error::from)
     }
 

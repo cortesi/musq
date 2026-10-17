@@ -67,8 +67,9 @@ impl PoolInner {
     /// Return the number of idle connections.
     pub(super) fn num_idle(&self) -> usize {
         // We don't use `self.idle_conns.len()` as it waits for the internal
-        // head and tail pointers to stop changing for a moment before calculating the
-        // length, which may take a long time at high levels of churn.
+        // head and tail pointers to stop changing for a moment before
+        // calculating the length, which may take a long time at high
+        // levels of churn.
         //
         // By maintaining our own atomic count, we avoid that issue entirely.
         self.num_idle.load(Ordering::Acquire)
@@ -97,10 +98,11 @@ impl PoolInner {
                 return;
             }
 
-            // After all idle connections have been drained, the semaphore already
-            // contains one available permit for every closed/absent connection.
-            // Wait for one more permit than that baseline, which means a
-            // checked-out connection has either returned or closed.
+            // After all idle connections have been drained, the semaphore
+            // already contains one available permit for every
+            // closed/absent connection. Wait for one more permit
+            // than that baseline, which means a checked-out
+            // connection has either returned or closed.
             let permits = self
                 .options
                 .pool_max_connections
@@ -180,8 +182,8 @@ impl PoolInner {
             panic!("BUG: connection queue overflow in release()");
         }
 
-        // NOTE: we need to make sure we drop the permit *after* we push to the idle
-        // queue don't decrease the size
+        // NOTE: we need to make sure we drop the permit *after* we push to the
+        // idle queue don't decrease the size
         guard.release_permit();
 
         self.num_idle.fetch_add(1, Ordering::AcqRel);
@@ -268,7 +270,8 @@ impl PoolInner {
         let timeout_duration = deadline_as_timeout(deadline)?;
 
         // result here is `Result<Result<C>, TimeoutError>`
-        // if this block does not return, sleep for the backoff timeout and try again
+        // if this block does not return, sleep for the backoff timeout and try
+        // again
         match timeout(timeout_duration, self.options.connect()).await {
             Ok(Ok(raw)) => Ok(Floating::new_live(raw, guard)),
             Ok(Err(e)) => Err(e),
