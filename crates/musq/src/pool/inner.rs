@@ -9,7 +9,7 @@ use std::{
 
 use crossbeam_queue::ArrayQueue;
 use tokio::{
-    sync::{Semaphore, SemaphorePermit},
+    sync::{Semaphore, SemaphorePermit, watch},
     task::yield_now,
     time::timeout,
 };
@@ -29,8 +29,8 @@ pub struct PoolInner {
     num_idle: AtomicUsize,
     /// Whether the pool is closed.
     is_closed: AtomicBool,
-    /// Event fired when the pool closes.
-    on_closed: event_listener::Event,
+    /// Broadcast channel signalling pool closure.
+    on_closed: watch::Sender<bool>,
     /// Pool configuration options.
     pub(super) options: crate::Musq,
 }
@@ -38,13 +38,14 @@ pub struct PoolInner {
 impl PoolInner {
     /// Create a new shared pool state.
     pub(super) fn new_arc(options: crate::Musq) -> Arc<Self> {
+        let (on_closed, _) = watch::channel(false);
         Arc::new(Self {
             idle_conns: ArrayQueue::new(options.pool_max_connections as usize),
             semaphore: Semaphore::new(options.pool_max_connections as usize),
             size: AtomicU32::new(0),
             num_idle: AtomicUsize::new(0),
             is_closed: AtomicBool::new(false),
-            on_closed: event_listener::Event::new(),
+            on_closed,
             options,
         })
     }
@@ -67,13 +68,13 @@ impl PoolInner {
 
     /// Returns `true` if the pool is closed.
     pub(super) fn is_closed(&self) -> bool {
-        self.is_closed.load(Ordering::SeqCst)
+        self.is_closed.load(Ordering::Acquire)
     }
 
     /// Mark the pool as closed and notify listeners.
     fn mark_closed(&self) {
-        self.is_closed.store(true, Ordering::SeqCst);
-        self.on_closed.notify(usize::MAX);
+        self.is_closed.store(true, Ordering::Release);
+        self.on_closed.send_replace(true);
     }
 
     /// Close the pool and wait for connections to drain.
@@ -116,23 +117,9 @@ impl PoolInner {
 
     /// Future that resolves when the pool closes.
     pub(crate) fn close_event(&self) -> impl Future<Output = ()> + '_ {
-        // Double-check `is_closed` after registering the listener so a
-        // concurrent `mark_closed()` cannot race and lose the wakeup.
-        let listener = if self.is_closed() {
-            None
-        } else {
-            let listener = self.on_closed.listen();
-            if self.is_closed() {
-                None
-            } else {
-                Some(listener)
-            }
-        };
-
+        let mut rx = self.on_closed.subscribe();
         async move {
-            if let Some(listener) = listener {
-                listener.await;
-            }
+            let _ = rx.wait_for(|&closed| closed).await;
         }
     }
 
