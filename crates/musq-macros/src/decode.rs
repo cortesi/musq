@@ -113,8 +113,8 @@ fn expand_repr_enum(
                 let value = <#repr as #musq::decode::Decode<#lifetime>>::decode(value)?;
                 match value {
                     #(#arms)*
-                    _ => Err(#musq::DecodeError::Conversion(
-                        ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into(),
+                    _ => ::std::result::Result::Err(#musq::DecodeError::Conversion(
+                        ::std::format!("invalid value {:?} for enum {}", value, #ident_s),
                     ))
                 }
             }
@@ -145,9 +145,9 @@ fn expand_enum(
     let values = quote! {
         match value {
             #(#value_arms)*
-            _ => ::std::result::Result::Err(
-                ::std::format!("invalid value {:?} for enum {}", value, #ident_s).into()
-            )
+            _ => ::std::result::Result::Err(#musq::DecodeError::Conversion(
+                ::std::format!("invalid value {:?} for enum {}", value, #ident_s),
+            ))
         }
     };
 

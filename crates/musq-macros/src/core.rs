@@ -331,15 +331,16 @@ pub fn expand_type_derive(
             if fields.is_empty() {
                 return span_err!(input, "structs with zero fields are not supported");
             }
-            let unnamed = fields.iter().filter(|f| f.ident.is_none()).count();
-            let named = fields.iter().filter(|f| f.ident.is_some()).count();
-            if named > 1 {
+            if fields.is_struct() && fields.len() > 1 {
                 return span_err!(input, "structs with named fields are not supported");
             }
-            if unnamed != 1 {
+            let [field] = fields.fields.as_slice() else {
+                return span_err!(input, "structs must have exactly one unnamed field");
+            };
+            if field.ident.is_some() {
                 return span_err!(input, "structs must have exactly one unnamed field");
             }
-            expand_struct(&attrs, fields.iter().next().unwrap())?
+            expand_struct(&attrs, field)?
         }
         ast::Data::Enum(v) => {
             if attrs.try_from.is_some() {

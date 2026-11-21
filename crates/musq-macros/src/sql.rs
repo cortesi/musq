@@ -1,11 +1,14 @@
 //! Procedural macros for `sql!` and `sql_as!`.
 
-use std::collections::{HashMap, HashSet};
+use std::{
+    collections::{HashMap, HashSet},
+    mem,
+};
 
 use proc_macro::TokenStream;
 use quote::quote;
 use syn::{
-    Expr, Ident, LitStr, Result as SynResult, Token,
+    Expr, Ident, LitStr, Token,
     ext::IdentExt,
     parse::{Parse, ParseStream, Parser},
     punctuated::Punctuated,
@@ -14,7 +17,7 @@ use syn::{
 use super::core;
 
 /// Ensure a macro expression is not an empty list.
-fn ensure_non_empty(expr: &Expr) -> SynResult<()> {
+fn ensure_non_empty(expr: &Expr) -> syn::Result<()> {
     match expr {
         Expr::Array(arr) if arr.elems.is_empty() => {
             Err(syn::Error::new_spanned(expr, "empty list"))
@@ -46,7 +49,7 @@ enum SqlArg {
 }
 
 impl Parse for SqlMacroInput {
-    fn parse(input: ParseStream) -> SynResult<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let fmt: LitStr = input.parse()?;
         let mut args = Punctuated::new();
         if input.is_empty() {
@@ -108,7 +111,7 @@ struct UpsertArgs {
 }
 
 impl Parse for UpsertArgs {
-    fn parse(input: ParseStream) -> SynResult<Self> {
+    fn parse(input: ParseStream) -> syn::Result<Self> {
         let values: Expr = input.parse()?;
         let mut exclude = Vec::new();
         if input.peek(Token![,]) {
@@ -121,7 +124,7 @@ impl Parse for UpsertArgs {
 
             while !input.is_empty() {
                 let ident = Ident::parse_any(input)?;
-                exclude.push(ident.to_string());
+                exclude.push(ident.to_string().trim_start_matches("r#").to_owned());
 
                 if input.peek(Token![,]) {
                     input.parse::<Token![,]>()?;
@@ -146,19 +149,19 @@ impl Parse for UpsertArgs {
 }
 
 /// Parse a placeholder expression, reporting failures at the format literal.
-fn parse_placeholder<T: Parse>(source: &str, span: proc_macro2::Span) -> SynResult<T> {
+fn parse_placeholder<T: Parse>(source: &str, span: proc_macro2::Span) -> syn::Result<T> {
     syn::parse_str(source).map_err(|error| syn::Error::new(span, error))
 }
 
 /// Parse a placeholder name as an identifier, allowing keywords.
-fn parse_placeholder_ident(name: &str, span: proc_macro2::Span) -> SynResult<Ident> {
+fn parse_placeholder_ident(name: &str, span: proc_macro2::Span) -> syn::Result<Ident> {
     Ident::parse_any
         .parse_str(name)
         .map_err(|_| syn::Error::new(span, format!("invalid named placeholder `{{{name}}}`")))
 }
 
 /// Parse the format string into SQL segments.
-fn parse_fmt(fmt: &LitStr) -> SynResult<Vec<Segment>> {
+fn parse_fmt(fmt: &LitStr) -> syn::Result<Vec<Segment>> {
     let span = fmt.span();
     let s = fmt.value();
     let mut out = Vec::new();
@@ -173,8 +176,7 @@ fn parse_fmt(fmt: &LitStr) -> SynResult<Vec<Segment>> {
                     continue;
                 }
                 if !cur.is_empty() {
-                    out.push(Segment::Lit(cur.clone()));
-                    cur.clear();
+                    out.push(Segment::Lit(mem::take(&mut cur)));
                 }
                 let mut ph = String::new();
                 let mut closed = false;
@@ -251,7 +253,7 @@ fn build_sql(
     tokens: Vec<Segment>,
     input: SqlMacroInput,
     as_query_as: bool,
-) -> SynResult<proc_macro2::TokenStream> {
+) -> syn::Result<proc_macro2::TokenStream> {
     let musq = core::musq_path();
     let span = input.fmt.span();
     let mut positional = Vec::new();
@@ -265,18 +267,16 @@ fn build_sql(
             }
         }
     }
+    let mut positional = positional.into_iter();
     let mut bound_named = HashSet::new();
     let mut sql_parts = Vec::<proc_macro2::TokenStream>::new();
-    let mut pos_index = 0usize;
     for seg in tokens {
         match seg {
             Segment::Lit(l) => sql_parts.push(quote! { _builder.push_sql(#l); }),
             Segment::Positional => {
                 let expr = positional
-                    .get(pos_index)
-                    .cloned()
+                    .next()
                     .ok_or_else(|| syn::Error::new(span, "missing positional argument"))?;
-                pos_index += 1;
                 sql_parts.push(quote! { _builder.push_bind(&(#expr))?; });
             }
             Segment::Named(ident) => {
@@ -310,7 +310,7 @@ fn build_sql(
             Segment::Raw(expr) => sql_parts.push(quote! { _builder.push_raw(#expr); }),
         }
     }
-    if pos_index != positional.len() {
+    if positional.next().is_some() {
         return Err(syn::Error::new(span, "unused positional arguments"));
     }
     if named.values().any(Option::is_some) {
@@ -325,7 +325,7 @@ fn build_sql(
     };
     Ok(quote! {{
         #builder_inits
-        (|| -> #musq::Result<_> { #collects Ok(#build) })()
+        (|| -> #musq::Result<_> { #collects ::std::result::Result::Ok(#build) })()
     }})
 }
 
