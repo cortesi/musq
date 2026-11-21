@@ -1,6 +1,12 @@
 //! Integration tests for sqlite-vec support.
 
-#![cfg_attr(not(feature = "vec"), allow(missing_docs))]
+#![cfg_attr(
+    not(feature = "vec"),
+    allow(
+        missing_docs,
+        reason = "crate-level cfg strips the doc comment when the vec feature is disabled"
+    )
+)]
 #![cfg(feature = "vec")]
 
 mod support;

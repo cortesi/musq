@@ -1,8 +1,8 @@
 //! Stress test runner for the musq connection pool.
 
 use std::{
-    path::PathBuf,
-    result::Result as StdResult,
+    path::{Path, PathBuf},
+    result,
     sync::Arc,
     time::{Duration, Instant},
 };
@@ -52,7 +52,7 @@ struct Args {
 }
 
 /// Parse a non-zero `usize` command-line value.
-fn parse_nonzero_usize(value: &str) -> StdResult<usize, String> {
+fn parse_nonzero_usize(value: &str) -> result::Result<usize, String> {
     let value = value
         .parse::<usize>()
         .map_err(|err| format!("invalid usize: {err}"))?;
@@ -153,7 +153,7 @@ impl TimingData {
 }
 
 /// Open a pool and apply the requested database settings.
-async fn setup_database(args: &Args, path: &PathBuf) -> Result<Pool> {
+async fn setup_database(args: &Args, path: &Path) -> Result<Pool> {
     let journal_mode = match args.journal_mode.to_lowercase().as_str() {
         "wal" => JournalMode::Wal,
         "delete" => JournalMode::Delete,

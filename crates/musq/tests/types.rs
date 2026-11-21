@@ -4,9 +4,10 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    // Allow approximate constants in this test file - we're testing specific
-    // float representations
-    #![allow(clippy::approx_constant)]
+    #![allow(
+        clippy::approx_constant,
+        reason = "tests specific float literal representations"
+    )]
 
     use crate::test_type;
 

@@ -3,9 +3,10 @@ use std::env;
 use musq::{Connection, Musq};
 
 /// Shared database fixtures.
-///
-/// Not every test binary uses these, so allow the items to go unused.
-#[allow(dead_code)]
+#[allow(
+    dead_code,
+    reason = "not every integration test binary uses db fixtures"
+)]
 pub mod db;
 
 /// Create a new connection for tests.
@@ -14,9 +15,10 @@ pub async fn connection() -> anyhow::Result<Connection> {
 }
 
 /// Assert that an error is a configuration error containing `expected`.
-///
-/// Not every test binary uses this, so allow the item to go unused.
-#[allow(dead_code)]
+#[allow(
+    dead_code,
+    reason = "not every integration test binary asserts configuration errors"
+)]
 pub fn assert_configuration_contains(error: musq::Error, expected: &str) {
     match error {
         musq::Error::Configuration(message) => assert!(
@@ -31,7 +33,10 @@ pub fn assert_configuration_contains(error: musq::Error, expected: &str) {
 ///
 /// Uses `default` for a normal run and ten times that when `MUSQ_STRESS` is
 /// set.
-#[allow(dead_code)]
+#[allow(
+    dead_code,
+    reason = "not every integration test binary runs stress loops"
+)]
 pub fn stress_iters(default: usize) -> usize {
     match env::var("MUSQ_STRESS") {
         Ok(_) => default.saturating_mul(10),

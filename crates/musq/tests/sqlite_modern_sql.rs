@@ -6,7 +6,7 @@ mod support;
 mod tests {
     use std::fmt::Debug;
 
-    use musq::{Result as MusqResult, SqliteError, error::ExtendedErrCode, query, query_scalar};
+    use musq::{SqliteError, error::ExtendedErrCode, query, query_scalar};
 
     use crate::support::connection;
 
@@ -131,7 +131,7 @@ mod tests {
         Ok(())
     }
 
-    fn sqlite_error<T>(result: MusqResult<T>) -> SqliteError
+    fn sqlite_error<T>(result: musq::Result<T>) -> SqliteError
     where
         T: Debug,
     {

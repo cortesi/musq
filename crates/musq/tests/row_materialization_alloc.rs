@@ -18,26 +18,36 @@ static ALLOCATED_BYTES: AtomicUsize = AtomicUsize::new(0);
 #[global_allocator]
 static GLOBAL: CountingAllocator = CountingAllocator;
 
+// SAFETY: every method delegates directly to `std::alloc::System` with
+// unchanged layout and pointer preconditions.
 unsafe impl GlobalAlloc for CountingAllocator {
     unsafe fn alloc(&self, layout: Layout) -> *mut u8 {
         ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
         ALLOCATED_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+        // SAFETY: caller upholds `GlobalAlloc::alloc` preconditions for
+        // `System`.
         unsafe { System.alloc(layout) }
     }
 
     unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {
         ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
         ALLOCATED_BYTES.fetch_add(layout.size(), Ordering::Relaxed);
+        // SAFETY: caller upholds `GlobalAlloc::alloc_zeroed` preconditions for
+        // `System`.
         unsafe { System.alloc_zeroed(layout) }
     }
 
     unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) {
+        // SAFETY: caller upholds `GlobalAlloc::dealloc` preconditions for
+        // `System`.
         unsafe { System.dealloc(ptr, layout) }
     }
 
     unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, new_size: usize) -> *mut u8 {
         ALLOCATIONS.fetch_add(1, Ordering::Relaxed);
         ALLOCATED_BYTES.fetch_add(new_size, Ordering::Relaxed);
+        // SAFETY: caller upholds `GlobalAlloc::realloc` preconditions for
+        // `System`.
         unsafe { System.realloc(ptr, layout, new_size) }
     }
 }

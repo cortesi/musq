@@ -4,11 +4,8 @@ mod support;
 
 #[cfg(test)]
 mod tests {
-    use std::result::Result as StdResult;
-
     use musq::{
-        Error, QueryBuilder, Result as MusqResult, Value, Values, encode::Encode,
-        error::EncodeError, sql, sql_as, values,
+        Error, QueryBuilder, Value, Values, encode::Encode, error::EncodeError, sql, sql_as, values,
     };
 
     use crate::support::connection;
@@ -392,14 +389,14 @@ mod tests {
 
     struct Bad;
     impl Encode for Bad {
-        fn encode(&self) -> StdResult<Value, EncodeError> {
+        fn encode(&self) -> Result<Value, EncodeError> {
             Err(EncodeError::Conversion("bad".into()))
         }
     }
 
     #[tokio::test]
     async fn values_macro_encode_error() -> anyhow::Result<()> {
-        let res: MusqResult<Values> = (|| {
+        let res: musq::Result<Values> = (|| {
             values! { "b": Bad }
         })();
         assert!(res.is_err());
