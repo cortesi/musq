@@ -1,10 +1,7 @@
 use std::result::Result as StdResult;
 
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
-use time::{
-    format_description::{FormatItem, well_known::Rfc3339},
-    macros::format_description as fd,
-};
+use time::{format_description::well_known::Rfc3339, macros::format_description as fd};
 
 use crate::{
     Value,
@@ -188,16 +185,7 @@ fn decode_datetime_from_text(value: &str) -> Option<PrimitiveDateTime> {
         return Some(dt);
     }
 
-    let formats = [
-        FormatItem::Compound(formats::PRIMITIVE_DATE_TIME_SPACE_SEPARATED),
-        FormatItem::Compound(formats::PRIMITIVE_DATE_TIME_T_SEPARATED),
-    ];
-
-    if let Ok(dt) = PrimitiveDateTime::parse(value, &FormatItem::First(&formats)) {
-        return Some(dt);
-    }
-
-    None
+    PrimitiveDateTime::parse(value, formats::PRIMITIVE_DATE_TIME).ok()
 }
 
 #[cfg(test)]
@@ -515,43 +503,21 @@ mod formats {
         ]
     };
 
-    /// Formats for parsing space-separated primitive datetimes.
-    pub(super) const PRIMITIVE_DATE_TIME_SPACE_SEPARATED: &[FormatItem<'_>] = {
-        &[
-            YEAR,
-            StringLiteral("-"),
-            MONTH,
-            StringLiteral("-"),
-            DAY,
-            StringLiteral(" "),
-            HOUR,
-            StringLiteral(":"),
-            MINUTE,
-            Optional(&StringLiteral(":")),
-            Optional(&SECOND),
-            Optional(&StringLiteral(".")),
-            Optional(&SUBSECOND),
-            Optional(&StringLiteral("Z")),
-        ]
-    };
-
-    /// Formats for parsing T-separated primitive datetimes.
-    pub(super) const PRIMITIVE_DATE_TIME_T_SEPARATED: &[FormatItem<'_>] = {
-        &[
-            YEAR,
-            StringLiteral("-"),
-            MONTH,
-            StringLiteral("-"),
-            DAY,
-            StringLiteral("T"),
-            HOUR,
-            StringLiteral(":"),
-            MINUTE,
-            Optional(&StringLiteral(":")),
-            Optional(&SECOND),
-            Optional(&StringLiteral(".")),
-            Optional(&SUBSECOND),
-            Optional(&StringLiteral("Z")),
-        ]
-    };
+    /// Formats for parsing space- or `T`-separated primitive datetimes.
+    pub(super) const PRIMITIVE_DATE_TIME: &[FormatItem<'_>] = &[
+        YEAR,
+        StringLiteral("-"),
+        MONTH,
+        StringLiteral("-"),
+        DAY,
+        First(&[StringLiteral(" "), StringLiteral("T")]),
+        HOUR,
+        StringLiteral(":"),
+        MINUTE,
+        Optional(&StringLiteral(":")),
+        Optional(&SECOND),
+        Optional(&StringLiteral(".")),
+        Optional(&SUBSECOND),
+        Optional(&StringLiteral("Z")),
+    ];
 }
