@@ -124,7 +124,7 @@ impl EstablishParams {
             filename,
             open_flags: flags,
             busy_timeout: options.busy_timeout,
-            log_settings: options.log_settings.clone(),
+            log_settings: options.log_settings,
             statement_cache_capacity: options.statement_cache_capacity,
             floating_point_text_digits,
             parser_depth_limit,
@@ -235,7 +235,7 @@ impl EstablishParams {
             handle,
             statements: StatementCache::new(self.statement_cache_capacity),
             transaction_depth: 0,
-            log_settings: self.log_settings.clone(),
+            log_settings: self.log_settings,
         })
     }
 }

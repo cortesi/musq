@@ -2,7 +2,7 @@ use either::Either;
 
 use crate::{
     QueryResult, Result, Row,
-    logger::{NopQueryLogger, QueryLog, QueryLogger},
+    logger::QueryLogger,
     sqlite::{
         Arguments,
         connection::{ConnectionHandle, ConnectionState},
@@ -16,14 +16,13 @@ pub struct ExecuteIter<'a> {
     handle: &'a mut ConnectionHandle,
     /// Prepared compound statement.
     statement: &'a mut CompoundStatement,
-    /// Query logging implementation.
-    logger: Box<dyn QueryLog + 'a>,
+    /// Query logger when statement or slow-statement logging is enabled.
+    logger: Option<QueryLogger<'a>>,
     /// Bound arguments, if any.
     args: Option<Arguments>,
 
-    /// since a `VirtualStatement` can encompass multiple actual statements,
-    /// this keeps track of the number of arguments so far
-    /// Number of arguments bound so far.
+    /// Number of arguments bound so far across statements in the compound
+    /// query.
     args_used: usize,
 
     /// Whether to advance to the next statement on the next iteration.
@@ -39,11 +38,10 @@ pub fn iter<'a>(
     // fetch the cached statement or allocate a new one
     let statement = conn.statements.get(query)?;
 
-    let logger: Box<dyn QueryLog + 'a> = if conn.log_settings.is_enabled() {
-        Box::new(QueryLogger::new(query, conn.log_settings.clone()))
-    } else {
-        Box::new(NopQueryLogger)
-    };
+    let logger = conn
+        .log_settings
+        .is_enabled()
+        .then(|| QueryLogger::new(query, conn.log_settings));
 
     Ok(ExecuteIter {
         handle: &mut conn.handle,
@@ -102,7 +100,9 @@ impl Iterator for ExecuteIter<'_> {
 
         match statement.handle.step() {
             Ok(true) => {
-                self.logger.inc_rows_returned();
+                if let Some(logger) = &mut self.logger {
+                    logger.inc_rows_returned();
+                }
 
                 match Row::current(statement.handle, statement.columns, statement.column_names) {
                     Ok(row) => Some(Ok(Either::Right(row))),
@@ -117,7 +117,9 @@ impl Iterator for ExecuteIter<'_> {
                 } else {
                     statement.handle.changes()
                 };
-                self.logger.inc_rows_affected(changes);
+                if let Some(logger) = &mut self.logger {
+                    logger.inc_rows_affected(changes);
+                }
 
                 let done = QueryResult {
                     changes,

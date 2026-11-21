@@ -6,8 +6,7 @@ use std::{
 use log::LevelFilter;
 use tracing::Level;
 
-#[derive(Clone, Debug)]
-#[non_exhaustive]
+#[derive(Clone, Copy, Debug)]
 /// Logging configuration for queries.
 pub struct LogSettings {
     /// Log level for statements.
@@ -177,14 +176,6 @@ pub struct QueryLogger<'q> {
     settings: LogSettings,
 }
 
-/// Trait implemented by types that can log query execution statistics.
-pub trait QueryLog {
-    /// Increment the rows-returned counter.
-    fn inc_rows_returned(&mut self);
-    /// Increment the rows-affected counter.
-    fn inc_rows_affected(&mut self, n: u64);
-}
-
 impl<'q> QueryLogger<'q> {
     /// Create a new query logger.
     pub fn new(sql: &'q str, settings: LogSettings) -> Self {
@@ -197,8 +188,18 @@ impl<'q> QueryLogger<'q> {
         }
     }
 
+    /// Increment the rows-returned counter.
+    pub fn inc_rows_returned(&mut self) {
+        self.rows_returned += 1;
+    }
+
+    /// Increment the rows-affected counter.
+    pub fn inc_rows_affected(&mut self, n: u64) {
+        self.rows_affected += n;
+    }
+
     /// Emit a log event for the completed query.
-    pub fn finish(&self) {
+    fn finish(&self) {
         let elapsed = self.start.elapsed();
         let lvl = self.level_for_elapsed(elapsed);
 
@@ -206,7 +207,7 @@ impl<'q> QueryLogger<'q> {
             return;
         };
 
-        if !self.log_is_enabled(tracing_level, log_level) {
+        if !log_is_enabled(tracing_level, log_level) {
             return;
         }
 
@@ -231,15 +232,6 @@ impl<'q> QueryLogger<'q> {
         }
     }
 
-    /// Check if either the log or tracing subscriber is enabled at the given
-    /// level.
-    fn log_is_enabled(&self, tracing_level: Level, log_level: log::Level) -> bool {
-        // The enabled level could be set from either tracing world or log
-        // world, so check both to see if logging should be enabled for
-        // our level.
-        log::log_enabled!(target: "query", log_level) || tracing_enabled_for(tracing_level)
-    }
-
     /// Build the summary line and optional raw SQL payload.
     fn build_log_payload(&self) -> (String, String) {
         let mut summary = parse_query_summary(self.sql);
@@ -258,23 +250,11 @@ impl<'q> Drop for QueryLogger<'q> {
     }
 }
 
-impl QueryLog for QueryLogger<'_> {
-    fn inc_rows_returned(&mut self) {
-        self.rows_returned += 1;
-    }
-
-    fn inc_rows_affected(&mut self, n: u64) {
-        self.rows_affected += n;
-    }
-}
-
-/// A no-op logger used when query logging is disabled.
-#[derive(Default)]
-pub struct NopQueryLogger;
-
-impl QueryLog for NopQueryLogger {
-    fn inc_rows_returned(&mut self) {}
-    fn inc_rows_affected(&mut self, _n: u64) {}
+/// Check if either the log or tracing subscriber is enabled at the given level.
+fn log_is_enabled(tracing_level: Level, log_level: log::Level) -> bool {
+    // The enabled level could be set from either tracing world or log world,
+    // so check both to see if logging should be enabled for our level.
+    log::log_enabled!(target: "query", log_level) || tracing_enabled_for(tracing_level)
 }
 
 /// Produce a short summary of a SQL statement for logging.

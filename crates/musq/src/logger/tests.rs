@@ -14,7 +14,7 @@ use tracing::{
     span::{Attributes, Id, Record},
 };
 
-use super::{LogSettings, QueryLog, QueryLogger};
+use super::{LogSettings, QueryLogger};
 
 #[derive(Clone, Default)]
 struct CapturingSubscriber {

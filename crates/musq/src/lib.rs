@@ -40,13 +40,12 @@ pub mod encode;
 pub mod error;
 /// Query execution trait and adapters.
 mod executor;
-/// Row decoding support.
-mod from_row;
-#[macro_use]
-/// Logging utilities.
-mod logger;
 /// SQL expression helpers for dynamic queries.
 pub mod expr;
+/// Row decoding support.
+mod from_row;
+/// Logging utilities.
+mod logger;
 /// Connection options and configuration.
 mod musq;
 /// Connection pool implementation.
