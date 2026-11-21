@@ -112,10 +112,15 @@ fn read_stmts(
                 predicates.push(parse_quote!(#ty: #musq::FromRow<#lifetime>));
                 predicates.push(parse_quote!(#ty: #musq::AllNull<#lifetime>));
                 if field.prefix.is_empty() {
-                    parse_quote!(<#ty as #musq::FromRow<#lifetime>>::from_row("", row))
+                    parse_quote!(<#ty as #musq::FromRow<#lifetime>>::from_row(prefix, row))
                 } else {
-                    let prefix = &field.prefix;
-                    parse_quote!(<#ty as #musq::FromRow<#lifetime>>::from_row(#prefix, row))
+                    let field_prefix = &field.prefix;
+                    parse_quote!(
+                        <#ty as #musq::FromRow<#lifetime>>::from_row(
+                            &::std::format!("{}{}", prefix, #field_prefix),
+                            row
+                        )
+                    )
                 }
             } else if let Some(try_from) = &field.try_from {
                 predicates.push(parse_quote!(#try_from: #musq::decode::Decode<#lifetime>));
@@ -184,10 +189,15 @@ fn null_check_exprs(
             let expr: Expr = if field.flatten {
                 predicates.push(parse_quote!(#ty: #musq::AllNull<#lifetime>));
                 if field.prefix.is_empty() {
-                    parse_quote!(<#ty as #musq::AllNull<#lifetime>>::all_null("", row)?)
+                    parse_quote!(<#ty as #musq::AllNull<#lifetime>>::all_null(prefix, row)?)
                 } else {
-                    let prefix = &field.prefix;
-                    parse_quote!(<#ty as #musq::AllNull<#lifetime>>::all_null(#prefix, row)?)
+                    let field_prefix = &field.prefix;
+                    parse_quote!(
+                        <#ty as #musq::AllNull<#lifetime>>::all_null(
+                            &::std::format!("{}{}", prefix, #field_prefix),
+                            row
+                        )?
+                    )
                 }
             } else if let Some(try_from) = &field.try_from {
                 predicates.push(parse_quote!(#try_from: #musq::decode::Decode<#lifetime>));

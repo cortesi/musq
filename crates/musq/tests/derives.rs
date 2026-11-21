@@ -256,6 +256,50 @@ mod tests {
         Ok(())
     }
 
+    #[derive(Debug, PartialEq, FromRow)]
+    struct NestedLeaf {
+        code: i32,
+    }
+
+    #[derive(Debug, PartialEq, FromRow)]
+    struct NestedMid {
+        #[musq(flatten)]
+        direct: NestedLeaf,
+        #[musq(flatten, prefix = "inner_")]
+        prefixed: NestedLeaf,
+    }
+
+    #[derive(Debug, PartialEq, FromRow)]
+    struct NestedOuter {
+        #[musq(flatten, prefix = "outer_")]
+        mid: Option<NestedMid>,
+    }
+
+    #[tokio::test]
+    async fn nested_flatten_composes_enclosing_prefix() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        let populated: NestedOuter =
+            musq::query_as("SELECT 1 as outer_code, 2 as outer_inner_code")
+                .fetch_one(&conn)
+                .await?;
+        assert_eq!(
+            populated,
+            NestedOuter {
+                mid: Some(NestedMid {
+                    direct: NestedLeaf { code: 1 },
+                    prefixed: NestedLeaf { code: 2 },
+                }),
+            }
+        );
+
+        let all_null: NestedOuter =
+            musq::query_as("SELECT NULL as outer_code, NULL as outer_inner_code")
+                .fetch_one(&conn)
+                .await?;
+        assert_eq!(all_null, NestedOuter { mid: None });
+        Ok(())
+    }
+
     #[derive(Debug, PartialEq, musq::Codec)]
     #[musq(rename_all = "lower_case")]
     enum VariantRenamedEnum {
