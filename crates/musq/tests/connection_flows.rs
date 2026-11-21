@@ -47,7 +47,14 @@ mod tests {
                 .await
         });
 
+        // SQLite's built-in busy_timeout runs inside C without a readiness
+        // callback; wait briefly so c2 enters busy-wait, then verify it is
+        // still blocked before COMMIT.
         sleep(Duration::from_millis(100)).await;
+        assert!(
+            !insert.is_finished(),
+            "INSERT should still be waiting on c1's write lock before COMMIT"
+        );
         query("COMMIT").execute(&c1).await?;
 
         insert.await??;
