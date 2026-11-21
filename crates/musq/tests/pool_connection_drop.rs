@@ -24,4 +24,17 @@ mod tests {
 
         assert!(res.is_ok());
     }
+
+    #[tokio::test]
+    async fn dropping_pool_connection_releases_synchronously() -> anyhow::Result<()> {
+        let pool = Musq::new().max_connections(1).open_in_memory().await?;
+        let conn = pool.acquire().await?;
+        assert_eq!(pool.num_idle(), 0);
+        assert!(pool.try_acquire().is_none());
+
+        drop(conn);
+        assert_eq!(pool.num_idle(), 1);
+        assert!(pool.try_acquire().is_some());
+        Ok(())
+    }
 }

@@ -12,7 +12,7 @@ use std::{
     fmt, future::Future, io, ops::AsyncFnOnce, path::Path, result::Result as StdResult, sync::Arc,
 };
 
-use self::inner::PoolInner;
+use self::{connection::Floating, inner::PoolInner};
 use crate::{
     Error, ForeignKeyViolation, IntegrityReport, Result, SqliteRuntimeInfo, WalCheckpoint,
     WalCheckpointMode, transaction::Transaction,
@@ -111,7 +111,7 @@ impl Pool {
     /// the pool or there are tasks waiting for a connection which have yet
     /// to wake.
     pub fn try_acquire(&self) -> Option<PoolConnection> {
-        self.0.try_acquire().map(|conn| conn.into_live().reattach())
+        self.0.try_acquire().map(Floating::reattach)
     }
 
     /// Retrieves a connection and immediately begins a new transaction.

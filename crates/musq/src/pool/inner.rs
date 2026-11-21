@@ -15,8 +15,8 @@ use tokio::{
     time::timeout,
 };
 
-use super::connection::{Floating, Idle, Live};
-use crate::{Error, Result};
+use super::connection::Floating;
+use crate::{Connection, Error, Result};
 
 /// get the time between the deadline and now and use that as our timeout
 ///
@@ -30,7 +30,7 @@ fn deadline_as_timeout(deadline: Instant) -> Result<Duration> {
 /// Shared pool state and connection queue.
 pub struct PoolInner {
     /// Idle connections waiting to be reused.
-    idle_conns: ArrayQueue<Idle>,
+    idle_conns: ArrayQueue<Connection>,
     /// Semaphore limiting the maximum number of connections.
     semaphore: Semaphore,
     /// Current number of open connections.
@@ -117,9 +117,9 @@ impl PoolInner {
 
     /// Close all idle connections currently sitting in the idle queue.
     async fn close_idle_connections(&self) {
-        while let Some(idle) = self.idle_conns.pop() {
+        while let Some(conn) = self.idle_conns.pop() {
             self.num_idle.fetch_sub(1, Ordering::AcqRel);
-            idle.close().await;
+            let _close_result = conn.close().await;
             self.size.fetch_sub(1, Ordering::AcqRel);
         }
     }
@@ -160,7 +160,7 @@ impl PoolInner {
     }
 
     /// Attempt to acquire an idle connection without waiting.
-    pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating<Idle>> {
+    pub(super) fn try_acquire(self: &Arc<Self>) -> Option<Floating> {
         if self.is_closed() {
             return None;
         }
@@ -174,30 +174,36 @@ impl PoolInner {
     fn pop_idle<'a>(
         self: &'a Arc<Self>,
         permit: SemaphorePermit<'a>,
-    ) -> StdResult<Floating<Idle>, SemaphorePermit<'a>> {
-        if let Some(idle) = self.idle_conns.pop() {
+    ) -> StdResult<Floating, SemaphorePermit<'a>> {
+        if let Some(conn) = self.idle_conns.pop() {
             self.num_idle.fetch_sub(1, Ordering::AcqRel);
-            Ok(Floating::from_idle(idle, (*self).clone(), permit))
+            Ok(Floating::from_idle(conn, (*self).clone(), permit))
         } else {
             Err(permit)
         }
     }
 
-    /// Release a live connection back to the idle queue.
-    pub(super) fn release(&self, floating: Floating<Live>) {
-        let Floating { inner: idle, guard } = floating.into_idle();
+    /// Release a floating connection back to the idle queue.
+    pub(super) fn release(&self, floating: Floating) {
+        let Floating { conn, guard } = floating;
+        guard.cancel();
+        self.release_conn(conn);
+    }
 
+    /// Return a connection whose permit is already checked out to the idle
+    /// queue.
+    pub(super) fn release_conn(&self, conn: Connection) {
         // Increment before pushing so a concurrent pop cannot underflow
         // `num_idle` below zero.
         self.num_idle.fetch_add(1, Ordering::AcqRel);
-        if self.idle_conns.push(idle).is_err() {
+        if self.idle_conns.push(conn).is_err() {
             self.num_idle.fetch_sub(1, Ordering::AcqRel);
             panic!("BUG: connection queue overflow in release()");
         }
 
-        // NOTE: we need to make sure we drop the permit *after* we push to the
-        // idle queue don't decrease the size
-        guard.release_permit();
+        // Release the permit after pushing to the idle queue so waiters can
+        // pop the connection immediately.
+        self.semaphore.add_permits(1);
     }
 
     /// Try to atomically increment the pool size for a new connection.
@@ -225,7 +231,7 @@ impl PoolInner {
     }
 
     /// Acquire a live connection, waiting until one is available.
-    pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating<Live>> {
+    pub(super) async fn acquire(self: &Arc<Self>) -> Result<Floating> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
@@ -241,9 +247,7 @@ impl PoolInner {
 
                     // First attempt to pop a connection from the idle queue.
                     let guard = match self.pop_idle(permit) {
-
-                        // Then, check that we can use it...
-                        Ok(conn) => return Ok(conn.into_live()),
+                        Ok(conn) => return Ok(conn),
                         Err(permit) => if let Ok(guard) = self.try_increment_size(permit) {
                             // we can open a new connection
                             guard
@@ -252,9 +256,6 @@ impl PoolInner {
                             // or if it was closed between `acquire_permit()` and
                             // `try_increment_size()`.
                             tracing::debug!("woke but was unable to acquire idle connection or open new one; retrying");
-                            // If so, we're likely in the current-thread runtime if it's Tokio
-                            // and so we should yield to let any spawned release_to_pool() tasks
-                            // execute.
                             yield_now().await;
                             continue;
                         }
@@ -274,17 +275,14 @@ impl PoolInner {
         self: &Arc<Self>,
         deadline: Instant,
         guard: DecrementSizeGuard,
-    ) -> Result<Floating<Live>> {
+    ) -> Result<Floating> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
         let timeout_duration = deadline_as_timeout(deadline)?;
 
-        // result here is `Result<Result<C>, TimeoutError>`
-        // if this block does not return, sleep for the backoff timeout and try
-        // again
         match timeout(timeout_duration, self.options.connect()).await {
-            Ok(Ok(raw)) => Ok(Floating::new_live(raw, guard)),
+            Ok(Ok(raw)) => Ok(Floating::new(raw, guard)),
             Ok(Err(e)) => Err(e),
             // timed out
             Err(_) => Err(Error::PoolTimedOut),
@@ -323,12 +321,6 @@ impl DecrementSizeGuard {
         // here we effectively take ownership of the permit
         permit.forget();
         Self::new_permit(pool)
-    }
-
-    /// Release the semaphore permit without decreasing the pool size.
-    fn release_permit(self) {
-        self.pool.semaphore.add_permits(1);
-        self.cancel();
     }
 
     /// Cancel decrementing the pool size on drop.
