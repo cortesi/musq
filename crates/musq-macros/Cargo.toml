@@ -14,12 +14,12 @@ proc-macro = true
 doctest = false
 
 [dependencies]
-darling = "0.23"
+darling = "0.24"
 heck = "0.5.0"
 proc-macro-crate = "3"
-proc-macro2 = "1.0.69"
-quote = "1.0.33"
-syn = "2.0.39"
+proc-macro2 = "1.0.107"
+quote = "1.0.47"
+syn = "3.0.10"
 
 [lints]
 workspace = true

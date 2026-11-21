@@ -36,7 +36,7 @@ use serde::Serialize;
 ///
 /// Compare this value with [`SqliteRuntimeInfo::version`] from
 /// `runtime_info()`.
-pub const BUNDLED_SQLITE_VERSION: &str = "3.53.2";
+pub const BUNDLED_SQLITE_VERSION: &str = "3.54.1";
 
 /// Helper trait used internally to determine if all columns belonging to a
 /// record are `NULL` in a given row.

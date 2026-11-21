@@ -20,54 +20,54 @@ json = ["dep:serde", "dep:serde_json"]
 
 [dependencies]
 musq-macros.workspace = true
-tokio = { version = "1.15.0", default-features = false, features = [
+tokio = { version = "1.54.1", default-features = false, features = [
     "macros",
     "rt",
     "sync",
     "time",
 ] }
-time = { version = "0.3.14", optional = true, features = [
+time = { version = "0.3.55", optional = true, features = [
     "formatting",
     "macros",
     "parsing",
 ] }
-bytes = "1.1.0"
-crossbeam-queue = "0.3.2"
-either = "1.6.1"
-futures-core = { version = "0.3.19", default-features = false }
-futures-util = { version = "0.3.19", default-features = false, features = [
+bytes = "1.12.2"
+crossbeam-queue = "0.3.14"
+either = "1.19.0"
+futures-core = { version = "0.3.34", default-features = false }
+futures-util = { version = "0.3.34", default-features = false, features = [
     "alloc",
 ] }
 async-stream = "0.3"
-log = { version = "0.4.14", default-features = false }
-serde = { version = "1.0.132", optional = true, features = ["derive"] }
-serde_json = { version = "1.0.73", optional = true }
-thiserror = "2.0.12"
-tracing = { version = "0.1.37", features = ["log"] }
-bstr = { version = "1.0", optional = true, default-features = false, features = [
+log = { version = "0.4.35", default-features = false }
+serde = { version = "1.0.229", optional = true, features = ["derive"] }
+serde_json = { version = "1.0.154", optional = true }
+thiserror = "2.0.21"
+tracing = { version = "0.1.44", features = ["log"] }
+bstr = { version = "1.14", optional = true, default-features = false, features = [
     "std",
 ] }
 hashlink = "0.12"
-indexmap = "2.0"
-event-listener = "5.3.1"
+indexmap = "2.14"
+event-listener = "5.4.2"
 flume = "0.12"
-libsqlite3-sys = { version = "0.38", default-features = false, features = [
+libsqlite3-sys = { version = "0.40", default-features = false, features = [
     "bundled",
     "pkg-config",
     "vcpkg",
 ] }
 sqlite-vec = { version = "0.1.9", optional = true }
-bytemuck = { version = "1.25.0", optional = true }
+bytemuck = { version = "1.25.2", optional = true }
 
 [dev-dependencies]
-anyhow = "1.0.52"
-futures = "0.3.19"
-tokio = { version = "1.15.0", features = ["full"] }
-paste = "1.0.6"
-serde = { version = "1.0.132", features = ["derive"] }
-serde_json = "1.0.73"
-rand = "0.10.2"
-rand_xoshiro = "0.8.1"
+anyhow = "1.0.104"
+futures = "0.3.34"
+tokio = { version = "1.54.1", features = ["full"] }
+paste = "1.0.15"
+serde = { version = "1.0.229", features = ["derive"] }
+serde_json = "1.0.154"
+rand = "0.10.4"
+rand_xoshiro = "0.8.2"
 tempfile = "3"
 criterion = { version = "0.8", features = ["async_tokio"] }
 trybuild = "1.0"
