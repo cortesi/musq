@@ -60,3 +60,19 @@ fn derive_struct_try_from() {
     let tokens = expand_derive_decode(&input).unwrap();
     assert!(tokens.to_string().contains("TryFrom"));
 }
+
+#[test]
+fn derive_enum_user_lifetime() {
+    let input = parse_str("enum Foo<'r> { One, Two }").unwrap();
+    let tokens = expand_derive_decode(&input).unwrap();
+    let s = tokens.to_string();
+    assert!(
+        s.contains("impl < 'r , 'r_1 > :: musq :: decode :: Decode < 'r_1 > for Foo < 'r >"),
+        "got: {s}"
+    );
+    assert!(
+        s.contains("< & 'r_1 :: std :: primitive :: str as :: musq :: decode :: Decode < 'r_1 >>"),
+        "got: {s}"
+    );
+    assert!(!s.contains("Decode < 'r >"), "got: {s}");
+}

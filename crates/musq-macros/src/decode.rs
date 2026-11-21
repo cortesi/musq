@@ -151,9 +151,7 @@ fn expand_enum(
         }
     };
 
-    let mut tts = TokenStream::new();
-
-    tts.extend(quote!(
+    Ok(quote!(
         #[automatically_derived]
         impl #impl_generics #musq::decode::Decode<#lifetime> for #ident #ty_generics #where_clause {
             fn decode(
@@ -162,14 +160,13 @@ fn expand_enum(
                 Self,
                 #musq::DecodeError,
             > {
-                let value = <&'r ::std::primitive::str as #musq::decode::Decode<
-                    'r,
-                >>::decode(value)?;
+                let value =
+                    <&#lifetime ::std::primitive::str as #musq::decode::Decode<#lifetime>>::decode(
+                        value,
+                    )?;
 
                 #values
             }
         }
-    ));
-
-    Ok(tts)
+    ))
 }
