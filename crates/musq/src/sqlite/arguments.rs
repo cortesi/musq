@@ -8,34 +8,14 @@ use crate::{
 
 /// Parse a numeric positional parameter like `?1` into its index.
 pub fn parse_question_param(name: &str) -> Result<usize> {
-    // The parameter must start with exactly one '?'
-    if !name.starts_with('?') || name.as_bytes().get(1) == Some(&b'?') {
-        return Err(Error::Query(format!(
-            "invalid numeric SQL parameter: {name}"
-        )));
+    let invalid = || Error::Query(format!("invalid numeric SQL parameter: {name}"));
+    let rest = name.strip_prefix('?').ok_or_else(invalid)?;
+
+    if rest.is_empty() || rest.starts_with('0') || !rest.bytes().all(|b| b.is_ascii_digit()) {
+        return Err(invalid());
     }
 
-    let rest = &name[1..];
-
-    // reject if the parameter is empty, contains non-digit characters,
-    // or has a leading zero
-    if rest.is_empty() || rest.starts_with('0') || !rest.as_bytes().iter().all(u8::is_ascii_digit) {
-        return Err(Error::Query(format!(
-            "invalid numeric SQL parameter: {name}"
-        )));
-    }
-
-    let num = rest
-        .parse::<usize>()
-        .map_err(|_| Error::Query(format!("invalid numeric SQL parameter: {name}")))?;
-
-    if num == 0 {
-        return Err(Error::Query(format!(
-            "invalid numeric SQL parameter: {name}"
-        )));
-    }
-
-    Ok(num)
+    rest.parse::<usize>().map_err(|_| invalid())
 }
 
 /// Resolve a named parameter, preferring explicit `add_named` entries.
@@ -73,8 +53,7 @@ impl Arguments {
     where
         T: Encode + ?Sized,
     {
-        self.values
-            .push(value.encode().map_err(crate::Error::Encode)?);
+        self.values.push(value.encode().map_err(Error::Encode)?);
         Ok(())
     }
 
@@ -85,11 +64,11 @@ impl Arguments {
         T: Encode + ?Sized,
     {
         let name = name.trim_start_matches([':', '@', '$', '?']);
+        let encoded = value.encode().map_err(Error::Encode)?;
         if let Some(&index) = self.named.get(name) {
-            self.values[index - 1] = value.encode().map_err(crate::Error::Encode)?;
+            self.values[index - 1] = encoded;
         } else {
-            self.values
-                .push(value.encode().map_err(crate::Error::Encode)?);
+            self.values.push(encoded);
             let idx = self.values.len();
             self.named.insert(name.to_string(), idx);
         }
@@ -132,9 +111,7 @@ impl Arguments {
                     } else {
                         lookup_named(&self.named, &mut names, &mut anon_pos, rest)
                     }
-                } else if let Some(rest) = name.strip_prefix(':') {
-                    lookup_named(&self.named, &mut names, &mut anon_pos, rest)
-                } else if let Some(rest) = name.strip_prefix('@') {
+                } else if let Some(rest) = name.strip_prefix([':', '@']) {
                     lookup_named(&self.named, &mut names, &mut anon_pos, rest)
                 } else {
                     return Err(Error::Query(format!(

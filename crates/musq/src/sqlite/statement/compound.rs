@@ -7,7 +7,7 @@ use std::{
 };
 
 use bytes::{Buf, Bytes};
-use libsqlite3_sys::{SQLITE_PREPARE_PERSISTENT, sqlite3, sqlite3_stmt};
+use libsqlite3_sys::{SQLITE_PREPARE_PERSISTENT, sqlite3_stmt};
 
 use crate::{
     SqliteDataType,
@@ -88,7 +88,7 @@ impl CompoundStatement {
                 return Ok(None);
             }
 
-            match prepare_all(conn.as_ptr(), &mut self.tail)? {
+            match prepare_next_statement(conn, &mut self.tail)? {
                 Some(statement) => {
                     let num = statement.column_count();
 
@@ -153,8 +153,11 @@ impl CompoundStatement {
     }
 }
 
-/// Prepare all statements in the given query.
-fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<StatementHandle>> {
+/// Prepare the next non-empty statement from the remaining SQL bytes.
+fn prepare_next_statement(
+    conn: &ConnectionHandle,
+    query: &mut Bytes,
+) -> Result<Option<StatementHandle>> {
     let flags = SQLITE_PREPARE_PERSISTENT;
 
     while !query.is_empty() {
@@ -165,11 +168,11 @@ fn prepare_all(conn: *mut sqlite3, query: &mut Bytes) -> Result<Option<Statement
         let query_len = query.len() as i32;
 
         // <https://www.sqlite.org/c3ref/prepare.html>
-        // SAFETY: `conn` is a live connection; `query_ptr` is a valid SQL
+        // SAFETY: `conn` owns a live connection; `query_ptr` is a valid SQL
         // buffer.
         unsafe {
             ffi::prepare_v3(
-                conn,
+                conn.as_ptr(),
                 query_ptr,
                 query_len,
                 flags,

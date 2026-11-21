@@ -5,7 +5,7 @@ use std::{
     ops::AsyncFnOnce,
     panic::{AssertUnwindSafe, catch_unwind},
     path::Path,
-    result::Result as StdResult,
+    result,
     sync::atomic::Ordering,
 };
 
@@ -235,14 +235,7 @@ impl Connection {
     {
         let (tx, rx) = flume::unbounded();
         self.worker.set_update_hook(tx).await?;
-        tokio::spawn(async move {
-            while let Ok(event) = rx.recv_async().await {
-                catch_unwind(AssertUnwindSafe(|| {
-                    callback(event);
-                }))
-                .ok();
-            }
-        });
+        spawn_hook_listener(rx, callback);
         Ok(())
     }
 
@@ -256,14 +249,7 @@ impl Connection {
     {
         let (tx, rx) = flume::unbounded();
         self.worker.set_commit_hook(tx).await?;
-        tokio::spawn(async move {
-            while let Ok(()) = rx.recv_async().await {
-                catch_unwind(AssertUnwindSafe(|| {
-                    callback();
-                }))
-                .ok();
-            }
-        });
+        spawn_hook_listener(rx, move |()| callback());
         Ok(())
     }
 
@@ -276,14 +262,7 @@ impl Connection {
     {
         let (tx, rx) = flume::unbounded();
         self.worker.set_rollback_hook(tx).await?;
-        tokio::spawn(async move {
-            while let Ok(()) = rx.recv_async().await {
-                catch_unwind(AssertUnwindSafe(|| {
-                    callback();
-                }))
-                .ok();
-            }
-        });
+        spawn_hook_listener(rx, move |()| callback());
         Ok(())
     }
 
@@ -359,12 +338,9 @@ impl Connection {
         let source_id: String = query_scalar("SELECT sqlite_source_id()")
             .fetch_one(self)
             .await?;
-        let compile_option_rows: Vec<(String,)> =
-            query_as("PRAGMA compile_options").fetch_all(self).await?;
-        let mut compile_options = compile_option_rows
-            .into_iter()
-            .map(|(option,)| option)
-            .collect::<Vec<_>>();
+        let mut compile_options: Vec<String> = query_scalar("PRAGMA compile_options")
+            .fetch_all(self)
+            .await?;
         compile_options.sort();
 
         Ok(SqliteRuntimeInfo {
@@ -448,9 +424,9 @@ impl Connection {
     ///
     /// If the function returns an error, the transaction will be rolled back.
     /// If it does not return an error, the transaction will be committed.
-    pub async fn transaction<F, R, E>(&mut self, callback: F) -> StdResult<R, E>
+    pub async fn transaction<F, R, E>(&mut self, callback: F) -> result::Result<R, E>
     where
-        F: AsyncFnOnce(&mut Transaction<&mut Self>) -> StdResult<R, E>,
+        F: AsyncFnOnce(&mut Transaction<&mut Self>) -> result::Result<R, E>,
         Self: Sized,
         E: From<Error>,
     {
@@ -601,6 +577,22 @@ impl Connection {
             })
             .boxed()
     }
+}
+
+/// Spawn a task that forwards hook events to `callback`, catching panics.
+fn spawn_hook_listener<T, F>(rx: flume::Receiver<T>, callback: F)
+where
+    T: Send + 'static,
+    F: Fn(T) + Send + 'static,
+{
+    tokio::spawn(async move {
+        while let Ok(event) = rx.recv_async().await {
+            catch_unwind(AssertUnwindSafe(|| {
+                callback(event);
+            }))
+            .ok();
+        }
+    });
 }
 
 impl Drop for ConnectionState {
