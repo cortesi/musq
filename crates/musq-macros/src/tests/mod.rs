@@ -17,9 +17,22 @@ macro_rules! derive_expansion_tests {
 
         #[test]
         fn derive_enum_generic() {
-            let input = syn::parse_str("enum Foo<T> { One(T), Two }").unwrap();
+            let input = syn::parse_str("enum Foo<T> { One, Two }").unwrap();
             let tokens = crate::$module::$func(&input).unwrap();
             assert!(tokens.to_string().contains($enum_generic_impl));
+        }
+
+        #[test]
+        fn error_on_non_unit_enum_variant() {
+            for src in [
+                "enum Foo<T> { One(T), Two }",
+                "enum Foo { One { x: i32 }, Two }",
+                "enum Foo { One(), Two }",
+            ] {
+                let input = syn::parse_str(src).unwrap();
+                let e = crate::$module::$func(&input);
+                crate::core::assert_errors_with!(e, "enum variants with fields are not supported");
+            }
         }
 
         #[test]

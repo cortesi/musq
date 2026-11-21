@@ -284,6 +284,9 @@ pub struct TypeVariant {
     /// Variant identifier.
     pub ident: syn::Ident,
 
+    /// Variant fields, if any.
+    pub fields: ast::Fields<util::Ignored>,
+
     /// Optional explicit rename.
     pub rename: Option<String>,
 }
@@ -347,6 +350,12 @@ pub fn expand_type_derive(
                 return span_err!(
                     &attrs.ident,
                     "`try_from` is supported only on tuple newtypes"
+                );
+            }
+            if let Some(variant) = v.iter().find(|variant| !variant.fields.is_unit()) {
+                return span_err!(
+                    &variant.ident,
+                    "enum variants with fields are not supported"
                 );
             }
             match &attrs.repr {
