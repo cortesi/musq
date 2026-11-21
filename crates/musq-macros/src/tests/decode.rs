@@ -34,6 +34,27 @@ fn derive_enum_rename_all() {
 }
 
 #[test]
+fn derive_enum_variant_rename_and_raw_ident() {
+    let input = parse_str(
+        r#"
+        #[musq(rename_all = "lower_case")]
+        enum Foo {
+            #[musq(rename = "custom_one")]
+            One,
+            r#type,
+        }
+        "#,
+    )
+    .unwrap();
+    let tokens = expand_derive_decode(&input).unwrap();
+    let s = tokens.to_string();
+    assert!(s.contains("\"custom_one\""), "got: {s}");
+    assert!(!s.contains("\"one\""), "got: {s}");
+    assert!(s.contains("\"type\""), "got: {s}");
+    assert!(!s.contains("\"r#type\""), "got: {s}");
+}
+
+#[test]
 fn derive_struct_try_from() {
     let input = parse_str("#[musq(try_from = \"String\")] struct Foo(String);").unwrap();
     let tokens = expand_derive_decode(&input).unwrap();

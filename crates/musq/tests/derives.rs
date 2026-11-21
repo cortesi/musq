@@ -256,6 +256,19 @@ mod tests {
         Ok(())
     }
 
+    #[derive(Debug, PartialEq, musq::Codec)]
+    #[musq(rename_all = "lower_case")]
+    enum VariantRenamedEnum {
+        #[musq(rename = "explicit-foo")]
+        Foo,
+        r#Type,
+    }
+
+    test_type!(variant_renamed_enum<VariantRenamedEnum>(
+        "'explicit-foo'" == VariantRenamedEnum::Foo,
+        "'type'" == VariantRenamedEnum::r#Type,
+    ));
+
     test_type!(plain_enum<PlainEnum>(
         "'foo'" == PlainEnum::Foo,
         "'foo_bar'" == PlainEnum::FooBar,

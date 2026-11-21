@@ -1,4 +1,4 @@
-use darling::{self, FromDeriveInput, FromField, FromMeta, ast, util};
+use darling::{FromDeriveInput, FromField, FromMeta, FromVariant, ast, util};
 use heck::{ToKebabCase, ToLowerCamelCase, ToShoutySnakeCase, ToSnakeCase, ToUpperCamelCase};
 use proc_macro_crate::{FoundCrate, crate_name};
 use proc_macro2::{Span, TokenStream};
@@ -278,7 +278,8 @@ pub struct TypeContainer {
 }
 
 /// Parsed attributes for a single enum variant.
-#[derive(darling::FromVariant, Debug)]
+#[derive(FromVariant, Debug)]
+#[darling(attributes(musq))]
 pub struct TypeVariant {
     /// Variant identifier.
     pub ident: syn::Ident,
@@ -290,10 +291,11 @@ pub struct TypeVariant {
 /// Returns the canonical name of an enum variant after applying any
 /// `rename` attribute or container level `rename_all` rule.
 pub fn variant_name(container: &TypeContainer, variant: &TypeVariant) -> String {
-    variant
-        .rename
-        .clone()
-        .unwrap_or_else(|| container.rename_all.rename(&variant.ident.to_string()))
+    variant.rename.clone().unwrap_or_else(|| {
+        container
+            .rename_all
+            .rename(variant.ident.to_string().trim_start_matches("r#"))
+    })
 }
 
 /// Parsed attributes for a single enum field.
