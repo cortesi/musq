@@ -5,26 +5,42 @@ mod support;
 #[cfg(test)]
 mod tests {
     use std::{
+        sync::Arc,
         thread,
         time::{Duration, Instant},
     };
 
-    use musq::{Connection, Error, Musq, error::PrimaryErrCode, query};
+    use musq::{Connection, Error, FunctionFlags, Musq, Value, error::PrimaryErrCode, query};
     use tokio::{
         join,
-        time::{error::Elapsed, sleep, timeout},
+        sync::Notify,
+        time::{error::Elapsed, timeout},
     };
 
     use crate::support::{connection, stress_iters};
 
-    /// Recursive CTE with no bound. SQLite runs this until interrupt or
-    /// timeout.
-    const INFINITE_SELECT: &str =
-        "WITH RECURSIVE t(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM t) SELECT x FROM t";
+    /// Recursive CTE with no bound that signals once `sqlite3_step` has
+    /// started.
+    const INFINITE_SELECT: &str = "WITH RECURSIVE t(x) AS \
+     (SELECT notify_started() UNION ALL SELECT x + 1 FROM t) SELECT x FROM t";
 
-    /// Infinite insert used to interrupt a write inside a transaction.
+    /// Infinite insert that signals once `sqlite3_step` has started.
+    const INFINITE_INSERT_SIGNAL: &str = "INSERT INTO t (x) \
+     SELECT x FROM (WITH RECURSIVE t(x) AS (SELECT notify_started() UNION ALL SELECT x + 1 FROM t) SELECT x FROM t)";
+
+    /// Infinite insert used to test `statement_timeout`.
     const INFINITE_INSERT: &str = "INSERT INTO t (x) \
      SELECT x FROM (WITH RECURSIVE t(x) AS (SELECT 1 UNION ALL SELECT x + 1 FROM t) SELECT x FROM t)";
+
+    fn musq_with_start_signal(started: Arc<Notify>) -> Musq {
+        Musq::new().function("notify_started", 0, FunctionFlags::default(), move |_| {
+            started.notify_one();
+            Ok(Value::Integer {
+                value: 1,
+                type_info: None,
+            })
+        })
+    }
 
     fn assert_interrupt(err: &Error) {
         assert_eq!(
@@ -44,12 +60,13 @@ mod tests {
 
     #[tokio::test]
     async fn interrupt_recursive_cte() -> anyhow::Result<()> {
-        let conn = connection().await?;
+        let started = Arc::new(Notify::new());
+        let conn = Connection::connect_with(&musq_with_start_signal(Arc::clone(&started))).await?;
         let handle = conn.interrupt_handle();
 
         let fetch = query(INFINITE_SELECT).fetch_all(&conn);
         let interrupt = async {
-            sleep(Duration::from_millis(20)).await;
+            started.notified().await;
             handle.interrupt();
         };
 
@@ -64,15 +81,17 @@ mod tests {
 
     #[tokio::test]
     async fn interrupt_write_aborts_commit() -> anyhow::Result<()> {
-        let mut conn = connection().await?;
+        let started = Arc::new(Notify::new());
+        let mut conn =
+            Connection::connect_with(&musq_with_start_signal(Arc::clone(&started))).await?;
         query("CREATE TABLE t (x INTEGER)").execute(&conn).await?;
 
         let tx = conn.begin().await?;
         let handle = tx.interrupt_handle();
 
-        let insert = query(INFINITE_INSERT).execute(&tx);
+        let insert = query(INFINITE_INSERT_SIGNAL).execute(&tx);
         let interrupt = async {
-            sleep(Duration::from_millis(20)).await;
+            started.notified().await;
             handle.interrupt();
         };
 
@@ -140,13 +159,17 @@ mod tests {
 
     #[tokio::test]
     async fn pool_connection_interrupt() -> anyhow::Result<()> {
-        let pool = Musq::new().max_connections(1).open_in_memory().await?;
+        let started = Arc::new(Notify::new());
+        let pool = musq_with_start_signal(Arc::clone(&started))
+            .max_connections(1)
+            .open_in_memory()
+            .await?;
         let conn = pool.acquire().await?;
         let handle = conn.interrupt_handle();
 
         let fetch = query(INFINITE_SELECT).fetch_all(&conn);
         let interrupt = async {
-            sleep(Duration::from_millis(20)).await;
+            started.notified().await;
             conn.interrupt();
             handle.interrupt();
         };

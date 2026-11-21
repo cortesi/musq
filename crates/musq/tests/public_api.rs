@@ -182,11 +182,16 @@ mod tests {
             .execute(&conn)
             .await?;
         query("DELETE FROM u WHERE id = 1").execute(&conn).await?;
+        conn.close().await?;
 
         let mut ops = Vec::new();
-        while let Ok(Some(event)) = timeout(Duration::from_millis(200), rx.recv()).await {
-            ops.push(event.op);
-        }
+        timeout(Duration::from_secs(1), async {
+            while let Some(event) = rx.recv().await {
+                ops.push(event.op);
+            }
+        })
+        .await
+        .expect("update hook events should drain on close");
         assert_eq!(ops, [UpdateOp::Insert, UpdateOp::Update, UpdateOp::Delete]);
         Ok(())
     }

@@ -2,10 +2,12 @@
 
 #[cfg(test)]
 mod tests {
+    use std::future;
+
     use musq::{Error, Musq, Pool, PoolStats};
     use tokio::{
         task::yield_now,
-        time::{Duration, sleep, timeout},
+        time::{Duration, timeout},
     };
 
     async fn wait_for_stats(pool: &Pool, predicate: impl Fn(PoolStats) -> bool) -> PoolStats {
@@ -29,22 +31,27 @@ mod tests {
         // Hold the only connection so subsequent acquires must wait
         let conn = pool.acquire().await?;
 
-        let pool_for_waiter = pool.clone();
-        let waiter = tokio::spawn(async move { pool_for_waiter.acquire().await });
-
-        // ensure the waiter is blocking on acquire
-        sleep(Duration::from_millis(50)).await;
+        let waiter = pool.acquire();
+        tokio::pin!(waiter);
+        // Poll once so `waiter` registers on the semaphore and close event.
+        tokio::select! {
+            biased;
+            res = &mut waiter => panic!("acquire unexpectedly completed while connection held: {res:?}"),
+            _ = future::ready(()) => {}
+        }
 
         let pool_for_close = pool.clone();
         let closer = tokio::spawn(async move {
             let _ = pool_for_close.close().await;
         });
 
-        sleep(Duration::from_millis(50)).await;
+        timeout(Duration::from_secs(1), pool.close_event())
+            .await
+            .expect("close did not mark pool closed");
         drop(conn); // release the connection so close can finish
 
-        closer.await.expect("close task panicked");
-        let res = waiter.await.expect("waiter task panicked");
+        let (close_res, res) = tokio::join!(closer, waiter);
+        close_res.expect("close task panicked");
         assert!(matches!(res, Err(Error::PoolClosed)));
 
         Ok(())
@@ -58,29 +65,30 @@ mod tests {
         let held = pool.acquire().await?;
         drop(idle);
 
-        wait_for_stats(&pool, |stats| stats.size == 2 && stats.num_idle == 1).await;
         assert_eq!(pool.size(), 2);
         assert_eq!(pool.num_idle(), 1);
         assert!(!pool.is_closed());
 
         let pool_for_close = pool.clone();
-        let mut closer = tokio::spawn(async move {
+        let closer = tokio::spawn(async move {
             let _ = pool_for_close.close().await;
         });
 
-        assert!(
-            timeout(Duration::from_millis(100), &mut closer)
-                .await
-                .is_err(),
-            "close returned while a connection was still checked out"
-        );
         assert_eq!(
-            wait_for_stats(&pool, |stats| stats.size == 1 && stats.num_idle == 0).await,
+            wait_for_stats(&pool, |stats| {
+                stats.size == 1 && stats.num_idle == 0 && stats.is_closed
+            })
+            .await,
             PoolStats {
                 size: 1,
                 num_idle: 0,
                 is_closed: true,
             }
+        );
+        yield_now().await;
+        assert!(
+            !closer.is_finished(),
+            "close returned while a connection was still checked out"
         );
         assert_eq!(pool.size(), 1);
         assert_eq!(pool.num_idle(), 0);
@@ -115,26 +123,29 @@ mod tests {
         drop(idle_a);
         drop(idle_b);
 
-        wait_for_stats(&pool, |stats| stats.size == 3 && stats.num_idle == 2).await;
+        assert_eq!(pool.size(), 3);
+        assert_eq!(pool.num_idle(), 2);
 
         let pool_for_close = pool.clone();
-        let mut closer = tokio::spawn(async move {
+        let closer = tokio::spawn(async move {
             let _ = pool_for_close.close().await;
         });
 
-        assert!(
-            timeout(Duration::from_millis(100), &mut closer)
-                .await
-                .is_err(),
-            "close returned before the held connection was dropped"
-        );
         assert_eq!(
-            wait_for_stats(&pool, |stats| stats.size == 1 && stats.num_idle == 0).await,
+            wait_for_stats(&pool, |stats| {
+                stats.size == 1 && stats.num_idle == 0 && stats.is_closed
+            })
+            .await,
             PoolStats {
                 size: 1,
                 num_idle: 0,
                 is_closed: true,
             }
+        );
+        yield_now().await;
+        assert!(
+            !closer.is_finished(),
+            "close returned before the held connection was dropped"
         );
 
         drop(held);
