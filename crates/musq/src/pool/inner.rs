@@ -119,7 +119,7 @@ impl PoolInner {
     pub(crate) fn close_event(&self) -> impl Future<Output = ()> + '_ {
         let mut rx = self.on_closed.subscribe();
         async move {
-            let _ = rx.wait_for(|&closed| closed).await;
+            rx.wait_for(|&closed| closed).await.ok();
         }
     }
 
