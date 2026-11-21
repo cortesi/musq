@@ -262,8 +262,14 @@ fn build_sql(
         match arg {
             SqlArg::Positional(e) => positional.push(e),
             SqlArg::Named(id, e) => {
-                let name = id.to_string();
-                named.insert(name.trim_start_matches("r#").to_owned(), Some(e));
+                let raw = id.to_string();
+                let name = raw.trim_start_matches("r#").to_owned();
+                if named.insert(name.clone(), Some(e)).is_some() {
+                    return Err(syn::Error::new_spanned(
+                        &id,
+                        format!("duplicate named argument `{name}`"),
+                    ));
+                }
             }
         }
     }
@@ -347,4 +353,33 @@ pub fn sql(input: TokenStream) -> TokenStream {
 /// Expand the `sql_as!` macro.
 pub fn sql_as(input: TokenStream) -> TokenStream {
     expand_sql(input, true)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{SqlMacroInput, build_sql, parse_fmt};
+
+    fn expand_from_str(source: &str) -> syn::Result<proc_macro2::TokenStream> {
+        let input: SqlMacroInput = syn::parse_str(source)?;
+        let tokens = parse_fmt(&input.fmt)?;
+        build_sql(tokens, input, false)
+    }
+
+    #[test]
+    fn duplicate_named_argument_is_rejected() {
+        let err = expand_from_str(r#""SELECT {x}", x = 1, x = 2"#).unwrap_err();
+        assert!(
+            err.to_string().contains("duplicate named argument `x`"),
+            "unexpected error: {err}"
+        );
+    }
+
+    #[test]
+    fn duplicate_raw_ident_named_argument_is_rejected() {
+        let err = expand_from_str(r#""SELECT {r#type}", r#type = 1, r#type = 2"#).unwrap_err();
+        assert!(
+            err.to_string().contains("duplicate named argument `type`"),
+            "unexpected error: {err}"
+        );
+    }
 }
