@@ -443,8 +443,9 @@ impl WorkerSession {
                 mode,
                 tx,
             } => {
-                tx.send(deserialize_schema(&mut self.conn, &schema, &bytes, mode))
-                    .ok();
+                let res = deserialize_schema(&mut self.conn, &schema, &bytes, mode);
+                update_cached_statements_size(&self.conn, &self.shared.cached_statements_size);
+                tx.send(res).ok();
             }
             Command::BackupToPath {
                 dest,

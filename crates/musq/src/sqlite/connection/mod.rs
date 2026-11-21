@@ -612,12 +612,26 @@ impl Drop for ConnectionState {
 
 #[cfg(test)]
 mod tests {
-    use super::Connection;
+    use super::{Connection, DeserializeMode};
+    use crate::{Musq, query};
 
     fn assert_send_sync<T: Send + Sync>() {}
 
     #[test]
     fn connection_is_send_sync() {
         assert_send_sync::<Connection>();
+    }
+
+    #[tokio::test]
+    async fn deserialize_updates_cached_statements_size() -> anyhow::Result<()> {
+        let conn = Connection::connect_with(&Musq::new()).await?;
+        query("SELECT 1").fetch_one(&conn).await?;
+        assert!(conn.cached_statements_size() > 0);
+
+        let image = conn.serialize("main").await?;
+        conn.deserialize("main", image, DeserializeMode::Resizable)
+            .await?;
+        assert_eq!(conn.cached_statements_size(), 0);
+        Ok(())
     }
 }
