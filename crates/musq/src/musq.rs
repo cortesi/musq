@@ -462,6 +462,9 @@ impl Musq {
     }
 
     /// Set the maximum size of the statement cache for each connection.
+    ///
+    /// Must be at least `1`; passing `0` returns
+    /// [`crate::Error::Configuration`] when opening a connection or pool.
     #[must_use]
     pub fn statement_cache_capacity(mut self, capacity: usize) -> Self {
         self.statement_cache_capacity = capacity;

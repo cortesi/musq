@@ -93,4 +93,25 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    async fn zero_statement_cache_capacity_is_rejected() {
+        let conn_err = Connection::connect_with(&Musq::new().statement_cache_capacity(0))
+            .await
+            .expect_err("zero statement_cache_capacity must be rejected");
+        assert!(
+            matches!(conn_err, crate::Error::Configuration(ref msg) if msg.contains("statement_cache_capacity")),
+            "unexpected error: {conn_err:?}"
+        );
+
+        let pool_err = Musq::new()
+            .statement_cache_capacity(0)
+            .open_in_memory()
+            .await
+            .expect_err("zero statement_cache_capacity must be rejected for pools");
+        assert!(
+            matches!(pool_err, crate::Error::Configuration(ref msg) if msg.contains("statement_cache_capacity")),
+            "unexpected error: {pool_err:?}"
+        );
+    }
 }

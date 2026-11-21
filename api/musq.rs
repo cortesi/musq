@@ -1428,6 +1428,9 @@ impl Musq {
     pub fn serialized(self, serialized: bool) -> Self;
 
     /// Set the maximum size of the statement cache for each connection.
+    ///
+    /// Must be at least `1`; passing `0` returns
+    /// [`crate::Error::Configuration`] when opening a connection or pool.
     #[must_use]
     pub fn statement_cache_capacity(self, capacity: usize) -> Self;
 

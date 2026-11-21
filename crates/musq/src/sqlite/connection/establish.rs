@@ -116,6 +116,12 @@ impl EstablishParams {
             )
         })?;
 
+        if options.statement_cache_capacity == 0 {
+            return Err(Error::Configuration(
+                "statement_cache_capacity must be at least 1".into(),
+            ));
+        }
+
         let floating_point_text_digits =
             validate_floating_point_text_digits(options.floating_point_text_digits)?;
         let parser_depth_limit = validate_parser_depth_limit(options.parser_depth_limit)?;
