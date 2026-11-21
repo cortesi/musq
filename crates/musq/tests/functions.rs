@@ -2,6 +2,11 @@
 
 #[cfg(test)]
 mod tests {
+    use std::sync::{
+        Arc,
+        atomic::{AtomicUsize, Ordering},
+    };
+
     use musq::{Connection, FunctionFlags, Musq, Value, query, query_scalar};
 
     fn int(value: i64) -> Value {
@@ -182,6 +187,34 @@ mod tests {
             .await?;
         assert!(empty_blob.is_empty());
 
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn invalid_function_registration_returns_error_without_double_free() -> anyhow::Result<()>
+    {
+        struct DropCounter(Arc<AtomicUsize>);
+        impl Drop for DropCounter {
+            fn drop(&mut self) {
+                self.0.fetch_add(1, Ordering::SeqCst);
+            }
+        }
+
+        let drops = Arc::new(AtomicUsize::new(0));
+        let guard = DropCounter(Arc::clone(&drops));
+        let options = Musq::new().function("bad_arity", -2, FunctionFlags::default(), move |_| {
+            let _ = &guard;
+            Ok(Value::Null { type_info: None })
+        });
+
+        let err = Connection::connect_with(&options)
+            .await
+            .expect_err("SQLite should reject n_args = -2");
+        assert!(err.as_sqlite().is_some(), "{err}");
+        assert_eq!(drops.load(Ordering::SeqCst), 0);
+
+        drop(options);
+        assert_eq!(drops.load(Ordering::SeqCst), 1);
         Ok(())
     }
 }

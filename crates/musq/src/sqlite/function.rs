@@ -166,8 +166,9 @@ unsafe fn register_function(db: *mut sqlite3, function: &RegisteredFunction) -> 
         ))
     })?;
     let app = Box::into_raw(Box::new(Arc::clone(&function.func)));
-    // SAFETY: caller guarantees `db` is live; `name` is NUL-terminated; `app`
-    // is owned by SQLite until `destroy_scalar` runs (or reclaimed on error).
+    // SAFETY: caller guarantees `db` is live; `name` is NUL-terminated; SQLite
+    // takes ownership of `app` and always invokes `destroy_scalar` when the
+    // function is removed, the connection closes, or registration fails.
     let rc = unsafe {
         ffi_sys::sqlite3_create_function_v2(
             db,
@@ -182,7 +183,6 @@ unsafe fn register_function(db: *mut sqlite3, function: &RegisteredFunction) -> 
         )
     };
     if rc != ffi_sys::SQLITE_OK {
-        unsafe { drop(Box::from_raw(app)) };
         return Err(SqliteError::new(db).into());
     }
     Ok(())
@@ -214,6 +214,8 @@ unsafe fn register_collation(db: *mut sqlite3, collation: &RegisteredCollation) 
         )
     };
     if rc != ffi_sys::SQLITE_OK {
+        // SAFETY: `sqlite3_create_collation_v2` does not invoke `xDestroy` on
+        // failure, so `app` is still uniquely owned here.
         unsafe { drop(Box::from_raw(app)) };
         return Err(SqliteError::new(db).into());
     }

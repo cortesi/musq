@@ -140,13 +140,19 @@ unsafe extern "C" fn update_entry(
     rowid: i64,
 ) {
     catch_unwind(AssertUnwindSafe(|| {
+        // SAFETY: SQLite passes the `HookState<UpdateEvent>` pointer installed
+        // by `set_update_hook`.
         let state = unsafe { &*p.cast::<HookState<UpdateEvent>>() };
         let Some(op) = update_op(op) else {
             return;
         };
         let event = UpdateEvent {
             op,
+            // SAFETY: SQLite passes either null or a valid NUL-terminated C
+            // string for the duration of the callback.
             database: unsafe { cstr_to_string(database) },
+            // SAFETY: SQLite passes either null or a valid NUL-terminated C
+            // string for the duration of the callback.
             table: unsafe { cstr_to_string(table) },
             rowid,
         };
