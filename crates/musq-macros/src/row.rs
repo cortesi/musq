@@ -58,7 +58,7 @@ fn expand_struct(
 
     let mut predicates = Vec::new();
     let reads = read_stmts(container, fields, &mut predicates, &lifetime, &musq);
-    let null_checks = null_check_exprs(container, fields, &mut predicates, &lifetime, &musq);
+    let null_checks = null_check_exprs(container, fields, &lifetime, &musq);
     generics.make_where_clause().predicates.extend(predicates);
 
     let (impl_generics, _, where_clause) = generics.split_for_impl();
@@ -97,9 +97,6 @@ fn read_stmts(
         .iter()
         .filter_map(|field| -> Option<Stmt> {
             let id = field.ident.as_ref()?;
-
-            let column_name = column_name(container, field);
-
             let ty = &field.ty;
 
             if field.skip {
@@ -123,6 +120,7 @@ fn read_stmts(
                     )
                 }
             } else if let Some(try_from) = &field.try_from {
+                let column_name = column_name(container, field);
                 predicates.push(parse_quote!(#try_from: #musq::decode::Decode<#lifetime>));
                 parse_quote!(
                     {
@@ -133,7 +131,7 @@ fn read_stmts(
                             column_name: column_name.clone(),
                             value: row
                                 .get_value::<#musq::Value>(&column_name)
-                                .unwrap_or(#musq::Value::Null { type_info: None }),
+                                .unwrap_or(#musq::Value::Null { type_info: ::std::option::Option::None }),
                             source: #musq::error::DecodeError::Conversion(::std::string::ToString::to_string(&e)),
                         })
                     }
@@ -143,6 +141,7 @@ fn read_stmts(
                 // fn(prefix: &str, row: &musq::Row) -> musq::Result<T>
                 parse_quote!(#fn_path(prefix, row))
             } else {
+                let column_name = column_name(container, field);
                 predicates.push(parse_quote!(#ty: #musq::decode::Decode<#lifetime>));
                 parse_quote!(row.get_value(&::std::format!("{}{}", prefix, #column_name)))
             };
@@ -165,11 +164,10 @@ fn read_stmts(
         .collect()
 }
 
-/// Build the `AllNull` checks and collect their where predicates.
+/// Build the `AllNull` check expressions for each non-skipped field.
 fn null_check_exprs(
     container: &core::RowContainer,
     fields: &ast::Fields<core::RowField>,
-    predicates: &mut Vec<syn::WherePredicate>,
     lifetime: &syn::Lifetime,
     musq: &syn::Path,
 ) -> Vec<Expr> {
@@ -178,16 +176,12 @@ fn null_check_exprs(
         .filter_map(|field| -> Option<Expr> {
             field.ident.as_ref()?;
 
-            let column_name = column_name(container, field);
-
-            let ty = &field.ty;
-
             if field.skip {
                 return None;
             }
 
+            let ty = &field.ty;
             let expr: Expr = if field.flatten {
-                predicates.push(parse_quote!(#ty: #musq::AllNull<#lifetime>));
                 if field.prefix.is_empty() {
                     parse_quote!(<#ty as #musq::AllNull<#lifetime>>::all_null(prefix, row)?)
                 } else {
@@ -199,23 +193,17 @@ fn null_check_exprs(
                         )?
                     )
                 }
-            } else if let Some(try_from) = &field.try_from {
-                predicates.push(parse_quote!(#try_from: #musq::decode::Decode<#lifetime>));
-                parse_quote!({
-                    match row.get_value::<Option<#try_from>>(&::std::format!("{}{}", prefix, #column_name)) {
-                        ::std::result::Result::Ok(v) => v.is_none(),
-                        ::std::result::Result::Err(#musq::Error::ColumnNotFound(_)) => true,
-                        ::std::result::Result::Err(e) => return ::std::result::Result::Err(e),
-                    }
-                })
             } else if field.deserialize_with.is_some() {
                 // Custom deserialization fields are never considered null since
                 // we don't know what the function does.
                 parse_quote!(false)
             } else {
-                predicates.push(parse_quote!(#ty: #musq::decode::Decode<#lifetime>));
+                let column_name = column_name(container, field);
+                let decoded_ty = field.try_from.as_ref().unwrap_or(ty);
                 parse_quote!({
-                    match row.get_value::<Option<#ty>>(&::std::format!("{}{}", prefix, #column_name)) {
+                    match row.get_value::<::std::option::Option<#decoded_ty>>(
+                        &::std::format!("{}{}", prefix, #column_name)
+                    ) {
                         ::std::result::Result::Ok(v) => v.is_none(),
                         ::std::result::Result::Err(#musq::Error::ColumnNotFound(_)) => true,
                         ::std::result::Result::Err(e) => return ::std::result::Result::Err(e),
@@ -262,7 +250,7 @@ fn expand_tuple_struct(
 
     let null_gets = fields.iter().enumerate().map(|(idx, field)| {
         let ty = &field.ty;
-        quote!(row.get_value_idx::<Option<#ty>>(#idx)?.is_none())
+        quote!(row.get_value_idx::<::std::option::Option<#ty>>(#idx)?.is_none())
     });
 
     Ok(quote!(

@@ -108,7 +108,13 @@ fn derive_struct_with_deserialize_with() {
     // Check that it calls the custom function
     assert!(s.contains("custom_deserializer (prefix , row)"));
     // Check that no Decode bound is added for CustomType
-    assert!(!s.contains("CustomType : musq :: decode :: Decode"));
+    assert!(!s.contains("CustomType : :: musq :: decode :: Decode"));
+    // Check that `where` predicates are not duplicated for regular fields
+    assert_eq!(
+        s.matches("i32 : :: musq :: decode :: Decode < 'r >")
+            .count(),
+        2
+    );
 }
 
 #[test]
