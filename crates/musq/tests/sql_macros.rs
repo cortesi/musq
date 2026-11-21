@@ -365,4 +365,25 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test]
+    async fn repeated_named_placeholder_reuses_explicit_binding() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        let x = 999_i32;
+        let (a, b): (i32, i32) = sql_as!("SELECT {x}, {x}", x = 42_i32)?
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!((a, b), (42, 42));
+        assert_eq!(x, 999);
+
+        let (c, d): (i32, i32) = sql_as!("SELECT {val}, {val}", val = 7_i32)?
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!((c, d), (7, 7));
+
+        let local = 11_i32;
+        let (e, f): (i32, i32) = sql_as!("SELECT {local}, {local}")?.fetch_one(&conn).await?;
+        assert_eq!((e, f), (11, 11));
+        Ok(())
+    }
 }

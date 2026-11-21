@@ -1,6 +1,6 @@
 //! Procedural macros for `sql!` and `sql_as!`.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use proc_macro::TokenStream;
 use quote::quote;
@@ -261,10 +261,11 @@ fn build_sql(
             SqlArg::Positional(e) => positional.push(e),
             SqlArg::Named(id, e) => {
                 let name = id.to_string();
-                named.insert(name.trim_start_matches("r#").to_owned(), e);
+                named.insert(name.trim_start_matches("r#").to_owned(), Some(e));
             }
         }
     }
+    let mut bound_named = HashSet::new();
     let mut sql_parts = Vec::<proc_macro2::TokenStream>::new();
     let mut pos_index = 0usize;
     for seg in tokens {
@@ -282,9 +283,14 @@ fn build_sql(
                 let name = ident.to_string();
                 let name = name.trim_start_matches("r#");
                 let name_lit = syn::LitStr::new(name, span);
-                if let Some(expr) = named.remove(name) {
+                if let Some(expr) = named.get_mut(name).and_then(Option::take) {
+                    bound_named.insert(name.to_owned());
                     sql_parts.push(quote! { _builder.push_bind_named(#name_lit, &(#expr))?; });
+                } else if bound_named.contains(name) {
+                    let placeholder_lit = syn::LitStr::new(&format!(":{name}"), span);
+                    sql_parts.push(quote! { _builder.push_sql(#placeholder_lit); });
                 } else {
+                    bound_named.insert(name.to_owned());
                     sql_parts.push(quote! { _builder.push_bind_named(#name_lit, &#ident)?; });
                 }
             }
@@ -307,7 +313,7 @@ fn build_sql(
     if pos_index != positional.len() {
         return Err(syn::Error::new(span, "unused positional arguments"));
     }
-    if !named.is_empty() {
+    if named.values().any(Option::is_some) {
         return Err(syn::Error::new(span, "unused named arguments"));
     }
     let builder_inits = quote! { let mut _builder = #musq::QueryBuilder::new(); };
