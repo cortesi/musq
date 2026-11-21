@@ -75,7 +75,7 @@ pub fn now_rfc3339_utc() -> Expr {
 pub fn jsonb(json: &str) -> Expr {
     let mut arguments = Arguments::default();
     arguments.values.push(Value::Text {
-        value: json.to_string().into(),
+        value: json.into(),
         type_info: None,
     });
     Expr {

@@ -157,7 +157,7 @@ impl Value {
 
     /// Returns the raw bytes contained in [`Value::Blob`] or [`Value::Text`].
     ///
-    /// For other variants an empty slice is returned.
+    /// Returns [`DecodeError::Conversion`] for other variants.
     pub fn blob(&self) -> StdResult<&[u8], DecodeError> {
         match self {
             Self::Blob { value, .. } => Ok(value.as_ref()),

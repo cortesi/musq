@@ -2259,7 +2259,7 @@ pub enum Value {
 impl Value {
     /// Returns the raw bytes contained in [`Value::Blob`] or [`Value::Text`].
     ///
-    /// For other variants an empty slice is returned.
+    /// Returns [`DecodeError::Conversion`] for other variants.
     pub fn blob(&self) -> Result<&[u8], DecodeError>;
 
     /// Returns the value as `f64` if it is numeric.

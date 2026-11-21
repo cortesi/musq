@@ -410,11 +410,7 @@ impl Query {
 
     /// Convert this query into a mutable [`crate::QueryBuilder`].
     pub fn into_builder(self) -> crate::QueryBuilder {
-        crate::QueryBuilder::from_parts(
-            self.sql().to_string(),
-            self.arguments.unwrap_or_default(),
-            self.tainted,
-        )
+        crate::QueryBuilder::from_parts(self.sql, self.arguments.unwrap_or_default(), self.tainted)
     }
 
     /// Joins this query with another [`Query`].

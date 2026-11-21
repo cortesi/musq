@@ -123,13 +123,12 @@ mod tests {
     }
 
     #[test]
-    #[allow(clippy::approx_constant)]
     fn test_option_some_f64() {
-        let opt: Option<f64> = Some(3.14);
+        let opt: Option<f64> = Some(3.25);
         let encoded = opt.encode().unwrap();
 
         if let Value::Double { value, type_info } = encoded {
-            assert_eq!(value, 3.14);
+            assert_eq!(value, 3.25);
             assert_eq!(type_info, None);
         } else {
             panic!("Expected Double value, got {:?}", encoded);
