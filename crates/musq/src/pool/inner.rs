@@ -1,11 +1,10 @@
 use std::{
     future::Future,
-    result::Result as StdResult,
+    result,
     sync::{
         Arc,
         atomic::{AtomicBool, AtomicU32, AtomicUsize, Ordering},
     },
-    time::{Duration, Instant},
 };
 
 use crossbeam_queue::ArrayQueue;
@@ -17,15 +16,6 @@ use tokio::{
 
 use super::connection::Floating;
 use crate::{Connection, Error, Result};
-
-/// get the time between the deadline and now and use that as our timeout
-///
-/// returns `Error::PoolTimedOut` if the deadline is in the past
-fn deadline_as_timeout(deadline: Instant) -> Result<Duration> {
-    deadline
-        .checked_duration_since(Instant::now())
-        .ok_or(Error::PoolTimedOut)
-}
 
 /// Shared pool state and connection queue.
 pub struct PoolInner {
@@ -174,7 +164,7 @@ impl PoolInner {
     fn pop_idle<'a>(
         self: &'a Arc<Self>,
         permit: SemaphorePermit<'a>,
-    ) -> StdResult<Floating, SemaphorePermit<'a>> {
+    ) -> result::Result<Floating, SemaphorePermit<'a>> {
         if let Some(conn) = self.idle_conns.pop() {
             self.num_idle.fetch_sub(1, Ordering::AcqRel);
             Ok(Floating::from_idle(conn, (*self).clone(), permit))
@@ -212,7 +202,7 @@ impl PoolInner {
     fn try_increment_size<'a>(
         self: &'a Arc<Self>,
         permit: SemaphorePermit<'a>,
-    ) -> StdResult<DecrementSizeGuard, SemaphorePermit<'a>> {
+    ) -> result::Result<DecrementSizeGuard, SemaphorePermit<'a>> {
         match self
             .size
             .try_update(Ordering::AcqRel, Ordering::Acquire, |size| {
@@ -235,8 +225,6 @@ impl PoolInner {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
-
-        let deadline = Instant::now() + self.options.pool_acquire_timeout;
 
         timeout(
             self.options.pool_acquire_timeout,
@@ -261,8 +249,7 @@ impl PoolInner {
                         }
                     };
 
-                    // Attempt to connect...
-                    return self.connect(deadline, guard).await;
+                    return self.connect(guard).await;
                 }
             }
         )
@@ -270,23 +257,14 @@ impl PoolInner {
             .map_err(|_| Error::PoolTimedOut)?
     }
 
-    /// Establish a new live connection with a timeout.
-    async fn connect(
-        self: &Arc<Self>,
-        deadline: Instant,
-        guard: DecrementSizeGuard,
-    ) -> Result<Floating> {
+    /// Establish a new live connection.
+    async fn connect(self: &Arc<Self>, guard: DecrementSizeGuard) -> Result<Floating> {
         if self.is_closed() {
             return Err(Error::PoolClosed);
         }
-        let timeout_duration = deadline_as_timeout(deadline)?;
 
-        match timeout(timeout_duration, self.options.connect()).await {
-            Ok(Ok(raw)) => Ok(Floating::new(raw, guard)),
-            Ok(Err(e)) => Err(e),
-            // timed out
-            Err(_) => Err(Error::PoolTimedOut),
-        }
+        let raw = self.options.connect().await?;
+        Ok(Floating::new(raw, guard))
     }
 }
 

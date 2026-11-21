@@ -8,9 +8,7 @@
 //! re-using connections. Normally it also enforces a maximum number of
 //! connections as these are an expensive resource, even when working with
 //! SQLite.
-use std::{
-    fmt, future::Future, io, ops::AsyncFnOnce, path::Path, result::Result as StdResult, sync::Arc,
-};
+use std::{fmt, future::Future, io, ops::AsyncFnOnce, path::Path, result, sync::Arc};
 
 use self::{connection::Floating, inner::PoolInner};
 use crate::{
@@ -100,8 +98,7 @@ impl Pool {
     /// using an in-memory SQLite database with a pool size of 1, care
     /// should be taken to avoid cancelling `acquire()` calls.
     pub async fn acquire(&self) -> Result<PoolConnection> {
-        let shared = self.0.clone();
-        shared.acquire().await.map(|conn| conn.reattach())
+        self.0.acquire().await.map(Floating::reattach)
     }
 
     /// Attempts to retrieve a connection from the pool if there is one
@@ -132,20 +129,19 @@ impl Pool {
     /// Run `callback` inside a transaction on a pooled connection.
     ///
     /// Commits if `callback` returns `Ok`. Rolls back if it returns `Err`.
-    pub async fn transaction<F, R, E>(&self, callback: F) -> StdResult<R, E>
+    pub async fn transaction<F, R, E>(&self, callback: F) -> result::Result<R, E>
     where
-        F: AsyncFnOnce(&mut Transaction<PoolConnection>) -> StdResult<R, E>,
+        F: AsyncFnOnce(&mut Transaction<PoolConnection>) -> result::Result<R, E>,
         E: From<Error>,
     {
-        let conn = self.acquire().await.map_err(E::from)?;
-        let mut tx = Transaction::begin(conn).await.map_err(E::from)?;
+        let mut tx = self.begin().await?;
         match callback(&mut tx).await {
             Ok(ret) => {
-                tx.commit().await.map_err(E::from)?;
+                tx.commit().await?;
                 Ok(ret)
             }
             Err(err) => {
-                tx.rollback().await.map_err(E::from)?;
+                tx.rollback().await?;
                 Err(err)
             }
         }
