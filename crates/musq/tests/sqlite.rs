@@ -732,16 +732,20 @@ mod tests {
     // statement reset and crash the worker.
     #[tokio::test]
     async fn concurrent_resets_dont_segfault() -> anyhow::Result<()> {
-        let pool = Musq::new().open_in_memory().await?;
+        let pool = Musq::new().max_connections(2).open_in_memory().await?;
 
         query("CREATE TABLE stuff (name INTEGER, value INTEGER)")
             .execute(&pool)
             .await?;
 
         let iterations = stress_iters(100);
+        let barrier = Arc::new(Barrier::new(3));
+
         let insert = spawn({
             let pool = pool.clone();
+            let barrier = Arc::clone(&barrier);
             async move {
+                barrier.wait().await;
                 for i in 0..iterations {
                     query("INSERT INTO stuff (name, value) VALUES (?, ?)")
                         .bind(i as i64)
@@ -752,7 +756,26 @@ mod tests {
                 anyhow::Ok(())
             }
         });
+
+        let early_drop_reader = |barrier: Arc<Barrier>, pool: musq::Pool| {
+            spawn(async move {
+                barrier.wait().await;
+                for _ in 0..iterations {
+                    let mut stream = query("SELECT name, value FROM stuff").fetch(&pool);
+                    // Drop the stream after at most one row to exercise early
+                    // statement resets on cached statements.
+                    let _ = stream.try_next().await?;
+                }
+                anyhow::Ok(())
+            })
+        };
+
+        let reader_a = early_drop_reader(Arc::clone(&barrier), pool.clone());
+        let reader_b = early_drop_reader(barrier, pool.clone());
+
         insert.await??;
+        reader_a.await??;
+        reader_b.await??;
 
         let count: i64 = query_scalar("SELECT COUNT(*) FROM stuff")
             .fetch_one(&pool)
