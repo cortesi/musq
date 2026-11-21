@@ -63,6 +63,11 @@ impl ConnectionHandle {
         unsafe { ffi::exec(self.as_ptr(), query.as_ptr()) }.map_err(Error::from)
     }
 
+    /// Return whether the underlying SQLite handle has been closed.
+    pub(crate) fn is_closed(&self) -> bool {
+        self.closed
+    }
+
     /// Close the underlying SQLite handle.
     pub(crate) fn close(&mut self) -> Result<()> {
         if self.closed {

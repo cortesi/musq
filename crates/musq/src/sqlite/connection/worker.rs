@@ -706,6 +706,14 @@ impl WorkerSession {
     }
 }
 
+impl Drop for WorkerSession {
+    fn drop(&mut self) {
+        if !self.conn.handle.is_closed() {
+            self.clear_hooks();
+        }
+    }
+}
+
 /// Stream query results. Returns `true` when SQLite reported
 /// `SQLITE_INTERRUPT`.
 fn stream_rows(

@@ -97,4 +97,66 @@ mod tests {
         assert_eq!(one, 1);
         Ok(())
     }
+
+    #[tokio::test]
+    async fn dropping_connection_releases_hooks() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        let (update_tx, mut update_rx) = mpsc::unbounded_channel();
+        let (commit_tx, mut commit_rx) = mpsc::unbounded_channel();
+        let (rollback_tx, mut rollback_rx) = mpsc::unbounded_channel();
+        conn.on_update(move |event| {
+            update_tx.send(event).ok();
+        })
+        .await?;
+        conn.on_commit(move || {
+            commit_tx.send(()).ok();
+        })
+        .await?;
+        conn.on_rollback(move || {
+            rollback_tx.send(()).ok();
+        })
+        .await?;
+
+        drop(conn);
+
+        assert!(
+            timeout(Duration::from_secs(1), update_rx.recv())
+                .await
+                .expect("update hook task should exit")
+                .is_none()
+        );
+        assert!(
+            timeout(Duration::from_secs(1), commit_rx.recv())
+                .await
+                .expect("commit hook task should exit")
+                .is_none()
+        );
+        assert!(
+            timeout(Duration::from_secs(1), rollback_rx.recv())
+                .await
+                .expect("rollback hook task should exit")
+                .is_none()
+        );
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn closing_connection_releases_hooks() -> anyhow::Result<()> {
+        let conn = connection().await?;
+        let (update_tx, mut update_rx) = mpsc::unbounded_channel();
+        conn.on_update(move |event| {
+            update_tx.send(event).ok();
+        })
+        .await?;
+
+        conn.close().await?;
+
+        assert!(
+            timeout(Duration::from_secs(1), update_rx.recv())
+                .await
+                .expect("update hook task should exit")
+                .is_none()
+        );
+        Ok(())
+    }
 }
