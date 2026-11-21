@@ -37,80 +37,100 @@ pub struct UpdateEvent {
     pub rowid: i64,
 }
 
-/// State shared with a SQLite update hook.
-pub struct UpdateHookState {
+/// State shared with a SQLite hook callback.
+pub(crate) struct HookState<T> {
     /// Channel used to deliver events without blocking SQLite.
-    tx: flume::Sender<UpdateEvent>,
+    tx: flume::Sender<T>,
     /// Count of events dropped because the receiver is gone.
     dropped: Arc<AtomicUsize>,
 }
 
-/// State shared with a SQLite commit or rollback hook.
-pub struct SignalHookState {
-    /// Channel used to deliver a unit signal without blocking SQLite.
-    tx: flume::Sender<()>,
-    /// Count of events dropped because the receiver is gone.
-    dropped: Arc<AtomicUsize>,
-}
-
-impl UpdateHookState {
+impl<T> HookState<T> {
     /// Build hook state that delivers events on `tx`.
-    pub fn new(tx: flume::Sender<UpdateEvent>, dropped: Arc<AtomicUsize>) -> Self {
+    pub(crate) fn new(tx: flume::Sender<T>, dropped: Arc<AtomicUsize>) -> Self {
         Self { tx, dropped }
     }
-}
 
-impl SignalHookState {
-    /// Build hook state that delivers a unit signal on `tx`.
-    pub fn new(tx: flume::Sender<()>, dropped: Arc<AtomicUsize>) -> Self {
-        Self { tx, dropped }
+    /// Deliver one event without blocking, counting drops when the receiver is
+    /// gone.
+    fn send(&self, event: T) {
+        if self.tx.try_send(event).is_err() {
+            self.dropped.fetch_add(1, Ordering::Relaxed);
+        }
     }
 }
 
 /// Install an update hook. Returns the previous userdata pointer, if any.
-pub fn set_update_hook(db: *mut sqlite3, state: UpdateHookState) -> *mut c_void {
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+pub(crate) unsafe fn set_update_hook(
+    db: *mut sqlite3,
+    state: HookState<UpdateEvent>,
+) -> *mut c_void {
     let ptr = Box::into_raw(Box::new(state)).cast::<c_void>();
+    // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_update_hook(db, Some(update_entry), ptr) }
 }
 
 /// Install a commit hook that cannot veto the commit.
-pub fn set_commit_hook(db: *mut sqlite3, state: SignalHookState) -> *mut c_void {
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+pub(crate) unsafe fn set_commit_hook(db: *mut sqlite3, state: HookState<()>) -> *mut c_void {
     let ptr = Box::into_raw(Box::new(state)).cast::<c_void>();
+    // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_commit_hook(db, Some(commit_entry), ptr) }
 }
 
 /// Install a rollback hook.
-pub fn set_rollback_hook(db: *mut sqlite3, state: SignalHookState) -> *mut c_void {
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+pub(crate) unsafe fn set_rollback_hook(db: *mut sqlite3, state: HookState<()>) -> *mut c_void {
     let ptr = Box::into_raw(Box::new(state)).cast::<c_void>();
+    // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_rollback_hook(db, Some(rollback_entry), ptr) }
 }
 
 /// Clear the update hook and return the previous userdata pointer.
-pub fn clear_update_hook(db: *mut sqlite3) -> *mut c_void {
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+pub(crate) unsafe fn clear_update_hook(db: *mut sqlite3) -> *mut c_void {
+    // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_update_hook(db, None, ptr::null_mut()) }
 }
 
 /// Clear the commit hook and return the previous userdata pointer.
-pub fn clear_commit_hook(db: *mut sqlite3) -> *mut c_void {
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+pub(crate) unsafe fn clear_commit_hook(db: *mut sqlite3) -> *mut c_void {
+    // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_commit_hook(db, None, ptr::null_mut()) }
 }
 
 /// Clear the rollback hook and return the previous userdata pointer.
-pub fn clear_rollback_hook(db: *mut sqlite3) -> *mut c_void {
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+pub(crate) unsafe fn clear_rollback_hook(db: *mut sqlite3) -> *mut c_void {
+    // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_rollback_hook(db, None, ptr::null_mut()) }
 }
 
-/// Drop userdata returned when replacing or clearing an update hook.
-pub unsafe fn drop_update_hook(ptr: *mut c_void) {
+/// Drop userdata returned when replacing or clearing a hook.
+///
+/// # Safety
+/// - `ptr` must be null or a pointer created by
+///   `Box::into_raw(Box::new(HookState::<T>::...))` that is no longer
+///   registered with SQLite.
+pub(crate) unsafe fn drop_hook<T>(ptr: *mut c_void) {
     if !ptr.is_null() {
-        drop(unsafe { Box::from_raw(ptr.cast::<UpdateHookState>()) });
-    }
-}
-
-/// Drop userdata returned when replacing or clearing a signal hook.
-pub unsafe fn drop_signal_hook(ptr: *mut c_void) {
-    if !ptr.is_null() {
-        drop(unsafe { Box::from_raw(ptr.cast::<SignalHookState>()) });
+        // SAFETY: caller guarantees `ptr` came from a boxed `HookState<T>` and
+        // is exclusively owned.
+        drop(unsafe { Box::from_raw(ptr.cast::<HookState<T>>()) });
     }
 }
 
@@ -123,7 +143,7 @@ unsafe extern "C" fn update_entry(
     rowid: i64,
 ) {
     catch_unwind(AssertUnwindSafe(|| {
-        let state = unsafe { &*p.cast::<UpdateHookState>() };
+        let state = unsafe { &*p.cast::<HookState<UpdateEvent>>() };
         let Some(op) = update_op(op) else {
             return;
         };
@@ -133,9 +153,7 @@ unsafe extern "C" fn update_entry(
             table: unsafe { cstr_to_string(table) },
             rowid,
         };
-        if state.tx.try_send(event).is_err() {
-            state.dropped.fetch_add(1, Ordering::Relaxed);
-        }
+        state.send(event);
     }))
     .ok();
 }
@@ -143,7 +161,9 @@ unsafe extern "C" fn update_entry(
 /// SQLite commit-hook entry point. Always allows the commit.
 unsafe extern "C" fn commit_entry(p: *mut c_void) -> c_int {
     catch_unwind(AssertUnwindSafe(|| {
-        signal(p);
+        // SAFETY: SQLite passes the `HookState<()>` pointer installed by
+        // `set_commit_hook`.
+        unsafe { signal(p) };
     }))
     .ok();
     0
@@ -152,17 +172,21 @@ unsafe extern "C" fn commit_entry(p: *mut c_void) -> c_int {
 /// SQLite rollback-hook entry point.
 unsafe extern "C" fn rollback_entry(p: *mut c_void) {
     catch_unwind(AssertUnwindSafe(|| {
-        signal(p);
+        // SAFETY: SQLite passes the `HookState<()>` pointer installed by
+        // `set_rollback_hook`.
+        unsafe { signal(p) };
     }))
     .ok();
 }
 
-/// Deliver a unit signal through a [`SignalHookState`].
-fn signal(p: *mut c_void) {
-    let state = unsafe { &*p.cast::<SignalHookState>() };
-    if state.tx.try_send(()).is_err() {
-        state.dropped.fetch_add(1, Ordering::Relaxed);
-    }
+/// Deliver a unit signal through a [`HookState<()>`].
+///
+/// # Safety
+/// - `p` must point to a valid, live [`HookState<()>`].
+unsafe fn signal(p: *mut c_void) {
+    // SAFETY: caller guarantees `p` points to a live `HookState<()>`.
+    let state = unsafe { &*p.cast::<HookState<()>>() };
+    state.send(());
 }
 
 /// Map a SQLite update operation code.

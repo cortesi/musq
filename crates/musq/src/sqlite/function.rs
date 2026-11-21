@@ -135,22 +135,30 @@ impl RegisteredCollation {
 }
 
 /// Register scalar functions and collations on a live connection.
-pub fn register_all(
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+pub(crate) unsafe fn register_all(
     db: *mut sqlite3,
     functions: &[Arc<RegisteredFunction>],
     collations: &[Arc<RegisteredCollation>],
 ) -> Result<()> {
     for function in functions {
-        register_function(db, function)?;
+        // SAFETY: caller guarantees `db` is a live SQLite connection handle.
+        unsafe { register_function(db, function) }?;
     }
     for collation in collations {
-        register_collation(db, collation)?;
+        // SAFETY: caller guarantees `db` is a live SQLite connection handle.
+        unsafe { register_collation(db, collation) }?;
     }
     Ok(())
 }
 
 /// Register one scalar function. SQLite owns a clone of the `Arc` until close.
-fn register_function(db: *mut sqlite3, function: &RegisteredFunction) -> Result<()> {
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+unsafe fn register_function(db: *mut sqlite3, function: &RegisteredFunction) -> Result<()> {
     let name = CString::new(function.name.as_str()).map_err(|_| {
         Error::Configuration(format!(
             "function name contains nul bytes: {}",
@@ -158,6 +166,8 @@ fn register_function(db: *mut sqlite3, function: &RegisteredFunction) -> Result<
         ))
     })?;
     let app = Box::into_raw(Box::new(Arc::clone(&function.func)));
+    // SAFETY: caller guarantees `db` is live; `name` is NUL-terminated; `app`
+    // is owned by SQLite until `destroy_scalar` runs (or reclaimed on error).
     let rc = unsafe {
         ffi_sys::sqlite3_create_function_v2(
             db,
@@ -179,7 +189,10 @@ fn register_function(db: *mut sqlite3, function: &RegisteredFunction) -> Result<
 }
 
 /// Register one collation. SQLite owns a clone of the `Arc` until close.
-fn register_collation(db: *mut sqlite3, collation: &RegisteredCollation) -> Result<()> {
+///
+/// # Safety
+/// - `db` must be a valid pointer to an open SQLite connection.
+unsafe fn register_collation(db: *mut sqlite3, collation: &RegisteredCollation) -> Result<()> {
     let name = CString::new(collation.name.as_str()).map_err(|_| {
         Error::Configuration(format!(
             "collation name contains nul bytes: {}",
@@ -187,6 +200,9 @@ fn register_collation(db: *mut sqlite3, collation: &RegisteredCollation) -> Resu
         ))
     })?;
     let app = Box::into_raw(Box::new(Arc::clone(&collation.func)));
+    // SAFETY: caller guarantees `db` is live; `name` is NUL-terminated; `app`
+    // is owned by SQLite until `destroy_collation` runs (or reclaimed on
+    // error).
     let rc = unsafe {
         ffi_sys::sqlite3_create_collation_v2(
             db,

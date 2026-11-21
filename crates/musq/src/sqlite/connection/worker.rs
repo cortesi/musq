@@ -644,52 +644,50 @@ impl WorkerSession {
         tx: oneshot::Sender<Result<()>>,
     ) {
         let db = self.conn.handle.as_ptr();
-        let prev = sqlite_hooks::set_update_hook(
-            db,
-            sqlite_hooks::UpdateHookState::new(
-                events,
-                Arc::clone(&self.shared.dropped_hook_events),
-            ),
-        );
-        unsafe { sqlite_hooks::drop_update_hook(prev) };
+        let state =
+            sqlite_hooks::HookState::new(events, Arc::clone(&self.shared.dropped_hook_events));
+        // SAFETY: the worker owns a live SQLite connection handle.
+        unsafe {
+            let prev = sqlite_hooks::set_update_hook(db, state);
+            sqlite_hooks::drop_hook::<UpdateEvent>(prev);
+        }
         tx.send(Ok(())).ok();
     }
 
     /// Install a commit hook that `try_send`s a unit signal.
     fn install_commit_hook(&self, events: flume::Sender<()>, tx: oneshot::Sender<Result<()>>) {
         let db = self.conn.handle.as_ptr();
-        let prev = sqlite_hooks::set_commit_hook(
-            db,
-            sqlite_hooks::SignalHookState::new(
-                events,
-                Arc::clone(&self.shared.dropped_hook_events),
-            ),
-        );
-        unsafe { sqlite_hooks::drop_signal_hook(prev) };
+        let state =
+            sqlite_hooks::HookState::new(events, Arc::clone(&self.shared.dropped_hook_events));
+        // SAFETY: the worker owns a live SQLite connection handle.
+        unsafe {
+            let prev = sqlite_hooks::set_commit_hook(db, state);
+            sqlite_hooks::drop_hook::<()>(prev);
+        }
         tx.send(Ok(())).ok();
     }
 
     /// Install a rollback hook that `try_send`s a unit signal.
     fn install_rollback_hook(&self, events: flume::Sender<()>, tx: oneshot::Sender<Result<()>>) {
         let db = self.conn.handle.as_ptr();
-        let prev = sqlite_hooks::set_rollback_hook(
-            db,
-            sqlite_hooks::SignalHookState::new(
-                events,
-                Arc::clone(&self.shared.dropped_hook_events),
-            ),
-        );
-        unsafe { sqlite_hooks::drop_signal_hook(prev) };
+        let state =
+            sqlite_hooks::HookState::new(events, Arc::clone(&self.shared.dropped_hook_events));
+        // SAFETY: the worker owns a live SQLite connection handle.
+        unsafe {
+            let prev = sqlite_hooks::set_rollback_hook(db, state);
+            sqlite_hooks::drop_hook::<()>(prev);
+        }
         tx.send(Ok(())).ok();
     }
 
     /// Remove SQLite hooks and free their userdata.
     fn clear_hooks(&self) {
         let db = self.conn.handle.as_ptr();
+        // SAFETY: the worker owns a live SQLite connection handle.
         unsafe {
-            sqlite_hooks::drop_update_hook(sqlite_hooks::clear_update_hook(db));
-            sqlite_hooks::drop_signal_hook(sqlite_hooks::clear_commit_hook(db));
-            sqlite_hooks::drop_signal_hook(sqlite_hooks::clear_rollback_hook(db));
+            sqlite_hooks::drop_hook::<UpdateEvent>(sqlite_hooks::clear_update_hook(db));
+            sqlite_hooks::drop_hook::<()>(sqlite_hooks::clear_commit_hook(db));
+            sqlite_hooks::drop_hook::<()>(sqlite_hooks::clear_rollback_hook(db));
         }
     }
 

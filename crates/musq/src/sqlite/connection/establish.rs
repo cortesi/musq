@@ -228,7 +228,8 @@ impl EstablishParams {
             };
         }
 
-        register_all(handle.as_ptr(), &self.functions, &self.collations)?;
+        // SAFETY: `handle` is a newly opened live connection.
+        unsafe { register_all(handle.as_ptr(), &self.functions, &self.collations) }?;
 
         Ok(ConnectionState {
             handle,
