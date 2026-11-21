@@ -1,5 +1,3 @@
-use std::result::Result as StdResult;
-
 use crate::{
     decode::Decode,
     encode::Encode,
@@ -17,7 +15,7 @@ impl Encode for f32 {
 }
 
 impl<'r> Decode<'r> for f32 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Float | SqliteDataType::Numeric);
         Ok(value.double()? as Self)
     }
@@ -33,7 +31,7 @@ impl Encode for f64 {
 }
 
 impl<'r> Decode<'r> for f64 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Float | SqliteDataType::Numeric);
         value.double()
     }

@@ -1,7 +1,4 @@
-use std::{
-    path::{Path, PathBuf},
-    result::Result as StdResult,
-};
+use std::path::{Path, PathBuf};
 
 use crate::{
     SqliteDataType, Value,
@@ -25,7 +22,7 @@ impl Encode for PathBuf {
 }
 
 impl<'r> Decode<'r> for PathBuf {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Text);
         Ok(Self::from(value.text()?))
     }

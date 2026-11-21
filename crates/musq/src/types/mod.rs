@@ -94,7 +94,7 @@ macro_rules! encode_integer {
 macro_rules! decode_integer {
     ($ty:ty, $accessor:ident, direct) => {
         impl<'r> Decode<'r> for $ty {
-            fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+            fn decode(value: &'r Value) -> Result<Self, DecodeError> {
                 compatible!(
                     value,
                     SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric
@@ -105,7 +105,7 @@ macro_rules! decode_integer {
     };
     ($ty:ty, $accessor:ident, narrow) => {
         impl<'r> Decode<'r> for $ty {
-            fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+            fn decode(value: &'r Value) -> Result<Self, DecodeError> {
                 compatible!(
                     value,
                     SqliteDataType::Int | SqliteDataType::Int64 | SqliteDataType::Numeric

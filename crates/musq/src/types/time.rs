@@ -1,5 +1,3 @@
-use std::result::Result as StdResult;
-
 pub use time::{Date, OffsetDateTime, PrimitiveDateTime, Time, UtcOffset};
 use time::{format_description::well_known::Rfc3339, macros::format_description as fd};
 
@@ -69,26 +67,26 @@ impl Encode for Time {
 }
 
 impl<'r> Decode<'r> for OffsetDateTime {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         decode_offset_datetime(value)
     }
 }
 
 impl<'r> Decode<'r> for PrimitiveDateTime {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         decode_datetime(value)
     }
 }
 
 impl<'r> Decode<'r> for Date {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         Self::parse(value.text()?, &fd!("[year]-[month]-[day]"))
             .map_err(|e| DecodeError::Conversion(e.to_string()))
     }
 }
 
 impl<'r> Decode<'r> for Time {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         let value = value.text()?;
 
         let sqlite_time_formats = &[
@@ -108,7 +106,7 @@ impl<'r> Decode<'r> for Time {
 }
 
 /// Decode an offset datetime from a SQLite value.
-fn decode_offset_datetime(value: &Value) -> StdResult<OffsetDateTime, DecodeError> {
+fn decode_offset_datetime(value: &Value) -> Result<OffsetDateTime, DecodeError> {
     compatible!(
         value,
         SqliteDataType::Text
@@ -153,7 +151,7 @@ fn decode_offset_datetime_from_text(value: &str) -> Option<OffsetDateTime> {
 }
 
 /// Decode a primitive datetime from a SQLite value.
-fn decode_datetime(value: &Value) -> StdResult<PrimitiveDateTime, DecodeError> {
+fn decode_datetime(value: &Value) -> Result<PrimitiveDateTime, DecodeError> {
     compatible!(
         value,
         SqliteDataType::Text

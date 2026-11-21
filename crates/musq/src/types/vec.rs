@@ -1,5 +1,3 @@
-use std::result::Result as StdResult;
-
 use bytemuck::cast_slice;
 
 use crate::{
@@ -52,7 +50,7 @@ encode_blob_vec!(VecInt8, i8);
 encode_blob_vec!(VecBit, u8);
 
 impl<'r> Decode<'r> for VecF32 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob);
         let bytes = value.blob()?;
         let (chunks, remainder) = bytes.as_chunks::<4>();
@@ -73,20 +71,14 @@ impl<'r> Decode<'r> for VecF32 {
 }
 
 impl<'r> Decode<'r> for VecInt8 {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob);
-        let values = value
-            .blob()?
-            .iter()
-            .copied()
-            .map(|b| i8::from_ne_bytes([b]))
-            .collect();
-        Ok(Self(values))
+        Ok(Self(cast_slice::<u8, i8>(value.blob()?).to_vec()))
     }
 }
 
 impl<'r> Decode<'r> for VecBit {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob);
         Ok(Self(value.blob()?.to_vec()))
     }

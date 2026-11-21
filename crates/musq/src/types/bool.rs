@@ -1,5 +1,3 @@
-use std::result::Result as StdResult;
-
 use crate::{
     decode::Decode,
     encode::Encode,
@@ -17,7 +15,7 @@ impl Encode for bool {
 }
 
 impl<'r> Decode<'r> for bool {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(
             value,
             SqliteDataType::Bool

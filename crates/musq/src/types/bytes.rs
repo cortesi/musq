@@ -1,4 +1,4 @@
-use std::{result::Result as StdResult, sync::Arc};
+use std::sync::Arc;
 
 use crate::{
     SqliteDataType, Value,
@@ -17,7 +17,7 @@ impl Encode for [u8] {
 }
 
 impl<'r> Decode<'r> for &'r [u8] {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
         value.blob()
     }
@@ -30,7 +30,7 @@ impl Encode for Vec<u8> {
 }
 
 impl<'r> Decode<'r> for Vec<u8> {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
         Ok(value.blob()?.to_owned())
     }
@@ -46,7 +46,7 @@ impl Encode for Arc<Vec<u8>> {
 }
 
 impl<'r> Decode<'r> for Arc<Vec<u8>> {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
         Ok(Self::new(value.blob()?.to_owned()))
     }

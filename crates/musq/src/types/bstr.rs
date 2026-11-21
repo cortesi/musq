@@ -1,5 +1,3 @@
-use std::result::Result as StdResult;
-
 #[doc(no_inline)]
 pub use bstr::{BStr, BString, ByteSlice};
 
@@ -12,7 +10,7 @@ use crate::{
 };
 
 impl<'r> Decode<'r> for BString {
-    fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
+    fn decode(value: &'r Value) -> Result<Self, DecodeError> {
         compatible!(value, SqliteDataType::Blob | SqliteDataType::Text);
         Ok(Self::from(value.blob()?.to_owned()))
     }

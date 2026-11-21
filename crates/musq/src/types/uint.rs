@@ -1,5 +1,3 @@
-use std::result::Result as StdResult;
-
 use crate::{
     decode::Decode,
     encode::Encode,
