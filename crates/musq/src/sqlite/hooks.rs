@@ -38,7 +38,7 @@ pub struct UpdateEvent {
 }
 
 /// State shared with a SQLite hook callback.
-pub(crate) struct HookState<T> {
+pub struct HookState<T> {
     /// Channel used to deliver events without blocking SQLite.
     tx: flume::Sender<T>,
     /// Count of events dropped because the receiver is gone.
@@ -47,7 +47,7 @@ pub(crate) struct HookState<T> {
 
 impl<T> HookState<T> {
     /// Build hook state that delivers events on `tx`.
-    pub(crate) fn new(tx: flume::Sender<T>, dropped: Arc<AtomicUsize>) -> Self {
+    pub fn new(tx: flume::Sender<T>, dropped: Arc<AtomicUsize>) -> Self {
         Self { tx, dropped }
     }
 
@@ -64,10 +64,7 @@ impl<T> HookState<T> {
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
-pub(crate) unsafe fn set_update_hook(
-    db: *mut sqlite3,
-    state: HookState<UpdateEvent>,
-) -> *mut c_void {
+pub unsafe fn set_update_hook(db: *mut sqlite3, state: HookState<UpdateEvent>) -> *mut c_void {
     let ptr = Box::into_raw(Box::new(state)).cast::<c_void>();
     // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_update_hook(db, Some(update_entry), ptr) }
@@ -77,7 +74,7 @@ pub(crate) unsafe fn set_update_hook(
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
-pub(crate) unsafe fn set_commit_hook(db: *mut sqlite3, state: HookState<()>) -> *mut c_void {
+pub unsafe fn set_commit_hook(db: *mut sqlite3, state: HookState<()>) -> *mut c_void {
     let ptr = Box::into_raw(Box::new(state)).cast::<c_void>();
     // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_commit_hook(db, Some(commit_entry), ptr) }
@@ -87,7 +84,7 @@ pub(crate) unsafe fn set_commit_hook(db: *mut sqlite3, state: HookState<()>) -> 
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
-pub(crate) unsafe fn set_rollback_hook(db: *mut sqlite3, state: HookState<()>) -> *mut c_void {
+pub unsafe fn set_rollback_hook(db: *mut sqlite3, state: HookState<()>) -> *mut c_void {
     let ptr = Box::into_raw(Box::new(state)).cast::<c_void>();
     // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_rollback_hook(db, Some(rollback_entry), ptr) }
@@ -97,7 +94,7 @@ pub(crate) unsafe fn set_rollback_hook(db: *mut sqlite3, state: HookState<()>) -
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
-pub(crate) unsafe fn clear_update_hook(db: *mut sqlite3) -> *mut c_void {
+pub unsafe fn clear_update_hook(db: *mut sqlite3) -> *mut c_void {
     // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_update_hook(db, None, ptr::null_mut()) }
 }
@@ -106,7 +103,7 @@ pub(crate) unsafe fn clear_update_hook(db: *mut sqlite3) -> *mut c_void {
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
-pub(crate) unsafe fn clear_commit_hook(db: *mut sqlite3) -> *mut c_void {
+pub unsafe fn clear_commit_hook(db: *mut sqlite3) -> *mut c_void {
     // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_commit_hook(db, None, ptr::null_mut()) }
 }
@@ -115,7 +112,7 @@ pub(crate) unsafe fn clear_commit_hook(db: *mut sqlite3) -> *mut c_void {
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
-pub(crate) unsafe fn clear_rollback_hook(db: *mut sqlite3) -> *mut c_void {
+pub unsafe fn clear_rollback_hook(db: *mut sqlite3) -> *mut c_void {
     // SAFETY: caller guarantees `db` is a live SQLite connection handle.
     unsafe { ffi_sys::sqlite3_rollback_hook(db, None, ptr::null_mut()) }
 }
@@ -126,7 +123,7 @@ pub(crate) unsafe fn clear_rollback_hook(db: *mut sqlite3) -> *mut c_void {
 /// - `ptr` must be null or a pointer created by
 ///   `Box::into_raw(Box::new(HookState::<T>::...))` that is no longer
 ///   registered with SQLite.
-pub(crate) unsafe fn drop_hook<T>(ptr: *mut c_void) {
+pub unsafe fn drop_hook<T>(ptr: *mut c_void) {
     if !ptr.is_null() {
         // SAFETY: caller guarantees `ptr` came from a boxed `HookState<T>` and
         // is exclusively owned.

@@ -138,7 +138,7 @@ impl RegisteredCollation {
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
-pub(crate) unsafe fn register_all(
+pub unsafe fn register_all(
     db: *mut sqlite3,
     functions: &[Arc<RegisteredFunction>],
     collations: &[Arc<RegisteredCollation>],
