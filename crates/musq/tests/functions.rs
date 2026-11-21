@@ -147,4 +147,41 @@ mod tests {
         assert_eq!(right, 8);
         Ok(())
     }
+
+    #[tokio::test]
+    async fn function_round_trips_text_and_blob_values() -> anyhow::Result<()> {
+        let conn = Connection::connect_with(&Musq::new().function(
+            "echo",
+            1,
+            FunctionFlags::default(),
+            |args| Ok(args[0].clone()),
+        ))
+        .await?;
+
+        let text: String = query_scalar("SELECT echo(?)")
+            .bind("héllo 🌍")
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(text, "héllo 🌍");
+
+        let empty_text: String = query_scalar("SELECT echo(?)")
+            .bind("")
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(empty_text, "");
+
+        let blob: Vec<u8> = query_scalar("SELECT echo(?)")
+            .bind(&[0_u8, 1, 255][..])
+            .fetch_one(&conn)
+            .await?;
+        assert_eq!(blob, [0_u8, 1, 255]);
+
+        let empty_blob: Vec<u8> = query_scalar("SELECT echo(?)")
+            .bind(&[][..])
+            .fetch_one(&conn)
+            .await?;
+        assert!(empty_blob.is_empty());
+
+        Ok(())
+    }
 }

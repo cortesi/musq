@@ -286,8 +286,11 @@ unsafe fn value_from_sqlite(value: *mut sqlite3_value) -> Value {
             type_info: None,
         },
         SQLITE_TEXT => {
-            let len = unsafe { ffi_sys::sqlite3_value_bytes(value) };
+            // Call `sqlite3_value_text` before `sqlite3_value_bytes` per
+            // SQLite's documented ordering so any encoding conversion settles
+            // the UTF-8 byte length first.
             let ptr = unsafe { ffi_sys::sqlite3_value_text(value) };
+            let len = unsafe { ffi_sys::sqlite3_value_bytes(value) };
             let bytes = if ptr.is_null() {
                 Bytes::new()
             } else {
@@ -304,8 +307,8 @@ unsafe fn value_from_sqlite(value: *mut sqlite3_value) -> Value {
             }
         }
         SQLITE_BLOB => {
-            let len = unsafe { ffi_sys::sqlite3_value_bytes(value) };
             let ptr = unsafe { ffi_sys::sqlite3_value_blob(value) };
+            let len = unsafe { ffi_sys::sqlite3_value_bytes(value) };
             let bytes = if ptr.is_null() {
                 Bytes::new()
             } else {

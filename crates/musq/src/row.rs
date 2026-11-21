@@ -99,11 +99,13 @@ impl Row {
                     deferred.push((idx, DeferredKind::Text, start..end, type_info));
                 }
                 SQLITE_BLOB => {
+                    let ptr = statement.column_blob(i) as *const u8;
                     let len = statement.column_bytes(i) as usize;
                     let slice = if len == 0 {
                         &[]
+                    } else if ptr.is_null() {
+                        return Err(Error::Protocol("sqlite3_column_blob returned null".into()));
                     } else {
-                        let ptr = statement.column_blob(i) as *const u8;
                         unsafe { slice::from_raw_parts(ptr, len) }
                     };
 
