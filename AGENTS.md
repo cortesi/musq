@@ -12,7 +12,5 @@
 
 ## Rust Validation
 
-- For Rust changes, run `cargo clippy --fix --allow-dirty --tests --examples
-  --benches` and resolve all warnings.
-- Format Rust changes with `cargo fmt`.
+- Run `ncode tidy` and resolve all warnings.
 - Run `ncode test` before a Rust commit.

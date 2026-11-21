@@ -1515,14 +1515,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "xtask"
-version = "0.0.4"
-dependencies = [
- "anyhow",
- "clap",
-]
-
-[[package]]
 name = "zerocopy"
 version = "0.8.64"
 source = "registry+https://github.com/rust-lang/crates.io-index"

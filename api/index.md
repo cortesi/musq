@@ -30,5 +30,3 @@ An async SQLite driver focused on performance, correctness, and flexibility.
 ## Binary-only packages
 
 - stresstest: workspace dependencies: musq
-
-- xtask: workspace dependencies: none
