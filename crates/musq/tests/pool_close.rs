@@ -154,4 +154,22 @@ mod tests {
 
         Ok(())
     }
+
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn concurrent_close_wakes_close_event_without_losing_notification() -> anyhow::Result<()>
+    {
+        for _ in 0..32 {
+            let pool = Musq::new().max_connections(2).open_in_memory().await?;
+            let closer_pool = pool.clone();
+            let closer = tokio::spawn(async move {
+                let _ = closer_pool.close().await;
+            });
+
+            timeout(Duration::from_secs(1), pool.close_event())
+                .await
+                .expect("close_event lost wakeup");
+            closer.await.expect("close task panicked");
+        }
+        Ok(())
+    }
 }

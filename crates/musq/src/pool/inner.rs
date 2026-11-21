@@ -77,12 +77,12 @@ impl PoolInner {
 
     /// Returns `true` if the pool is closed.
     pub(super) fn is_closed(&self) -> bool {
-        self.is_closed.load(Ordering::Acquire)
+        self.is_closed.load(Ordering::SeqCst)
     }
 
     /// Mark the pool as closed and notify listeners.
     fn mark_closed(&self) {
-        self.is_closed.store(true, Ordering::Release);
+        self.is_closed.store(true, Ordering::SeqCst);
         self.on_closed.notify(usize::MAX);
     }
 
@@ -126,7 +126,18 @@ impl PoolInner {
 
     /// Future that resolves when the pool closes.
     pub(crate) fn close_event(&self) -> impl Future<Output = ()> + '_ {
-        let listener = (!self.is_closed()).then(|| self.on_closed.listen());
+        // Double-check `is_closed` after registering the listener so a
+        // concurrent `mark_closed()` cannot race and lose the wakeup.
+        let listener = if self.is_closed() {
+            None
+        } else {
+            let listener = self.on_closed.listen();
+            if self.is_closed() {
+                None
+            } else {
+                Some(listener)
+            }
+        };
 
         async move {
             if let Some(listener) = listener {
@@ -140,13 +151,11 @@ impl PoolInner {
     /// If the pool is closed while waiting, an error is returned.
     async fn acquire_permit<'a>(self: &'a Arc<Self>) -> Result<SemaphorePermit<'a>> {
         tokio::select! {
-            permit = self.semaphore.acquire_many(1) => {
-                match permit {
-                    Ok(permit) => Ok(permit),
-                    Err(_) => Err(Error::PoolClosed),
-                }
-            }
+            biased;
             _ = self.close_event() => Err(Error::PoolClosed),
+            permit = self.semaphore.acquire() => {
+                permit.map_err(|_| Error::PoolClosed)
+            }
         }
     }
 
@@ -156,7 +165,7 @@ impl PoolInner {
             return None;
         }
 
-        let permit = self.semaphore.try_acquire_many(1).ok()?;
+        let permit = self.semaphore.try_acquire().ok()?;
 
         self.pop_idle(permit).ok()
     }
@@ -178,15 +187,17 @@ impl PoolInner {
     pub(super) fn release(&self, floating: Floating<Live>) {
         let Floating { inner: idle, guard } = floating.into_idle();
 
+        // Increment before pushing so a concurrent pop cannot underflow
+        // `num_idle` below zero.
+        self.num_idle.fetch_add(1, Ordering::AcqRel);
         if self.idle_conns.push(idle).is_err() {
+            self.num_idle.fetch_sub(1, Ordering::AcqRel);
             panic!("BUG: connection queue overflow in release()");
         }
 
         // NOTE: we need to make sure we drop the permit *after* we push to the
         // idle queue don't decrease the size
         guard.release_permit();
-
-        self.num_idle.fetch_add(1, Ordering::AcqRel);
     }
 
     /// Try to atomically increment the pool size for a new connection.
