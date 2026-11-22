@@ -10,8 +10,8 @@ use std::{
 };
 
 pub use control::{
-    DbStatus, DbStatusKind, ForeignKeyViolation, IntegrityReport, SqliteRuntimeInfo, WalCheckpoint,
-    WalCheckpointMode,
+    DbStatus, DbStatusKind, ForeignKeyViolation, IntegrityReport, SqliteLimit, SqliteRuntimeInfo,
+    WalCheckpoint, WalCheckpointMode,
 };
 use either::Either;
 use futures_core::{future::BoxFuture, stream::BoxStream};
@@ -20,7 +20,7 @@ pub use handle::ConnectionHandle;
 pub use worker::InterruptHandle;
 
 use crate::{
-    QueryResult, Result, Row, UpdateEvent,
+    ActionCode, AuthResult, QueryResult, Result, Row, UpdateEvent,
     error::Error,
     executor::Execute,
     logger::LogSettings,
@@ -266,6 +266,34 @@ impl Connection {
         Ok(())
     }
 
+    /// Install a per-connection SQLite authorizer callback via
+    /// `sqlite3_set_authorizer`.
+    ///
+    /// SQLite invokes the callback while preparing statements, passing the
+    /// [`ActionCode`], two action-specific arguments, the database name, and
+    /// the innermost enclosing trigger or view name (if any).
+    ///
+    /// Installing an authorizer clears this connection's prepared statement
+    /// cache so previously prepared statements are re-checked on next use.
+    /// Panics inside the callback are caught and treated as
+    /// [`AuthResult::Deny`].
+    pub async fn set_authorizer<F>(&self, authorizer: F) -> Result<()>
+    where
+        F: Fn(ActionCode, Option<&str>, Option<&str>, Option<&str>, Option<&str>) -> AuthResult
+            + Send
+            + 'static,
+    {
+        self.worker.set_authorizer(Box::new(authorizer)).await
+    }
+
+    /// Remove any active SQLite authorizer callback from this connection.
+    ///
+    /// Clearing the authorizer also clears this connection's prepared statement
+    /// cache.
+    pub async fn clear_authorizer(&self) -> Result<()> {
+        self.worker.clear_authorizer().await
+    }
+
     /// Return how many hook events were dropped because the receiver is gone.
     pub fn dropped_hook_events(&self) -> usize {
         self.worker.dropped_hook_events()
@@ -412,6 +440,20 @@ impl Connection {
     /// Return this connection's configured parser stack depth limit.
     pub async fn parser_depth_limit(&self) -> Result<u32> {
         self.worker.parser_depth_limit().await
+    }
+
+    /// Return a per-connection SQLite runtime limit via `sqlite3_limit`.
+    pub async fn limit(&self, kind: SqliteLimit) -> Result<u32> {
+        self.worker.limit(kind).await
+    }
+
+    /// Set a per-connection SQLite runtime limit via `sqlite3_limit` and return
+    /// its previous value.
+    pub async fn set_limit(&self, kind: SqliteLimit, new_limit: u32) -> Result<u32> {
+        let value = i32::try_from(new_limit).map_err(|_| {
+            Error::Configuration(format!("limit must fit into i32, got {new_limit}"))
+        })?;
+        self.worker.set_limit(kind, value).await
     }
 
     #[cfg(test)]

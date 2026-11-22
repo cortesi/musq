@@ -131,6 +131,84 @@ mod tests {
         Ok(())
     }
 
+    #[tokio::test]
+    async fn strict_and_strict_without_rowid_tables_enforce_types() -> anyhow::Result<()> {
+        let conn = connection().await?;
+
+        query(
+            "CREATE TABLE strict_blobs (
+                id INTEGER PRIMARY KEY,
+                digest BLOB NOT NULL CHECK (length(digest) = 32),
+                label TEXT NOT NULL
+            ) STRICT",
+        )
+        .execute(&conn)
+        .await?;
+
+        query(
+            "CREATE TABLE strict_links (
+                parent_id INTEGER NOT NULL,
+                child_key TEXT NOT NULL,
+                weight INTEGER NOT NULL,
+                PRIMARY KEY (parent_id, child_key)
+            ) STRICT, WITHOUT ROWID",
+        )
+        .execute(&conn)
+        .await?;
+
+        let digest = vec![0xab_u8; 32];
+        query("INSERT INTO strict_blobs (id, digest, label) VALUES (?, ?, ?)")
+            .bind(1_i64)
+            .bind(&digest)
+            .bind("ok")
+            .execute(&conn)
+            .await?;
+
+        let type_err = sqlite_error(
+            query("INSERT INTO strict_blobs (id, digest, label) VALUES (2, 'not-a-blob', 'bad')")
+                .execute(&conn)
+                .await,
+        );
+        assert_eq!(type_err.extended, Some(ExtendedErrCode::ConstraintDataType));
+
+        query("INSERT INTO strict_links (parent_id, child_key, weight) VALUES (?, ?, ?)")
+            .bind(1_i64)
+            .bind("k1")
+            .bind(7_i64)
+            .execute(&conn)
+            .await?;
+
+        let without_rowid_err = sqlite_error(
+            query(
+                "INSERT INTO strict_links (parent_id, child_key, weight) VALUES (1, 'k2', 'seven')",
+            )
+            .execute(&conn)
+            .await,
+        );
+        assert_eq!(
+            without_rowid_err.extended,
+            Some(ExtendedErrCode::ConstraintDataType)
+        );
+
+        query(
+            "CREATE TEMP VIEW v_strict_join AS
+             SELECT b.label, l.child_key, l.weight
+             FROM strict_blobs b
+             JOIN strict_links l ON l.parent_id = b.id",
+        )
+        .execute(&conn)
+        .await?;
+
+        let weight: i64 = query_scalar(
+            "SELECT weight FROM temp.v_strict_join WHERE label = 'ok' AND child_key = 'k1'",
+        )
+        .fetch_one(&conn)
+        .await?;
+        assert_eq!(weight, 7);
+
+        Ok(())
+    }
+
     fn sqlite_error<T>(result: musq::Result<T>) -> SqliteError
     where
         T: Debug,

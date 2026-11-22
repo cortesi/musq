@@ -597,6 +597,82 @@ impl<T: crate::query::as_connection::AsConnection + Send> QueryExecutor for &mut
 
 impl<T: crate::query::as_connection::AsConnection + Sync> QueryExecutor for &T {}
 
+/// Action code reported to a SQLite authorizer callback.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum ActionCode {
+    /// Deprecated `COPY` action (`SQLITE_COPY`).
+    Copy,
+    /// `CREATE INDEX`.
+    CreateIndex,
+    /// `CREATE TABLE`.
+    CreateTable,
+    /// `CREATE TEMP INDEX`.
+    CreateTempIndex,
+    /// `CREATE TEMP TABLE`.
+    CreateTempTable,
+    /// `CREATE TEMP TRIGGER`.
+    CreateTempTrigger,
+    /// `CREATE TEMP VIEW`.
+    CreateTempView,
+    /// `CREATE TRIGGER`.
+    CreateTrigger,
+    /// `CREATE VIEW`.
+    CreateView,
+    /// `DELETE`.
+    Delete,
+    /// `DROP INDEX`.
+    DropIndex,
+    /// `DROP TABLE`.
+    DropTable,
+    /// `DROP TEMP INDEX`.
+    DropTempIndex,
+    /// `DROP TEMP TABLE`.
+    DropTempTable,
+    /// `DROP TEMP TRIGGER`.
+    DropTempTrigger,
+    /// `DROP TEMP VIEW`.
+    DropTempView,
+    /// `DROP TRIGGER`.
+    DropTrigger,
+    /// `DROP VIEW`.
+    DropView,
+    /// `INSERT`.
+    Insert,
+    /// `PRAGMA`.
+    Pragma,
+    /// Read a table column.
+    Read,
+    /// `SELECT`.
+    Select,
+    /// `BEGIN`, `COMMIT`, or `ROLLBACK`.
+    Transaction,
+    /// `UPDATE`.
+    Update,
+    /// `ATTACH`.
+    Attach,
+    /// `DETACH`.
+    Detach,
+    /// `ALTER TABLE`.
+    AlterTable,
+    /// `REINDEX`.
+    Reindex,
+    /// `ANALYZE`.
+    Analyze,
+    /// `CREATE VIRTUAL TABLE`.
+    CreateVtable,
+    /// `DROP VIRTUAL TABLE`.
+    DropVtable,
+    /// SQL function invocation (`arg2` is the function name).
+    Function,
+    /// `SAVEPOINT`, `RELEASE`, or `ROLLBACK TO`.
+    Savepoint,
+    /// Recursive CTE query.
+    Recursive,
+    /// Unrecognized SQLite action code.
+    Unknown(i32),
+}
+
 /// Collection of bound SQL arguments.
 #[derive(Clone, Debug, Default)]
 pub struct Arguments {/* private fields */}
@@ -612,6 +688,18 @@ impl Arguments {
     pub fn add_named<T>(&mut self, name: &str, value: &T) -> crate::Result<()>
     where
         T: ?Sized + Encode;
+}
+
+/// Decision returned by a SQLite authorizer callback.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+pub enum AuthResult {
+    /// Allow the operation (`SQLITE_OK`).
+    Ok,
+    /// Deny the operation and abort statement preparation (`SQLITE_DENY`).
+    Deny,
+    /// Allow statement preparation, treating disallowed column reads as `NULL`
+    /// or ignoring the action where SQLite permits it (`SQLITE_IGNORE`).
+    Ignore,
 }
 
 /// Refer to [SQLite documentation] for auto-vacuum mode semantics.
@@ -713,6 +801,12 @@ impl Connection {
     where
         Self: Sized;
 
+    /// Remove any active SQLite authorizer callback from this connection.
+    ///
+    /// Clearing the authorizer also clears this connection's prepared statement
+    /// cache.
+    pub async fn clear_authorizer(&self) -> crate::Result<()>;
+
     /// Close this connection and shut down its worker thread.
     ///
     /// This consumes the connection so later calls cannot observe a closed
@@ -783,6 +877,9 @@ impl Connection {
     /// Return whether SQLite currently has no explicit transaction open.
     pub async fn is_autocommit(&self) -> crate::Result<bool>;
 
+    /// Return a per-connection SQLite runtime limit via `sqlite3_limit`.
+    pub async fn limit(&self, kind: SqliteLimit) -> crate::Result<u32>;
+
     /// Deliver a signal after SQLite commits a transaction.
     ///
     /// The hook cannot veto the commit. See [`Self::on_update`] for delivery
@@ -829,6 +926,27 @@ impl Connection {
     /// allocates the buffer; Musq copies it into a `Vec` and frees the
     /// original.
     pub async fn serialize(&self, schema: &str) -> crate::Result<Vec<u8>>;
+
+    /// Install a per-connection SQLite authorizer callback via
+    /// `sqlite3_set_authorizer`.
+    ///
+    /// SQLite invokes the callback while preparing statements, passing the
+    /// [`ActionCode`], two action-specific arguments, the database name, and
+    /// the innermost enclosing trigger or view name (if any).
+    ///
+    /// Installing an authorizer clears this connection's prepared statement
+    /// cache so previously prepared statements are re-checked on next use.
+    /// Panics inside the callback are caught and treated as
+    /// [`AuthResult::Deny`].
+    pub async fn set_authorizer<F>(&self, authorizer: F) -> crate::Result<()>
+    where
+        F: 'static
+            + Fn(ActionCode, Option<&str>, Option<&str>, Option<&str>, Option<&str>) -> AuthResult
+            + Send;
+
+    /// Set a per-connection SQLite runtime limit via `sqlite3_limit` and return
+    /// its previous value.
+    pub async fn set_limit(&self, kind: SqliteLimit, new_limit: u32) -> crate::Result<u32>;
 
     /// Execute the function inside a transaction.
     ///
@@ -2026,6 +2144,46 @@ impl SqliteError {
 
     /// Returns `true` if the error represents a unique-value conflict.
     pub fn is_unique_violation(&self) -> bool;
+}
+
+/// Per-connection SQLite runtime limit category for `sqlite3_limit`.
+#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[non_exhaustive]
+pub enum SqliteLimit {
+    /// Maximum size of any string or BLOB or table row, in bytes
+    /// (`SQLITE_LIMIT_LENGTH`).
+    Length,
+    /// Maximum length of an SQL statement, in bytes
+    /// (`SQLITE_LIMIT_SQL_LENGTH`).
+    SqlLength,
+    /// Maximum number of columns in a table, index, view, or SELECT result
+    /// (`SQLITE_LIMIT_COLUMN`).
+    Column,
+    /// Maximum depth of an expression tree (`SQLITE_LIMIT_EXPR_DEPTH`).
+    ExprDepth,
+    /// Maximum number of terms in a compound SELECT statement
+    /// (`SQLITE_LIMIT_COMPOUND_SELECT`).
+    CompoundSelect,
+    /// Maximum number of instructions in a virtual machine program
+    /// (`SQLITE_LIMIT_VDBE_OP`).
+    VdbeOp,
+    /// Maximum number of arguments on a function (`SQLITE_LIMIT_FUNCTION_ARG`).
+    FunctionArg,
+    /// Maximum number of attached databases (`SQLITE_LIMIT_ATTACHED`).
+    Attached,
+    /// Maximum length of the pattern argument to `LIKE` or `GLOB`
+    /// (`SQLITE_LIMIT_LIKE_PATTERN_LENGTH`).
+    LikePatternLength,
+    /// Maximum index number of any parameter in an SQL statement
+    /// (`SQLITE_LIMIT_VARIABLE_NUMBER`).
+    VariableNumber,
+    /// Maximum depth of recursion for triggers (`SQLITE_LIMIT_TRIGGER_DEPTH`).
+    TriggerDepth,
+    /// Maximum number of auxiliary worker threads
+    /// (`SQLITE_LIMIT_WORKER_THREADS`).
+    WorkerThreads,
+    /// Maximum depth of the SQLite parser stack (`SQLITE_LIMIT_PARSER_DEPTH`).
+    ParserDepth,
 }
 
 /// Runtime identity and compile options for the bundled SQLite library.

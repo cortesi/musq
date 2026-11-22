@@ -6,6 +6,11 @@ use libsqlite3_sys::{
     SQLITE_DBSTATUS_LOOKASIDE_HIT, SQLITE_DBSTATUS_LOOKASIDE_MISS_FULL,
     SQLITE_DBSTATUS_LOOKASIDE_MISS_SIZE, SQLITE_DBSTATUS_LOOKASIDE_USED,
     SQLITE_DBSTATUS_SCHEMA_USED, SQLITE_DBSTATUS_STMT_USED, SQLITE_DBSTATUS_TEMPBUF_SPILL,
+    SQLITE_LIMIT_ATTACHED, SQLITE_LIMIT_COLUMN, SQLITE_LIMIT_COMPOUND_SELECT,
+    SQLITE_LIMIT_EXPR_DEPTH, SQLITE_LIMIT_FUNCTION_ARG, SQLITE_LIMIT_LENGTH,
+    SQLITE_LIMIT_LIKE_PATTERN_LENGTH, SQLITE_LIMIT_PARSER_DEPTH, SQLITE_LIMIT_SQL_LENGTH,
+    SQLITE_LIMIT_TRIGGER_DEPTH, SQLITE_LIMIT_VARIABLE_NUMBER, SQLITE_LIMIT_VDBE_OP,
+    SQLITE_LIMIT_WORKER_THREADS,
 };
 
 /// Messages returned by a SQLite integrity check.
@@ -154,6 +159,67 @@ pub struct WalCheckpoint {
     pub log_frames: Option<i32>,
     /// Frames checkpointed from the WAL, or `None` when SQLite reports `-1`.
     pub checkpointed_frames: Option<i32>,
+}
+
+/// Per-connection SQLite runtime limit category for `sqlite3_limit`.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[non_exhaustive]
+pub enum SqliteLimit {
+    /// Maximum size of any string or BLOB or table row, in bytes
+    /// (`SQLITE_LIMIT_LENGTH`).
+    Length,
+    /// Maximum length of an SQL statement, in bytes
+    /// (`SQLITE_LIMIT_SQL_LENGTH`).
+    SqlLength,
+    /// Maximum number of columns in a table, index, view, or SELECT result
+    /// (`SQLITE_LIMIT_COLUMN`).
+    Column,
+    /// Maximum depth of an expression tree (`SQLITE_LIMIT_EXPR_DEPTH`).
+    ExprDepth,
+    /// Maximum number of terms in a compound SELECT statement
+    /// (`SQLITE_LIMIT_COMPOUND_SELECT`).
+    CompoundSelect,
+    /// Maximum number of instructions in a virtual machine program
+    /// (`SQLITE_LIMIT_VDBE_OP`).
+    VdbeOp,
+    /// Maximum number of arguments on a function (`SQLITE_LIMIT_FUNCTION_ARG`).
+    FunctionArg,
+    /// Maximum number of attached databases (`SQLITE_LIMIT_ATTACHED`).
+    Attached,
+    /// Maximum length of the pattern argument to `LIKE` or `GLOB`
+    /// (`SQLITE_LIMIT_LIKE_PATTERN_LENGTH`).
+    LikePatternLength,
+    /// Maximum index number of any parameter in an SQL statement
+    /// (`SQLITE_LIMIT_VARIABLE_NUMBER`).
+    VariableNumber,
+    /// Maximum depth of recursion for triggers (`SQLITE_LIMIT_TRIGGER_DEPTH`).
+    TriggerDepth,
+    /// Maximum number of auxiliary worker threads
+    /// (`SQLITE_LIMIT_WORKER_THREADS`).
+    WorkerThreads,
+    /// Maximum depth of the SQLite parser stack (`SQLITE_LIMIT_PARSER_DEPTH`).
+    ParserDepth,
+}
+
+impl SqliteLimit {
+    /// Return the SQLite `SQLITE_LIMIT_*` opcode for this limit.
+    pub(crate) fn as_sqlite_code(self) -> i32 {
+        match self {
+            Self::Length => SQLITE_LIMIT_LENGTH,
+            Self::SqlLength => SQLITE_LIMIT_SQL_LENGTH,
+            Self::Column => SQLITE_LIMIT_COLUMN,
+            Self::ExprDepth => SQLITE_LIMIT_EXPR_DEPTH,
+            Self::CompoundSelect => SQLITE_LIMIT_COMPOUND_SELECT,
+            Self::VdbeOp => SQLITE_LIMIT_VDBE_OP,
+            Self::FunctionArg => SQLITE_LIMIT_FUNCTION_ARG,
+            Self::Attached => SQLITE_LIMIT_ATTACHED,
+            Self::LikePatternLength => SQLITE_LIMIT_LIKE_PATTERN_LENGTH,
+            Self::VariableNumber => SQLITE_LIMIT_VARIABLE_NUMBER,
+            Self::TriggerDepth => SQLITE_LIMIT_TRIGGER_DEPTH,
+            Self::WorkerThreads => SQLITE_LIMIT_WORKER_THREADS,
+            Self::ParserDepth => SQLITE_LIMIT_PARSER_DEPTH,
+        }
+    }
 }
 
 #[cfg(test)]

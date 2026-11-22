@@ -550,6 +550,39 @@ pub(in crate::sqlite) unsafe fn progress_handler(
     unsafe { ffi_sys::sqlite3_progress_handler(db, n as c_int, x_progress, p_arg) }
 }
 
+/// Callback signature for [`sqlite3_set_authorizer`].
+pub(in crate::sqlite) type AuthorizerCallback = unsafe extern "C" fn(
+    *mut c_void,
+    c_int,
+    *const c_char,
+    *const c_char,
+    *const c_char,
+    *const c_char,
+) -> c_int;
+
+/// Wrapper around [`sqlite3_set_authorizer`].
+///
+/// # Safety
+/// - `db` must be a valid SQLite connection handle.
+/// - `x_auth` and `p_arg` must remain valid until the authorizer is replaced or
+///   cleared.
+///
+/// See <https://www.sqlite.org/c3ref/set_authorizer.html>
+#[inline]
+#[must_use = "handle the Result"]
+pub(in crate::sqlite) unsafe fn set_authorizer(
+    db: *mut sqlite3,
+    x_auth: Option<AuthorizerCallback>,
+    p_arg: *mut c_void,
+) -> StdResult<(), SqliteError> {
+    let rc = unsafe { ffi_sys::sqlite3_set_authorizer(db, x_auth, p_arg) };
+    if rc == ffi_sys::SQLITE_OK {
+        Ok(())
+    } else {
+        Err(SqliteError::new(db))
+    }
+}
+
 /// Wrapper around [`sqlite3_db_handle`].
 ///
 /// # Safety

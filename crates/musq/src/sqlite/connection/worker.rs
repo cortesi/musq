@@ -25,8 +25,8 @@ use crate::{
     sqlite::{
         Arguments,
         connection::{
-            BackupReport, ConnectionState, DbStatus, DbStatusKind, DeserializeMode, WalCheckpoint,
-            WalCheckpointMode, establish::EstablishParams, execute,
+            BackupReport, ConnectionState, DbStatus, DbStatusKind, DeserializeMode, SqliteLimit,
+            WalCheckpoint, WalCheckpointMode, establish::EstablishParams, execute,
         },
         error::SqliteError,
         ffi, hooks as sqlite_hooks,
@@ -281,6 +281,18 @@ enum Command {
         /// Response channel.
         tx: oneshot::Sender<Result<()>>,
     },
+    /// Install an authorizer callback on the SQLite connection.
+    SetAuthorizer {
+        /// Authorizer predicate.
+        callback: sqlite_hooks::AuthorizerFn,
+        /// Response channel.
+        tx: oneshot::Sender<Result<()>>,
+    },
+    /// Remove any active authorizer callback from the SQLite connection.
+    ClearAuthorizer {
+        /// Response channel.
+        tx: oneshot::Sender<Result<()>>,
+    },
     /// Commit a transaction.
     Commit {
         /// Response channel.
@@ -311,6 +323,22 @@ enum Command {
     },
     /// Return the parser stack depth limit.
     ParserDepthLimit {
+        /// Response channel.
+        tx: oneshot::Sender<Result<u32>>,
+    },
+    /// Read a per-connection SQLite runtime limit.
+    GetLimit {
+        /// Limit category.
+        kind: SqliteLimit,
+        /// Response channel.
+        tx: oneshot::Sender<Result<u32>>,
+    },
+    /// Set a per-connection SQLite runtime limit and return the previous value.
+    SetLimit {
+        /// Limit category.
+        kind: SqliteLimit,
+        /// New limit value.
+        value: i32,
         /// Response channel.
         tx: oneshot::Sender<Result<u32>>,
     },
@@ -347,6 +375,8 @@ struct WorkerSession {
     ignore_next_start_rollback: bool,
     /// Set when an interrupt rolled back an explicit transaction.
     transaction_aborted: bool,
+    /// Raw userdata pointer for the active `sqlite3_set_authorizer` callback.
+    authorizer: Option<*mut c_void>,
 }
 
 impl WorkerSession {
@@ -412,6 +442,7 @@ impl WorkerSession {
             timeout,
             ignore_next_start_rollback: false,
             transaction_aborted: false,
+            authorizer: None,
         })
     }
 
@@ -464,6 +495,8 @@ impl WorkerSession {
             Command::SetUpdateHook { events, tx } => self.install_update_hook(events, tx),
             Command::SetCommitHook { events, tx } => self.install_commit_hook(events, tx),
             Command::SetRollbackHook { events, tx } => self.install_rollback_hook(events, tx),
+            Command::SetAuthorizer { callback, tx } => self.install_authorizer(callback, tx),
+            Command::ClearAuthorizer { tx } => self.clear_authorizer(tx),
             Command::Commit { tx } => self.commit(tx),
             Command::Rollback { tx } => self.rollback(tx),
             Command::DbStatus {
@@ -480,6 +513,12 @@ impl WorkerSession {
             }
             Command::ParserDepthLimit { tx } => {
                 tx.send(parser_depth_limit(&self.conn)).ok();
+            }
+            Command::GetLimit { kind, tx } => {
+                tx.send(get_limit(&self.conn, kind)).ok();
+            }
+            Command::SetLimit { kind, value, tx } => {
+                tx.send(set_limit(&self.conn, kind, value)).ok();
             }
             #[cfg(test)]
             Command::ClearCache { tx } => {
@@ -680,14 +719,56 @@ impl WorkerSession {
         tx.send(Ok(())).ok();
     }
 
+    /// Install an authorizer callback and clear cached statements so all future
+    /// prepares are checked by the new authorizer.
+    fn install_authorizer(
+        &mut self,
+        callback: sqlite_hooks::AuthorizerFn,
+        tx: oneshot::Sender<Result<()>>,
+    ) {
+        let db = self.conn.handle.as_ptr();
+        let state = sqlite_hooks::AuthorizerState::new(callback);
+        // SAFETY: the worker owns a live SQLite connection handle.
+        let res = unsafe { sqlite_hooks::set_authorizer(db, state) }.map(|ptr| {
+            if let Some(prev) = self.authorizer.replace(ptr) {
+                // SAFETY: `prev` was replaced in SQLite and is no longer
+                // referenced.
+                unsafe { sqlite_hooks::drop_authorizer(prev) };
+            }
+            self.conn.statements.clear();
+            update_cached_statements_size(&self.conn, &self.shared.cached_statements_size);
+        });
+        tx.send(res.map_err(Error::from)).ok();
+    }
+
+    /// Remove the active authorizer callback and clear cached statements.
+    fn clear_authorizer(&mut self, tx: oneshot::Sender<Result<()>>) {
+        let db = self.conn.handle.as_ptr();
+        // SAFETY: the worker owns a live SQLite connection handle.
+        let res = unsafe { sqlite_hooks::clear_authorizer(db) }.map(|()| {
+            if let Some(prev) = self.authorizer.take() {
+                // SAFETY: SQLite authorizer has been cleared so `prev` is no
+                // longer referenced.
+                unsafe { sqlite_hooks::drop_authorizer(prev) };
+            }
+            self.conn.statements.clear();
+            update_cached_statements_size(&self.conn, &self.shared.cached_statements_size);
+        });
+        tx.send(res.map_err(Error::from)).ok();
+    }
+
     /// Remove SQLite hooks and free their userdata.
-    fn clear_hooks(&self) {
+    fn clear_hooks(&mut self) {
         let db = self.conn.handle.as_ptr();
         // SAFETY: the worker owns a live SQLite connection handle.
         unsafe {
             sqlite_hooks::drop_hook::<UpdateEvent>(sqlite_hooks::clear_update_hook(db));
             sqlite_hooks::drop_hook::<()>(sqlite_hooks::clear_commit_hook(db));
             sqlite_hooks::drop_hook::<()>(sqlite_hooks::clear_rollback_hook(db));
+            if let Some(prev) = self.authorizer.take() {
+                sqlite_hooks::clear_authorizer(db).ok();
+                sqlite_hooks::drop_authorizer(prev);
+            }
         }
     }
 
@@ -887,6 +968,18 @@ impl ConnectionWorker {
             .await?
     }
 
+    /// Install an authorizer callback on the worker thread.
+    pub(crate) async fn set_authorizer(&self, callback: sqlite_hooks::AuthorizerFn) -> Result<()> {
+        self.oneshot_cmd(|tx| Command::SetAuthorizer { callback, tx })
+            .await?
+    }
+
+    /// Remove any active authorizer callback on the worker thread.
+    pub(crate) async fn clear_authorizer(&self) -> Result<()> {
+        self.oneshot_cmd(|tx| Command::ClearAuthorizer { tx })
+            .await?
+    }
+
     /// Return the number of hook events dropped because the receiver is gone.
     pub(crate) fn dropped_hook_events(&self) -> usize {
         self.shared.dropped_hook_events.load(Ordering::Relaxed)
@@ -938,6 +1031,18 @@ impl ConnectionWorker {
     /// Return the parser stack depth limit from the worker thread.
     pub(crate) async fn parser_depth_limit(&self) -> Result<u32> {
         self.oneshot_cmd(|tx| Command::ParserDepthLimit { tx })
+            .await?
+    }
+
+    /// Return a per-connection SQLite runtime limit from the worker thread.
+    pub(crate) async fn limit(&self, kind: SqliteLimit) -> Result<u32> {
+        self.oneshot_cmd(|tx| Command::GetLimit { kind, tx })
+            .await?
+    }
+
+    /// Set a per-connection SQLite runtime limit and return the previous value.
+    pub(crate) async fn set_limit(&self, kind: SqliteLimit, value: i32) -> Result<u32> {
+        self.oneshot_cmd(|tx| Command::SetLimit { kind, value, tx })
             .await?
     }
 
@@ -1096,16 +1201,25 @@ fn wal_checkpoint(
 
 /// Return the parser stack depth limit for the active connection.
 fn parser_depth_limit(conn: &ConnectionState) -> Result<u32> {
-    let limit = unsafe {
-        ffi::limit(
-            conn.handle.as_ptr(),
-            libsqlite3_sys::SQLITE_LIMIT_PARSER_DEPTH,
-            -1,
-        )
-    };
+    get_limit(conn, SqliteLimit::ParserDepth)
+}
+
+/// Return a per-connection SQLite runtime limit.
+fn get_limit(conn: &ConnectionState, kind: SqliteLimit) -> Result<u32> {
+    let limit = unsafe { ffi::limit(conn.handle.as_ptr(), kind.as_sqlite_code(), -1) };
     u32::try_from(limit).map_err(|_| {
         Error::Protocol(format!(
-            "SQLite returned invalid parser depth limit {limit}"
+            "SQLite returned invalid limit {limit} for {kind:?}"
+        ))
+    })
+}
+
+/// Update a per-connection SQLite runtime limit and return the previous value.
+fn set_limit(conn: &ConnectionState, kind: SqliteLimit, value: i32) -> Result<u32> {
+    let previous = unsafe { ffi::limit(conn.handle.as_ptr(), kind.as_sqlite_code(), value) };
+    u32::try_from(previous).map_err(|_| {
+        Error::Protocol(format!(
+            "SQLite returned invalid previous limit {previous} for {kind:?}"
         ))
     })
 }
@@ -1381,6 +1495,7 @@ mod tests {
             timeout: None,
             ignore_next_start_rollback: false,
             transaction_aborted: false,
+            authorizer: None,
         };
 
         drop(session);

@@ -3,11 +3,12 @@ use std::sync::Arc;
 pub use arguments::Arguments;
 pub use connection::{
     BackupReport, Connection, DbStatus, DbStatusKind, DeserializeMode, ForeignKeyViolation,
-    IntegrityReport, InterruptHandle, SqliteRuntimeInfo, WalCheckpoint, WalCheckpointMode,
+    IntegrityReport, InterruptHandle, SqliteLimit, SqliteRuntimeInfo, WalCheckpoint,
+    WalCheckpointMode,
 };
 pub use error::SqliteError;
 pub use function::FunctionFlags;
-pub use hooks::{UpdateEvent, UpdateOp};
+pub use hooks::{ActionCode, AuthResult, UpdateEvent, UpdateOp};
 pub use type_info::SqliteDataType;
 pub use value::{Text, Value};
 
