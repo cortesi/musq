@@ -1,11 +1,7 @@
 //! Types for working with errors produced by Musq.
 
 use std::{
-    io,
-    num::TryFromIntError,
-    path::PathBuf,
-    result::Result as StdResult,
-    sync::PoisonError,
+    io, num::TryFromIntError, path::PathBuf, result::Result as StdResult, sync::PoisonError,
 };
 
 pub use crate::sqlite::error::{ExtendedErrCode, PrimaryErrCode};
@@ -91,9 +87,7 @@ pub enum ModuleError {
 
     /// A module created a schema object that violates prefix or table ownership
     /// rules.
-    #[error(
-        "module `{module_id}` created disallowed {object_type} `{object_name}`: {reason}"
-    )]
+    #[error("module `{module_id}` created disallowed {object_type} `{object_name}`: {reason}")]
     SchemaViolation {
         /// Module identifier.
         module_id: String,

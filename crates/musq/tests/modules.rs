@@ -100,7 +100,8 @@ mod tests {
 
         async fn migrate(tx: &mut Transaction<&mut Connection>, from_version: u32) -> Result<()> {
             assert_eq!(from_version, 1);
-            // Rebuild table while preserving FK references (uses defer_foreign_keys).
+            // Rebuild table while preserving FK references (uses
+            // defer_foreign_keys).
             query(
                 "CREATE TABLE b_notes_new (
                     id INTEGER PRIMARY KEY,
@@ -111,9 +112,11 @@ mod tests {
             )
             .execute(&**tx)
             .await?;
-            query("INSERT INTO b_notes_new (id, item_id, body) SELECT id, item_id, body FROM b_notes")
-                .execute(&**tx)
-                .await?;
+            query(
+                "INSERT INTO b_notes_new (id, item_id, body) SELECT id, item_id, body FROM b_notes",
+            )
+            .execute(&**tx)
+            .await?;
             query("DROP TABLE b_notes").execute(&**tx).await?;
             query("ALTER TABLE b_notes_new RENAME TO b_notes")
                 .execute(&**tx)
@@ -154,7 +157,8 @@ mod tests {
 
         async fn migrate(tx: &mut Transaction<&mut Connection>, _from_version: u32) -> Result<()> {
             // `defer_foreign_keys = ON` allows the insert inside tx, then
-            // post-migration `PRAGMA foreign_key_check` must catch and roll back.
+            // post-migration `PRAGMA foreign_key_check` must catch and roll
+            // back.
             query("INSERT INTO b_notes (id, item_id, body) VALUES (999, 99999, 'orphan')")
                 .execute(&**tx)
                 .await?;
@@ -264,7 +268,8 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn dag_dependencies_migrations_idempotency_downgrade_and_discovery() -> anyhow::Result<()> {
+    async fn dag_dependencies_migrations_idempotency_downgrade_and_discovery() -> anyhow::Result<()>
+    {
         let dir = tempdir()?;
         let db_path = dir.path().join("app.db");
 
@@ -344,7 +349,8 @@ mod tests {
             })
         ));
 
-        // Broken FK migration is caught by PRAGMA foreign_key_check and rolled back.
+        // Broken FK migration is caught by PRAGMA foreign_key_check and rolled
+        // back.
         let fk_err = db.mount(ModBV3BrokenFk).await.unwrap_err();
         assert!(matches!(
             fk_err,
@@ -359,7 +365,8 @@ mod tests {
 
         db.close().await?;
 
-        // Read-only discovery succeeds regardless of host application_id/user_version.
+        // Read-only discovery succeeds regardless of host
+        // application_id/user_version.
         let ro = Database::open_read_only(&db_path, false).await?;
         let modules = ro.mounted_modules().await?;
         assert_eq!(modules.len(), 2);
@@ -432,14 +439,14 @@ mod tests {
                 ..
             }) if object_type == "table" && object_name == "rogue_table"
         ));
-        let rogue_exists: i64 = query_scalar(
-            "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'rogue_table'",
-        )
-        .fetch_one(db.pool())
-        .await?;
+        let rogue_exists: i64 =
+            query_scalar("SELECT COUNT(*) FROM sqlite_schema WHERE name = 'rogue_table'")
+                .fetch_one(db.pool())
+                .await?;
         assert_eq!(rogue_exists, 0);
 
-        // Foreign index targeting another module's table rejected and rolled back.
+        // Foreign index targeting another module's table rejected and rolled
+        // back.
         let foreign_idx = db.mount(ModForeignIndex).await.unwrap_err();
         assert!(matches!(
             foreign_idx,
@@ -450,14 +457,14 @@ mod tests {
                 ..
             }) if object_type == "index" && object_name == "fi_steal_idx" && tbl == "a_items"
         ));
-        let idx_exists: i64 = query_scalar(
-            "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'fi_steal_idx'",
-        )
-        .fetch_one(db.pool())
-        .await?;
+        let idx_exists: i64 =
+            query_scalar("SELECT COUNT(*) FROM sqlite_schema WHERE name = 'fi_steal_idx'")
+                .fetch_one(db.pool())
+                .await?;
         assert_eq!(idx_exists, 0);
 
-        // Foreign trigger targeting another module's table rejected and rolled back.
+        // Foreign trigger targeting another module's table rejected and rolled
+        // back.
         let foreign_trg = db.mount(ModForeignTrigger).await.unwrap_err();
         assert!(matches!(
             foreign_trg,
@@ -468,11 +475,10 @@ mod tests {
                 ..
             }) if object_type == "trigger" && object_name == "ft_steal_trg" && tbl == "a_items"
         ));
-        let trg_exists: i64 = query_scalar(
-            "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'ft_steal_trg'",
-        )
-        .fetch_one(db.pool())
-        .await?;
+        let trg_exists: i64 =
+            query_scalar("SELECT COUNT(*) FROM sqlite_schema WHERE name = 'ft_steal_trg'")
+                .fetch_one(db.pool())
+                .await?;
         assert_eq!(trg_exists, 0);
 
         // View without prefix or v_<prefix> rejected and rolled back.
@@ -485,11 +491,10 @@ mod tests {
                 ..
             }) if object_type == "view" && object_name == "v_other_rows"
         ));
-        let bv_exists: i64 = query_scalar(
-            "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'bv_rows'",
-        )
-        .fetch_one(db.pool())
-        .await?;
+        let bv_exists: i64 =
+            query_scalar("SELECT COUNT(*) FROM sqlite_schema WHERE name = 'bv_rows'")
+                .fetch_one(db.pool())
+                .await?;
         assert_eq!(bv_exists, 0);
 
         // Only ModA remains registered.
@@ -518,7 +523,10 @@ mod tests {
         assert!(ro.mounted_modules().await?.is_empty());
         assert!(ro.module_record(ModA::ID).await?.is_none());
         let err = ro.verify_module::<ModA>().await.unwrap_err();
-        assert!(matches!(err, Error::Module(ModuleError::NotInstalled { .. })));
+        assert!(matches!(
+            err,
+            Error::Module(ModuleError::NotInstalled { .. })
+        ));
         ro.close().await?;
         Ok(())
     }

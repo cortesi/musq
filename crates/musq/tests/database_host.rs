@@ -3,12 +3,12 @@
 
 #[cfg(test)]
 mod tests {
-    use std::ffi::OsString;
-    use std::path::{Path, PathBuf};
-
-    use musq::{
-        Database, DatabaseOptions, Error, FunctionFlags, Musq, Value, query, query_scalar,
+    use std::{
+        ffi::OsString,
+        path::{Path, PathBuf},
     };
+
+    use musq::{Database, DatabaseOptions, Error, FunctionFlags, Musq, Value, query, query_scalar};
     use tempfile::tempdir;
 
     /// Compute a SQLite sidecar path (`-wal` or `-shm`).
@@ -32,7 +32,9 @@ mod tests {
         assert!(!db.is_immutable());
         assert!(db.path().is_absolute());
 
-        let page_size: i64 = query_scalar("PRAGMA page_size").fetch_one(db.pool()).await?;
+        let page_size: i64 = query_scalar("PRAGMA page_size")
+            .fetch_one(db.pool())
+            .await?;
         let auto_vacuum: i64 = query_scalar("PRAGMA auto_vacuum")
             .fetch_one(db.pool())
             .await?;
@@ -70,7 +72,8 @@ mod tests {
         let reopened = Database::open(&db_path, opts).await?;
         reopened.close().await?;
 
-        // Reopening with mismatched application_id fails with IncompatibleFormat.
+        // Reopening with mismatched application_id fails with
+        // IncompatibleFormat.
         let err = Database::open(&db_path, DatabaseOptions::new().application_id(0x1111_2222))
             .await
             .unwrap_err();
@@ -86,10 +89,7 @@ mod tests {
         let ro = Database::open_read_only(&db_path, false).await?;
         assert!(ro.is_read_only());
         assert!(!ro.is_immutable());
-        let write_err = ro
-            .write(async |_tx| Ok::<_, Error>(()))
-            .await
-            .unwrap_err();
+        let write_err = ro.write(async |_tx| Ok::<_, Error>(())).await.unwrap_err();
         assert!(matches!(write_err, Error::ReadOnly));
         ro.close().await?;
 
@@ -193,7 +193,7 @@ mod tests {
         // Panic inside callback rolls back cleanly and keeps writer usable.
         let db_for_panic = db.clone();
         let panic_res = tokio::spawn(async move {
-            let _: Result<(), Error> = db_for_panic
+            let res: Result<(), Error> = db_for_panic
                 .write(async |tx| {
                     query("INSERT INTO a_tbl (id, val) VALUES (3, 'panicked')")
                         .execute(&**tx)
@@ -201,6 +201,7 @@ mod tests {
                     panic!("simulated callback panic")
                 })
                 .await;
+            res
         })
         .await;
         assert!(panic_res.unwrap_err().is_panic());

@@ -4,7 +4,9 @@
 use std::{collections::HashSet, future::Future};
 
 use super::surface::QuerySurface;
-use crate::{Connection, Error, ModuleError, Pool, Result, Transaction, query, query_as, query_scalar};
+use crate::{
+    Connection, Error, ModuleError, Pool, Result, Transaction, query, query_as, query_scalar,
+};
 
 /// Registry entry recorded in `_musq_modules`.
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -44,9 +46,7 @@ pub trait Module {
 
     /// Install this module's schema from scratch inside an active write
     /// transaction.
-    fn install(
-        tx: &mut Transaction<&mut Connection>,
-    ) -> impl Future<Output = Result<()>> + Send;
+    fn install(tx: &mut Transaction<&mut Connection>) -> impl Future<Output = Result<()>> + Send;
 
     /// Migrate this module's schema from `from_version` to
     /// [`Self::SCHEMA_VERSION`] inside an active write transaction with
@@ -95,7 +95,7 @@ struct SchemaObject {
 type RawModuleRow = (String, String, i64, String, String);
 
 /// Validate `M::ID` and `M::TABLE_PREFIX` before starting a mount transaction.
-pub(crate) fn validate_module_identity(module_id: &str, prefix: &str) -> Result<()> {
+pub fn validate_module_identity(module_id: &str, prefix: &str) -> Result<()> {
     if module_id.trim().is_empty() {
         return Err(Error::Module(ModuleError::InvalidPrefix {
             module_id: module_id.to_owned(),
@@ -142,7 +142,7 @@ pub(crate) fn validate_module_identity(module_id: &str, prefix: &str) -> Result<
 
 /// Execute module mount (fresh install, idempotent check, or upgrade) inside an
 /// active `BEGIN IMMEDIATE` transaction.
-pub(crate) async fn mount_in_tx<M: Module>(
+pub async fn mount_in_tx<M: Module>(
     tx: &mut Transaction<&mut Connection>,
     meta_json: &str,
 ) -> Result<ModuleRecord> {
@@ -248,8 +248,7 @@ async fn upgrade_module_in_tx<M: Module>(
 /// `installed`.
 fn check_dependencies<M: Module>(installed: &[ModuleRecord]) -> Result<()> {
     for &dep_id in M::DEPENDS_ON {
-        let present =
-            dep_id != M::ID && installed.iter().any(|record| record.module_id == dep_id);
+        let present = dep_id != M::ID && installed.iter().any(|record| record.module_id == dep_id);
         if !present {
             return Err(Error::Module(ModuleError::DependencyMissing {
                 module_id: M::ID.to_owned(),
@@ -414,7 +413,7 @@ fn starts_with_ascii_ci(value: &str, prefix: &str) -> bool {
 ///
 /// Returns an empty list if `_musq_modules` does not exist yet (for example on
 /// a read-only legacy database).
-pub(crate) async fn list_modules_from_pool(pool: &Pool) -> Result<Vec<ModuleRecord>> {
+pub async fn list_modules_from_pool(pool: &Pool) -> Result<Vec<ModuleRecord>> {
     if !modules_table_exists(pool).await? {
         return Ok(Vec::new());
     }
@@ -430,10 +429,7 @@ pub(crate) async fn list_modules_from_pool(pool: &Pool) -> Result<Vec<ModuleReco
 
 /// Load one module record by `module_id` from `pool`, returning `None` if
 /// `_musq_modules` or the row does not exist.
-pub(crate) async fn load_module_from_pool(
-    pool: &Pool,
-    module_id: &str,
-) -> Result<Option<ModuleRecord>> {
+pub async fn load_module_from_pool(pool: &Pool, module_id: &str) -> Result<Option<ModuleRecord>> {
     if !modules_table_exists(pool).await? {
         return Ok(None);
     }
@@ -450,7 +446,7 @@ pub(crate) async fn load_module_from_pool(
 
 /// Verify that module `M` is installed in `pool` with matching prefix and
 /// schema version.
-pub(crate) async fn verify_module_from_pool<M: Module>(pool: &Pool) -> Result<ModuleRecord> {
+pub async fn verify_module_from_pool<M: Module>(pool: &Pool) -> Result<ModuleRecord> {
     let Some(record) = load_module_from_pool(pool, M::ID).await? else {
         return Err(Error::Module(ModuleError::NotInstalled {
             module_id: M::ID.to_owned(),

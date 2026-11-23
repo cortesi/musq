@@ -16,9 +16,8 @@ use crate::{Connection, FunctionFlags, Result, Value};
 /// The hook receives the mutable [`Connection`] (opened read-only with full
 /// access to base tables before the authorizer is attached) and the SQL text
 /// of the incoming query.
-pub type SandboxPrepareHook = Arc<
-    dyn for<'a> Fn(&'a mut Connection, &'a str) -> BoxFuture<'a, Result<()>> + Send + Sync,
->;
+pub type SandboxPrepareHook =
+    Arc<dyn for<'a> Fn(&'a mut Connection, &'a str) -> BoxFuture<'a, Result<()>> + Send + Sync>;
 
 /// Declarative read-only SQL surface exposed by a [`crate::Module`] or host to
 /// [`crate::ReadOnlySandbox`].

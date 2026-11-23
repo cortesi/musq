@@ -7,17 +7,23 @@ use std::{
     ops::AsyncFnOnce,
     path::{Path, PathBuf},
     result,
-    sync::{Arc, RwLock},
+    sync::{Arc, PoisonError, RwLock},
     time::Duration,
 };
 
 use indexmap::IndexMap;
 
+#[cfg(feature = "json")]
+pub use self::sandbox::{json_params_to_values, value_to_json};
+use self::writer::LazyWriter;
 pub use self::{
     module::{Module, ModuleRecord},
+    sandbox::{
+        ReadOnlySandbox, SandboxQueryOptions, SandboxQueryResult, fleet_query,
+        validate_single_statement,
+    },
     surface::{QuerySurface, SandboxPrepareHook},
 };
-use self::writer::LazyWriter;
 use crate::{
     AutoVacuum, Connection, Error, JournalMode, Musq, Pool, Result, Synchronous, Transaction,
     TransactionBehavior, query, query_scalar,
@@ -25,6 +31,8 @@ use crate::{
 
 /// Composable schema modules and `_musq_modules` registry.
 mod module;
+/// Composable read-only SQL sandbox and multi-file fleet queries.
+mod sandbox;
 /// Declarative read-only SQL query surfaces.
 mod surface;
 /// Dedicated single-threaded FIFO writer runtime.
@@ -324,7 +332,7 @@ impl Database {
             .write(async move |tx| module::mount_in_tx::<M>(tx, &meta_json).await)
             .await?;
 
-        self.register_query_surface(M::ID, surface)?;
+        self.register_query_surface(M::ID, surface);
         Ok(record)
     }
 
@@ -351,21 +359,25 @@ impl Database {
 
     /// Register or replace a [`QuerySurface`] associated with `module_id` on
     /// this host handle (for example after read-only module discovery).
-    pub fn register_query_surface(
-        &self,
-        module_id: impl Into<String>,
-        surface: QuerySurface,
-    ) -> Result<()> {
-        let mut guard = self.0.surfaces.write()?;
+    pub fn register_query_surface(&self, module_id: impl Into<String>, surface: QuerySurface) {
+        let mut guard = self
+            .0
+            .surfaces
+            .write()
+            .unwrap_or_else(PoisonError::into_inner);
         guard.insert(module_id.into(), surface);
-        Ok(())
     }
 
     /// Return the combined [`QuerySurface`] union of every mounted or
     /// registered module on this host handle.
-    pub fn query_surface(&self) -> Result<QuerySurface> {
-        let guard = self.0.surfaces.read()?;
-        Ok(QuerySurface::union(guard.values()))
+    #[must_use]
+    pub fn query_surface(&self) -> QuerySurface {
+        let guard = self
+            .0
+            .surfaces
+            .read()
+            .unwrap_or_else(PoisonError::into_inner);
+        QuerySurface::union(guard.values())
     }
 
     /// Export a standalone, compacted SQLite archive to `dest_path`.
@@ -471,11 +483,7 @@ async fn bootstrap_new_wal_file(path: &Path, busy_timeout: Duration) -> Result<(
 }
 
 /// Verify or stamp host header fields and ensure `_musq_modules` exists.
-async fn init_writable_database(
-    pool: &Pool,
-    path: &Path,
-    options: &DatabaseOptions,
-) -> Result<()> {
+async fn init_writable_database(pool: &Pool, path: &Path, options: &DatabaseOptions) -> Result<()> {
     let mut conn = pool.acquire().await?;
     let tx = conn.begin_with(TransactionBehavior::Immediate).await?;
 

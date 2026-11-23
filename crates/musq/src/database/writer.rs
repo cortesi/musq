@@ -9,10 +9,10 @@ use std::{
     pin::Pin,
     result,
     sync::Mutex,
+    task::{Context, Poll},
     thread,
 };
 
-use futures_util::FutureExt;
 use tokio::{
     runtime::Builder,
     sync::{mpsc, oneshot},
@@ -20,6 +20,25 @@ use tokio::{
 };
 
 use crate::{Connection, Error, Musq, Result, Transaction, TransactionBehavior};
+
+/// Future wrapper that catches panics from polling a pinned future without
+/// requiring `futures-util/std`.
+struct CatchUnwind<F> {
+    /// Pinned future polled inside `panic::catch_unwind`.
+    future: Pin<Box<F>>,
+}
+
+impl<F: Future> Future for CatchUnwind<F> {
+    type Output = result::Result<F::Output, Box<dyn Any + Send + 'static>>;
+
+    fn poll(mut self: Pin<&mut Self>, cx: &mut Context<'_>) -> Poll<Self::Output> {
+        match panic::catch_unwind(AssertUnwindSafe(|| self.future.as_mut().poll(cx))) {
+            Ok(Poll::Pending) => Poll::Pending,
+            Ok(Poll::Ready(value)) => Poll::Ready(Ok(value)),
+            Err(payload) => Poll::Ready(Err(payload)),
+        }
+    }
+}
 
 /// Outcome returned from a serialized writer job.
 enum JobOutcome<R, E> {
@@ -32,7 +51,8 @@ enum JobOutcome<R, E> {
 /// Type-erased unit of work executed sequentially on the writer connection.
 trait WriterJob: Send {
     /// Execute this job on the dedicated write connection.
-    fn run<'a>(self: Box<Self>, conn: &'a mut Connection) -> Pin<Box<dyn Future<Output = ()> + 'a>>;
+    fn run<'a>(self: Box<Self>, conn: &'a mut Connection)
+    -> Pin<Box<dyn Future<Output = ()> + 'a>>;
 
     /// Fail this job before execution (for example, if opening the dedicated
     /// write connection failed).
@@ -53,7 +73,10 @@ where
     R: Send + 'static,
     E: From<Error> + Send + 'static,
 {
-    fn run<'a>(self: Box<Self>, conn: &'a mut Connection) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
+    fn run<'a>(
+        self: Box<Self>,
+        conn: &'a mut Connection,
+    ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         Box::pin(async move {
             let mut tx = match conn.begin_with(TransactionBehavior::Immediate).await {
                 Ok(tx) => tx,
@@ -63,7 +86,10 @@ where
                 }
             };
 
-            let outcome = AssertUnwindSafe((self.work)(&mut tx)).catch_unwind().await;
+            let outcome = CatchUnwind {
+                future: Box::pin((self.work)(&mut tx)),
+            }
+            .await;
             match outcome {
                 Ok(Ok(value)) => match tx.commit().await {
                     Ok(()) => {
@@ -176,7 +202,7 @@ enum WriterSlot {
 /// The writer thread and its dedicated SQLite connection start on the first
 /// write call. Closing before any write avoids spawning the thread at all.
 #[derive(Debug)]
-pub(crate) struct LazyWriter {
+pub struct LazyWriter {
     /// Connection options used when opening the dedicated write connection.
     write_options: Musq,
     /// Thread name for the dedicated writer runtime.

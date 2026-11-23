@@ -310,7 +310,12 @@ impl Connection {
     where
         F: Fn(&[Value]) -> Result<Value> + Send + Sync + 'static,
     {
-        let function = Arc::new(RegisteredFunction::new(name.to_owned(), n_args, flags, func));
+        let function = Arc::new(RegisteredFunction::new(
+            name.to_owned(),
+            n_args,
+            flags,
+            func,
+        ));
         self.worker.register_function(function).await
     }
 

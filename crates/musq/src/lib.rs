@@ -70,12 +70,19 @@ mod values;
 #[macro_use]
 pub mod types;
 
+#[cfg(feature = "json")]
+#[cfg_attr(docsrs, doc(cfg(feature = "json")))]
+pub use crate::database::{json_params_to_values, value_to_json};
 #[cfg(feature = "vec")]
 #[cfg_attr(docsrs, doc(cfg(feature = "vec")))]
 pub use crate::types::vec::{VecBit, VecF32, VecInt8};
 pub use crate::{
     conditions::Conditions,
-    database::{Database, DatabaseOptions, Module, ModuleRecord, QuerySurface, SandboxPrepareHook},
+    database::{
+        Database, DatabaseOptions, Module, ModuleRecord, QuerySurface, ReadOnlySandbox,
+        SandboxPrepareHook, SandboxQueryOptions, SandboxQueryResult, fleet_query,
+        validate_single_statement,
+    },
     encode::Null,
     error::{DecodeError, EncodeError, Error, ModuleError, Result, SandboxError},
     executor::Execute,

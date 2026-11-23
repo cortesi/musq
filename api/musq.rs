@@ -16,6 +16,7 @@
 
 use std::{
     cmp::Ordering,
+    collections::BTreeMap,
     fmt::{Debug, Display},
     hash::Hash,
     marker::Unpin,
@@ -1116,15 +1117,12 @@ impl Database {
 
     /// Return the combined [`QuerySurface`] union of every mounted or
     /// registered module on this host handle.
-    pub fn query_surface(&self) -> crate::Result<QuerySurface>;
+    #[must_use]
+    pub fn query_surface(&self) -> QuerySurface;
 
     /// Register or replace a [`QuerySurface`] associated with `module_id` on
     /// this host handle (for example after read-only module discovery).
-    pub fn register_query_surface(
-        &self,
-        module_id: impl Into<String>,
-        surface: QuerySurface,
-    ) -> crate::Result<()>;
+    pub fn register_query_surface(&self, module_id: impl Into<String>, surface: QuerySurface);
 
     /// Verify that module `M` is installed in `_musq_modules` with matching
     /// `TABLE_PREFIX` and `SCHEMA_VERSION`.
@@ -2528,6 +2526,49 @@ impl QuerySurface {
     pub fn with_temp_view(self, ddl: impl Into<String>) -> Self;
 }
 
+/// Hardened read-only SQL sandbox over a composed [`QuerySurface`].
+///
+/// Each [`Self::query`] call opens a fresh unpooled read-only SQLite
+/// connection with `SQLITE_DBCONFIG_DEFENSIVE`, `trusted_schema = OFF`,
+/// `PRAGMA query_only = ON`, `SqliteLimit` caps, `statement_timeout`,
+/// `TEMP` views, pre-authorizer `prepare_hooks`, and a strict SQLite
+/// authorizer blocking `_musq_modules`, `sqlite_*` catalog tables, unexposed
+/// base tables, writes, PRAGMAs, and `ATTACH`.
+#[derive(Clone, Debug)]
+pub struct ReadOnlySandbox {/* private fields */}
+
+impl ReadOnlySandbox {
+    /// Create a [`ReadOnlySandbox`] for `path` using an explicit
+    /// [`QuerySurface`].
+    #[must_use]
+    pub fn from_surface(path: impl Into<PathBuf>, immutable: bool, surface: QuerySurface) -> Self;
+
+    /// Return whether connections open with `immutable=1`.
+    #[must_use]
+    pub const fn is_immutable(&self) -> bool;
+
+    /// Create a [`ReadOnlySandbox`] for `db`, unioning the [`QuerySurface`] of
+    /// every mounted or registered module on `db`.
+    #[must_use]
+    pub fn new(db: &Database) -> Self;
+
+    /// Return the target database path.
+    #[must_use]
+    pub fn path(&self) -> &Path;
+
+    /// Execute one bounded read-only SQL statement inside the sandbox.
+    pub async fn query(
+        &self,
+        sql: &str,
+        params: &BTreeMap<String, Value>,
+        options: &SandboxQueryOptions,
+    ) -> crate::Result<SandboxQueryResult>;
+
+    /// Return the active [`QuerySurface`].
+    #[must_use]
+    pub const fn surface(&self) -> &QuerySurface;
+}
+
 /// A specialized `Result` type for Musq.
 pub type Result<T> = Result<T, Error>;
 
@@ -2590,6 +2631,85 @@ pub enum SandboxError {
 pub type SandboxPrepareHook = Arc<
     dyn Send + Sync + for<'a> Fn(&'a mut Connection, &'a str) -> BoxFuture<'a, crate::Result<()>>,
 >;
+
+/// Bounds and runtime limits for [`ReadOnlySandbox::query`] and
+/// [`fleet_query`].
+#[derive(Clone, Debug, Default)]
+pub struct SandboxQueryOptions {
+    /// Maximum number of rows returned.
+    pub max_rows: usize,
+    /// Maximum cumulative estimated output bytes.
+    pub max_bytes: usize,
+    /// Per-statement execution timeout enforced by `sqlite3_progress_handler`.
+    pub timeout: Duration,
+    /// `SQLITE_LIMIT_LENGTH` cap in bytes.
+    pub limit_length: u32,
+    /// `SQLITE_LIMIT_SQL_LENGTH` cap in bytes.
+    pub limit_sql_length: u32,
+    /// `SQLITE_LIMIT_EXPR_DEPTH` cap.
+    pub limit_expr_depth: u32,
+    /// `SQLITE_LIMIT_COMPOUND_SELECT` cap.
+    pub limit_compound_select: u32,
+    /// SQLite `PRAGMA cache_size` value (negative = KiB; default `-8192`).
+    pub cache_size_kib: i32,
+    /// Open connections with SQLite `immutable=1` in [`fleet_query`].
+    pub immutable: bool,
+}
+
+impl SandboxQueryOptions {
+    /// Set whether [`fleet_query`] opens files with `immutable=1`.
+    #[must_use]
+    pub const fn immutable(self, immutable: bool) -> Self;
+
+    /// Set `SQLITE_LIMIT_COMPOUND_SELECT`.
+    #[must_use]
+    pub const fn limit_compound_select(self, limit_compound_select: u32) -> Self;
+
+    /// Set `SQLITE_LIMIT_EXPR_DEPTH`.
+    #[must_use]
+    pub const fn limit_expr_depth(self, limit_expr_depth: u32) -> Self;
+
+    /// Set `SQLITE_LIMIT_LENGTH`.
+    #[must_use]
+    pub const fn limit_length(self, limit_length: u32) -> Self;
+
+    /// Set `SQLITE_LIMIT_SQL_LENGTH`.
+    #[must_use]
+    pub const fn limit_sql_length(self, limit_sql_length: u32) -> Self;
+
+    /// Set the maximum output byte cap.
+    #[must_use]
+    pub const fn max_bytes(self, max_bytes: usize) -> Self;
+
+    /// Set the maximum row cap.
+    #[must_use]
+    pub const fn max_rows(self, max_rows: usize) -> Self;
+
+    /// Construct default [`SandboxQueryOptions`].
+    #[must_use]
+    pub const fn new() -> Self;
+
+    /// Set the per-statement execution timeout.
+    #[must_use]
+    pub const fn timeout(self, timeout: Duration) -> Self;
+}
+
+/// Tabular result returned by [`ReadOnlySandbox::query`] and [`fleet_query`].
+#[derive(Clone, Debug)]
+pub struct SandboxQueryResult {
+    /// Column names in result order.
+    pub columns: Vec<String>,
+    /// Rows of SQLite values in column order.
+    pub rows: Vec<Vec<Value>>,
+    /// `true` when the query hit `max_rows` or `max_bytes`.
+    pub truncated: bool,
+}
+
+impl SandboxQueryResult {
+    /// Convert every row into JSON values (blobs rendered as lowercase hex).
+    #[must_use]
+    pub fn rows_as_json(&self) -> Vec<Vec<serde_json::Value>>;
+}
 
 /// Data types supported by SQLite.
 ///
@@ -3100,6 +3220,23 @@ pub enum WalCheckpointMode {
     Truncate,
 }
 
+/// Execute one bounded read-only SQL query across multiple database files and
+/// merge rows with a leading `source_file` column while enforcing global row
+/// and byte caps.
+pub async fn fleet_query<P: AsRef<Path>>(
+    paths: &[P],
+    surface: &QuerySurface,
+    sql: &str,
+    params: &BTreeMap<String, Value>,
+    options: &SandboxQueryOptions,
+) -> crate::Result<SandboxQueryResult>;
+
+/// Convert named JSON SQL parameters (`null`, `bool`, number, or string) into
+/// [`Value`] bindings for [`ReadOnlySandbox::query`] or [`fleet_query`].
+pub fn json_params_to_values(
+    params: &BTreeMap<String, serde_json::Value>,
+) -> crate::Result<BTreeMap<String, Value>>;
+
 /// Make a SQL query.
 pub fn query(sql: &str) -> Query;
 
@@ -3136,6 +3273,15 @@ pub fn query_with(sql: &str, arguments: Arguments) -> Query;
 
 /// Quote an identifier for use in a SQL statement.
 pub fn quote_identifier(ident: &str) -> String;
+
+/// Validate that `sql` contains exactly one non-empty SQL statement (allowing
+/// whitespace, line/block comments, and at most one trailing semicolon).
+pub fn validate_single_statement(sql: &str) -> crate::Result<()>;
+
+/// Convert a [`Value`] to a [`serde_json::Value`] (blobs rendered as lowercase
+/// hex).
+#[must_use]
+pub fn value_to_json(value: &Value) -> serde_json::Value;
 
 /// Build a [`Values`](crate::Values) collection from literal key/value pairs.
 #[macro_export]
