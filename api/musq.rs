@@ -28,7 +28,7 @@ use std::{
 };
 
 use bytes::Bytes;
-use futures_core::stream::BoxStream;
+use futures_core::{future::BoxFuture, stream::BoxStream};
 use log::LevelFilter;
 pub use musq_macros::*;
 use serde::Serialize;
@@ -562,6 +562,53 @@ pub trait IntoValuesEntry {
 
 impl<T> IntoValuesEntry for T where T: Encode {}
 
+/// Composable schema module hosted on a [`crate::Database`].
+///
+/// Each module owns a unique [`Self::TABLE_PREFIX`] and declares its upstream
+/// module dependencies in [`Self::DEPENDS_ON`]. On mount, the host snapshots
+/// `sqlite_schema` before and after [`Self::install`] (and [`Self::migrate`])
+/// to verify that every newly created physical table, index, and trigger starts
+/// with [`Self::TABLE_PREFIX`], that indexes and triggers target only tables
+/// with [`Self::TABLE_PREFIX`], and that views start with
+/// [`Self::TABLE_PREFIX`] or `v_<TABLE_PREFIX>`.
+// Not dyn-compatible.
+pub trait Module {
+    /// Module identifiers that must already be installed before this module
+    /// mounts.
+    const DEPENDS_ON: &'static [&'static str] = _;
+    /// Stable module identifier (for example `"verber.webtrace"`).
+    const ID: &'static str;
+    /// Current schema version of this module.
+    const SCHEMA_VERSION: u32;
+    /// Required prefix for every table, index, and trigger owned by this
+    /// module (for example `"wt_"`).
+    const TABLE_PREFIX: &'static str;
+    /// Install this module's schema from scratch inside an active write
+    /// transaction.
+    fn install(
+        tx: &mut Transaction<&mut Connection>,
+    ) -> impl Future<Output = crate::Result<()>> + Send;
+
+    /// Optional metadata JSON stored in `_musq_modules.meta_json`.
+    fn meta_json(&self) -> String {}
+
+    /// Migrate this module's schema from `from_version` to
+    /// [`Self::SCHEMA_VERSION`] inside an active write transaction with
+    /// `PRAGMA defer_foreign_keys = ON`.
+    ///
+    /// The default implementation returns
+    /// [`ModuleError::MigrationUnsupported`].
+    fn migrate(
+        _tx: &mut Transaction<&mut Connection>,
+        from_version: u32,
+    ) -> impl Future<Output = crate::Result<()>> + Send {
+    }
+
+    /// Optional read-only [`QuerySurface`] contributed by this module to
+    /// [`crate::ReadOnlySandbox`].
+    fn query_surface(&self) -> QuerySurface {}
+}
+
 /// Execute queries against a connection, pool, or transaction.
 ///
 /// This trait is sealed. The bound is nameable so callers can write generic
@@ -1024,6 +1071,23 @@ impl Database {
     #[must_use]
     pub fn is_read_only(&self) -> bool;
 
+    /// Look up one module record by `module_id` in `_musq_modules`.
+    pub async fn module_record(&self, module_id: &str) -> crate::Result<Option<ModuleRecord>>;
+
+    /// Mount a [`Module`] onto this writable database host.
+    ///
+    /// Enforces `DEPENDS_ON` ordering, unique `TABLE_PREFIX` ownership,
+    /// `sqlite_schema` prefix and target-table checks, `PRAGMA
+    /// defer_foreign_keys = ON` + `PRAGMA foreign_key_check` on upgrades,
+    /// idempotency at matching schema version, and downgrade rejection. On
+    /// success, records `module.query_surface()` on this host handle.
+    pub async fn mount<M: Module>(&self, module: M) -> crate::Result<ModuleRecord>;
+
+    /// List all modules recorded in `_musq_modules`, ordered by `module_id`.
+    ///
+    /// Returns an empty vector if `_musq_modules` does not exist.
+    pub async fn mounted_modules(&self) -> crate::Result<Vec<ModuleRecord>>;
+
     /// Open or create a writable database at `path` with canonical WAL
     /// bootstrap and `_musq_modules` registry initialization.
     pub async fn open(path: impl AsRef<Path>, options: DatabaseOptions) -> crate::Result<Self>;
@@ -1049,6 +1113,25 @@ impl Database {
     /// Return the shared read [`Pool`].
     #[must_use]
     pub fn pool(&self) -> &Pool;
+
+    /// Return the combined [`QuerySurface`] union of every mounted or
+    /// registered module on this host handle.
+    pub fn query_surface(&self) -> crate::Result<QuerySurface>;
+
+    /// Register or replace a [`QuerySurface`] associated with `module_id` on
+    /// this host handle (for example after read-only module discovery).
+    pub fn register_query_surface(
+        &self,
+        module_id: impl Into<String>,
+        surface: QuerySurface,
+    ) -> crate::Result<()>;
+
+    /// Verify that module `M` is installed in `_musq_modules` with matching
+    /// `TABLE_PREFIX` and `SCHEMA_VERSION`.
+    ///
+    /// Works on both writable and read-only hosts regardless of host
+    /// `application_id` or `user_version`.
+    pub async fn verify_module<M: Module>(&self) -> crate::Result<ModuleRecord>;
 
     /// Execute `callback` inside an atomic `BEGIN IMMEDIATE` transaction on the
     /// lazy single-threaded FIFO writer connection.
@@ -1554,6 +1637,21 @@ violations.len())]
         /// Foreign-key violations reported by SQLite.
         violations: Vec<ForeignKeyViolation>,
     },
+}
+
+/// Registry entry recorded in `_musq_modules`.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct ModuleRecord {
+    /// Stable module identifier, such as `"verber.webtrace"`.
+    pub module_id: String,
+    /// Table prefix owned by this module, such as `"wt_"`.
+    pub table_prefix: String,
+    /// Installed schema version.
+    pub schema_version: u32,
+    /// UTC RFC 3339 timestamp when the module was installed or last migrated.
+    pub installed_at: String,
+    /// Module metadata JSON object.
+    pub meta_json: String,
 }
 
 /// Create a Musq connection
@@ -2331,6 +2429,105 @@ impl QueryResult {
     pub fn rows_affected(&self) -> u64;
 }
 
+/// Declarative read-only SQL surface exposed by a [`crate::Module`] or host to
+/// [`crate::ReadOnlySandbox`].
+#[derive(Clone, Debug, Default)]
+pub struct QuerySurface {
+    /// `CREATE TEMP VIEW ...` DDL scripts executed before authorizer
+    /// installation.
+    pub temp_views: Vec<String>,
+    /// Allowlisted `TEMP` view names exposed to sandboxed queries.
+    pub allowed_views: Vec<String>,
+    /// Base table names in `main` permitted solely for SQLite's `count(*)`
+    /// single-table flattener probe (`arg2 == ""`).
+    pub count_only_tables: Vec<String>,
+    /// Extra SQL scalar or aggregate function names allowlisted alongside the
+    /// built-in safe read-only function set.
+    pub allowed_functions: Vec<String>,
+    /// Pre-authorizer connection preparation hooks (for example, registering
+    /// custom scalar functions or loading lookup state).
+    pub prepare_hooks: Vec<SandboxPrepareHook>,
+}
+
+impl QuerySurface {
+    /// Return `true` when this surface declares no views, tables, functions, or
+    /// hooks.
+    #[must_use]
+    pub fn is_empty(&self) -> bool;
+
+    /// Merge `other` into `self`, deduplicating allowlist entries.
+    pub fn merge(&mut self, other: &Self);
+
+    /// Construct an empty [`QuerySurface`].
+    #[must_use]
+    pub fn new() -> Self;
+
+    /// Return the union of all surfaces in `surfaces`.
+    #[must_use]
+    pub fn r#union<'a>(surfaces: impl IntoIterator<Item = &'a Self>) -> Self;
+
+    /// Allow sandboxed queries to invoke SQL function `name`.
+    #[must_use]
+    pub fn with_allowed_function(self, name: impl Into<String>) -> Self;
+
+    /// Allow sandboxed queries to invoke every SQL function in `names`.
+    #[must_use]
+    pub fn with_allowed_functions<I, S>(self, names: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>;
+
+    /// Allow sandboxed queries to read `TEMP` view `name`.
+    #[must_use]
+    pub fn with_allowed_view(self, name: impl Into<String>) -> Self;
+
+    /// Allow sandboxed queries to read every `TEMP` view in `names`.
+    #[must_use]
+    pub fn with_allowed_views<I, S>(self, names: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>;
+
+    /// Allow SQLite's `count(*)` flattener probe on base table `name` in
+    /// `main`.
+    #[must_use]
+    pub fn with_count_only_table(self, name: impl Into<String>) -> Self;
+
+    /// Allow SQLite's `count(*)` flattener probe on every base table in
+    /// `names`.
+    #[must_use]
+    pub fn with_count_only_tables<I, S>(self, names: I) -> Self
+    where
+        I: IntoIterator<Item = S>,
+        S: Into<String>;
+
+    /// Add an async pre-authorizer connection preparation hook.
+    #[must_use]
+    pub fn with_prepare_hook<F>(self, hook: F) -> Self
+    where
+        F: 'static
+            + Send
+            + Sync
+            + for<'a> Fn(&'a mut Connection, &'a str) -> BoxFuture<'a, crate::Result<()>>;
+
+    /// Register a stateless scalar SQL function on every sandbox connection
+    /// and add its `name` to `allowed_functions`.
+    #[must_use]
+    pub fn with_scalar_function<F>(
+        self,
+        name: impl Into<String>,
+        n_args: i32,
+        flags: FunctionFlags,
+        func: F,
+    ) -> Self
+    where
+        F: 'static + Fn(&[Value]) -> crate::Result<Value> + Send + Sync;
+
+    /// Add a `CREATE TEMP VIEW ...` DDL script.
+    #[must_use]
+    pub fn with_temp_view(self, ddl: impl Into<String>) -> Self;
+}
+
 /// A specialized `Result` type for Musq.
 pub type Result<T> = Result<T, Error>;
 
@@ -2382,6 +2579,17 @@ pub enum SandboxError {
     #[error("invalid sandbox query parameter: {0}")]
     InvalidParameter(String),
 }
+
+/// Async pre-authorizer connection hook executed on a fresh read-only sandbox
+/// connection before `TEMP` views, limits, and the SQLite authorizer are
+/// installed.
+///
+/// The hook receives the mutable [`Connection`] (opened read-only with full
+/// access to base tables before the authorizer is attached) and the SQL text
+/// of the incoming query.
+pub type SandboxPrepareHook = Arc<
+    dyn Send + Sync + for<'a> Fn(&'a mut Connection, &'a str) -> BoxFuture<'a, crate::Result<()>>,
+>;
 
 /// Data types supported by SQLite.
 ///

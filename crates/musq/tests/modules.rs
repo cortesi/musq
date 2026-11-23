@@ -1,0 +1,525 @@
+//! Integration tests for `Module`, `_musq_modules`, prefix/table ownership
+//! verification, migrations with foreign-key checks, and read-only discovery.
+
+#[cfg(test)]
+mod tests {
+    use musq::{
+        Connection, Database, DatabaseOptions, Error, Module, ModuleError, QuerySurface, Result,
+        Transaction, query, query_scalar,
+    };
+    use tempfile::tempdir;
+
+    /// Base module A owning prefix `a_`.
+    struct ModA;
+
+    impl Module for ModA {
+        const ID: &'static str = "test.mod_a";
+        const TABLE_PREFIX: &'static str = "a_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query(
+                "CREATE TABLE a_items (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    slug TEXT NOT NULL UNIQUE
+                 )",
+            )
+            .execute(&**tx)
+            .await?;
+            query("CREATE INDEX a_items_slug_idx ON a_items (slug)")
+                .execute(&**tx)
+                .await?;
+            query("CREATE VIEW v_a_items AS SELECT id, slug FROM a_items")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+
+        fn meta_json(&self) -> String {
+            r#"{"owner":"core"}"#.to_owned()
+        }
+
+        fn query_surface(&self) -> QuerySurface {
+            QuerySurface::new().with_allowed_view("v_a_items")
+        }
+    }
+
+    /// Dependent module B v1 owning `b_` with a downward FK into `a_items`.
+    struct ModBV1;
+
+    impl Module for ModBV1 {
+        const ID: &'static str = "test.mod_b";
+        const TABLE_PREFIX: &'static str = "b_";
+        const SCHEMA_VERSION: u32 = 1;
+        const DEPENDS_ON: &'static [&'static str] = &["test.mod_a"];
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query(
+                "CREATE TABLE b_notes (
+                    id INTEGER PRIMARY KEY,
+                    item_id INTEGER NOT NULL REFERENCES a_items(id),
+                    body TEXT NOT NULL
+                 )",
+            )
+            .execute(&**tx)
+            .await?;
+            query(
+                "CREATE TRIGGER b_notes_check BEFORE INSERT ON b_notes
+                 BEGIN
+                     SELECT CASE WHEN length(NEW.body) = 0 THEN RAISE(ABORT, 'empty body') END;
+                 END",
+            )
+            .execute(&**tx)
+            .await?;
+            Ok(())
+        }
+    }
+
+    /// Upgraded module B v2 rebuilding `b_notes` with `defer_foreign_keys`.
+    struct ModBV2;
+
+    impl Module for ModBV2 {
+        const ID: &'static str = "test.mod_b";
+        const TABLE_PREFIX: &'static str = "b_";
+        const SCHEMA_VERSION: u32 = 2;
+        const DEPENDS_ON: &'static [&'static str] = &["test.mod_a"];
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query(
+                "CREATE TABLE b_notes (
+                    id INTEGER PRIMARY KEY,
+                    item_id INTEGER NOT NULL REFERENCES a_items(id),
+                    body TEXT NOT NULL,
+                    tag TEXT NOT NULL DEFAULT 'general'
+                 )",
+            )
+            .execute(&**tx)
+            .await?;
+            Ok(())
+        }
+
+        async fn migrate(tx: &mut Transaction<&mut Connection>, from_version: u32) -> Result<()> {
+            assert_eq!(from_version, 1);
+            // Rebuild table while preserving FK references (uses defer_foreign_keys).
+            query(
+                "CREATE TABLE b_notes_new (
+                    id INTEGER PRIMARY KEY,
+                    item_id INTEGER NOT NULL REFERENCES a_items(id),
+                    body TEXT NOT NULL,
+                    tag TEXT NOT NULL DEFAULT 'migrated'
+                 )",
+            )
+            .execute(&**tx)
+            .await?;
+            query("INSERT INTO b_notes_new (id, item_id, body) SELECT id, item_id, body FROM b_notes")
+                .execute(&**tx)
+                .await?;
+            query("DROP TABLE b_notes").execute(&**tx).await?;
+            query("ALTER TABLE b_notes_new RENAME TO b_notes")
+                .execute(&**tx)
+                .await?;
+            query("CREATE INDEX b_notes_tag_idx ON b_notes (tag)")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Module B v3 with default unimplemented `migrate()`.
+    struct ModBV3NoMigrate;
+
+    impl Module for ModBV3NoMigrate {
+        const ID: &'static str = "test.mod_b";
+        const TABLE_PREFIX: &'static str = "b_";
+        const SCHEMA_VERSION: u32 = 3;
+        const DEPENDS_ON: &'static [&'static str] = &["test.mod_a"];
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Module B v3 whose migration leaves a dangling foreign key.
+    struct ModBV3BrokenFk;
+
+    impl Module for ModBV3BrokenFk {
+        const ID: &'static str = "test.mod_b";
+        const TABLE_PREFIX: &'static str = "b_";
+        const SCHEMA_VERSION: u32 = 3;
+        const DEPENDS_ON: &'static [&'static str] = &["test.mod_a"];
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+
+        async fn migrate(tx: &mut Transaction<&mut Connection>, _from_version: u32) -> Result<()> {
+            // `defer_foreign_keys = ON` allows the insert inside tx, then
+            // post-migration `PRAGMA foreign_key_check` must catch and roll back.
+            query("INSERT INTO b_notes (id, item_id, body) VALUES (999, 99999, 'orphan')")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Module with conflicting table prefix `a_`.
+    struct ModConflictPrefix;
+
+    impl Module for ModConflictPrefix {
+        const ID: &'static str = "test.conflict";
+        const TABLE_PREFIX: &'static str = "a_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query("CREATE TABLE a_other (id INTEGER PRIMARY KEY)")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Module using reserved `_musq_` prefix.
+    struct ModReservedPrefix;
+
+    impl Module for ModReservedPrefix {
+        const ID: &'static str = "test.reserved";
+        const TABLE_PREFIX: &'static str = "_musq_custom_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Module creating an unprefixed table.
+    struct ModUnprefixedTable;
+
+    impl Module for ModUnprefixedTable {
+        const ID: &'static str = "test.bad_table";
+        const TABLE_PREFIX: &'static str = "bt_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query("CREATE TABLE rogue_table (id INTEGER PRIMARY KEY)")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Module creating a prefixed index targeting another module's table.
+    struct ModForeignIndex;
+
+    impl Module for ModForeignIndex {
+        const ID: &'static str = "test.foreign_idx";
+        const TABLE_PREFIX: &'static str = "fi_";
+        const SCHEMA_VERSION: u32 = 1;
+        const DEPENDS_ON: &'static [&'static str] = &["test.mod_a"];
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query("CREATE INDEX fi_steal_idx ON a_items (slug)")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Module creating a prefixed trigger targeting another module's table.
+    struct ModForeignTrigger;
+
+    impl Module for ModForeignTrigger {
+        const ID: &'static str = "test.foreign_trg";
+        const TABLE_PREFIX: &'static str = "ft_";
+        const SCHEMA_VERSION: u32 = 1;
+        const DEPENDS_ON: &'static [&'static str] = &["test.mod_a"];
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query(
+                "CREATE TRIGGER ft_steal_trg AFTER INSERT ON a_items
+                 BEGIN SELECT 1; END",
+            )
+            .execute(&**tx)
+            .await?;
+            Ok(())
+        }
+    }
+
+    /// Module creating a view without `TABLE_PREFIX` or `v_<TABLE_PREFIX>`.
+    struct ModBadView;
+
+    impl Module for ModBadView {
+        const ID: &'static str = "test.bad_view";
+        const TABLE_PREFIX: &'static str = "bv_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query("CREATE TABLE bv_rows (id INTEGER PRIMARY KEY)")
+                .execute(&**tx)
+                .await?;
+            query("CREATE VIEW v_other_rows AS SELECT id FROM bv_rows")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn dag_dependencies_migrations_idempotency_downgrade_and_discovery() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("app.db");
+
+        // Host uses its own arbitrary application_id and user_version.
+        let db = Database::open(
+            &db_path,
+            DatabaseOptions::new()
+                .application_id(0x4150_5031)
+                .user_version(12),
+        )
+        .await?;
+
+        // Mounting B before A fails with DependencyMissing.
+        let dep_err = db.mount(ModBV1).await.unwrap_err();
+        assert!(matches!(
+            dep_err,
+            Error::Module(ModuleError::DependencyMissing {
+                ref module_id,
+                ref dependency_id,
+            }) if module_id == "test.mod_b" && dependency_id == "test.mod_a"
+        ));
+
+        // Mount A then B v1.
+        let rec_a = db.mount(ModA).await?;
+        assert_eq!(rec_a.module_id, "test.mod_a");
+        assert_eq!(rec_a.table_prefix, "a_");
+        assert_eq!(rec_a.schema_version, 1);
+        assert_eq!(rec_a.meta_json, r#"{"owner":"core"}"#);
+        assert!(rec_a.installed_at.ends_with('Z'));
+
+        let rec_b1 = db.mount(ModBV1).await?;
+        assert_eq!(rec_b1.schema_version, 1);
+
+        // Idempotent remount at same version succeeds.
+        let rec_a_again = db.mount(ModA).await?;
+        assert_eq!(rec_a_again.installed_at, rec_a.installed_at);
+
+        // Insert cross-module data with downward FK from b_notes -> a_items.
+        db.write(async |tx| {
+            query("INSERT INTO a_items (id, slug) VALUES (10, 'alpha')")
+                .execute(&**tx)
+                .await?;
+            query("INSERT INTO b_notes (id, item_id, body) VALUES (1, 10, 'linked')")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+
+        // Upgrade B from v1 -> v2.
+        let rec_b2 = db.mount(ModBV2).await?;
+        assert_eq!(rec_b2.schema_version, 2);
+        let tag: String = query_scalar("SELECT tag FROM b_notes WHERE id = 1")
+            .fetch_one(db.pool())
+            .await?;
+        assert_eq!(tag, "migrated");
+
+        // Downgrade B from v2 -> v1 is rejected.
+        let downgrade_err = db.mount(ModBV1).await.unwrap_err();
+        assert!(matches!(
+            downgrade_err,
+            Error::Module(ModuleError::Downgrade {
+                installed_version: 2,
+                target_version: 1,
+                ..
+            })
+        ));
+
+        // Default migrate() returns MigrationUnsupported.
+        let unsup_err = db.mount(ModBV3NoMigrate).await.unwrap_err();
+        assert!(matches!(
+            unsup_err,
+            Error::Module(ModuleError::MigrationUnsupported {
+                from_version: 2,
+                to_version: 3,
+                ..
+            })
+        ));
+
+        // Broken FK migration is caught by PRAGMA foreign_key_check and rolled back.
+        let fk_err = db.mount(ModBV3BrokenFk).await.unwrap_err();
+        assert!(matches!(
+            fk_err,
+            Error::Module(ModuleError::ForeignKeyViolations { ref violations, .. })
+                if !violations.is_empty()
+        ));
+        let note_count: i64 = query_scalar("SELECT COUNT(*) FROM b_notes")
+            .fetch_one(db.pool())
+            .await?;
+        assert_eq!(note_count, 1);
+        assert_eq!(db.verify_module::<ModBV2>().await?.schema_version, 2);
+
+        db.close().await?;
+
+        // Read-only discovery succeeds regardless of host application_id/user_version.
+        let ro = Database::open_read_only(&db_path, false).await?;
+        let modules = ro.mounted_modules().await?;
+        assert_eq!(modules.len(), 2);
+        assert_eq!(modules[0].module_id, "test.mod_a");
+        assert_eq!(modules[1].module_id, "test.mod_b");
+
+        let verified_a = ro.verify_module::<ModA>().await?;
+        assert_eq!(verified_a.table_prefix, "a_");
+        let verified_b = ro.verify_module::<ModBV2>().await?;
+        assert_eq!(verified_b.schema_version, 2);
+
+        // Version mismatch on verify_module returns VersionMismatch.
+        let ver_err = ro.verify_module::<ModBV1>().await.unwrap_err();
+        assert!(matches!(
+            ver_err,
+            Error::Module(ModuleError::VersionMismatch {
+                installed_version: 2,
+                expected_version: 1,
+                ..
+            })
+        ));
+
+        // Uninstalled module returns NotInstalled.
+        let missing_err = ro.verify_module::<ModBadView>().await.unwrap_err();
+        assert!(matches!(
+            missing_err,
+            Error::Module(ModuleError::NotInstalled { .. })
+        ));
+
+        // Mounting on read-only DB returns ReadOnly.
+        let ro_mount_err = ro.mount(ModA).await.unwrap_err();
+        assert!(matches!(ro_mount_err, Error::ReadOnly));
+
+        ro.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn prefix_and_schema_ownership_rules_are_enforced_and_rolled_back() -> anyhow::Result<()>
+    {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("ownership.db");
+        let db = Database::open(&db_path, DatabaseOptions::new()).await?;
+        db.mount(ModA).await?;
+
+        // Conflicting table prefix rejected.
+        let conflict = db.mount(ModConflictPrefix).await.unwrap_err();
+        assert!(matches!(
+            conflict,
+            Error::Module(ModuleError::PrefixConflict {
+                ref existing_module_id,
+                ..
+            }) if existing_module_id == "test.mod_a"
+        ));
+
+        // Reserved `_musq_` prefix rejected.
+        let reserved = db.mount(ModReservedPrefix).await.unwrap_err();
+        assert!(matches!(
+            reserved,
+            Error::Module(ModuleError::InvalidPrefix { .. })
+        ));
+
+        // Unprefixed table rejected and rolled back.
+        let bad_table = db.mount(ModUnprefixedTable).await.unwrap_err();
+        assert!(matches!(
+            bad_table,
+            Error::Module(ModuleError::SchemaViolation {
+                ref object_type,
+                ref object_name,
+                ..
+            }) if object_type == "table" && object_name == "rogue_table"
+        ));
+        let rogue_exists: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'rogue_table'",
+        )
+        .fetch_one(db.pool())
+        .await?;
+        assert_eq!(rogue_exists, 0);
+
+        // Foreign index targeting another module's table rejected and rolled back.
+        let foreign_idx = db.mount(ModForeignIndex).await.unwrap_err();
+        assert!(matches!(
+            foreign_idx,
+            Error::Module(ModuleError::SchemaViolation {
+                ref object_type,
+                ref object_name,
+                target_table: Some(ref tbl),
+                ..
+            }) if object_type == "index" && object_name == "fi_steal_idx" && tbl == "a_items"
+        ));
+        let idx_exists: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'fi_steal_idx'",
+        )
+        .fetch_one(db.pool())
+        .await?;
+        assert_eq!(idx_exists, 0);
+
+        // Foreign trigger targeting another module's table rejected and rolled back.
+        let foreign_trg = db.mount(ModForeignTrigger).await.unwrap_err();
+        assert!(matches!(
+            foreign_trg,
+            Error::Module(ModuleError::SchemaViolation {
+                ref object_type,
+                ref object_name,
+                target_table: Some(ref tbl),
+                ..
+            }) if object_type == "trigger" && object_name == "ft_steal_trg" && tbl == "a_items"
+        ));
+        let trg_exists: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'ft_steal_trg'",
+        )
+        .fetch_one(db.pool())
+        .await?;
+        assert_eq!(trg_exists, 0);
+
+        // View without prefix or v_<prefix> rejected and rolled back.
+        let bad_view = db.mount(ModBadView).await.unwrap_err();
+        assert!(matches!(
+            bad_view,
+            Error::Module(ModuleError::SchemaViolation {
+                ref object_type,
+                ref object_name,
+                ..
+            }) if object_type == "view" && object_name == "v_other_rows"
+        ));
+        let bv_exists: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE name = 'bv_rows'",
+        )
+        .fetch_one(db.pool())
+        .await?;
+        assert_eq!(bv_exists, 0);
+
+        // Only ModA remains registered.
+        let mounted = db.mounted_modules().await?;
+        assert_eq!(mounted.len(), 1);
+        assert_eq!(mounted[0].module_id, "test.mod_a");
+
+        db.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn read_only_discovery_on_legacy_db_without_registry_table() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let legacy_path = dir.path().join("legacy.db");
+        let pool = musq::Musq::new()
+            .create_if_missing(true)
+            .open(&legacy_path)
+            .await?;
+        query("CREATE TABLE plain (id INTEGER PRIMARY KEY)")
+            .execute(&pool)
+            .await?;
+        let () = pool.close().await;
+
+        let ro = Database::open_read_only(&legacy_path, false).await?;
+        assert!(ro.mounted_modules().await?.is_empty());
+        assert!(ro.module_record(ModA::ID).await?.is_none());
+        let err = ro.verify_module::<ModA>().await.unwrap_err();
+        assert!(matches!(err, Error::Module(ModuleError::NotInstalled { .. })));
+        ro.close().await?;
+        Ok(())
+    }
+}

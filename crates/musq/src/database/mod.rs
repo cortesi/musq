@@ -7,16 +7,26 @@ use std::{
     ops::AsyncFnOnce,
     path::{Path, PathBuf},
     result,
-    sync::Arc,
+    sync::{Arc, RwLock},
     time::Duration,
 };
 
+use indexmap::IndexMap;
+
+pub use self::{
+    module::{Module, ModuleRecord},
+    surface::{QuerySurface, SandboxPrepareHook},
+};
 use self::writer::LazyWriter;
 use crate::{
     AutoVacuum, Connection, Error, JournalMode, Musq, Pool, Result, Synchronous, Transaction,
     TransactionBehavior, query, query_scalar,
 };
 
+/// Composable schema modules and `_musq_modules` registry.
+mod module;
+/// Declarative read-only SQL query surfaces.
+mod surface;
 /// Dedicated single-threaded FIFO writer runtime.
 mod writer;
 
@@ -155,6 +165,9 @@ struct DatabaseInner {
     pool: Pool,
     /// Lazy single-threaded FIFO writer (`None` for read-only handles).
     writer: Option<LazyWriter>,
+    /// Query surfaces contributed by mounted or explicitly registered modules,
+    /// keyed by `module_id` in registration order.
+    surfaces: RwLock<IndexMap<String, QuerySurface>>,
     /// Whether this handle was opened read-only.
     read_only: bool,
     /// Whether this handle was opened with SQLite `immutable=1`.
@@ -193,6 +206,7 @@ impl Database {
             path: canonical,
             pool,
             writer: Some(writer),
+            surfaces: RwLock::new(IndexMap::new()),
             read_only: false,
             immutable: false,
         })))
@@ -243,6 +257,7 @@ impl Database {
             path: canonical,
             pool,
             writer: None,
+            surfaces: RwLock::new(IndexMap::new()),
             read_only: true,
             immutable,
         })))
@@ -288,6 +303,69 @@ impl Database {
             return Err(E::from(Error::ReadOnly));
         };
         writer.run_tx(callback).await
+    }
+
+    /// Mount a [`Module`] onto this writable database host.
+    ///
+    /// Enforces `DEPENDS_ON` ordering, unique `TABLE_PREFIX` ownership,
+    /// `sqlite_schema` prefix and target-table checks, `PRAGMA
+    /// defer_foreign_keys = ON` + `PRAGMA foreign_key_check` on upgrades,
+    /// idempotency at matching schema version, and downgrade rejection. On
+    /// success, records `module.query_surface()` on this host handle.
+    pub async fn mount<M: Module>(&self, module: M) -> Result<ModuleRecord> {
+        if self.is_read_only() {
+            return Err(Error::ReadOnly);
+        }
+        module::validate_module_identity(M::ID, M::TABLE_PREFIX)?;
+
+        let meta_json = module.meta_json();
+        let surface = module.query_surface();
+        let record = self
+            .write(async move |tx| module::mount_in_tx::<M>(tx, &meta_json).await)
+            .await?;
+
+        self.register_query_surface(M::ID, surface)?;
+        Ok(record)
+    }
+
+    /// List all modules recorded in `_musq_modules`, ordered by `module_id`.
+    ///
+    /// Returns an empty vector if `_musq_modules` does not exist.
+    pub async fn mounted_modules(&self) -> Result<Vec<ModuleRecord>> {
+        module::list_modules_from_pool(&self.0.pool).await
+    }
+
+    /// Look up one module record by `module_id` in `_musq_modules`.
+    pub async fn module_record(&self, module_id: &str) -> Result<Option<ModuleRecord>> {
+        module::load_module_from_pool(&self.0.pool, module_id).await
+    }
+
+    /// Verify that module `M` is installed in `_musq_modules` with matching
+    /// `TABLE_PREFIX` and `SCHEMA_VERSION`.
+    ///
+    /// Works on both writable and read-only hosts regardless of host
+    /// `application_id` or `user_version`.
+    pub async fn verify_module<M: Module>(&self) -> Result<ModuleRecord> {
+        module::verify_module_from_pool::<M>(&self.0.pool).await
+    }
+
+    /// Register or replace a [`QuerySurface`] associated with `module_id` on
+    /// this host handle (for example after read-only module discovery).
+    pub fn register_query_surface(
+        &self,
+        module_id: impl Into<String>,
+        surface: QuerySurface,
+    ) -> Result<()> {
+        let mut guard = self.0.surfaces.write()?;
+        guard.insert(module_id.into(), surface);
+        Ok(())
+    }
+
+    /// Return the combined [`QuerySurface`] union of every mounted or
+    /// registered module on this host handle.
+    pub fn query_surface(&self) -> Result<QuerySurface> {
+        let guard = self.0.surfaces.read()?;
+        Ok(QuerySurface::union(guard.values()))
     }
 
     /// Export a standalone, compacted SQLite archive to `dest_path`.

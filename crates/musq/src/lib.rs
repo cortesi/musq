@@ -75,7 +75,7 @@ pub mod types;
 pub use crate::types::vec::{VecBit, VecF32, VecInt8};
 pub use crate::{
     conditions::Conditions,
-    database::{Database, DatabaseOptions},
+    database::{Database, DatabaseOptions, Module, ModuleRecord, QuerySurface, SandboxPrepareHook},
     encode::Null,
     error::{DecodeError, EncodeError, Error, ModuleError, Result, SandboxError},
     executor::Execute,
