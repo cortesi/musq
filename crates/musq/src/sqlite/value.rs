@@ -5,7 +5,8 @@ use bytes::Bytes;
 use crate::{
     Result,
     decode::Decode,
-    error::DecodeError,
+    encode::Encode,
+    error::{DecodeError, EncodeError},
     sqlite::{statement::StatementHandle, type_info::SqliteDataType},
 };
 
@@ -217,6 +218,12 @@ impl Value {
 impl<'r> Decode<'r> for Value {
     fn decode(value: &'r Value) -> StdResult<Self, DecodeError> {
         Ok(value.clone())
+    }
+}
+
+impl Encode for Value {
+    fn encode(&self) -> StdResult<Self, EncodeError> {
+        Ok(self.clone())
     }
 }
 

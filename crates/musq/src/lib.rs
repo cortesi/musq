@@ -30,6 +30,8 @@ pub mod __private {
 
 /// Typed condition collection.
 mod conditions;
+/// High-level database host, module registry, and read-only sandbox.
+mod database;
 /// Debug formatting helpers.
 mod debugfn;
 /// Decoding support for database values.
@@ -73,8 +75,9 @@ pub mod types;
 pub use crate::types::vec::{VecBit, VecF32, VecInt8};
 pub use crate::{
     conditions::Conditions,
+    database::{Database, DatabaseOptions},
     encode::Null,
-    error::{DecodeError, EncodeError, Error, Result},
+    error::{DecodeError, EncodeError, Error, ModuleError, Result, SandboxError},
     executor::Execute,
     expr::Expr,
     from_row::{AllNull, FromRow},

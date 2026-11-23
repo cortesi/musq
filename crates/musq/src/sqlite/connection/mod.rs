@@ -6,7 +6,7 @@ use std::{
     panic::{AssertUnwindSafe, catch_unwind},
     path::Path,
     result,
-    sync::atomic::Ordering,
+    sync::{Arc, atomic::Ordering},
 };
 
 pub use control::{
@@ -20,7 +20,7 @@ pub use handle::ConnectionHandle;
 pub use worker::InterruptHandle;
 
 use crate::{
-    ActionCode, AuthResult, QueryResult, Result, Row, UpdateEvent,
+    ActionCode, AuthResult, FunctionFlags, QueryResult, Result, Row, UpdateEvent, Value,
     error::Error,
     executor::Execute,
     logger::LogSettings,
@@ -29,6 +29,7 @@ use crate::{
     sqlite::{
         connection::{establish::EstablishParams, worker::ConnectionWorker},
         ffi,
+        function::RegisteredFunction,
     },
     statement_cache::StatementCache,
     transaction::{Transaction, TxnState},
@@ -292,6 +293,25 @@ impl Connection {
     /// cache.
     pub async fn clear_authorizer(&self) -> Result<()> {
         self.worker.clear_authorizer().await
+    }
+
+    /// Register a scalar SQL function on this live connection.
+    ///
+    /// `n_args` is the argument count, or `-1` for a variable-argument
+    /// function. Registering a function clears this connection's prepared
+    /// statement cache so subsequent prepares resolve the new function.
+    pub async fn register_function<F>(
+        &self,
+        name: &str,
+        n_args: i32,
+        flags: FunctionFlags,
+        func: F,
+    ) -> Result<()>
+    where
+        F: Fn(&[Value]) -> Result<Value> + Send + Sync + 'static,
+    {
+        let function = Arc::new(RegisteredFunction::new(name.to_owned(), n_args, flags, func));
+        self.worker.register_function(function).await
     }
 
     /// Return how many hook events were dropped because the receiver is gone.

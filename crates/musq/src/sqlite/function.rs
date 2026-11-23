@@ -158,7 +158,10 @@ pub unsafe fn register_all(
 ///
 /// # Safety
 /// - `db` must be a valid pointer to an open SQLite connection.
-unsafe fn register_function(db: *mut sqlite3, function: &RegisteredFunction) -> Result<()> {
+pub(crate) unsafe fn register_function(
+    db: *mut sqlite3,
+    function: &RegisteredFunction,
+) -> Result<()> {
     let name = CString::new(function.name.as_str()).map_err(|_| {
         Error::Configuration(format!(
             "function name contains nul bytes: {}",

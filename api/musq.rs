@@ -917,6 +917,21 @@ impl Connection {
     /// Run SQLite's faster integrity check on this connection.
     pub async fn quick_check(&self) -> crate::Result<IntegrityReport>;
 
+    /// Register a scalar SQL function on this live connection.
+    ///
+    /// `n_args` is the argument count, or `-1` for a variable-argument
+    /// function. Registering a function clears this connection's prepared
+    /// statement cache so subsequent prepares resolve the new function.
+    pub async fn register_function<F>(
+        &self,
+        name: &str,
+        n_args: i32,
+        flags: FunctionFlags,
+        func: F,
+    ) -> crate::Result<()>
+    where
+        F: 'static + Fn(&[Value]) -> crate::Result<Value> + Send + Sync;
+
     /// Return runtime identity and compile options for this connection.
     pub async fn runtime_info(&self) -> crate::Result<SqliteRuntimeInfo>;
 
@@ -979,6 +994,139 @@ impl Connection {
 impl crate::query::as_connection::AsConnection for Connection {}
 
 impl crate::query::as_connection::Sealed for Connection {}
+
+/// Arc-backed, cloneable SQLite database host.
+///
+/// `Database` pairs a shared [`Pool`] for concurrent reads with a lazy
+/// single-threaded FIFO writer that serializes every write transaction onto one
+/// dedicated SQLite connection.
+#[derive(Clone, Debug)]
+pub struct Database(_);
+
+impl Database {
+    /// Close the dedicated writer (if started) and shut down the shared
+    /// connection pool.
+    pub async fn close(&self) -> crate::Result<()>;
+
+    /// Export a standalone, compacted SQLite archive to `dest_path`.
+    ///
+    /// Runs `VACUUM INTO`, switches the exported file to
+    /// `PRAGMA journal_mode = DELETE`, deletes any `-wal` or `-shm` sidecars,
+    /// and verifies that the archive opens with `immutable = true` and passes
+    /// `PRAGMA quick_check`.
+    pub async fn export_archive(&self, dest_path: impl AsRef<Path>) -> crate::Result<()>;
+
+    /// Return `true` if this host was opened with SQLite `immutable=1`.
+    #[must_use]
+    pub fn is_immutable(&self) -> bool;
+
+    /// Return `true` if this host was opened read-only.
+    #[must_use]
+    pub fn is_read_only(&self) -> bool;
+
+    /// Open or create a writable database at `path` with canonical WAL
+    /// bootstrap and `_musq_modules` registry initialization.
+    pub async fn open(path: impl AsRef<Path>, options: DatabaseOptions) -> crate::Result<Self>;
+
+    /// Open an existing database file read-only using default options.
+    ///
+    /// Does not enforce `application_id` or `user_version`, allowing read-only
+    /// consumers to inspect any compatible SQLite database file.
+    pub async fn open_read_only(path: impl AsRef<Path>, immutable: bool) -> crate::Result<Self>;
+
+    /// Open an existing database file read-only with explicit
+    /// [`DatabaseOptions`].
+    pub async fn open_read_only_with_options(
+        path: impl AsRef<Path>,
+        immutable: bool,
+        options: DatabaseOptions,
+    ) -> crate::Result<Self>;
+
+    /// Return the canonical filesystem path of this database.
+    #[must_use]
+    pub fn path(&self) -> &Path;
+
+    /// Return the shared read [`Pool`].
+    #[must_use]
+    pub fn pool(&self) -> &Pool;
+
+    /// Execute `callback` inside an atomic `BEGIN IMMEDIATE` transaction on the
+    /// lazy single-threaded FIFO writer connection.
+    ///
+    /// Commits when `callback` returns `Ok`, and rolls back cleanly when
+    /// `callback` returns `Err` or panics. Returns [`Error::ReadOnly`] on
+    /// read-only hosts.
+    pub async fn write<F, R, E>(&self, callback: F) -> Result<R, E>
+    where
+        E: 'static + From<Error> + Send,
+        F: 'static + AsyncFnOnce(&mut Transaction<&mut Connection>) -> Result<R, E> + Send,
+        R: 'static + Send;
+}
+
+/// Configuration for opening a [`Database`] host.
+#[derive(Clone, Debug, Default)]
+pub struct DatabaseOptions {
+    /// SQLite busy timeout (default: 60 seconds).
+    pub busy_timeout: Duration,
+    /// SQLite `PRAGMA cache_size` value (negative = KiB; default: `-8192`).
+    pub cache_size_kib: i32,
+    /// SQLite `PRAGMA mmap_size` in bytes (default: `0`).
+    pub mmap_size_bytes: u64,
+    /// Maximum number of pooled connections for concurrent reads.
+    pub max_connections: u32,
+    /// Timeout when acquiring a connection from the pool.
+    pub acquire_timeout: Duration,
+    /// Optional host-owned `PRAGMA application_id`.
+    ///
+    /// On a fresh writable database, the host writes this value. On an existing
+    /// database, the host requires the stored `application_id` to match.
+    pub application_id: Option<i32>,
+    /// Optional host-owned `PRAGMA user_version`.
+    ///
+    /// On a fresh writable database, the host writes this value. On an existing
+    /// database, the host requires the stored `user_version` to match.
+    pub user_version: Option<i32>,
+    /// Thread name for the lazy single-threaded FIFO writer runtime.
+    pub writer_thread_name: String,
+}
+
+impl DatabaseOptions {
+    /// Set the pool acquire timeout.
+    #[must_use]
+    pub const fn acquire_timeout(self, acquire_timeout: Duration) -> Self;
+
+    /// Set the host-owned `PRAGMA application_id`.
+    #[must_use]
+    pub const fn application_id(self, application_id: i32) -> Self;
+
+    /// Set the SQLite busy timeout.
+    #[must_use]
+    pub const fn busy_timeout(self, timeout: Duration) -> Self;
+
+    /// Set `PRAGMA cache_size` (negative values specify KiB).
+    #[must_use]
+    pub const fn cache_size_kib(self, cache_size_kib: i32) -> Self;
+
+    /// Set the maximum number of pooled read connections.
+    #[must_use]
+    pub const fn max_connections(self, max_connections: u32) -> Self;
+
+    /// Set `PRAGMA mmap_size` in bytes.
+    #[must_use]
+    pub const fn mmap_size_bytes(self, mmap_size_bytes: u64) -> Self;
+
+    /// Construct default [`DatabaseOptions`].
+    #[must_use]
+    pub fn new() -> Self;
+
+    /// Set the host-owned `PRAGMA user_version`.
+    #[must_use]
+    pub const fn user_version(self, user_version: i32) -> Self;
+
+    /// Set the thread name for the lazy writer thread.
+    #[must_use]
+    pub fn writer_thread_name(self, name: impl Into<String>) -> Self;
+}
 
 /// A database-connection status measurement.
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -1139,6 +1287,27 @@ pub enum Error {
     /// instead of running SQL at depth zero. Later statements run normally.
     #[error("the transaction was aborted by an interrupt")]
     TransactionAborted,
+    /// Attempted a write, mount, or migration on a read-only database host.
+    #[error("cannot write to a read-only database")]
+    ReadOnly,
+    /// Database header (`application_id` or `user_version`) did not match host
+    /// expectations.
+    #[error("incompatible database format at `{}`: {reason}", path.display())]
+    IncompatibleFormat {
+        /// Database file path.
+        path: PathBuf,
+        /// Description of the header mismatch.
+        reason: String,
+    },
+    /// Exported archive failed integrity verification.
+    #[error("archive verification failed: {0}")]
+    ArchiveVerification(String),
+    /// Module mounting, migration, or discovery error.
+    #[error(transparent)]
+    Module(ModuleError),
+    /// Read-only query sandbox error.
+    #[error(transparent)]
+    Sandbox(SandboxError),
 }
 
 impl Error {
@@ -1157,7 +1326,11 @@ impl Error {
     pub fn sqlite_codes(&self) -> Option<(PrimaryErrCode, Option<ExtendedErrCode>)>;
 }
 
+impl From<ModuleError> for Error {}
+
 impl<T> From<PoisonError<T>> for Error {}
+
+impl From<SandboxError> for Error {}
 
 impl From<SqliteError> for Error {}
 
@@ -1268,6 +1441,119 @@ pub enum LockingMode {
     Normal,
     /// Exclusive database access.
     Exclusive,
+}
+
+/// Errors produced when mounting, migrating, or verifying a database module.
+#[derive(Debug, Display, std::error::Error)]
+#[non_exhaustive]
+pub enum ModuleError {
+    /// A module declared a dependency in `DEPENDS_ON` that is not installed.
+    #[error("module `{module_id}` depends on missing module `{dependency_id}`")]
+    DependencyMissing {
+        /// Module being mounted.
+        module_id: String,
+        /// Missing dependency identifier.
+        dependency_id: String,
+    },
+    /// Another module already owns the requested table prefix.
+    #[error("module `{module_id}` prefix `{prefix}` conflicts with `{existing_module_id}`")]
+    PrefixConflict {
+        /// Module being mounted.
+        module_id: String,
+        /// Conflicting table prefix.
+        prefix: String,
+        /// Existing module that owns `prefix`.
+        existing_module_id: String,
+    },
+    /// A module declared an invalid or reserved table prefix.
+    #[error("module `{module_id}` has invalid prefix `{prefix}`: {reason}")]
+    InvalidPrefix {
+        /// Module identifier.
+        module_id: String,
+        /// Declared prefix.
+        prefix: String,
+        /// Explanation of why the prefix was rejected.
+        reason: String,
+    },
+    /// A module created a schema object that violates prefix or table ownership
+    /// rules.
+    #[error("module `{module_id}` created disallowed {object_type} `{object_name}`: {reason}")]
+    SchemaViolation {
+        /// Module identifier.
+        module_id: String,
+        /// SQLite schema object type (`table`, `index`, `view`, or `trigger`).
+        object_type: String,
+        /// Created SQLite object name.
+        object_name: String,
+        /// Target table name reported by `sqlite_schema.tbl_name`, if any.
+        target_table: Option<String>,
+        /// Reason the object violated ownership rules.
+        reason: String,
+    },
+    /// Installed module schema version is newer than the mounted module code.
+    #[error(
+        "module `{module_id}` downgrade rejected: installed version {installed_version} > target version {target_version}"
+    )]
+    Downgrade {
+        /// Module identifier.
+        module_id: String,
+        /// Schema version recorded in `_musq_modules`.
+        installed_version: u32,
+        /// Schema version declared by the module.
+        target_version: u32,
+    },
+    /// Module does not support migrating from `from_version` to `to_version`.
+    #[error(
+        "module `{module_id}` does not support migration from version {from_version} to {to_version}"
+    )]
+    MigrationUnsupported {
+        /// Module identifier.
+        module_id: String,
+        /// Installed schema version.
+        from_version: u32,
+        /// Target schema version.
+        to_version: u32,
+    },
+    /// Requested module is not installed in `_musq_modules`.
+    #[error("module `{module_id}` is not installed")]
+    NotInstalled {
+        /// Module identifier.
+        module_id: String,
+    },
+    /// Installed module schema version differs from the expected version.
+    #[error(
+        "module `{module_id}` version mismatch: installed {installed_version}, expected {expected_version}"
+    )]
+    VersionMismatch {
+        /// Module identifier.
+        module_id: String,
+        /// Schema version recorded in `_musq_modules`.
+        installed_version: u32,
+        /// Expected schema version.
+        expected_version: u32,
+    },
+    /// Installed module table prefix differs from the declared prefix.
+    #[error(
+        "module `{module_id}` prefix mismatch: installed `{installed_prefix}`, expected `{expected_prefix}`"
+    )]
+    PrefixMismatch {
+        /// Module identifier.
+        module_id: String,
+        /// Table prefix recorded in `_musq_modules`.
+        installed_prefix: String,
+        /// Declared table prefix.
+        expected_prefix: String,
+    },
+    /// `PRAGMA foreign_key_check` found violations after module install or
+    /// migration.
+    #[error("module `{module_id}` left {} foreign key violation(s)",
+violations.len())]
+    ForeignKeyViolations {
+        /// Module identifier.
+        module_id: String,
+        /// Foreign-key violations reported by SQLite.
+        violations: Vec<ForeignKeyViolation>,
+    },
 }
 
 /// Create a Musq connection
@@ -2078,6 +2364,25 @@ impl Row {
 
 impl<'r> FromRow<'r> for Row {}
 
+/// Errors produced by [`crate::ReadOnlySandbox`] and [`crate::fleet_query`].
+#[derive(Debug, Display, std::error::Error)]
+#[non_exhaustive]
+pub enum SandboxError {
+    /// Query was rejected by single-statement validation or the SQLite
+    /// authorizer.
+    #[error("sandbox query rejected: {0}")]
+    Rejected(String),
+    /// Query exceeded the configured statement timeout.
+    #[error("sandbox query timed out: {0}")]
+    Timeout(String),
+    /// Query exceeded a SQLite runtime limit.
+    #[error("sandbox query exceeded limit: {0}")]
+    LimitExceeded(String),
+    /// Query parameter could not be bound.
+    #[error("invalid sandbox query parameter: {0}")]
+    InvalidParameter(String),
+}
+
 /// Data types supported by SQLite.
 ///
 /// **Note:** This enum is marked `#[non_exhaustive]`; additional variants
@@ -2454,6 +2759,10 @@ impl Value {
 
 impl<'r> Decode<'r> for Value {}
 
+impl Encode for Value {}
+
+impl<T> IntoValuesEntry for Value where T: Encode {}
+
 /// An ordered collection of key-value pairs for building dynamic SQL queries.
 ///
 /// When used with the `sql!` macro's `{where:values}` placeholder, `NULL`
@@ -2774,7 +3083,7 @@ pub mod error {
     //! Error types and result helpers.
     //! Types for working with errors produced by Musq.
 
-    pub use crate::{DecodeError, EncodeError, Error, Result};
+    pub use crate::{DecodeError, EncodeError, Error, ModuleError, Result, SandboxError};
 
     /// Extended Sqlite error codes.
     ///

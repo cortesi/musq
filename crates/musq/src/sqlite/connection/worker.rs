@@ -29,7 +29,9 @@ use crate::{
             WalCheckpoint, WalCheckpointMode, establish::EstablishParams, execute,
         },
         error::SqliteError,
-        ffi, hooks as sqlite_hooks,
+        ffi,
+        function::{RegisteredFunction, register_function},
+        hooks as sqlite_hooks,
     },
     transaction::{TransactionBehavior, TxnState, begin_sql, commit_sql, rollback_sql},
 };
@@ -293,6 +295,13 @@ enum Command {
         /// Response channel.
         tx: oneshot::Sender<Result<()>>,
     },
+    /// Register a scalar function on the SQLite connection.
+    RegisterFunction {
+        /// Function descriptor to register.
+        function: Arc<RegisteredFunction>,
+        /// Response channel.
+        tx: oneshot::Sender<Result<()>>,
+    },
     /// Commit a transaction.
     Commit {
         /// Response channel.
@@ -497,6 +506,7 @@ impl WorkerSession {
             Command::SetRollbackHook { events, tx } => self.install_rollback_hook(events, tx),
             Command::SetAuthorizer { callback, tx } => self.install_authorizer(callback, tx),
             Command::ClearAuthorizer { tx } => self.clear_authorizer(tx),
+            Command::RegisterFunction { function, tx } => self.register_function(&function, tx),
             Command::Commit { tx } => self.commit(tx),
             Command::Rollback { tx } => self.rollback(tx),
             Command::DbStatus {
@@ -757,6 +767,22 @@ impl WorkerSession {
         tx.send(res.map_err(Error::from)).ok();
     }
 
+    /// Register a scalar function on this connection and clear cached
+    /// statements so future prepares resolve the new function.
+    fn register_function(
+        &mut self,
+        function: &RegisteredFunction,
+        tx: oneshot::Sender<Result<()>>,
+    ) {
+        let db = self.conn.handle.as_ptr();
+        // SAFETY: the worker owns a live SQLite connection handle.
+        let res = unsafe { register_function(db, function) }.inspect(|()| {
+            self.conn.statements.clear();
+            update_cached_statements_size(&self.conn, &self.shared.cached_statements_size);
+        });
+        tx.send(res).ok();
+    }
+
     /// Remove SQLite hooks and free their userdata.
     fn clear_hooks(&mut self) {
         let db = self.conn.handle.as_ptr();
@@ -977,6 +1003,12 @@ impl ConnectionWorker {
     /// Remove any active authorizer callback on the worker thread.
     pub(crate) async fn clear_authorizer(&self) -> Result<()> {
         self.oneshot_cmd(|tx| Command::ClearAuthorizer { tx })
+            .await?
+    }
+
+    /// Register a scalar function on the worker thread.
+    pub(crate) async fn register_function(&self, function: Arc<RegisteredFunction>) -> Result<()> {
+        self.oneshot_cmd(|tx| Command::RegisterFunction { function, tx })
             .await?
     }
 
