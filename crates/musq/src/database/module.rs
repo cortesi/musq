@@ -1,7 +1,7 @@
 //! Composable schema modules, `_musq_modules` registry, prefix ownership
 //! verification, migrations, and read-only module discovery.
 
-use std::{collections::HashSet, future::Future};
+use std::{collections::HashMap, future::Future};
 
 use super::surface::QuerySurface;
 use crate::{
@@ -81,7 +81,7 @@ pub trait Module {
 
 /// Row loaded from `sqlite_schema` for prefix and target-table ownership
 /// checks.
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 struct SchemaObject {
     /// SQLite object type (`table`, `index`, `view`, or `trigger`).
     obj_type: String,
@@ -89,6 +89,8 @@ struct SchemaObject {
     name: String,
     /// Owning table name (`sqlite_schema.tbl_name`).
     tbl_name: String,
+    /// Original DDL SQL recorded by SQLite (if any).
+    sql: Option<String>,
 }
 
 /// Raw row fetched from `_musq_modules`.
@@ -110,19 +112,18 @@ pub fn validate_module_identity(module_id: &str, prefix: &str) -> Result<()> {
             reason: "table_prefix must not be empty".to_owned(),
         }));
     }
-    let lower = prefix.to_ascii_lowercase();
-    if lower.starts_with("_musq_") {
+    if prefixes_overlap(prefix, "_musq_") {
         return Err(Error::Module(ModuleError::InvalidPrefix {
             module_id: module_id.to_owned(),
             prefix: prefix.to_owned(),
-            reason: "prefix `_musq_` is reserved for host metadata".to_owned(),
+            reason: "prefix overlaps reserved `_musq_` host metadata namespace".to_owned(),
         }));
     }
-    if lower.starts_with("sqlite_") {
+    if prefixes_overlap(prefix, "sqlite_") {
         return Err(Error::Module(ModuleError::InvalidPrefix {
             module_id: module_id.to_owned(),
             prefix: prefix.to_owned(),
-            reason: "prefix `sqlite_` is reserved by SQLite".to_owned(),
+            reason: "prefix overlaps reserved `sqlite_` namespace".to_owned(),
         }));
     }
     let bytes = prefix.as_bytes();
@@ -184,7 +185,7 @@ async fn install_module_in_tx<M: Module>(
     M::install(tx).await?;
     let after = snapshot_schema(tx).await?;
 
-    verify_new_schema_objects(M::ID, M::TABLE_PREFIX, &before, &after)?;
+    verify_schema_changes(M::ID, M::TABLE_PREFIX, &before, &after)?;
     check_foreign_keys(tx, M::ID).await?;
 
     query(
@@ -220,7 +221,7 @@ async fn upgrade_module_in_tx<M: Module>(
     M::migrate(tx, from_version).await?;
     let after = snapshot_schema(tx).await?;
 
-    verify_new_schema_objects(M::ID, M::TABLE_PREFIX, &before, &after)?;
+    verify_schema_changes(M::ID, M::TABLE_PREFIX, &before, &after)?;
     check_foreign_keys(tx, M::ID).await?;
 
     query(
@@ -259,10 +260,10 @@ fn check_dependencies<M: Module>(installed: &[ModuleRecord]) -> Result<()> {
     Ok(())
 }
 
-/// Verify that no other module already owns `M::TABLE_PREFIX`.
+/// Verify that no other module already owns an overlapping `TABLE_PREFIX`.
 fn check_prefix_conflict<M: Module>(installed: &[ModuleRecord]) -> Result<()> {
     for record in installed {
-        if record.module_id != M::ID && record.table_prefix.eq_ignore_ascii_case(M::TABLE_PREFIX) {
+        if record.module_id != M::ID && prefixes_overlap(&record.table_prefix, M::TABLE_PREFIX) {
             return Err(Error::Module(ModuleError::PrefixConflict {
                 module_id: M::ID.to_owned(),
                 prefix: M::TABLE_PREFIX.to_owned(),
@@ -286,102 +287,154 @@ async fn check_foreign_keys(tx: &Transaction<&mut Connection>, module_id: &str) 
     Ok(())
 }
 
-/// Snapshot all rows of `sqlite_schema` inside `tx`.
+/// Snapshot all rows of `sqlite_schema` (including `sql`) inside `tx` in
+/// deterministic order (tables first so cascading index/trigger removals report
+/// the parent table first).
 async fn snapshot_schema(tx: &Transaction<&mut Connection>) -> Result<Vec<SchemaObject>> {
-    let rows: Vec<(String, String, String)> =
-        query_as("SELECT type, name, tbl_name FROM sqlite_schema")
-            .fetch_all(&**tx)
-            .await?;
+    let rows: Vec<(String, String, String, Option<String>)> = query_as(
+        "SELECT type, name, tbl_name, sql
+         FROM sqlite_schema
+         ORDER BY CASE type
+             WHEN 'table' THEN 0
+             WHEN 'view' THEN 1
+             WHEN 'index' THEN 2
+             WHEN 'trigger' THEN 3
+             ELSE 4
+         END, name ASC",
+    )
+    .fetch_all(&**tx)
+    .await?;
     Ok(rows
         .into_iter()
-        .map(|(obj_type, name, tbl_name)| SchemaObject {
+        .map(|(obj_type, name, tbl_name, sql)| SchemaObject {
             obj_type,
             name,
             tbl_name,
+            sql,
         })
         .collect())
 }
 
-/// Verify that every object present in `after` but not in `before` respects
-/// `prefix` and target-table ownership.
-fn verify_new_schema_objects(
+/// Verify that every added, modified, or removed `sqlite_schema` object
+/// respects `prefix` and target-table ownership.
+fn verify_schema_changes(
     module_id: &str,
     prefix: &str,
     before: &[SchemaObject],
     after: &[SchemaObject],
 ) -> Result<()> {
-    let before_set: HashSet<&SchemaObject> = before.iter().collect();
-    let view_prefix = format!("v_{prefix}");
+    let before_map: HashMap<(String, String), &SchemaObject> = before
+        .iter()
+        .map(|obj| (schema_object_key(obj), obj))
+        .collect();
+    let after_map: HashMap<(String, String), &SchemaObject> = after
+        .iter()
+        .map(|obj| (schema_object_key(obj), obj))
+        .collect();
 
     for obj in after {
-        if before_set.contains(obj) {
-            continue;
+        let key = schema_object_key(obj);
+        match before_map.get(&key) {
+            None => check_object_ownership(module_id, prefix, obj, "created")?,
+            Some(prev) if *prev != obj => {
+                check_object_ownership(module_id, prefix, prev, "modified")?;
+                check_object_ownership(module_id, prefix, obj, "modified")?;
+            }
+            Some(_) => {}
         }
-        if obj.name.eq_ignore_ascii_case("sqlite_sequence") {
-            continue;
+    }
+
+    for prev in before {
+        let key = schema_object_key(prev);
+        if !after_map.contains_key(&key) {
+            check_object_ownership(module_id, prefix, prev, "removed")?;
         }
-        if starts_with_ascii_ci(&obj.name, "sqlite_autoindex_") {
+    }
+
+    Ok(())
+}
+
+/// Canonical case-insensitive lookup key `(type, name)` for `sqlite_schema`.
+fn schema_object_key(obj: &SchemaObject) -> (String, String) {
+    (
+        obj.obj_type.to_ascii_lowercase(),
+        obj.name.to_ascii_lowercase(),
+    )
+}
+
+/// Verify that `obj` belongs to `prefix` (or is an allowed SQLite-internal
+/// object).
+fn check_object_ownership(
+    module_id: &str,
+    prefix: &str,
+    obj: &SchemaObject,
+    change: &str,
+) -> Result<()> {
+    if obj.name.eq_ignore_ascii_case("sqlite_sequence") {
+        return Ok(());
+    }
+    if starts_with_ascii_ci(&obj.name, "sqlite_autoindex_") {
+        if !starts_with_ascii_ci(&obj.tbl_name, prefix) {
+            return Err(schema_violation(
+                module_id,
+                obj,
+                format!(
+                    "{change} autoindex targeting foreign table `{}` outside prefix `{prefix}`",
+                    obj.tbl_name
+                ),
+            ));
+        }
+        return Ok(());
+    }
+
+    let view_prefix = format!("v_{prefix}");
+    match obj.obj_type.as_str() {
+        "table" => {
+            if !starts_with_ascii_ci(&obj.name, prefix) {
+                return Err(schema_violation(
+                    module_id,
+                    obj,
+                    format!("{change} table outside prefix `{prefix}`"),
+                ));
+            }
+        }
+        "index" | "trigger" => {
+            if !starts_with_ascii_ci(&obj.name, prefix) {
+                return Err(schema_violation(
+                    module_id,
+                    obj,
+                    format!("{change} {} outside prefix `{prefix}`", obj.obj_type),
+                ));
+            }
             if !starts_with_ascii_ci(&obj.tbl_name, prefix) {
                 return Err(schema_violation(
                     module_id,
                     obj,
                     format!(
-                        "autoindex targets table `{}` outside prefix `{prefix}`",
-                        obj.tbl_name
+                        "{change} {} targeting foreign table `{}` outside prefix `{prefix}`",
+                        obj.obj_type, obj.tbl_name
                     ),
                 ));
             }
-            continue;
         }
-
-        match obj.obj_type.as_str() {
-            "table" => {
-                if !starts_with_ascii_ci(&obj.name, prefix) {
-                    return Err(schema_violation(
-                        module_id,
-                        obj,
-                        format!("table name must start with `{prefix}`"),
-                    ));
-                }
+        "view" => {
+            if !starts_with_ascii_ci(&obj.name, prefix)
+                && !starts_with_ascii_ci(&obj.name, &view_prefix)
+            {
+                return Err(schema_violation(
+                    module_id,
+                    obj,
+                    format!("{change} view outside `{prefix}` or `{view_prefix}`"),
+                ));
             }
-            "index" | "trigger" => {
-                if !starts_with_ascii_ci(&obj.name, prefix) {
-                    return Err(schema_violation(
-                        module_id,
-                        obj,
-                        format!("{} name must start with `{prefix}`", obj.obj_type),
-                    ));
-                }
-                if !starts_with_ascii_ci(&obj.tbl_name, prefix) {
-                    return Err(schema_violation(
-                        module_id,
-                        obj,
-                        format!(
-                            "{} targets foreign table `{}` outside prefix `{prefix}`",
-                            obj.obj_type, obj.tbl_name
-                        ),
-                    ));
-                }
-            }
-            "view" => {
-                if !starts_with_ascii_ci(&obj.name, prefix)
-                    && !starts_with_ascii_ci(&obj.name, &view_prefix)
-                {
-                    return Err(schema_violation(
-                        module_id,
-                        obj,
-                        format!("view name must start with `{prefix}` or `{view_prefix}`"),
-                    ));
-                }
-            }
-            _ => {
-                if !starts_with_ascii_ci(&obj.name, prefix) {
-                    return Err(schema_violation(
-                        module_id,
-                        obj,
-                        format!("object name must start with `{prefix}`"),
-                    ));
-                }
+        }
+        _ => {
+            if !starts_with_ascii_ci(&obj.name, prefix) {
+                return Err(schema_violation(
+                    module_id,
+                    obj,
+                    format!("{change} object outside prefix `{prefix}`"),
+                ));
             }
         }
     }
@@ -398,6 +451,12 @@ fn schema_violation(module_id: &str, obj: &SchemaObject, reason: String) -> Erro
         target_table: Some(obj.tbl_name.clone()),
         reason,
     })
+}
+
+/// Return `true` when either prefix is an ASCII case-insensitive prefix of the
+/// other.
+fn prefixes_overlap(left: &str, right: &str) -> bool {
+    starts_with_ascii_ci(left, right) || starts_with_ascii_ci(right, left)
 }
 
 /// Return `true` when `value` starts with `prefix`, comparing ASCII bytes

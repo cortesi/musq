@@ -13,7 +13,7 @@ use serde_json::{Number as JsonNumber, Value as JsonValue};
 use super::{Database, surface::QuerySurface};
 use crate::{
     ActionCode, AuthResult, Connection, Error, Musq, Result, SandboxError, SqliteLimit, Text,
-    Value, error::PrimaryErrCode, query,
+    Value, error::PrimaryErrCode, query, query_scalar,
 };
 
 /// Default maximum rows returned by [`ReadOnlySandbox::query`] and
@@ -602,6 +602,8 @@ async fn execute_on_sandbox_conn(
         }
     }
 
+    reject_colliding_main_views(conn, &surface.allowed_views).await?;
+
     query("PRAGMA query_only = ON").execute(&*conn).await?;
 
     conn.set_limit(SqliteLimit::Length, options.limit_length)
@@ -663,6 +665,27 @@ async fn execute_on_sandbox_conn(
         rows,
         truncated,
     })
+}
+
+/// Reject execution when `main.sqlite_schema` defines a persistent view whose
+/// name collides with an allowlisted `TEMP` view, preventing `main.<view>` from
+/// spoofing `trigger_or_view` in SQLite's authorizer callback.
+async fn reject_colliding_main_views(conn: &Connection, allowed_views: &[String]) -> Result<()> {
+    if allowed_views.is_empty() {
+        return Ok(());
+    }
+    let main_views: Vec<String> =
+        query_scalar("SELECT name FROM main.sqlite_schema WHERE type = 'view'")
+            .fetch_all(conn)
+            .await?;
+    for view_name in main_views {
+        if contains_ascii_ci(allowed_views, &view_name) {
+            return Err(Error::Sandbox(SandboxError::Rejected(format!(
+                "main schema contains view `{view_name}` colliding with sandbox TEMP view"
+            ))));
+        }
+    }
+    Ok(())
 }
 
 /// Map SQLite sandbox enforcement errors to typed [`SandboxError`] variants.

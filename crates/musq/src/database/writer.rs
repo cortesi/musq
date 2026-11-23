@@ -78,34 +78,36 @@ where
         conn: &'a mut Connection,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         Box::pin(async move {
+            let Self { work, reply } = *self;
             let mut tx = match conn.begin_with(TransactionBehavior::Immediate).await {
                 Ok(tx) => tx,
                 Err(err) => {
-                    self.reply.send(JobOutcome::Result(Err(E::from(err)))).ok();
+                    reply.send(JobOutcome::Result(Err(E::from(err)))).ok();
                     return;
                 }
             };
 
-            let outcome = CatchUnwind {
-                future: Box::pin((self.work)(&mut tx)),
-            }
-            .await;
+            let outcome = match panic::catch_unwind(AssertUnwindSafe(|| Box::pin((work)(&mut tx))))
+            {
+                Ok(future) => CatchUnwind { future }.await,
+                Err(payload) => Err(payload),
+            };
             match outcome {
                 Ok(Ok(value)) => match tx.commit().await {
                     Ok(()) => {
-                        self.reply.send(JobOutcome::Result(Ok(value))).ok();
+                        reply.send(JobOutcome::Result(Ok(value))).ok();
                     }
                     Err(err) => {
-                        self.reply.send(JobOutcome::Result(Err(E::from(err)))).ok();
+                        reply.send(JobOutcome::Result(Err(E::from(err)))).ok();
                     }
                 },
                 Ok(Err(err)) => {
                     tx.rollback().await.ok();
-                    self.reply.send(JobOutcome::Result(Err(err))).ok();
+                    reply.send(JobOutcome::Result(Err(err))).ok();
                 }
                 Err(payload) => {
                     tx.rollback().await.ok();
-                    self.reply.send(JobOutcome::Panicked(payload)).ok();
+                    reply.send(JobOutcome::Panicked(payload)).ok();
                 }
             }
         })

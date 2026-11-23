@@ -1062,6 +1062,9 @@ impl Database {
     /// `PRAGMA journal_mode = DELETE`, deletes any `-wal` or `-shm` sidecars,
     /// and verifies that the archive opens with `immutable = true` and passes
     /// `PRAGMA quick_check`.
+    ///
+    /// Returns [`Error::Configuration`] if `dest_path` aliases this database
+    /// file or its WAL/SHM sidecars.
     pub async fn export_archive(&self, dest_path: impl AsRef<Path>) -> crate::Result<()>;
 
     /// Return `true` if this host was opened with SQLite `immutable=1`.

@@ -451,4 +451,68 @@ mod tests {
         db.close().await?;
         Ok(())
     }
+
+    #[tokio::test]
+    async fn rejects_colliding_main_view_and_main_table() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("collide.db");
+        let db = seed_db(&db_path, "col").await?;
+
+        // A colliding table in `main` with the same name as a TEMP view cannot
+        // be queried directly via `main.v_evil`.
+        db.write(async |tx| {
+            query("CREATE TABLE v_evil (secret TEXT NOT NULL)")
+                .execute(&**tx)
+                .await?;
+            query("INSERT INTO v_evil (secret) VALUES ('classified')")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+
+        let table_surface = QuerySurface::new()
+            .with_temp_view("CREATE TEMP VIEW v_evil AS SELECT 'public' AS ok;")
+            .with_allowed_view("v_evil");
+        let table_sandbox = ReadOnlySandbox::from_surface(db.path(), false, table_surface);
+        let empty = BTreeMap::new();
+        let opts = SandboxQueryOptions::new();
+
+        let err = table_sandbox
+            .query("SELECT secret FROM main.v_evil", &empty, &opts)
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::Sandbox(SandboxError::Rejected(_))));
+        let ok_res = table_sandbox
+            .query("SELECT ok FROM v_evil", &empty, &opts)
+            .await?;
+        assert_eq!(ok_res.rows[0][0].text()?, "public");
+
+        // A colliding persistent VIEW in `main` with the same name as an
+        // allowlisted TEMP view is rejected outright so `main.<view>` cannot
+        // spoof `trigger_or_view` in SQLite's authorizer.
+        db.write(async |tx| {
+            query("CREATE VIEW v_a_items AS SELECT internal_secret FROM a_items")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+
+        let sandbox = ReadOnlySandbox::new(&db);
+        for sql in [
+            "SELECT internal_secret FROM main.v_a_items",
+            "SELECT 1 FROM main.v_a_items",
+            "SELECT id, name FROM v_a_items",
+        ] {
+            let err = sandbox.query(sql, &empty, &opts).await.unwrap_err();
+            assert!(
+                matches!(err, Error::Sandbox(SandboxError::Rejected(_))),
+                "expected colliding main view rejection for `{sql}`, got {err:?}"
+            );
+        }
+
+        db.close().await?;
+        Ok(())
+    }
 }

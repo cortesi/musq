@@ -530,4 +530,267 @@ mod tests {
         ro.close().await?;
         Ok(())
     }
+
+    /// Module attempting to `DROP` another module's table during install.
+    struct ModDropForeignTable;
+
+    impl Module for ModDropForeignTable {
+        const ID: &'static str = "test.drop_foreign";
+        const TABLE_PREFIX: &'static str = "df_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query("DROP TABLE a_items").execute(&**tx).await?;
+            Ok(())
+        }
+    }
+
+    /// Module attempting to `ALTER` another module's table during install.
+    struct ModAlterForeignTable;
+
+    impl Module for ModAlterForeignTable {
+        const ID: &'static str = "test.alter_foreign";
+        const TABLE_PREFIX: &'static str = "af_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query("ALTER TABLE a_items ADD COLUMN hacked TEXT")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Module attempting to `DROP` `_musq_modules` during install.
+    struct ModDropRegistry;
+
+    impl Module for ModDropRegistry {
+        const ID: &'static str = "test.drop_registry";
+        const TABLE_PREFIX: &'static str = "dr_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query("DROP TABLE _musq_modules").execute(&**tx).await?;
+            Ok(())
+        }
+    }
+
+    /// Clean v1 module used to test malicious `migrate()`.
+    struct ModCleanV1;
+
+    impl Module for ModCleanV1 {
+        const ID: &'static str = "test.clean_mod";
+        const TABLE_PREFIX: &'static str = "cm_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            query("CREATE TABLE cm_rows (id INTEGER PRIMARY KEY)")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Malicious v2 migration attempting to `ALTER` `_musq_modules`.
+    struct ModAlterRegistryV2;
+
+    impl Module for ModAlterRegistryV2 {
+        const ID: &'static str = "test.clean_mod";
+        const TABLE_PREFIX: &'static str = "cm_";
+        const SCHEMA_VERSION: u32 = 2;
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+
+        async fn migrate(tx: &mut Transaction<&mut Connection>, _from_version: u32) -> Result<()> {
+            query("ALTER TABLE _musq_modules ADD COLUMN extra TEXT")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        }
+    }
+
+    /// Module with prefix `"_musq"` (shorter prefix overlapping `"_musq_"`).
+    struct ModOverlapMusq;
+
+    impl Module for ModOverlapMusq {
+        const ID: &'static str = "test.overlap_musq";
+        const TABLE_PREFIX: &'static str = "_musq";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Module with prefix `"_"` (overlapping `"_musq_"`).
+    struct ModOverlapUnderscore;
+
+    impl Module for ModOverlapUnderscore {
+        const ID: &'static str = "test.overlap_under";
+        const TABLE_PREFIX: &'static str = "_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Module with prefix `"sqlite"` (shorter prefix overlapping `"sqlite_"`).
+    struct ModOverlapSqlite;
+
+    impl Module for ModOverlapSqlite {
+        const ID: &'static str = "test.overlap_sqlite";
+        const TABLE_PREFIX: &'static str = "sqlite";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Module with prefix `"a"` (shorter prefix overlapping installed `"a_"`).
+    struct ModShorterOverlapA;
+
+    impl Module for ModShorterOverlapA {
+        const ID: &'static str = "test.short_a";
+        const TABLE_PREFIX: &'static str = "a";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Module with prefix `"a_sub_"` (longer prefix overlapping installed
+    /// `"a_"`).
+    struct ModLongerOverlapA;
+
+    impl Module for ModLongerOverlapA {
+        const ID: &'static str = "test.long_a";
+        const TABLE_PREFIX: &'static str = "a_sub_";
+        const SCHEMA_VERSION: u32 = 1;
+
+        async fn install(_tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            Ok(())
+        }
+    }
+
+    #[tokio::test]
+    async fn rejects_drop_or_alter_of_foreign_tables_and_registry() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("tamper.db");
+        let db = Database::open(&db_path, DatabaseOptions::new()).await?;
+        db.mount(ModA).await?;
+        db.mount(ModCleanV1).await?;
+
+        let orig_a_sql: String =
+            query_scalar("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'a_items'")
+                .fetch_one(db.pool())
+                .await?;
+        let orig_reg_sql: String = query_scalar(
+            "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = '_musq_modules'",
+        )
+        .fetch_one(db.pool())
+        .await?;
+
+        // Dropping another module's table is rejected and rolled back.
+        let drop_err = db.mount(ModDropForeignTable).await.unwrap_err();
+        assert!(matches!(
+            drop_err,
+            Error::Module(ModuleError::SchemaViolation {
+                ref object_name,
+                ..
+            }) if object_name == "a_items"
+        ));
+
+        // Altering another module's table is rejected and rolled back.
+        let alter_err = db.mount(ModAlterForeignTable).await.unwrap_err();
+        assert!(matches!(
+            alter_err,
+            Error::Module(ModuleError::SchemaViolation {
+                ref object_name,
+                ..
+            }) if object_name == "a_items"
+        ));
+
+        // Dropping `_musq_modules` during install is rejected and rolled back.
+        let drop_reg_err = db.mount(ModDropRegistry).await.unwrap_err();
+        assert!(matches!(
+            drop_reg_err,
+            Error::Module(ModuleError::SchemaViolation {
+                ref object_name,
+                ..
+            }) if object_name == "_musq_modules"
+        ));
+
+        // Altering `_musq_modules` during migrate is rejected and rolled back.
+        let alter_reg_err = db.mount(ModAlterRegistryV2).await.unwrap_err();
+        assert!(matches!(
+            alter_reg_err,
+            Error::Module(ModuleError::SchemaViolation {
+                ref object_name,
+                ..
+            }) if object_name == "_musq_modules"
+        ));
+
+        // Both schemas and `_musq_modules` remain untouched.
+        let after_a_sql: String =
+            query_scalar("SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = 'a_items'")
+                .fetch_one(db.pool())
+                .await?;
+        let after_reg_sql: String = query_scalar(
+            "SELECT sql FROM sqlite_schema WHERE type = 'table' AND name = '_musq_modules'",
+        )
+        .fetch_one(db.pool())
+        .await?;
+        assert_eq!(after_a_sql, orig_a_sql);
+        assert_eq!(after_reg_sql, orig_reg_sql);
+        assert_eq!(db.verify_module::<ModCleanV1>().await?.schema_version, 1);
+
+        db.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn rejects_overlapping_prefixes_bidirectionally() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("overlap.db");
+        let db = Database::open(&db_path, DatabaseOptions::new()).await?;
+        db.mount(ModA).await?;
+
+        // Reserved namespace overlaps (`_musq`, `_`, `sqlite`).
+        assert!(matches!(
+            db.mount(ModOverlapMusq).await.unwrap_err(),
+            Error::Module(ModuleError::InvalidPrefix { .. })
+        ));
+        assert!(matches!(
+            db.mount(ModOverlapUnderscore).await.unwrap_err(),
+            Error::Module(ModuleError::InvalidPrefix { .. })
+        ));
+        assert!(matches!(
+            db.mount(ModOverlapSqlite).await.unwrap_err(),
+            Error::Module(ModuleError::InvalidPrefix { .. })
+        ));
+
+        // Bidirectional overlap with already-installed `a_` (`a` and `a_sub_`).
+        assert!(matches!(
+            db.mount(ModShorterOverlapA).await.unwrap_err(),
+            Error::Module(ModuleError::PrefixConflict {
+                ref existing_module_id,
+                ..
+            }) if existing_module_id == "test.mod_a"
+        ));
+        assert!(matches!(
+            db.mount(ModLongerOverlapA).await.unwrap_err(),
+            Error::Module(ModuleError::PrefixConflict {
+                ref existing_module_id,
+                ..
+            }) if existing_module_id == "test.mod_a"
+        ));
+
+        db.close().await?;
+        Ok(())
+    }
 }

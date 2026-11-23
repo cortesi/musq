@@ -2,6 +2,7 @@
 //! single-threaded FIFO writer, and standalone archive export.
 
 use std::{
+    env,
     ffi::OsString,
     fs, io,
     ops::AsyncFnOnce,
@@ -386,8 +387,12 @@ impl Database {
     /// `PRAGMA journal_mode = DELETE`, deletes any `-wal` or `-shm` sidecars,
     /// and verifies that the archive opens with `immutable = true` and passes
     /// `PRAGMA quick_check`.
+    ///
+    /// Returns [`Error::Configuration`] if `dest_path` aliases this database
+    /// file or its WAL/SHM sidecars.
     pub async fn export_archive(&self, dest_path: impl AsRef<Path>) -> Result<()> {
         let dest = dest_path.as_ref();
+        ensure_distinct_export_path(&self.0.path, dest)?;
         ensure_parent_dir(dest)?;
         remove_if_exists(dest)?;
         remove_sidecars(dest)?;
@@ -395,11 +400,16 @@ impl Database {
         self.0.pool.vacuum_into(dest).await?;
 
         let archive_pool = Musq::new().max_connections(1).open(dest).await?;
-        let journal_res = query("PRAGMA journal_mode = DELETE")
-            .execute(&archive_pool)
+        let journal_res: Result<String> = query_scalar("PRAGMA journal_mode = DELETE")
+            .fetch_one(&archive_pool)
             .await;
         let () = archive_pool.close().await;
-        journal_res?;
+        let journal_mode = journal_res?;
+        if !journal_mode.eq_ignore_ascii_case("delete") {
+            return Err(Error::ArchiveVerification(format!(
+                "expected archive journal_mode `delete`, got `{journal_mode}`"
+            )));
+        }
 
         remove_sidecars(dest)?;
 
@@ -447,6 +457,50 @@ fn build_writable_musq(options: &DatabaseOptions) -> Musq {
         .pragma("temp_store", "FILE")
         .pragma("cache_size", &options.cache_size_kib.to_string())
         .pragma("mmap_size", &options.mmap_size_bytes.to_string())
+}
+
+/// Reject `dest` when it resolves to the same file as `source` or its
+/// `-wal`/`-shm` sidecars.
+fn ensure_distinct_export_path(source: &Path, dest: &Path) -> Result<()> {
+    let resolved_dest = resolve_candidate_path(dest);
+    let protected = [
+        resolve_candidate_path(source),
+        resolve_candidate_path(&sidecar_path(source, "-wal")),
+        resolve_candidate_path(&sidecar_path(source, "-shm")),
+    ];
+    if protected.iter().any(|path| path == &resolved_dest) {
+        return Err(Error::Configuration(format!(
+            "archive destination `{}` must not alias source database `{}`",
+            dest.display(),
+            source.display()
+        )));
+    }
+    Ok(())
+}
+
+/// Resolve `path` to a canonical form even when the final file does not yet
+/// exist on disk.
+fn resolve_candidate_path(path: &Path) -> PathBuf {
+    if let Ok(canonical) = fs::canonicalize(path) {
+        return canonical;
+    }
+    if let (Some(parent), Some(file_name)) = (path.parent(), path.file_name()) {
+        let parent_dir = if parent.as_os_str().is_empty() {
+            Path::new(".")
+        } else {
+            parent
+        };
+        if let Ok(canonical_parent) = fs::canonicalize(parent_dir) {
+            return canonical_parent.join(file_name);
+        }
+    }
+    if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        env::current_dir()
+            .map(|cwd| cwd.join(path))
+            .unwrap_or_else(|_| path.to_path_buf())
+    }
 }
 
 /// Create parent directories for `path` when needed.

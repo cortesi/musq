@@ -5,10 +5,14 @@
 mod tests {
     use std::{
         ffi::OsString,
+        future::Ready,
         path::{Path, PathBuf},
     };
 
-    use musq::{Database, DatabaseOptions, Error, FunctionFlags, Musq, Value, query, query_scalar};
+    use musq::{
+        Connection, Database, DatabaseOptions, Error, FunctionFlags, Musq, Transaction, Value,
+        query, query_scalar,
+    };
     use tempfile::tempdir;
 
     /// Compute a SQLite sidecar path (`-wal` or `-shm`).
@@ -16,6 +20,11 @@ mod tests {
         let mut os = OsString::from(path.as_os_str());
         os.push(suffix);
         PathBuf::from(os)
+    }
+
+    /// Panics synchronously before returning its future.
+    fn sync_panic(_tx: &mut Transaction<&mut Connection>) -> Ready<Result<(), Error>> {
+        panic!("sync boom")
     }
 
     #[tokio::test]
@@ -307,6 +316,84 @@ mod tests {
         assert_eq!(result, 42);
         drop(conn);
         let () = pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn export_archive_rejects_source_path_and_preserves_live_db() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("live.db");
+        let db = Database::open(&db_path, DatabaseOptions::new()).await?;
+
+        db.write(async |tx| {
+            query("CREATE TABLE items (id INTEGER PRIMARY KEY, label TEXT NOT NULL)")
+                .execute(&**tx)
+                .await?;
+            query("INSERT INTO items (id, label) VALUES (1, 'safe')")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+
+        // Both canonical path, original path, and WAL sidecar must be rejected
+        // before unlinking anything.
+        for alias in [
+            db.path().to_path_buf(),
+            db_path.clone(),
+            sidecar(&db_path, "-wal"),
+        ] {
+            let err = db.export_archive(&alias).await.unwrap_err();
+            assert!(
+                matches!(err, Error::Configuration(_)),
+                "expected Error::Configuration for alias {}, got {err:?}",
+                alias.display()
+            );
+        }
+
+        let label: String = query_scalar("SELECT label FROM items WHERE id = 1")
+            .fetch_one(db.pool())
+            .await?;
+        assert_eq!(label, "safe");
+
+        db.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn synchronous_panic_in_write_rolls_back_and_keeps_writer_alive() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("sync-panic.db");
+        let db = Database::open(&db_path, DatabaseOptions::new()).await?;
+
+        db.write(async |tx| {
+            query("CREATE TABLE items (id INTEGER PRIMARY KEY, label TEXT NOT NULL)")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+
+        // Panic synchronously inside the callback BEFORE returning a future.
+        let db_clone = db.clone();
+        let handle = tokio::spawn(async move { db_clone.write(sync_panic).await });
+        assert!(handle.await.unwrap_err().is_panic());
+
+        // Subsequent writes still succeed on the live writer thread.
+        db.write(async |tx| {
+            query("INSERT INTO items (id, label) VALUES (1, 'alive')")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+
+        let label: String = query_scalar("SELECT label FROM items WHERE id = 1")
+            .fetch_one(db.pool())
+            .await?;
+        assert_eq!(label, "alive");
+
+        db.close().await?;
         Ok(())
     }
 }
