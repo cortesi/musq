@@ -105,7 +105,8 @@ impl EstablishParams {
         }
 
         if !query_params.is_empty() {
-            filename = format!("file:{}?{}", filename, query_params.join("&"));
+            let encoded = encode_sqlite_uri_path(&filename);
+            filename = format!("file:{encoded}?{}", query_params.join("&"));
             flags |= libsqlite3_sys::SQLITE_OPEN_URI;
         }
 
@@ -244,6 +245,21 @@ impl EstablishParams {
             log_settings: self.log_settings,
         })
     }
+}
+
+/// Percent-encode reserved SQLite URI characters in a filesystem path so
+/// paths containing `%`, `?`, or `#` open cleanly under `SQLITE_OPEN_URI`.
+fn encode_sqlite_uri_path(path: &str) -> String {
+    let mut encoded = String::with_capacity(path.len());
+    for ch in path.chars() {
+        match ch {
+            '%' => encoded.push_str("%25"),
+            '?' => encoded.push_str("%3F"),
+            '#' => encoded.push_str("%23"),
+            other => encoded.push(other),
+        }
+    }
+    encoded
 }
 
 /// Apply a boolean `sqlite3_db_config` switch and require SQLite to report the

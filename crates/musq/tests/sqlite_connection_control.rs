@@ -4,6 +4,8 @@ mod support;
 
 #[cfg(test)]
 mod tests {
+    use std::fs;
+
     use musq::{DbStatusKind, JournalMode, Musq, WalCheckpointMode, query, query_scalar};
 
     use crate::support::{assert_configuration_contains, connection};
@@ -232,6 +234,35 @@ mod tests {
             "expected SQLite error for unknown double-quoted identifier, got {error:?}"
         );
         let _ = pool.close().await;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn immutable_open_handles_reserved_uri_characters_in_path() -> anyhow::Result<()> {
+        let dir = tempfile::tempdir()?;
+        let nested = dir.path().join("a #b?c%d e");
+        fs::create_dir_all(&nested)?;
+        let path = nested.join("trace#1?v=2%3.sqlite");
+
+        let writable = Musq::new().create_if_missing(true).open(&path).await?;
+        query("CREATE TABLE items (value TEXT NOT NULL)")
+            .execute(&writable)
+            .await?;
+        query("INSERT INTO items (value) VALUES ('ok')")
+            .execute(&writable)
+            .await?;
+        let _ = writable.close().await;
+
+        let immutable = Musq::new()
+            .read_only(true)
+            .immutable(true)
+            .open(&path)
+            .await?;
+        let value: String = query_scalar("SELECT value FROM items")
+            .fetch_one(&immutable)
+            .await?;
+        assert_eq!(value, "ok");
+        let _ = immutable.close().await;
         Ok(())
     }
 
