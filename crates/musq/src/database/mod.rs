@@ -19,6 +19,7 @@ pub use self::sandbox::{json_params_to_values, value_to_json};
 use self::writer::LazyWriter;
 pub use self::{
     module::{Module, ModuleRecord},
+    registry::DatabaseRegistry,
     sandbox::{
         ReadOnlySandbox, SandboxQueryOptions, SandboxQueryResult, fleet_query,
         validate_single_statement,
@@ -32,6 +33,8 @@ use crate::{
 
 /// Composable schema modules and `_musq_modules` registry.
 mod module;
+/// Canonical-path registry of shared writable database handles.
+mod registry;
 /// Composable read-only SQL sandbox and multi-file fleet queries.
 mod sandbox;
 /// Declarative read-only SQL query surfaces.
@@ -80,8 +83,13 @@ pub struct DatabaseOptions {
     /// Optional host-owned `PRAGMA user_version`.
     ///
     /// On a fresh writable database, the host writes this value. On an existing
-    /// database, the host requires the stored `user_version` to match.
+    /// database, the host requires the stored `user_version` to match unless
+    /// [`Self::stamp_header_if_fresh`] is `true`.
     pub user_version: Option<i32>,
+    /// When `true`, stamp `application_id` and `user_version` onto fresh
+    /// databases without rejecting existing databases that carry another host's
+    /// header values.
+    pub stamp_header_if_fresh: bool,
     /// Thread name for the lazy single-threaded FIFO writer runtime.
     pub writer_thread_name: String,
 }
@@ -104,6 +112,7 @@ impl DatabaseOptions {
             acquire_timeout: DEFAULT_ACQUIRE_TIMEOUT,
             application_id: None,
             user_version: None,
+            stamp_header_if_fresh: false,
             writer_thread_name: DEFAULT_WRITER_THREAD_NAME.to_owned(),
         }
     }
@@ -154,6 +163,14 @@ impl DatabaseOptions {
     #[must_use]
     pub const fn user_version(mut self, user_version: i32) -> Self {
         self.user_version = Some(user_version);
+        self
+    }
+
+    /// Stamp `application_id` and `user_version` only on fresh databases,
+    /// accepting existing databases with any header values.
+    #[must_use]
+    pub const fn stamp_header_if_fresh(mut self) -> Self {
+        self.stamp_header_if_fresh = true;
         self
     }
 
@@ -563,7 +580,9 @@ async fn init_writable_database(pool: &Pool, path: &Path, options: &DatabaseOpti
                 .execute(&*tx)
                 .await?;
         }
-    } else if let Err(err) = check_header_match(path, app_id, user_ver, options) {
+    } else if !options.stamp_header_if_fresh
+        && let Err(err) = check_header_match(path, app_id, user_ver, options)
+    {
         tx.rollback().await.ok();
         return Err(err);
     }
@@ -579,7 +598,9 @@ async fn verify_read_only_header(
     path: &Path,
     options: &DatabaseOptions,
 ) -> Result<()> {
-    if options.application_id.is_none() && options.user_version.is_none() {
+    if options.stamp_header_if_fresh
+        || (options.application_id.is_none() && options.user_version.is_none())
+    {
         return Ok(());
     }
     let app_id: i32 = query_scalar("PRAGMA application_id")

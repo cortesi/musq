@@ -24,7 +24,7 @@ An async SQLite driver focused on performance, correctness, and flexibility.
 - Workspace dependencies: musq-macros
 - Workspace dependents: stresstest
 - Unnameable: crate::executor::sealed::Sealed, crate::query::Bindable, crate::query::as_connection::AsConnection, crate::query::as_connection::Sealed, crate::query::query_executor_sealed::Sealed
-- Items: 338
+- Items: 345
 - Exposes: bstr, bytes, futures-core, log, serde, serde_json, time
 
 ## Binary-only packages

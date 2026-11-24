@@ -5,13 +5,14 @@
 mod tests {
     use std::{
         ffi::OsString,
+        fs,
         future::Ready,
         path::{Path, PathBuf},
     };
 
     use musq::{
-        Connection, Database, DatabaseOptions, Error, FunctionFlags, Musq, Transaction, Value,
-        query, query_scalar,
+        Connection, Database, DatabaseOptions, DatabaseRegistry, Error, FunctionFlags, Musq,
+        Transaction, Value, query, query_scalar,
     };
     use tempfile::tempdir;
 
@@ -394,6 +395,160 @@ mod tests {
         assert_eq!(label, "alive");
 
         db.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn stamp_header_if_fresh_stamps_new_and_accepts_existing_headers() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("co-mounted.db");
+
+        // Fresh database receives the first opener's header stamp.
+        let first_opts = DatabaseOptions::new()
+            .application_id(0x5650_5256)
+            .user_version(3)
+            .stamp_header_if_fresh();
+        let db = Database::open(&db_path, first_opts).await?;
+
+        let app_id: i32 = query_scalar("PRAGMA application_id")
+            .fetch_one(db.pool())
+            .await?;
+        let user_ver: i32 = query_scalar("PRAGMA user_version")
+            .fetch_one(db.pool())
+            .await?;
+        assert_eq!(app_id, 0x5650_5256);
+        assert_eq!(user_ver, 3);
+        db.close().await?;
+
+        // A second opener with different application_id and user_version
+        // succeeds when `stamp_header_if_fresh()` is enabled, and preserves
+        // the original header.
+        let second_opts = DatabaseOptions::new()
+            .application_id(0x5657_5452)
+            .user_version(9)
+            .stamp_header_if_fresh();
+        let reopened = Database::open(&db_path, second_opts).await?;
+        let app_id_after: i32 = query_scalar("PRAGMA application_id")
+            .fetch_one(reopened.pool())
+            .await?;
+        let user_ver_after: i32 = query_scalar("PRAGMA user_version")
+            .fetch_one(reopened.pool())
+            .await?;
+        assert_eq!(app_id_after, 0x5650_5256);
+        assert_eq!(user_ver_after, 3);
+        reopened.close().await?;
+
+        // Default strict mode still rejects mismatched headers.
+        let err = Database::open(&db_path, DatabaseOptions::new().application_id(0x5657_5452))
+            .await
+            .unwrap_err();
+        assert!(matches!(err, Error::IncompatibleFormat { .. }));
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn database_registry_reuses_live_handle_and_reopens_after_replace() -> anyhow::Result<()>
+    {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("shared.db");
+        let registry = DatabaseRegistry::new();
+        assert!(registry.is_empty().await);
+
+        let first = registry
+            .open_writable(&db_path, DatabaseOptions::new())
+            .await?;
+        assert_eq!(registry.len().await, 1);
+
+        first
+            .write(async |tx| {
+                query("CREATE TABLE notes (id INTEGER PRIMARY KEY, body TEXT NOT NULL)")
+                    .execute(&**tx)
+                    .await?;
+                query("INSERT INTO notes (id, body) VALUES (1, 'v1')")
+                    .execute(&**tx)
+                    .await?;
+                Ok::<_, Error>(())
+            })
+            .await?;
+
+        // Repeated open on the same canonical path returns a clone of the exact
+        // same underlying `Database` (sharing pool and FIFO writer).
+        let second = registry
+            .open_writable(
+                &db_path,
+                DatabaseOptions::new()
+                    .application_id(0x1234_5678)
+                    .stamp_header_if_fresh(),
+            )
+            .await?;
+        assert_eq!(registry.len().await, 1);
+        let body: String = query_scalar("SELECT body FROM notes WHERE id = 1")
+            .fetch_one(second.pool())
+            .await?;
+        assert_eq!(body, "v1");
+
+        // Closing `first` closes `second`'s pool because both wrap the same
+        // `DatabaseInner`.
+        first.close().await?;
+        assert!(second.pool().is_closed());
+
+        // Subsequent open detects the closed pool and opens a fresh handle.
+        let reopened = registry
+            .open_writable(&db_path, DatabaseOptions::new())
+            .await?;
+        assert!(!reopened.pool().is_closed());
+        let body_again: String = query_scalar("SELECT body FROM notes WHERE id = 1")
+            .fetch_one(reopened.pool())
+            .await?;
+        assert_eq!(body_again, "v1");
+
+        // Deleting and recreating the file at the same path evicts the stale
+        // handle (new inode) and opens the replacement file cleanly.
+        reopened.close().await?;
+        fs::remove_file(&db_path)?;
+        drop(fs::remove_file(sidecar(&db_path, "-wal")));
+        drop(fs::remove_file(sidecar(&db_path, "-shm")));
+
+        let fresh = registry
+            .open_writable(&db_path, DatabaseOptions::new())
+            .await?;
+        let notes_table: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = 'notes'",
+        )
+        .fetch_one(fresh.pool())
+        .await?;
+        assert_eq!(notes_table, 0);
+
+        // Even without closing the prior handle first, deleting + recreating
+        // the file at the same path causes the next open to replace it.
+        fresh
+            .write(async |tx| {
+                query("CREATE TABLE v2_only (id INTEGER PRIMARY KEY)")
+                    .execute(&**tx)
+                    .await?;
+                Ok::<_, Error>(())
+            })
+            .await?;
+        fs::remove_file(&db_path)?;
+        drop(fs::remove_file(sidecar(&db_path, "-wal")));
+        drop(fs::remove_file(sidecar(&db_path, "-shm")));
+
+        let recreated = registry
+            .open_writable(&db_path, DatabaseOptions::new())
+            .await?;
+        let v2_table: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = 'v2_only'",
+        )
+        .fetch_one(recreated.pool())
+        .await?;
+        assert_eq!(v2_table, 0);
+
+        let removed = registry.remove(&db_path).await;
+        assert!(removed.is_some());
+        assert!(registry.is_empty().await);
+
+        fresh.close().await?;
+        recreated.close().await?;
         Ok(())
     }
 }

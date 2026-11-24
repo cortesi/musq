@@ -79,8 +79,8 @@ pub use crate::types::vec::{VecBit, VecF32, VecInt8};
 pub use crate::{
     conditions::Conditions,
     database::{
-        Database, DatabaseOptions, Module, ModuleRecord, QuerySurface, ReadOnlySandbox,
-        SandboxPrepareHook, SandboxQueryOptions, SandboxQueryResult, fleet_query,
+        Database, DatabaseOptions, DatabaseRegistry, Module, ModuleRecord, QuerySurface,
+        ReadOnlySandbox, SandboxPrepareHook, SandboxQueryOptions, SandboxQueryResult, fleet_query,
         validate_single_statement,
     },
     encode::Null,

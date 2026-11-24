@@ -1168,8 +1168,13 @@ pub struct DatabaseOptions {
     /// Optional host-owned `PRAGMA user_version`.
     ///
     /// On a fresh writable database, the host writes this value. On an existing
-    /// database, the host requires the stored `user_version` to match.
+    /// database, the host requires the stored `user_version` to match unless
+    /// [`Self::stamp_header_if_fresh`] is `true`.
     pub user_version: Option<i32>,
+    /// When `true`, stamp `application_id` and `user_version` onto fresh
+    /// databases without rejecting existing databases that carry another host's
+    /// header values.
+    pub stamp_header_if_fresh: bool,
     /// Thread name for the lazy single-threaded FIFO writer runtime.
     pub writer_thread_name: String,
 }
@@ -1203,6 +1208,11 @@ impl DatabaseOptions {
     #[must_use]
     pub fn new() -> Self;
 
+    /// Stamp `application_id` and `user_version` only on fresh databases,
+    /// accepting existing databases with any header values.
+    #[must_use]
+    pub const fn stamp_header_if_fresh(self) -> Self;
+
     /// Set the host-owned `PRAGMA user_version`.
     #[must_use]
     pub const fn user_version(self, user_version: i32) -> Self;
@@ -1210,6 +1220,40 @@ impl DatabaseOptions {
     /// Set the thread name for the lazy writer thread.
     #[must_use]
     pub fn writer_thread_name(self, name: impl Into<String>) -> Self;
+}
+
+/// Host-owned canonical-path registry of shared writable [`Database`] handles.
+///
+/// Multiple providers or subsystems opening the same canonical path receive
+/// clones of one [`Database`] instance (sharing one read pool and one
+/// serialized FIFO writer). If the file on disk is deleted or replaced, or if
+/// the cached pool is closed, the stale entry is evicted and a fresh handle is
+/// opened.
+#[derive(Clone, Debug, Default)]
+pub struct DatabaseRegistry {/* private fields */}
+
+impl DatabaseRegistry {
+    /// Return `true` when no writable database entries are cached.
+    pub async fn is_empty(&self) -> bool;
+
+    /// Return the number of currently cached writable database entries.
+    pub async fn len(&self) -> usize;
+
+    /// Construct an empty [`DatabaseRegistry`].
+    #[must_use]
+    pub fn new() -> Self;
+
+    /// Return a shared writable [`Database`] for `canonical`, opening it with
+    /// `options` on first use or reopening it if the file was deleted/replaced
+    /// or its pool was closed.
+    pub async fn open_writable(
+        &self,
+        canonical: &Path,
+        options: DatabaseOptions,
+    ) -> crate::Result<Database>;
+
+    /// Remove and return any cached [`Database`] registered for `canonical`.
+    pub async fn remove(&self, canonical: &Path) -> Option<Database>;
 }
 
 /// A database-connection status measurement.
