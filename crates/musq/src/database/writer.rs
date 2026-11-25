@@ -19,7 +19,9 @@ use tokio::{
     task::LocalSet,
 };
 
-use crate::{Connection, Error, Musq, Result, Transaction, TransactionBehavior};
+use crate::{
+    Connection, Error, Musq, Result, Transaction, TransactionBehavior, query, query_scalar,
+};
 
 /// Future wrapper that catches panics from polling a pinned future without
 /// requiring `futures-util/std`.
@@ -59,12 +61,46 @@ trait WriterJob: Send {
     fn fail(self: Box<Self>, err: Error);
 }
 
+/// How the commit of a writer job reaches the disk.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Commit {
+    /// The `synchronous` setting of the connection decides. In WAL mode with
+    /// `synchronous = NORMAL`, the commit reaches the disk at a later
+    /// checkpoint.
+    Settled,
+    /// The commit syncs the write-ahead log: the job runs with
+    /// `synchronous = FULL`, and the connection then takes its own setting
+    /// back.
+    Durable,
+}
+
+/// The SQLite `synchronous` level of `FULL`.
+const SYNCHRONOUS_FULL: i64 = 2;
+
 /// Concrete transaction job submitted to the writer thread.
 struct TxJob<F, R, E> {
     /// Caller-provided async transaction callback.
     work: F,
+    /// How the commit reaches the disk.
+    commit: Commit,
     /// Completion channel back to the awaiting caller.
     reply: oneshot::Sender<JobOutcome<R, E>>,
+}
+
+/// Raises the `synchronous` level of `conn` to `FULL` outside a
+/// transaction, where SQLite allows the change, and returns the level to take
+/// back, or `None` when the level is `FULL` or above already.
+async fn raise_to_full(conn: &mut Connection) -> Result<Option<i64>> {
+    let level: i64 = query_scalar("PRAGMA synchronous")
+        .fetch_one(&mut *conn)
+        .await?;
+    if level >= SYNCHRONOUS_FULL {
+        return Ok(None);
+    }
+    query("PRAGMA synchronous = FULL")
+        .execute(&mut *conn)
+        .await?;
+    Ok(Some(level))
 }
 
 impl<F, R, E> WriterJob for TxJob<F, R, E>
@@ -78,43 +114,68 @@ where
         conn: &'a mut Connection,
     ) -> Pin<Box<dyn Future<Output = ()> + 'a>> {
         Box::pin(async move {
-            let Self { work, reply } = *self;
-            let mut tx = match conn.begin_with(TransactionBehavior::Immediate).await {
-                Ok(tx) => tx,
-                Err(err) => {
-                    reply.send(JobOutcome::Result(Err(E::from(err)))).ok();
-                    return;
-                }
-            };
-
-            let outcome = match panic::catch_unwind(AssertUnwindSafe(|| Box::pin((work)(&mut tx))))
-            {
-                Ok(future) => CatchUnwind { future }.await,
-                Err(payload) => Err(payload),
-            };
-            match outcome {
-                Ok(Ok(value)) => match tx.commit().await {
-                    Ok(()) => {
-                        reply.send(JobOutcome::Result(Ok(value))).ok();
-                    }
+            let Self {
+                work,
+                commit,
+                reply,
+            } = *self;
+            let restore = match commit {
+                Commit::Settled => None,
+                Commit::Durable => match raise_to_full(conn).await {
+                    Ok(restore) => restore,
                     Err(err) => {
                         reply.send(JobOutcome::Result(Err(E::from(err)))).ok();
+                        return;
                     }
                 },
-                Ok(Err(err)) => {
-                    tx.rollback().await.ok();
-                    reply.send(JobOutcome::Result(Err(err))).ok();
-                }
-                Err(payload) => {
-                    tx.rollback().await.ok();
-                    reply.send(JobOutcome::Panicked(payload)).ok();
-                }
+            };
+            let outcome = run_in_tx(conn, work).await;
+            // A failed restore leaves the connection at `FULL`: each later
+            // commit is durable too, and slower.
+            if let Some(level) = restore {
+                query(&format!("PRAGMA synchronous = {level}"))
+                    .execute(&mut *conn)
+                    .await
+                    .ok();
             }
+            reply.send(outcome).ok();
         })
     }
 
     fn fail(self: Box<Self>, err: Error) {
         self.reply.send(JobOutcome::Result(Err(E::from(err)))).ok();
+    }
+}
+
+/// Runs `work` in a `BEGIN IMMEDIATE` transaction on `conn`: commits on `Ok`,
+/// and rolls back on `Err` or a panic.
+async fn run_in_tx<F, R, E>(conn: &mut Connection, work: F) -> JobOutcome<R, E>
+where
+    F: AsyncFnOnce(&mut Transaction<&mut Connection>) -> result::Result<R, E>,
+    E: From<Error>,
+{
+    let mut tx = match conn.begin_with(TransactionBehavior::Immediate).await {
+        Ok(tx) => tx,
+        Err(err) => return JobOutcome::Result(Err(E::from(err))),
+    };
+
+    let outcome = match panic::catch_unwind(AssertUnwindSafe(|| Box::pin((work)(&mut tx)))) {
+        Ok(future) => CatchUnwind { future }.await,
+        Err(payload) => Err(payload),
+    };
+    match outcome {
+        Ok(Ok(value)) => match tx.commit().await {
+            Ok(()) => JobOutcome::Result(Ok(value)),
+            Err(err) => JobOutcome::Result(Err(E::from(err))),
+        },
+        Ok(Err(err)) => {
+            tx.rollback().await.ok();
+            JobOutcome::Result(Err(err))
+        }
+        Err(payload) => {
+            tx.rollback().await.ok();
+            JobOutcome::Panicked(payload)
+        }
     }
 }
 
@@ -224,8 +285,8 @@ impl LazyWriter {
     }
 
     /// Run `callback` inside a serialized `BEGIN IMMEDIATE` transaction on the
-    /// dedicated write connection.
-    pub(crate) async fn run_tx<F, R, E>(&self, callback: F) -> result::Result<R, E>
+    /// dedicated write connection, with a commit of the durability `commit`.
+    pub(crate) async fn run_tx<F, R, E>(&self, commit: Commit, callback: F) -> result::Result<R, E>
     where
         F: AsyncFnOnce(&mut Transaction<&mut Connection>) -> result::Result<R, E> + Send + 'static,
         R: Send + 'static,
@@ -235,6 +296,7 @@ impl LazyWriter {
         let (reply_tx, reply_rx) = oneshot::channel();
         let job = Box::new(TxJob {
             work: callback,
+            commit,
             reply: reply_tx,
         });
         sender

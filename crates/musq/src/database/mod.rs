@@ -16,7 +16,7 @@ use indexmap::IndexMap;
 
 #[cfg(feature = "json")]
 pub use self::sandbox::{json_params_to_values, value_to_json};
-use self::writer::LazyWriter;
+use self::writer::{Commit, LazyWriter};
 pub use self::{
     module::{Module, ModuleRecord},
     registry::DatabaseRegistry,
@@ -328,7 +328,28 @@ impl Database {
         let Some(writer) = &self.0.writer else {
             return Err(E::from(Error::ReadOnly));
         };
-        writer.run_tx(callback).await
+        writer.run_tx(Commit::Settled, callback).await
+    }
+
+    /// Execute `callback` as [`Self::write`] does, with a durable commit: the
+    /// commit syncs the write-ahead log to the disk, so that this transaction
+    /// and each transaction committed before it survive a power loss.
+    ///
+    /// In WAL mode with `synchronous = NORMAL`, the setting of a writable
+    /// host, a commit reaches the disk only at a later checkpoint. This write
+    /// runs with `synchronous = FULL`, and the writer then takes its setting
+    /// back. Unlike a `FULL` checkpoint, it waits for no reader and copies no
+    /// page to the database file.
+    pub async fn write_durable<F, R, E>(&self, callback: F) -> result::Result<R, E>
+    where
+        F: AsyncFnOnce(&mut Transaction<&mut Connection>) -> result::Result<R, E> + Send + 'static,
+        R: Send + 'static,
+        E: From<Error> + Send + 'static,
+    {
+        let Some(writer) = &self.0.writer else {
+            return Err(E::from(Error::ReadOnly));
+        };
+        writer.run_tx(Commit::Durable, callback).await
     }
 
     /// Mount a [`Module`] onto this writable database host.

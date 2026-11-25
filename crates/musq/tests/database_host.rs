@@ -106,6 +106,71 @@ mod tests {
         Ok(())
     }
 
+    /// Reads the `synchronous` level of the writer inside a write.
+    async fn writer_synchronous(db: &Database, durable: bool) -> anyhow::Result<i64> {
+        let read = async |tx: &mut Transaction<&mut Connection>| {
+            query_scalar::<i64>("PRAGMA synchronous")
+                .fetch_one(&**tx)
+                .await
+        };
+        Ok(if durable {
+            db.write_durable(read).await?
+        } else {
+            db.write(read).await?
+        })
+    }
+
+    #[tokio::test]
+    async fn durable_write_commits_at_full_and_gives_the_writer_its_level_back()
+    -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db = Database::open(dir.path().join("durable.db"), DatabaseOptions::new()).await?;
+        db.write(async |tx| {
+            query("CREATE TABLE items (id INTEGER PRIMARY KEY)")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+
+        // `NORMAL` is 1, and `FULL` is 2.
+        assert_eq!(writer_synchronous(&db, false).await?, 1);
+        assert_eq!(writer_synchronous(&db, true).await?, 2);
+        assert_eq!(writer_synchronous(&db, false).await?, 1);
+
+        db.write_durable(async |tx| {
+            query("INSERT INTO items (id) VALUES (1)")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+        let failed = db
+            .write_durable(async |tx| {
+                query("INSERT INTO items (id) VALUES (2)")
+                    .execute(&**tx)
+                    .await?;
+                Err::<(), _>(Error::Protocol("refused".to_owned()))
+            })
+            .await;
+        assert!(failed.is_err());
+        assert_eq!(writer_synchronous(&db, false).await?, 1);
+        let ids: Vec<i64> = query_scalar("SELECT id FROM items ORDER BY id")
+            .fetch_all(db.pool())
+            .await?;
+        assert_eq!(ids, vec![1]);
+
+        let ro = Database::open_read_only(dir.path().join("durable.db"), false).await?;
+        let refused = ro
+            .write_durable(async |_tx| Ok::<_, Error>(()))
+            .await
+            .unwrap_err();
+        assert!(matches!(refused, Error::ReadOnly));
+        ro.close().await?;
+        db.close().await?;
+        Ok(())
+    }
+
     #[tokio::test]
     async fn concurrent_writers_serialize_without_busy_errors() -> anyhow::Result<()> {
         let dir = tempdir()?;

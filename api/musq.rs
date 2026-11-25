@@ -1151,6 +1151,21 @@ impl Database {
         E: 'static + From<Error> + Send,
         F: 'static + AsyncFnOnce(&mut Transaction<&mut Connection>) -> Result<R, E> + Send,
         R: 'static + Send;
+
+    /// Execute `callback` as [`Self::write`] does, with a durable commit: the
+    /// commit syncs the write-ahead log to the disk, so that this transaction
+    /// and each transaction committed before it survive a power loss.
+    ///
+    /// In WAL mode with `synchronous = NORMAL`, the setting of a writable
+    /// host, a commit reaches the disk only at a later checkpoint. This write
+    /// runs with `synchronous = FULL`, and the writer then takes its setting
+    /// back. Unlike a `FULL` checkpoint, it waits for no reader and copies no
+    /// page to the database file.
+    pub async fn write_durable<F, R, E>(&self, callback: F) -> Result<R, E>
+    where
+        E: 'static + From<Error> + Send,
+        F: 'static + AsyncFnOnce(&mut Transaction<&mut Connection>) -> Result<R, E> + Send,
+        R: 'static + Send;
 }
 
 /// Configuration for opening a [`Database`] host.
