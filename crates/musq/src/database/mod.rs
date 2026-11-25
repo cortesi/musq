@@ -596,8 +596,50 @@ async fn bootstrap_new_wal_file(path: &Path, busy_timeout: Duration) -> Result<(
     Ok(())
 }
 
+/// Return `true` when the read pool already shows an initialized database
+/// (with `_musq_modules` present and header fields compatible with `options`),
+/// avoiding a `BEGIN IMMEDIATE` write lock behind an active writer.
+///
+/// Return `false` whenever initialization or authoritative validation must run
+/// inside `BEGIN IMMEDIATE`: a fresh database, missing `_musq_modules`, a
+/// header mismatch, or a read failure.
+async fn writable_database_ready(pool: &Pool, path: &Path, options: &DatabaseOptions) -> bool {
+    let Ok(mut conn) = pool.acquire().await else {
+        return false;
+    };
+    let Ok(tx) = conn.begin_with(TransactionBehavior::Deferred).await else {
+        return false;
+    };
+    let ready = async {
+        let has_modules: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = '_musq_modules'",
+        )
+        .fetch_one(&*tx)
+        .await?;
+        if has_modules == 0 {
+            return Ok(false);
+        }
+        if options.stamp_header_if_fresh
+            || (options.application_id.is_none() && options.user_version.is_none())
+        {
+            return Ok(true);
+        }
+        let app_id: i32 = query_scalar("PRAGMA application_id")
+            .fetch_one(&*tx)
+            .await?;
+        let user_ver: i32 = query_scalar("PRAGMA user_version").fetch_one(&*tx).await?;
+        Ok::<bool, Error>(check_header_match(path, app_id, user_ver, options).is_ok())
+    }
+    .await;
+    tx.rollback().await.ok();
+    ready.unwrap_or(false)
+}
+
 /// Verify or stamp host header fields and ensure `_musq_modules` exists.
 async fn init_writable_database(pool: &Pool, path: &Path, options: &DatabaseOptions) -> Result<()> {
+    if writable_database_ready(pool, path, options).await {
+        return Ok(());
+    }
     let mut conn = pool.acquire().await?;
     let tx = conn.begin_with(TransactionBehavior::Immediate).await?;
 

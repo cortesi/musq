@@ -8,13 +8,15 @@ mod tests {
         fs,
         future::Ready,
         path::{Path, PathBuf},
+        time::Duration,
     };
 
     use musq::{
         Connection, Database, DatabaseOptions, DatabaseRegistry, Error, FunctionFlags, Musq,
-        Transaction, Value, query, query_scalar,
+        Transaction, TransactionBehavior, Value, query, query_scalar,
     };
     use tempfile::tempdir;
+    use tokio::{sync::oneshot, time::timeout};
 
     /// Compute a SQLite sidecar path (`-wal` or `-shm`).
     fn sidecar(path: &Path, suffix: &str) -> PathBuf {
@@ -652,6 +654,151 @@ mod tests {
 
         fresh.close().await?;
         recreated.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn open_already_initialized_database_does_not_block_on_active_writer()
+    -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("concurrent_open.db");
+
+        let opts = DatabaseOptions::new()
+            .application_id(0x5650_5256)
+            .user_version(3);
+        let db1 = Database::open(&db_path, opts.clone()).await?;
+        db1.write(async |tx| {
+            query("CREATE TABLE items (id INTEGER PRIMARY KEY, label TEXT NOT NULL)")
+                .execute(&**tx)
+                .await?;
+            query("INSERT INTO items (id, label) VALUES (1, 'ready')")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+
+        // Hold an active write transaction on `db1` (simulating a second
+        // process actively writing to the WAL database).
+        let (held_tx, held_rx) = oneshot::channel::<()>();
+        let (release_tx, release_rx) = oneshot::channel::<()>();
+        let writer_db = db1.clone();
+        let hold = tokio::spawn(async move {
+            writer_db
+                .write(async move |tx| {
+                    query("INSERT INTO items (id, label) VALUES (2, 'in-flight')")
+                        .execute(&**tx)
+                        .await?;
+                    held_tx.send(()).ok();
+                    release_rx.await.ok();
+                    Ok::<_, Error>(())
+                })
+                .await
+        });
+        held_rx.await?;
+
+        // Opening an already-initialized database in another handle must not
+        // acquire `BEGIN IMMEDIATE` or block behind `db1`'s writer, both in
+        // strict header mode and in `stamp_header_if_fresh` mode.
+        let strict_opts = opts.busy_timeout(Duration::from_millis(150));
+        let db2 = timeout(
+            Duration::from_secs(5),
+            Database::open(&db_path, strict_opts),
+        )
+        .await
+        .expect("strict open blocked behind held writer")?;
+        let label: String = query_scalar("SELECT label FROM items WHERE id = 1")
+            .fetch_one(db2.pool())
+            .await?;
+        assert_eq!(label, "ready");
+
+        let fresh_opts = DatabaseOptions::new()
+            .application_id(0x1111_2222)
+            .user_version(99)
+            .stamp_header_if_fresh()
+            .busy_timeout(Duration::from_millis(150));
+        let db3 = timeout(Duration::from_secs(5), Database::open(&db_path, fresh_opts))
+            .await
+            .expect("stamp_header_if_fresh open blocked behind held writer")?;
+        let count: i64 = query_scalar("SELECT COUNT(*) FROM items")
+            .fetch_one(db3.pool())
+            .await?;
+        assert_eq!(count, 1);
+
+        release_tx.send(()).ok();
+        hold.await??;
+
+        let count_after: i64 = query_scalar("SELECT COUNT(*) FROM items")
+            .fetch_one(db2.pool())
+            .await?;
+        assert_eq!(count_after, 2);
+
+        db3.close().await?;
+        db2.close().await?;
+        db1.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn open_falls_back_to_immediate_for_uninitialized_or_mismatched_db() -> anyhow::Result<()>
+    {
+        let dir = tempdir()?;
+        let raw_path = dir.path().join("raw_without_modules.db");
+
+        // A raw WAL database without `_musq_modules` must still wait for an
+        // active writer and create `_musq_modules` once the writer commits.
+        let raw_pool = Musq::new()
+            .create_if_missing(true)
+            .journal_mode(musq::JournalMode::Wal)
+            .max_connections(1)
+            .open(&raw_path)
+            .await?;
+        let tx = raw_pool.begin_with(TransactionBehavior::Immediate).await?;
+        query("CREATE TABLE legacy (id INTEGER PRIMARY KEY)")
+            .execute(&tx)
+            .await?;
+
+        let open_path = raw_path.clone();
+        let opener = tokio::spawn(async move {
+            Database::open(
+                &open_path,
+                DatabaseOptions::new().busy_timeout(Duration::from_secs(5)),
+            )
+            .await
+        });
+        // Give `opener` time to pass the read check and queue on `BEGIN
+        // IMMEDIATE`.
+        let legacy_seen: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = 'legacy'",
+        )
+        .fetch_one(&tx)
+        .await?;
+        assert_eq!(legacy_seen, 1);
+        tx.commit().await?;
+
+        let db = timeout(Duration::from_secs(5), opener)
+            .await
+            .expect("raw open timed out after writer commit")??;
+        let has_modules: i64 = query_scalar(
+            "SELECT COUNT(*) FROM sqlite_schema WHERE type = 'table' AND name = '_musq_modules'",
+        )
+        .fetch_one(db.pool())
+        .await?;
+        assert_eq!(has_modules, 1);
+        let () = raw_pool.close().await;
+
+        // A strict header mismatch must still return `IncompatibleFormat`.
+        let mismatched = Database::open(
+            &raw_path,
+            DatabaseOptions::new()
+                .application_id(0x5650_5256)
+                .busy_timeout(Duration::from_millis(200)),
+        )
+        .await
+        .unwrap_err();
+        assert!(matches!(mismatched, Error::IncompatibleFormat { .. }));
+
+        db.close().await?;
         Ok(())
     }
 }
