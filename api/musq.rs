@@ -1110,6 +1110,10 @@ impl Database {
 
     /// Open an existing database file read-only with explicit
     /// [`DatabaseOptions`].
+    ///
+    /// An `immutable` open reads the main file alone, so it refuses a file
+    /// whose write-ahead log holds frames, such as a database that a writer
+    /// holds open: such a file is not an archive.
     pub async fn open_read_only_with_options(
         path: impl AsRef<Path>,
         immutable: bool,

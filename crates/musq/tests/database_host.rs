@@ -172,6 +172,44 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn immutable_open_refuses_a_write_ahead_log_with_frames() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("live.db");
+        let db = Database::open(&db_path, DatabaseOptions::new()).await?;
+        db.write(async |tx| {
+            query("CREATE TABLE items (id INTEGER PRIMARY KEY)")
+                .execute(&**tx)
+                .await?;
+            query("INSERT INTO items (id) VALUES (1)")
+                .execute(&**tx)
+                .await?;
+            Ok::<_, Error>(())
+        })
+        .await?;
+        assert!(fs::metadata(sidecar(&db_path, "-wal"))?.len() > 0);
+
+        let refused = Database::open_read_only(&db_path, true).await.unwrap_err();
+        assert!(matches!(refused, Error::Configuration(_)), "{refused}");
+        let live = Database::open_read_only(&db_path, false).await?;
+        let rows: i64 = query_scalar("SELECT COUNT(*) FROM items")
+            .fetch_one(live.pool())
+            .await?;
+        assert_eq!(rows, 1);
+        live.close().await?;
+
+        let archive = dir.path().join("archive.db");
+        db.export_archive(&archive).await?;
+        db.close().await?;
+        let read = Database::open_read_only(&archive, true).await?;
+        let rows: i64 = query_scalar("SELECT COUNT(*) FROM items")
+            .fetch_one(read.pool())
+            .await?;
+        assert_eq!(rows, 1);
+        read.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
     async fn concurrent_writers_serialize_without_busy_errors() -> anyhow::Result<()> {
         let dir = tempdir()?;
         let db_path = dir.path().join("concurrent.db");

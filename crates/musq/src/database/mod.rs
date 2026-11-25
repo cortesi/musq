@@ -248,6 +248,10 @@ impl Database {
 
     /// Open an existing database file read-only with explicit
     /// [`DatabaseOptions`].
+    ///
+    /// An `immutable` open reads the main file alone, so it refuses a file
+    /// whose write-ahead log holds frames, such as a database that a writer
+    /// holds open: such a file is not an archive.
     pub async fn open_read_only_with_options(
         path: impl AsRef<Path>,
         immutable: bool,
@@ -259,6 +263,9 @@ impl Database {
                 io::ErrorKind::NotFound,
                 format!("database file `{}` does not exist", path.display()),
             )));
+        }
+        if immutable {
+            refuse_unsettled_wal(path)?;
         }
 
         let musq = Musq::new()
@@ -683,6 +690,21 @@ fn remove_sidecars(path: &Path) -> Result<()> {
         remove_if_exists(&sidecar_path(path, suffix))?;
     }
     Ok(())
+}
+
+/// Refuses an immutable open of `path` while its write-ahead log holds
+/// frames: SQLite reads an immutable database from its main file alone, so
+/// it would miss each commit that no checkpoint has copied there.
+fn refuse_unsettled_wal(path: &Path) -> Result<()> {
+    let wal = sidecar_path(path, "-wal");
+    match fs::metadata(&wal) {
+        Ok(meta) if meta.len() > 0 => Err(Error::Configuration(format!(
+            "database file `{}` has a write-ahead log with frames, which an immutable open \
+             does not read: open it without `immutable`, or export or checkpoint it first",
+            path.display()
+        ))),
+        _ => Ok(()),
+    }
 }
 
 /// Compute a SQLite sidecar path without requiring UTF-8 filenames.
