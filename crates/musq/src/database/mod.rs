@@ -347,6 +347,11 @@ impl Database {
     /// runs with `synchronous = FULL`, and the writer then takes its setting
     /// back. Unlike a `FULL` checkpoint, it waits for no reader and copies no
     /// page to the database file.
+    ///
+    /// `callback` must change at least one page, such as by an `UPDATE` that
+    /// matches a row. A commit that changes no page appends no frame to the
+    /// write-ahead log, so it syncs nothing, and the earlier commits stay as
+    /// durable as they were.
     pub async fn write_durable<F, R, E>(&self, callback: F) -> result::Result<R, E>
     where
         F: AsyncFnOnce(&mut Transaction<&mut Connection>) -> result::Result<R, E> + Send + 'static,

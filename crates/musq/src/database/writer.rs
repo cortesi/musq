@@ -132,11 +132,16 @@ where
             let outcome = run_in_tx(conn, work).await;
             // A failed restore leaves the connection at `FULL`: each later
             // commit is durable too, and slower.
-            if let Some(level) = restore {
-                query(&format!("PRAGMA synchronous = {level}"))
+            if let Some(level) = restore
+                && let Err(error) = query(&format!("PRAGMA synchronous = {level}"))
                     .execute(&mut *conn)
                     .await
-                    .ok();
+            {
+                tracing::warn!(
+                    %error,
+                    level,
+                    "failed to restore the synchronous level after a durable commit"
+                );
             }
             reply.send(outcome).ok();
         })
