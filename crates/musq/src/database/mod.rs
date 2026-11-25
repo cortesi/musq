@@ -340,8 +340,10 @@ impl Database {
     /// success, records `module.query_surface()` on this host handle.
     ///
     /// A done mount, with `M` in `_musq_modules` at [`Module::SCHEMA_VERSION`],
-    /// reads the registry through the read pool and queues no writer job. Only
-    /// an install or an upgrade waits for the writer.
+    /// reads the registry through the read pool and queues no writer job. Each
+    /// other mount queues a writer job, which decides again: an install, an
+    /// upgrade, a refusal (such as a downgrade, a prefix mismatch, or a
+    /// missing dependency), and a mount whose read of the registry failed.
     pub async fn mount<M: Module>(&self, module: M) -> Result<ModuleRecord> {
         if self.is_read_only() {
             return Err(Error::ReadOnly);
@@ -349,7 +351,7 @@ impl Database {
         module::validate_module_identity(M::ID, M::TABLE_PREFIX)?;
 
         let surface = module.query_surface();
-        let record = match module::done_mount_from_pool::<M>(&self.0.pool).await? {
+        let record = match module::done_mount_from_pool::<M>(&self.0.pool).await {
             Some(record) => record,
             None => {
                 let meta_json = module.meta_json();

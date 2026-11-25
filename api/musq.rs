@@ -1087,8 +1087,10 @@ impl Database {
     /// success, records `module.query_surface()` on this host handle.
     ///
     /// A done mount, with `M` in `_musq_modules` at [`Module::SCHEMA_VERSION`],
-    /// reads the registry through the read pool and queues no writer job. Only
-    /// an install or an upgrade waits for the writer.
+    /// reads the registry through the read pool and queues no writer job. Each
+    /// other mount queues a writer job, which decides again: an install, an
+    /// upgrade, a refusal (such as a downgrade, a prefix mismatch, or a
+    /// missing dependency), and a mount whose read of the registry failed.
     pub async fn mount<M: Module>(&self, module: M) -> crate::Result<ModuleRecord>;
 
     /// List all modules recorded in `_musq_modules`, ordered by `module_id`.

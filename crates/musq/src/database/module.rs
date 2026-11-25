@@ -180,17 +180,19 @@ fn mount_step<M: Module>(installed: Vec<ModuleRecord>) -> Result<MountStep> {
     Ok(MountStep::Upgrade(existing.schema_version))
 }
 
-/// Return the record of `M` when `pool` shows a done mount of `M`: `M` at
-/// [`Module::SCHEMA_VERSION`] with its dependencies and its prefix intact.
+/// Return the record of `M` when the read pool of a writable host shows a done
+/// mount of `M`: `M` at [`Module::SCHEMA_VERSION`] with its dependencies and
+/// its prefix intact.
 ///
-/// Return `None` when the mount must run in a write transaction. That
-/// transaction decides again, and returns each refusal.
-pub async fn done_mount_from_pool<M: Module>(pool: &Pool) -> Result<Option<ModuleRecord>> {
-    let installed = list_modules_from_pool(pool).await?;
-    Ok(match mount_step::<M>(installed) {
+/// Return `None` when the mount must run in a write transaction: an install,
+/// an upgrade, a refusal, or a failed read. That transaction decides again, and
+/// returns each refusal and each error, so a mount needs only the writer.
+pub async fn done_mount_from_pool<M: Module>(pool: &Pool) -> Option<ModuleRecord> {
+    let installed = load_modules_from_pool(pool).await.ok()?;
+    match mount_step::<M>(installed) {
         Ok(MountStep::Done(record)) => Some(record),
         Ok(MountStep::Install | MountStep::Upgrade(_)) | Err(_) => None,
-    })
+    }
 }
 
 /// Execute module mount (fresh install, idempotent check, or upgrade) inside an
@@ -510,6 +512,12 @@ pub async fn list_modules_from_pool(pool: &Pool) -> Result<Vec<ModuleRecord>> {
     if !modules_table_exists(pool).await? {
         return Ok(Vec::new());
     }
+    load_modules_from_pool(pool).await
+}
+
+/// Load all rows of `_musq_modules` using `pool`. The table must exist, as it
+/// does on each writable host.
+async fn load_modules_from_pool(pool: &Pool) -> Result<Vec<ModuleRecord>> {
     let rows: Vec<RawModuleRow> = query_as(
         "SELECT module_id, table_prefix, schema_version, installed_at, meta_json
          FROM _musq_modules

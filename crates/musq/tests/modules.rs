@@ -6,11 +6,11 @@ mod tests {
     use std::time::Duration;
 
     use musq::{
-        Connection, Database, DatabaseOptions, Error, Module, ModuleError, QuerySurface, Result,
-        Transaction, query, query_scalar,
+        Connection, Database, DatabaseOptions, Error, Module, ModuleError, ModuleRecord, Musq,
+        QuerySurface, Result, Transaction, TransactionBehavior, query, query_scalar,
     };
     use tempfile::tempdir;
-    use tokio::{sync::oneshot, time::timeout};
+    use tokio::{sync::oneshot, task::JoinHandle, time::timeout};
 
     /// Base module A owning prefix `a_`.
     struct ModA;
@@ -534,14 +534,8 @@ mod tests {
         Ok(())
     }
 
-    #[tokio::test]
-    async fn done_mount_queues_no_writer_job() -> anyhow::Result<()> {
-        let dir = tempdir()?;
-        let db = Database::open(dir.path().join("app.db"), DatabaseOptions::new()).await?;
-        let first = db.mount(ModA).await?;
-
-        // Hold the writer in one job: a mount that is done must not queue
-        // behind it.
+    /// Holds the writer of `db` in one job until the returned sender fires.
+    async fn hold_writer(db: &Database) -> (oneshot::Sender<()>, JoinHandle<Result<()>>) {
         let (held_tx, held_rx) = oneshot::channel::<()>();
         let (release_tx, release_rx) = oneshot::channel::<()>();
         let writer = db.clone();
@@ -554,16 +548,118 @@ mod tests {
                 })
                 .await
         });
-        held_rx.await?;
+        held_rx.await.expect("the writer runs the held job");
+        (release_tx, hold)
+    }
 
-        // The bound only turns a wait on the held writer into a failure.
+    /// Spawns a mount of `M` on `db`, and gives it two read-pool round trips
+    /// to finish when it needs no writer job.
+    async fn spawn_mount<M: Module + Send + 'static>(
+        db: &Database,
+        module: M,
+    ) -> anyhow::Result<JoinHandle<Result<ModuleRecord>>> {
+        let mounter = db.clone();
+        let mount = tokio::spawn(async move { mounter.mount(module).await });
+        db.mounted_modules().await?;
+        db.mounted_modules().await?;
+        Ok(mount)
+    }
+
+    #[tokio::test]
+    async fn done_mount_queues_no_writer_job() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db = Database::open(dir.path().join("app.db"), DatabaseOptions::new()).await?;
+        let first = db.mount(ModA).await?;
+
+        // Hold the writer in one job: a mount that is done must not queue
+        // behind it. The bound only turns a wait on the held writer into a
+        // failure.
+        let (release, hold) = hold_writer(&db).await;
         let again = timeout(Duration::from_secs(10), db.mount(ModA))
             .await
             .expect("a done mount waited for the writer")?;
         assert_eq!(again, first);
 
-        release_tx.send(()).ok();
+        release.send(()).ok();
         hold.await??;
+        db.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn first_mount_waits_for_the_writer() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db = Database::open(dir.path().join("app.db"), DatabaseOptions::new()).await?;
+
+        let (release, hold) = hold_writer(&db).await;
+        let mount = spawn_mount(&db, ModA).await?;
+        assert!(!mount.is_finished(), "an install waits for the writer");
+
+        release.send(()).ok();
+        hold.await??;
+        assert_eq!(mount.await??.module_id, ModA::ID);
+        db.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn refused_mount_waits_for_the_writer_and_returns_its_refusal() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db = Database::open(dir.path().join("app.db"), DatabaseOptions::new()).await?;
+        db.mount(ModA).await?;
+        db.mount(ModBV1).await?;
+        db.mount(ModBV2).await?;
+
+        let (release, hold) = hold_writer(&db).await;
+        let mount = spawn_mount(&db, ModBV1).await?;
+        assert!(!mount.is_finished(), "a refusal waits for the writer");
+
+        release.send(()).ok();
+        hold.await??;
+        let err = mount.await?.unwrap_err();
+        assert!(matches!(
+            err,
+            Error::Module(ModuleError::Downgrade {
+                installed_version: 2,
+                target_version: 1,
+                ..
+            })
+        ));
+        db.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn mount_waits_for_an_install_that_has_not_committed() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let path = dir.path().join("app.db");
+        let db = Database::open(&path, DatabaseOptions::new()).await?;
+
+        // A second connection installs `ModA` and holds its transaction open.
+        let other = Musq::new().open(&path).await?;
+        let tx = other.begin_with(TransactionBehavior::Immediate).await?;
+        query("CREATE TABLE a_items (id INTEGER PRIMARY KEY, slug TEXT NOT NULL UNIQUE)")
+            .execute(&tx)
+            .await?;
+        query(
+            "INSERT INTO _musq_modules (module_id, table_prefix, schema_version, installed_at, meta_json)
+             VALUES ('test.mod_a', 'a_', 1, '2026-01-01T00:00:00Z', '{\"by\":\"other\"}')",
+        )
+        .execute(&tx)
+        .await?;
+        assert!(
+            db.mounted_modules().await?.is_empty(),
+            "the read pool does not see an install that has not committed"
+        );
+
+        let mount = spawn_mount(&db, ModA).await?;
+        assert!(!mount.is_finished(), "the mount waits for the install");
+        tx.commit().await?;
+
+        let record = mount.await??;
+        assert_eq!(record.installed_at, "2026-01-01T00:00:00Z");
+        assert_eq!(record.meta_json, r#"{"by":"other"}"#);
+        let () = other.close().await;
         db.close().await?;
         Ok(())
     }
