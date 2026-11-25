@@ -338,17 +338,25 @@ impl Database {
     /// defer_foreign_keys = ON` + `PRAGMA foreign_key_check` on upgrades,
     /// idempotency at matching schema version, and downgrade rejection. On
     /// success, records `module.query_surface()` on this host handle.
+    ///
+    /// A done mount, with `M` in `_musq_modules` at [`Module::SCHEMA_VERSION`],
+    /// reads the registry through the read pool and queues no writer job. Only
+    /// an install or an upgrade waits for the writer.
     pub async fn mount<M: Module>(&self, module: M) -> Result<ModuleRecord> {
         if self.is_read_only() {
             return Err(Error::ReadOnly);
         }
         module::validate_module_identity(M::ID, M::TABLE_PREFIX)?;
 
-        let meta_json = module.meta_json();
         let surface = module.query_surface();
-        let record = self
-            .write(async move |tx| module::mount_in_tx::<M>(tx, &meta_json).await)
-            .await?;
+        let record = match module::done_mount_from_pool::<M>(&self.0.pool).await? {
+            Some(record) => record,
+            None => {
+                let meta_json = module.meta_json();
+                self.write(async move |tx| module::mount_in_tx::<M>(tx, &meta_json).await)
+                    .await?
+            }
+        };
 
         self.register_query_surface(M::ID, surface);
         Ok(record)

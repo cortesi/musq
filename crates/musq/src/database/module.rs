@@ -141,6 +141,58 @@ pub fn validate_module_identity(module_id: &str, prefix: &str) -> Result<()> {
     Ok(())
 }
 
+/// Next step of a mount of `M`, decided from the installed module records.
+enum MountStep {
+    /// `M` is installed at [`Module::SCHEMA_VERSION`], so the mount is done.
+    Done(ModuleRecord),
+    /// `M` is not installed.
+    Install,
+    /// `M` is installed at this older schema version.
+    Upgrade(u32),
+}
+
+/// Decide the mount step of `M` from `installed`, or return the error that
+/// refuses the mount.
+fn mount_step<M: Module>(installed: Vec<ModuleRecord>) -> Result<MountStep> {
+    check_dependencies::<M>(&installed)?;
+    check_prefix_conflict::<M>(&installed)?;
+
+    let Some(existing) = installed.into_iter().find(|rec| rec.module_id == M::ID) else {
+        return Ok(MountStep::Install);
+    };
+    if !existing.table_prefix.eq_ignore_ascii_case(M::TABLE_PREFIX) {
+        return Err(Error::Module(ModuleError::PrefixMismatch {
+            module_id: M::ID.to_owned(),
+            installed_prefix: existing.table_prefix,
+            expected_prefix: M::TABLE_PREFIX.to_owned(),
+        }));
+    }
+    if existing.schema_version == M::SCHEMA_VERSION {
+        return Ok(MountStep::Done(existing));
+    }
+    if existing.schema_version > M::SCHEMA_VERSION {
+        return Err(Error::Module(ModuleError::Downgrade {
+            module_id: M::ID.to_owned(),
+            installed_version: existing.schema_version,
+            target_version: M::SCHEMA_VERSION,
+        }));
+    }
+    Ok(MountStep::Upgrade(existing.schema_version))
+}
+
+/// Return the record of `M` when `pool` shows a done mount of `M`: `M` at
+/// [`Module::SCHEMA_VERSION`] with its dependencies and its prefix intact.
+///
+/// Return `None` when the mount must run in a write transaction. That
+/// transaction decides again, and returns each refusal.
+pub async fn done_mount_from_pool<M: Module>(pool: &Pool) -> Result<Option<ModuleRecord>> {
+    let installed = list_modules_from_pool(pool).await?;
+    Ok(match mount_step::<M>(installed) {
+        Ok(MountStep::Done(record)) => Some(record),
+        Ok(MountStep::Install | MountStep::Upgrade(_)) | Err(_) => None,
+    })
+}
+
 /// Execute module mount (fresh install, idempotent check, or upgrade) inside an
 /// active `BEGIN IMMEDIATE` transaction.
 pub async fn mount_in_tx<M: Module>(
@@ -148,31 +200,13 @@ pub async fn mount_in_tx<M: Module>(
     meta_json: &str,
 ) -> Result<ModuleRecord> {
     let installed = load_modules_in_tx(tx).await?;
-    check_dependencies::<M>(&installed)?;
-    check_prefix_conflict::<M>(&installed)?;
-
-    if let Some(existing) = installed.into_iter().find(|rec| rec.module_id == M::ID) {
-        if !existing.table_prefix.eq_ignore_ascii_case(M::TABLE_PREFIX) {
-            return Err(Error::Module(ModuleError::PrefixMismatch {
-                module_id: M::ID.to_owned(),
-                installed_prefix: existing.table_prefix,
-                expected_prefix: M::TABLE_PREFIX.to_owned(),
-            }));
+    match mount_step::<M>(installed)? {
+        MountStep::Done(existing) => Ok(existing),
+        MountStep::Install => install_module_in_tx::<M>(tx, meta_json).await,
+        MountStep::Upgrade(from_version) => {
+            upgrade_module_in_tx::<M>(tx, from_version, meta_json).await
         }
-        if existing.schema_version == M::SCHEMA_VERSION {
-            return Ok(existing);
-        }
-        if existing.schema_version > M::SCHEMA_VERSION {
-            return Err(Error::Module(ModuleError::Downgrade {
-                module_id: M::ID.to_owned(),
-                installed_version: existing.schema_version,
-                target_version: M::SCHEMA_VERSION,
-            }));
-        }
-        return upgrade_module_in_tx::<M>(tx, existing.schema_version, meta_json).await;
     }
-
-    install_module_in_tx::<M>(tx, meta_json).await
 }
 
 /// Fresh-install `M` inside `tx`, verifying every newly created schema object

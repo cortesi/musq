@@ -3,11 +3,14 @@
 
 #[cfg(test)]
 mod tests {
+    use std::time::Duration;
+
     use musq::{
         Connection, Database, DatabaseOptions, Error, Module, ModuleError, QuerySurface, Result,
         Transaction, query, query_scalar,
     };
     use tempfile::tempdir;
+    use tokio::{sync::oneshot, time::timeout};
 
     /// Base module A owning prefix `a_`.
     struct ModA;
@@ -528,6 +531,40 @@ mod tests {
             Error::Module(ModuleError::NotInstalled { .. })
         ));
         ro.close().await?;
+        Ok(())
+    }
+
+    #[tokio::test]
+    async fn done_mount_queues_no_writer_job() -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db = Database::open(dir.path().join("app.db"), DatabaseOptions::new()).await?;
+        let first = db.mount(ModA).await?;
+
+        // Hold the writer in one job: a mount that is done must not queue
+        // behind it.
+        let (held_tx, held_rx) = oneshot::channel::<()>();
+        let (release_tx, release_rx) = oneshot::channel::<()>();
+        let writer = db.clone();
+        let hold = tokio::spawn(async move {
+            writer
+                .write(async move |_tx| {
+                    held_tx.send(()).ok();
+                    release_rx.await.ok();
+                    Ok::<_, Error>(())
+                })
+                .await
+        });
+        held_rx.await?;
+
+        // The bound only turns a wait on the held writer into a failure.
+        let again = timeout(Duration::from_secs(10), db.mount(ModA))
+            .await
+            .expect("a done mount waited for the writer")?;
+        assert_eq!(again, first);
+
+        release_tx.send(()).ok();
+        hold.await??;
+        db.close().await?;
         Ok(())
     }
 
