@@ -579,6 +579,15 @@ pub trait Module {
     const DEPENDS_ON: &'static [&'static str] = _;
     /// Stable module identifier (for example `"verber.webtrace"`).
     const ID: &'static str;
+    /// Minimum installed schema version accepted by
+    /// [`crate::Database::verify_module`].
+    ///
+    /// Defaults to [`Self::SCHEMA_VERSION`], requiring an exact version match.
+    /// Modules whose newer schema versions only add tables unused by read-only
+    /// consumers may set this to an earlier compatible version; writable
+    /// [`crate::Database::mount`] still upgrades every installed version below
+    /// [`Self::SCHEMA_VERSION`].
+    const MIN_READ_VERSION: u32 = Self::SCHEMA_VERSION;
     /// Current schema version of this module.
     const SCHEMA_VERSION: u32;
     /// Required prefix for every table, index, and trigger owned by this
@@ -1138,7 +1147,8 @@ impl Database {
     pub fn register_query_surface(&self, module_id: impl Into<String>, surface: QuerySurface);
 
     /// Verify that module `M` is installed in `_musq_modules` with matching
-    /// `TABLE_PREFIX` and `SCHEMA_VERSION`.
+    /// `TABLE_PREFIX` and an installed `schema_version` in
+    /// `M::MIN_READ_VERSION..=M::SCHEMA_VERSION`.
     ///
     /// Works on both writable and read-only hosts regardless of host
     /// `application_id` or `user_version`.

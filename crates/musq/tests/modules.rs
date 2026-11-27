@@ -926,4 +926,95 @@ mod tests {
         db.close().await?;
         Ok(())
     }
+
+    /// Module v2 that tolerates reading v1 archives while still migrating
+    /// writable databases from v1 to v2.
+    struct ModReadCompatV2;
+
+    impl Module for ModReadCompatV2 {
+        const ID: &'static str = "test.mod_b";
+        const TABLE_PREFIX: &'static str = "b_";
+        const SCHEMA_VERSION: u32 = 2;
+        const MIN_READ_VERSION: u32 = 1;
+        const DEPENDS_ON: &'static [&'static str] = &["test.mod_a"];
+
+        async fn install(tx: &mut Transaction<&mut Connection>) -> Result<()> {
+            ModBV2::install(tx).await
+        }
+
+        async fn migrate(tx: &mut Transaction<&mut Connection>, from_version: u32) -> Result<()> {
+            ModBV2::migrate(tx, from_version).await
+        }
+    }
+
+    #[tokio::test]
+    async fn verify_module_respects_min_read_version_while_mount_still_migrates()
+    -> anyhow::Result<()> {
+        let dir = tempdir()?;
+        let db_path = dir.path().join("compat.db");
+
+        // Install v1 and close.
+        let db = Database::open(&db_path, DatabaseOptions::new()).await?;
+        db.mount(ModA).await?;
+        db.mount(ModBV1).await?;
+        db.close().await?;
+
+        // Read-only verify_module accepts v1 when MIN_READ_VERSION == 1 and
+        // reports installed version 1, while default exact-match ModBV2 still
+        // rejects v1.
+        let ro = Database::open_read_only(&db_path, false).await?;
+        let compat = ro.verify_module::<ModReadCompatV2>().await?;
+        assert_eq!(compat.schema_version, 1);
+        let strict_err = ro.verify_module::<ModBV2>().await.unwrap_err();
+        assert!(matches!(
+            strict_err,
+            Error::Module(ModuleError::VersionMismatch {
+                installed_version: 1,
+                expected_version: 2,
+                ..
+            })
+        ));
+        ro.close().await?;
+
+        // Out-of-range versions (< MIN_READ_VERSION or > SCHEMA_VERSION) are
+        // still rejected.
+        let db = Database::open(&db_path, DatabaseOptions::new()).await?;
+        for bad_version in [0_i64, 3_i64] {
+            db.write(async move |tx| -> Result<()> {
+                query("UPDATE _musq_modules SET schema_version = ? WHERE module_id = 'test.mod_b'")
+                    .bind(bad_version)
+                    .execute(&**tx)
+                    .await?;
+                Ok(())
+            })
+            .await?;
+            let ro_bad = Database::open_read_only(&db_path, false).await?;
+            let err = ro_bad.verify_module::<ModReadCompatV2>().await.unwrap_err();
+            assert!(matches!(
+                err,
+                Error::Module(ModuleError::VersionMismatch {
+                    installed_version,
+                    expected_version: 2,
+                    ..
+                }) if i64::from(installed_version) == bad_version
+            ));
+            ro_bad.close().await?;
+        }
+
+        // Restore v1, then mount writable with ModReadCompatV2: writable mount
+        // still upgrades v1 -> v2.
+        db.write(async |tx| -> Result<()> {
+            query("UPDATE _musq_modules SET schema_version = 1 WHERE module_id = 'test.mod_b'")
+                .execute(&**tx)
+                .await?;
+            Ok(())
+        })
+        .await?;
+        let upgraded = db.mount(ModReadCompatV2).await?;
+        assert_eq!(upgraded.schema_version, 2);
+        let verified_v2 = db.verify_module::<ModReadCompatV2>().await?;
+        assert_eq!(verified_v2.schema_version, 2);
+        db.close().await?;
+        Ok(())
+    }
 }

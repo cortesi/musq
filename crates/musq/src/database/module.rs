@@ -40,6 +40,15 @@ pub trait Module {
     const TABLE_PREFIX: &'static str;
     /// Current schema version of this module.
     const SCHEMA_VERSION: u32;
+    /// Minimum installed schema version accepted by
+    /// [`crate::Database::verify_module`].
+    ///
+    /// Defaults to [`Self::SCHEMA_VERSION`], requiring an exact version match.
+    /// Modules whose newer schema versions only add tables unused by read-only
+    /// consumers may set this to an earlier compatible version; writable
+    /// [`crate::Database::mount`] still upgrades every installed version below
+    /// [`Self::SCHEMA_VERSION`].
+    const MIN_READ_VERSION: u32 = Self::SCHEMA_VERSION;
     /// Module identifiers that must already be installed before this module
     /// mounts.
     const DEPENDS_ON: &'static [&'static str] = &[];
@@ -545,8 +554,8 @@ pub async fn load_module_from_pool(pool: &Pool, module_id: &str) -> Result<Optio
     row.map(decode_module_row).transpose()
 }
 
-/// Verify that module `M` is installed in `pool` with matching prefix and
-/// schema version.
+/// Verify that module `M` is installed in `pool` with matching prefix and an
+/// installed schema version in `M::MIN_READ_VERSION..=M::SCHEMA_VERSION`.
 pub async fn verify_module_from_pool<M: Module>(pool: &Pool) -> Result<ModuleRecord> {
     let Some(record) = load_module_from_pool(pool, M::ID).await? else {
         return Err(Error::Module(ModuleError::NotInstalled {
@@ -560,7 +569,7 @@ pub async fn verify_module_from_pool<M: Module>(pool: &Pool) -> Result<ModuleRec
             expected_prefix: M::TABLE_PREFIX.to_owned(),
         }));
     }
-    if record.schema_version != M::SCHEMA_VERSION {
+    if !(M::MIN_READ_VERSION..=M::SCHEMA_VERSION).contains(&record.schema_version) {
         return Err(Error::Module(ModuleError::VersionMismatch {
             module_id: M::ID.to_owned(),
             installed_version: record.schema_version,

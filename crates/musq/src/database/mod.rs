@@ -410,7 +410,8 @@ impl Database {
     }
 
     /// Verify that module `M` is installed in `_musq_modules` with matching
-    /// `TABLE_PREFIX` and `SCHEMA_VERSION`.
+    /// `TABLE_PREFIX` and an installed `schema_version` in
+    /// `M::MIN_READ_VERSION..=M::SCHEMA_VERSION`.
     ///
     /// Works on both writable and read-only hosts regardless of host
     /// `application_id` or `user_version`.
